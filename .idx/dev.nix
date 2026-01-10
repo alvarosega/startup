@@ -2,13 +2,18 @@
 # see: https://developers.google.com/idx/guides/customize-idx-env
 {pkgs}: {
   # Which nixpkgs channel to use.
-  channel = "stable-24.05"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
+  channel = "stable-24.05"; 
+
   packages = [
     pkgs.php82
     pkgs.php82Packages.composer
-    pkgs.nodejs_20
+    pkgs.nodejs_20  # Volvemos a Node 20 (el estándar actual)
+    pkgs.mysql80
   ];
+  services.mysql = {
+    enable = true;
+    package = pkgs.mysql80;
+  };
   # Sets environment variables in the workspace
   env = {};
   idx = {
