@@ -24,7 +24,7 @@ class BrandController extends Controller
 
     public function create()
     {
-        return Inertia::render('Admin/SuperAdmin/Brands/Create', [
+        return Inertia::render('Admin/Brands/Create', [
             'providers' => Provider::where('is_active', true)->orderBy('commercial_name')->get(['id', 'commercial_name']),
             'categories' => Category::orderBy('name')->get(['id', 'name'])
         ]);
@@ -53,7 +53,7 @@ class BrandController extends Controller
         // Cargamos la relación pivot para que el formulario sepa cuáles marcar
         $brand->load('categories');
 
-        return Inertia::render('Admin/SuperAdmin/Brands/Edit', [
+        return Inertia::render('Admin/Brands/Edit', [
             'brand' => $brand,
             'providers' => Provider::where('is_active', true)->orderBy('commercial_name')->get(['id', 'commercial_name']),
             'categories' => Category::orderBy('name')->get(['id', 'name']),

@@ -6,46 +6,50 @@ use App\Http\Controllers\Controller;
 use App\Models\Sku;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\Price; 
 
 class SkuController extends Controller
 {
-    public function index(Request $request)
+    public function store(Request $request)
     {
-        // Eager loading optimizado: Producto, Marca y Categoría
-        $query = Sku::with(['product.brand', 'product.category']);
-
-        if ($request->search) {
-            $query->where(function($q) use ($request) {
-                // Búsqueda en columnas en INGLÉS
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('code', 'like', "%{$request->search}%")
-                  ->orWhereHas('product', function($q2) use ($request) {
-                      $q2->where('name', 'like', "%{$request->search}%");
-                  });
-            });
-        }
-
-        $skus = $query->orderBy('created_at', 'desc')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(function ($sku) {
-                return [
-                    'id' => $sku->id,
-                    'product_id' => $sku->product_id,
-                    'code' => $sku->code,
-                    'name' => $sku->name,
-                    'factor' => $sku->conversion_factor,
-                    // Manejo de nulos por si se borró el padre (SoftDelete)
-                    'product_name' => $sku->product ? $sku->product->name : 'Producto Eliminado',
-                    'brand_name' => $sku->product?->brand ? $sku->product->brand->name : '-',
-                    'category_name' => $sku->product?->category ? $sku->product->category->name : '-',
-                ];
-            });
-
-        return Inertia::render('Admin/Skus/Index', [
-            'skus' => $skus,
-            'filters' => $request->only(['search'])
+        // Validación estricta
+        $data = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:skus,code',
+            'conversion_factor' => 'required|numeric|min:1',
+            'weight' => 'nullable|numeric|min:0',
+            'price' => 'required|numeric|min:0', // Precio base
         ]);
+
+        // 1. Crear el SKU
+        $sku = Sku::create([
+            'product_id' => $data['product_id'],
+            'name' => $data['name'],
+            'code' => $data['code'],
+            'conversion_factor' => $data['conversion_factor'],
+            'weight' => $data['weight'] ?? 0,
+            'is_active' => true
+        ]);
+
+        // 2. Crear el Precio Inicial
+        Price::create([
+            'sku_id' => $sku->id,
+            'list_price' => $data['price'],
+            'final_price' => $data['price'],
+            'min_quantity' => 1,
+            'valid_from' => now()
+        ]);
+
+        return back()->with('message', 'SKU añadido correctamente.');
+    }
+
+    public function destroy($id)
+    {
+        $sku = Sku::findOrFail($id);
+        // Aquí podrías agregar validación de stock antes de borrar
+        $sku->delete();
+        return back()->with('message', 'SKU archivado.');
     }
 
     // No implementamos create/store aquí. 
@@ -58,16 +62,5 @@ class SkuController extends Controller
         return redirect()->route('admin.products.edit', $sku->product_id);
     }
     
-    public function destroy($id)
-    {
-        $sku = Sku::findOrFail($id);
-        
-        // Validación de Stock (Opcional pero recomendada)
-        // if ($sku->inventoryLots()->where('quantity', '>', 0)->exists()) {
-        //    return back()->withErrors(['error' => 'No se puede eliminar: Tiene stock activo.']);
-        // }
 
-        $sku->delete();
-        return back()->with('message', 'SKU archivado correctamente.');
-    }
 }

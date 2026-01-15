@@ -12,14 +12,23 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use App\Http\Requests\Admin\StoreUserRequest;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
+
 
 class UserController extends Controller
 {
+    use AuthorizesRequests;
+
     public function index(Request $request)
     {
         $filters = $request->only(['search', 'role_id', 'branch_id']);
 
         $usersQuery = User::with(['roles', 'branch', 'profile'])
+            ->when(auth()->user()->hasRole('branch_admin'), function ($q) {
+                $q->where('branch_id', auth()->user()->branch_id);
+            })
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('phone', 'like', "%{$search}%")
@@ -61,14 +70,33 @@ class UserController extends Controller
 
     public function create()
     {
+        $user = auth()->user();
+        $isSuper = $user->hasRole('super_admin');
+
+        // Lógica B: Filtrar roles permitidos
+        $rolesQuery = Role::where('name', '!=', 'super_admin');
+        
+        if (!$isSuper) {
+            // El Branch Admin no puede crear Jefes ni otros Admins
+            $rolesQuery->whereNotIn('name', ['branch_admin', 'finance_manager', 'logistics_manager']);
+        }
+
+        // Lógica C: Filtrar sucursales
+        $branches = $isSuper 
+            ? Branch::where('is_active', true)->get() 
+            : Branch::where('id', $user->branch_id)->get(); // Solo ve la suya
+
         return Inertia::render('Admin/Users/Create', [
-            'roles' => Role::where('name', '!=', 'super_admin')->get(),
-            'branches' => Branch::where('is_active', true)->get()
+            'roles' => $rolesQuery->get(),
+            'branches' => $branches
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreUserRequest $request) // <--- Cambio de tipo
     {
+        // El Request ya validó, inyectó la sucursal y filtró roles.
+        // Simplemente usamos $request->validated()
+        $validated = $request->validated();
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -107,6 +135,10 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        if (auth()->user()->hasRole('branch_admin') && $user->branch_id !== auth()->user()->branch_id) {
+            abort(404);
+        }
+        
         $user->load(['profile', 'roles']); // Ya no cargamos additionalBranches
 
         return Inertia::render('Admin/Users/Edit', [
@@ -126,6 +158,9 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        if (auth()->user()->hasRole('branch_admin') && $user->branch_id !== auth()->user()->branch_id) {
+            abort(404);
+        }
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -165,6 +200,9 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        if (auth()->user()->hasRole('branch_admin') && $user->branch_id !== auth()->user()->branch_id) {
+            abort(404);
+        }
         if ($user->id === auth()->id()) {
             return back()->withErrors(['error' => 'No puedes eliminar tu propia cuenta.']);
         }

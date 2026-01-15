@@ -1,15 +1,29 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
     import { useForm, Link } from '@inertiajs/vue3';
-    import { computed } from 'vue';
+    import { ref, computed, watch } from 'vue';
     
+    // Iconos
+    import { 
+        Package, Layers, Tag, Barcode, Scale, DollarSign, 
+        Plus, Trash2, ArrowRight, ArrowLeft, Save, CheckCircle, 
+        UploadCloud, AlertTriangle, Info, Wine 
+    } from 'lucide-vue-next';
+
     const props = defineProps({
         brands: Array,
         categories: Array
     });
+
+    const currentStep = ref(1);
     
+    const steps = [
+        { id: 1, title: 'Concepto', icon: Package, fields: ['name', 'brand_id', 'category_id'] },
+        { id: 2, title: 'Detalles', icon: Info, fields: ['description', 'image'] },
+        { id: 3, title: 'Presentaciones', icon: Barcode, fields: ['skus'] }, // El paso complejo
+    ];
+
     const form = useForm({
-        // Datos del Padre (Producto)
         name: '',
         brand_id: '',
         category_id: '',
@@ -17,185 +31,279 @@
         image: null,
         is_active: true,
         is_alcoholic: false,
-        
-        // Datos de los Hijos (SKUs) - Mínimo 1
         skus: [
             { name: '', code: '', price: 0, conversion_factor: 1, weight: 0 }
         ]
     });
-    
-    // Helper: Mostrar info del proveedor al elegir marca
-    const selectedBrandInfo = computed(() => {
-        if (!form.brand_id) return null;
-        return props.brands.find(b => b.id === form.brand_id);
-    });
-    
-    // Gestión Dinámica de Filas SKU
+
+    // --- LÓGICA DE SKUS ---
     const addSku = () => {
         form.skus.push({ name: '', code: '', price: 0, conversion_factor: 1, weight: 0 });
     };
-    
+
     const removeSku = (index) => {
         if (form.skus.length > 1) form.skus.splice(index, 1);
     };
-    
-    // Copiar nombre padre a SKU (UX helper)
+
+    // Auto-rellenar nombre del primer SKU con el nombre del producto (UX Helper)
     const copyNameToSku = () => {
         if(form.name && form.skus[0].name === '') {
-            form.skus[0].name = form.name;
+            form.skus[0].name = form.name + ' (Unidad)';
         }
-    }
+    };
+
+    // --- NAVEGACIÓN ---
+    const nextStep = () => {
+        if (currentStep.value === 1) {
+            if (!form.name) { form.setError('name', 'Nombre requerido'); return; }
+            if (!form.brand_id) { form.setError('brand_id', 'Marca requerida'); return; }
+            if (!form.category_id) { form.setError('category_id', 'Categoría requerida'); return; }
+            copyNameToSku(); // Trigger automático al pasar al paso 2
+        }
+        if (currentStep.value < steps.length) currentStep.value++;
+    };
+
+    const prevStep = () => {
+        if (currentStep.value > 1) currentStep.value--;
+    };
 
     const submit = () => {
-        form.post(route('admin.products.store'), { forceFormData: true });
+        // Validar paso 3 antes de enviar
+        const invalidSku = form.skus.find(s => !s.name || !s.code || s.price <= 0);
+        if (invalidSku) {
+            alert('Por favor completa todos los campos de los SKUs (Nombre, Código y Precio > 0).');
+            return;
+        }
+
+        form.post(route('admin.products.store'), { 
+            forceFormData: true,
+            preserveScroll: true,
+            onError: (errors) => {
+                // Si hay error en backend, volver al paso 1 por seguridad o detectar campo
+                console.error(errors);
+            }
+        });
+    };
+
+    // --- UTILS ---
+    const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
+    
+    const imagePreview = ref(null);
+    const handleImage = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            form.image = file;
+            imagePreview.value = URL.createObjectURL(file);
+        }
     };
 </script>
 
 <template>
     <AdminLayout>
-        <div class="max-w-6xl mx-auto">
+        <div class="max-w-5xl mx-auto py-6">
             
-            <div class="mb-6 flex justify-between items-end">
-                <div>
-                    <h1 class="text-2xl font-bold text-white">Alta de Producto Maestro</h1>
-                    <p class="text-gray-400 text-sm">Define el producto base y sus presentaciones de venta.</p>
+            <div class="mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 class="text-2xl font-black text-skin-base tracking-tight">Alta de Producto</h1>
+                        <p class="text-skin-muted text-sm mt-1">Define el producto maestro y sus variantes</p>
+                    </div>
+                    <Link :href="route('admin.products.index')" class="text-sm font-bold text-skin-muted hover:text-skin-danger transition-colors">Cancelar</Link>
                 </div>
-            </div>
 
-            <div v-if="Object.keys(form.errors).length > 0" class="mb-6 bg-red-900/30 border-l-4 border-red-500 text-red-200 p-4 rounded">
-                <p class="font-bold mb-1">⛔ Error de Validación:</p>
-                <ul class="list-disc list-inside text-xs">
-                    <li v-for="(error, field) in form.errors" :key="field">{{ error }}</li>
-                </ul>
-            </div>
+                <div class="relative px-4">
+                    <div class="absolute top-5 left-0 w-full h-1 bg-skin-border -z-10 rounded-full"></div>
+                    <div class="absolute top-5 left-0 h-1 bg-skin-primary -z-10 rounded-full transition-all duration-500 ease-out" :style="{ width: progressPercentage + '%' }"></div>
 
-            <form @submit.prevent="submit" class="space-y-8">
-                
-                <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg">
-                    <h2 class="text-blue-400 font-bold text-sm uppercase mb-4 border-b border-gray-700 pb-2 flex items-center gap-2">
-                        <span>1. Definición del Producto</span>
-                        <span class="text-gray-500 text-[10px] normal-case">(Concepto General)</span>
-                    </h2>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-                        
-                        <div class="md:col-span-3">
-                            <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Imagen Principal</label>
-                            <div class="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center hover:bg-gray-750 transition cursor-pointer relative h-40 flex flex-col items-center justify-center">
-                                <input type="file" @input="form.image = $event.target.files[0]" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
-                                <span v-if="!form.image" class="text-4xl text-gray-600 mb-2">📷</span>
-                                <span v-if="!form.image" class="text-xs text-gray-400">Clic para subir</span>
-                                <span v-else class="text-green-400 text-xs font-bold">Imagen Seleccionada</span>
+                    <div class="flex justify-between">
+                        <div v-for="step in steps" :key="step.id" 
+                             class="flex flex-col items-center gap-2 cursor-pointer group"
+                             @click="currentStep >= step.id ? currentStep = step.id : null">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all bg-skin-fill-card"
+                                 :class="[currentStep === step.id ? 'border-skin-primary text-skin-primary scale-110 shadow-lg' : currentStep > step.id ? 'border-skin-success bg-skin-success text-white' : 'border-skin-border text-skin-muted']">
+                                <CheckCircle v-if="currentStep > step.id" :size="20" />
+                                <component v-else :is="step.icon" :size="18" />
                             </div>
-                        </div>
-
-                        <div class="md:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            
-                            <div class="md:col-span-2">
-                                <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Nombre del Producto *</label>
-                                <input v-model="form.name" @blur="copyNameToSku" type="text" placeholder="Ej: Ron Abuelo 12 Años" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-3 focus:border-blue-500 outline-none text-lg font-bold">
-                            </div>
-
-                            <div>
-                                <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Marca *</label>
-                                <select v-model="form.brand_id" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-3 focus:border-blue-500 outline-none">
-                                    <option value="" disabled>-- Selecciona --</option>
-                                    <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
-                                </select>
-                                <p v-if="selectedBrandInfo" class="text-[10px] text-gray-500 mt-1">
-                                    Proveedor: <span class="text-blue-300">{{ selectedBrandInfo.provider_id ? 'Asignado' : 'Sin Proveedor' }}</span>
-                                </p>
-                            </div>
-
-                            <div>
-                                <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Categoría *</label>
-                                <select v-model="form.category_id" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-3 focus:border-blue-500 outline-none">
-                                    <option value="" disabled>-- Selecciona --</option>
-                                    <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
-                            </div>
-
-                            <div class="md:col-span-2">
-                                <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Descripción (Marketing)</label>
-                                <textarea v-model="form.description" rows="2" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-3 focus:border-blue-500 outline-none text-sm"></textarea>
-                            </div>
-
-                            <div class="flex items-center gap-4 mt-2">
-                                <label class="flex items-center space-x-2 cursor-pointer bg-gray-900 p-2 rounded border border-gray-700">
-                                    <input v-model="form.is_active" type="checkbox" class="w-4 h-4 rounded bg-gray-700 border-gray-500 text-blue-600">
-                                    <span class="text-gray-300 text-xs font-bold">Activo</span>
-                                </label>
-                                <label class="flex items-center space-x-2 cursor-pointer bg-gray-900 p-2 rounded border border-gray-700">
-                                    <input v-model="form.is_alcoholic" type="checkbox" class="w-4 h-4 rounded bg-gray-700 border-gray-500 text-yellow-500">
-                                    <span class="text-gray-300 text-xs font-bold">Bebida Alcohólica (+18)</span>
-                                </label>
-                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-skin-fill px-1" :class="currentStep >= step.id ? 'text-skin-base' : 'text-skin-muted'">{{ step.title }}</span>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden">
-                    <div class="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
-                        <h2 class="text-green-400 font-bold text-sm uppercase flex items-center gap-2">
-                            <span>2. Presentaciones de Venta (SKUs)</span>
-                            <span class="bg-gray-700 text-white px-2 rounded-full text-xs">{{ form.skus.length }}</span>
-                        </h2>
-                        <button type="button" @click="addSku" class="bg-green-700 hover:bg-green-600 text-white text-xs px-4 py-2 rounded font-bold transition flex items-center gap-1">
-                            <span>+</span> Agregar Variante
+            <div class="bg-skin-fill-card border border-skin-border rounded-global shadow-xl overflow-hidden min-h-[500px] flex flex-col">
+                <form class="flex-1 flex flex-col">
+                    <div class="p-8 flex-1">
+                        <Transition name="fade" mode="out-in">
+                            
+                            <div v-if="currentStep === 1" key="1" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div class="col-span-2">
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Nombre del Producto Maestro *</label>
+                                        <input v-model="form.name" type="text" 
+                                               class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-4 text-xl font-bold focus:ring-2 focus:ring-skin-primary outline-none placeholder-skin-muted/50" 
+                                               placeholder="Ej: Ron Abuelo 12 Años"
+                                               @blur="copyNameToSku">
+                                        <p v-if="form.errors.name" class="text-skin-danger text-xs mt-1">{{ form.errors.name }}</p>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Marca *</label>
+                                        <div class="relative">
+                                            <Tag :size="16" class="absolute left-3 top-3.5 text-skin-muted" />
+                                            <select v-model="form.brand_id" class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 pl-10 outline-none focus:border-skin-primary appearance-none">
+                                                <option value="" disabled>-- Selecciona Marca --</option>
+                                                <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+                                            </select>
+                                        </div>
+                                        <p v-if="form.errors.brand_id" class="text-skin-danger text-xs mt-1">{{ form.errors.brand_id }}</p>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Categoría *</label>
+                                        <div class="relative">
+                                            <Layers :size="16" class="absolute left-3 top-3.5 text-skin-muted" />
+                                            <select v-model="form.category_id" class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 pl-10 outline-none focus:border-skin-primary appearance-none">
+                                                <option value="" disabled>-- Selecciona Categoría --</option>
+                                                <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                            </select>
+                                        </div>
+                                        <p v-if="form.errors.category_id" class="text-skin-danger text-xs mt-1">{{ form.errors.category_id }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else-if="currentStep === 2" key="2" class="space-y-6">
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <div class="lg:col-span-1">
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Imagen Principal</label>
+                                        <div class="relative w-full aspect-square bg-skin-fill border-2 border-dashed border-skin-border rounded-global flex flex-col items-center justify-center cursor-pointer hover:border-skin-primary hover:bg-skin-primary/5 transition group overflow-hidden">
+                                            <input type="file" @change="handleImage" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-20">
+                                            <img v-if="imagePreview" :src="imagePreview" class="absolute inset-0 w-full h-full object-contain p-2 z-10">
+                                            
+                                            <div class="text-center p-4 z-0 group-hover:scale-110 transition-transform duration-300" :class="imagePreview ? 'opacity-0' : ''">
+                                                <UploadCloud :size="32" class="mx-auto text-skin-muted mb-2" />
+                                                <p class="text-xs text-skin-muted font-bold">Subir Foto</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="lg:col-span-2 space-y-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Descripción (Marketing)</label>
+                                            <textarea v-model="form.description" rows="4" 
+                                                      class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 outline-none focus:border-skin-primary resize-none"
+                                                      placeholder="Describe el sabor, origen y características..."></textarea>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <label class="flex items-center gap-3 p-4 border border-skin-border rounded-global cursor-pointer hover:border-skin-primary transition bg-skin-fill/50">
+                                                <input v-model="form.is_active" type="checkbox" class="w-5 h-5 accent-skin-primary">
+                                                <div>
+                                                    <span class="block text-sm font-bold text-skin-base">Producto Activo</span>
+                                                    <span class="text-[10px] text-skin-muted">Visible en catálogo</span>
+                                                </div>
+                                            </label>
+
+                                            <label class="flex items-center gap-3 p-4 border border-skin-border rounded-global cursor-pointer hover:border-skin-warning transition bg-skin-fill/50">
+                                                <input v-model="form.is_alcoholic" type="checkbox" class="w-5 h-5 accent-skin-warning">
+                                                <div>
+                                                    <span class="block text-sm font-bold text-skin-base flex items-center gap-1">
+                                                        <Wine :size="14" class="text-skin-warning"/> Bebida Alcohólica
+                                                    </span>
+                                                    <span class="text-[10px] text-skin-muted">Requiere +18 años</span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else key="3" class="space-y-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div>
+                                        <h3 class="text-lg font-bold text-skin-base">Variantes de Venta</h3>
+                                        <p class="text-xs text-skin-muted">Define los códigos de barra y presentaciones.</p>
+                                    </div>
+                                    <button type="button" @click="addSku" class="flex items-center gap-2 px-3 py-1.5 bg-skin-success/10 text-skin-success border border-skin-success/20 rounded-global text-xs font-bold hover:bg-skin-success hover:text-white transition">
+                                        <Plus :size="14" /> Agregar Variante
+                                    </button>
+                                </div>
+
+                                <div class="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
+                                    <div v-for="(sku, index) in form.skus" :key="index" 
+                                         class="bg-skin-fill/50 border border-skin-border rounded-global p-4 relative group hover:border-skin-primary transition-colors">
+                                        
+                                        <button v-if="form.skus.length > 1" type="button" @click="removeSku(index)" 
+                                                class="absolute top-2 right-2 text-skin-muted hover:text-skin-danger p-1 rounded transition">
+                                            <Trash2 :size="14" />
+                                        </button>
+
+                                        <div class="grid grid-cols-12 gap-4 items-end">
+                                            <div class="col-span-4">
+                                                <label class="block text-[10px] font-bold text-skin-muted uppercase mb-1">Nombre Presentación</label>
+                                                <input v-model="sku.name" type="text" placeholder="Ej: Botella 750ml" 
+                                                       class="w-full bg-skin-fill-card border border-skin-border text-skin-base rounded-global p-2 text-sm focus:border-skin-primary outline-none">
+                                            </div>
+
+                                            <div class="col-span-3">
+                                                <label class="block text-[10px] font-bold text-skin-muted uppercase mb-1 flex items-center gap-1"><Barcode :size="10"/> Código EAN</label>
+                                                <input v-model="sku.code" type="text" placeholder="EAN-13" 
+                                                       class="w-full bg-skin-fill-card border border-skin-border text-skin-base rounded-global p-2 text-sm font-mono focus:border-skin-primary outline-none">
+                                            </div>
+
+                                            <div class="col-span-2">
+                                                <label class="block text-[10px] font-bold text-skin-muted uppercase mb-1 text-center">Unidades</label>
+                                                <input v-model.number="sku.conversion_factor" type="number" min="1" 
+                                                       class="w-full bg-skin-fill-card border border-skin-border text-skin-base rounded-global p-2 text-sm text-center focus:border-skin-primary outline-none">
+                                            </div>
+
+                                            <div class="col-span-3">
+                                                <label class="block text-[10px] font-bold text-skin-success uppercase mb-1 text-right flex items-center justify-end gap-1"><DollarSign :size="10"/> Precio Base</label>
+                                                <input v-model.number="sku.price" type="number" step="0.01" min="0" 
+                                                       class="w-full bg-skin-fill-card border border-skin-border text-skin-success font-bold rounded-global p-2 text-sm text-right focus:border-skin-success outline-none">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mt-3 pt-3 border-t border-skin-border/50 grid grid-cols-12 gap-4">
+                                            <div class="col-span-3">
+                                                <label class="block text-[9px] font-bold text-skin-muted uppercase mb-1 flex items-center gap-1"><Scale :size="9"/> Peso (Kg)</label>
+                                                <input v-model.number="sku.weight" type="number" step="0.01" 
+                                                       class="w-full bg-skin-fill-card border border-skin-border text-skin-muted rounded-global p-1.5 text-xs outline-none">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-skin-fill/30 p-3 rounded-global flex items-center gap-2 text-skin-muted text-xs border border-skin-border border-dashed">
+                                    <Info :size="14" />
+                                    <p>El primer SKU suele ser la "Unidad Base". Si vendes por cajas, agrega otro SKU con el factor de conversión correcto (ej: 6).</p>
+                                </div>
+                            </div>
+
+                        </Transition>
+                    </div>
+
+                    <div class="px-8 py-4 bg-skin-fill/50 border-t border-skin-border flex justify-between items-center">
+                        <button type="button" @click="prevStep" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-skin-muted hover:text-skin-base disabled:opacity-0" :disabled="currentStep === 1">
+                            <ArrowLeft :size="16" /> Atrás
+                        </button>
+
+                        <button v-if="currentStep < steps.length" type="button" @click="nextStep" class="flex items-center gap-2 px-6 py-2.5 bg-skin-fill-card border border-skin-border hover:border-skin-primary text-skin-base rounded-global text-sm font-bold shadow-sm active:scale-95 transition-all">
+                            Siguiente <ArrowRight :size="16" />
+                        </button>
+
+                        <button v-else type="button" @click="submit" :disabled="form.processing" class="flex items-center gap-2 px-8 py-2.5 bg-skin-primary hover:bg-skin-primary-hover text-skin-primary-text rounded-global text-sm font-bold shadow-lg shadow-skin-primary/30 active:scale-95 transition-all disabled:opacity-50">
+                            <span v-if="form.processing">Guardando...</span>
+                            <span v-else class="flex items-center gap-2"><Save :size="18" /> Crear Catálogo</span>
                         </button>
                     </div>
-
-                    <div class="p-4 space-y-3">
-                        <div class="grid grid-cols-12 gap-4 text-[10px] uppercase font-bold text-gray-500 px-2">
-                            <div class="col-span-4">Nombre Presentación</div>
-                            <div class="col-span-2">Código (EAN)</div>
-                            <div class="col-span-2 text-center">Unidades (Factor)</div>
-                            <div class="col-span-2 text-center">Peso (Kg)</div>
-                            <div class="col-span-2 text-right">Precio Base (Bs)</div>
-                        </div>
-
-                        <div v-for="(sku, index) in form.skus" :key="index" class="relative group">
-                            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-gray-750 p-3 rounded border border-gray-600 hover:border-green-500 transition">
-                                
-                                <button v-if="form.skus.length > 1" type="button" @click="removeSku(index)" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-500 z-10">✕</button>
-
-                                <div class="md:col-span-4">
-                                    <input v-model="sku.name" type="text" placeholder="Ej: Botella 750ml" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-2 text-sm focus:border-green-500 outline-none">
-                                </div>
-                                
-                                <div class="md:col-span-2">
-                                    <input v-model="sku.code" type="text" placeholder="EAN-13" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-2 text-sm font-mono focus:border-green-500 outline-none">
-                                </div>
-
-                                <div class="md:col-span-2">
-                                    <input v-model.number="sku.conversion_factor" type="number" min="1" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-2 text-sm text-center focus:border-green-500 outline-none" title="Unidades que contiene este SKU (Ej: Caja=6)">
-                                </div>
-
-                                <div class="md:col-span-2">
-                                    <input v-model.number="sku.weight" type="number" step="0.01" min="0" class="w-full bg-gray-900 border border-gray-600 text-white rounded p-2 text-sm text-center focus:border-green-500 outline-none">
-                                </div>
-
-                                <div class="md:col-span-2">
-                                    <input v-model.number="sku.price" type="number" step="0.01" min="0" class="w-full bg-gray-900 border border-gray-600 text-yellow-400 font-bold rounded p-2 text-sm text-right focus:border-yellow-500 outline-none">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gray-900 p-3 text-center">
-                        <p class="text-xs text-gray-500 italic">Define al menos una presentación (Unidad Básica).</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-4 pt-6 border-t border-gray-700">
-                    <Link :href="route('admin.products.index')" class="px-6 py-3 text-gray-400 font-bold hover:text-white transition">Cancelar</Link>
-                    <button type="submit" :disabled="form.processing" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-10 rounded shadow-lg transition disabled:opacity-50">
-                        <span v-if="form.processing">Guardando...</span>
-                        <span v-else>Guardar Catálogo</span>
-                    </button>
-                </div>
-
-            </form>
+                </form>
+            </div>
         </div>
     </AdminLayout>
 </template>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>

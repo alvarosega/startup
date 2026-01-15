@@ -135,22 +135,28 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         // --- GRUPO 1: CONFIGURACIÓN CRÍTICA (Solo Super Admin) ---
         Route::middleware(['role:super_admin'])->group(function () {
             Route::resource('branches', BranchController::class);
-            Route::resource('users', UserController::class);
+            // ELIMINAR DE AQUÍ: Route::resource('users', UserController::class);
             
-            // Aprobación Final de Bajas (Control Financiero)
             Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
             Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
         });
 
+        // --- GESTIÓN DE USUARIOS (Compartido: Super Admin + Branch Admin) ---
+        // La seguridad la maneja el UserController y UserPolicy
+        // --- GESTIÓN GENERAL (Compartido con restricciones por Policy) ---
+        Route::resource('users', UserController::class);
+        Route::resource('providers', ProviderController::class);
 
-        // --- GRUPO 2: CATÁLOGO MAESTRO (Logistics + Super Admin) ---
-        // Inventory Manager ve esto en modo solo-lectura (vía Policy), pero no gestiona.
+
+        // --- GRUPO 2: CATÁLOGO DE PRODUCTOS (Logistics + Super Admin) ---
+        // Protegido por permiso 'manage_catalog'. El Branch Admin NO entra aquí.
         Route::middleware(['permission:manage_catalog'])->group(function () {
-            Route::resource('providers', ProviderController::class);
+            // ELIMINAR DE AQUÍ: Route::resource('providers', ProviderController::class);
+            
             Route::resource('brands', BrandController::class);
             Route::resource('categories', CategoryController::class);
             Route::resource('products', ProductController::class);
-            Route::resource('skus', SkuController::class);
+            Route::resource('skus', SkuController::class)->only(['store', 'destroy']);
         });
 
 
