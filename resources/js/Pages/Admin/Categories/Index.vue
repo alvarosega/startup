@@ -6,13 +6,14 @@
     // Iconos
     import { 
         Search, Plus, FolderOpen, Image as ImageIcon, 
-        MoreHorizontal, Edit, Trash2, ArrowRight, CornerDownRight,
+        Edit, Trash2, ChevronRight, CornerDownRight,
         Package, Hash, Layers
     } from 'lucide-vue-next';
 
     const props = defineProps({
         categories: Array,
-        filters: Object
+        filters: Object,
+        can_manage: Boolean // <--- RECIBE EL PERMISO DEL BACKEND
     });
 
     const search = ref('');
@@ -30,7 +31,7 @@
         });
     });
 
-    // --- 2. BÚSQUEDA "PRO" (Filtrado en Cliente para velocidad instantánea) ---
+    // --- 2. BÚSQUEDA "PRO" (Filtrado en Cliente) ---
     const filteredTree = computed(() => {
         if (!search.value) return treeData.value;
         
@@ -89,7 +90,8 @@
                 <div class="p-4 border-b border-skin-border bg-skin-fill/50 shrink-0">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="font-black text-lg text-skin-base tracking-tight">Catálogo</h2>
-                        <Link :href="route('admin.categories.create')" class="p-2 bg-skin-primary text-skin-primary-text rounded-global hover:brightness-110 transition shadow-sm" title="Nueva Categoría Padre">
+                        
+                        <Link v-if="can_manage" :href="route('admin.categories.create')" class="p-2 bg-skin-primary text-skin-primary-text rounded-global hover:brightness-110 transition shadow-sm" title="Nueva Categoría Padre">
                             <Plus :size="16" />
                         </Link>
                     </div>
@@ -177,7 +179,7 @@
                                     </div>
                                 </div>
 
-                                <div class="flex gap-2">
+                                <div v-if="can_manage" class="flex gap-2">
                                     <Link :href="route('admin.categories.edit', activeParent.id)" 
                                           class="flex items-center gap-2 px-4 py-2 bg-skin-fill border border-skin-border hover:border-skin-primary text-skin-base hover:text-skin-primary rounded-global text-sm font-bold transition-all shadow-sm">
                                         <Edit :size="16" /> Editar
@@ -195,7 +197,8 @@
                                 Subcategorías
                                 <span class="bg-skin-primary/10 text-skin-primary text-xs px-2 py-0.5 rounded-full">{{ activeParent.children.length }}</span>
                             </h3>
-                            <Link :href="route('admin.categories.create', { parent: activeParent.id })" 
+                            
+                            <Link v-if="can_manage" :href="route('admin.categories.create', { parent: activeParent.id })" 
                                   class="text-xs font-bold text-skin-primary hover:underline flex items-center gap-1">
                                 + Agregar Subcategoría
                             </Link>
@@ -220,7 +223,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                                    <div v-if="can_manage" class="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
                                         <Link :href="route('admin.categories.edit', child.id)" class="p-1.5 bg-skin-fill shadow-sm rounded text-skin-muted hover:text-skin-primary hover:scale-110 transition">
                                             <Edit :size="12" />
                                         </Link>
@@ -234,7 +237,8 @@
 
                             <div v-else class="h-64 flex flex-col items-center justify-center border-2 border-dashed border-skin-border/50 rounded-global bg-skin-fill/20">
                                 <p class="text-sm font-bold text-skin-muted mb-2">Esta categoría no tiene hijos</p>
-                                <Link :href="route('admin.categories.create', { parent: activeParent.id })" class="px-4 py-2 bg-skin-fill border border-skin-border rounded-global text-xs font-bold hover:bg-white hover:text-skin-primary transition shadow-sm">
+                                
+                                <Link v-if="can_manage" :href="route('admin.categories.create', { parent: activeParent.id })" class="px-4 py-2 bg-skin-fill border border-skin-border rounded-global text-xs font-bold hover:bg-white hover:text-skin-primary transition shadow-sm">
                                     Crear primera subcategoría
                                 </Link>
                             </div>

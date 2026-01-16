@@ -28,7 +28,9 @@
     const roles = computed(() => user.value.roles || []);
 // ... (después de const roles...)
         // DEFINICIÓN DE ROLES
-    
+    const canViewProducts = computed(() => 
+        canManageCatalog.value || isBranchAdmin.value || isInventoryManager.value || isFinanceManager.value
+    );
     
     // AGREGAR: Nuevo rol necesario para lógica visual
     const isFinanceManager = computed(() => roles.value.includes('finance_manager'));
@@ -37,14 +39,18 @@
     
     // 1. Gestión de Stock (Movimientos)
 
-    
+    const canViewBrands = computed(() => 
+        canManageCatalog.value || isBranchAdmin.value || isInventoryManager.value || isFinanceManager.value
+    );
     // 4. Ver Proveedores - (Se suman Branch y Finanzas)
     const canViewProviders = computed(() => 
         canManageCatalog.value || isBranchAdmin.value || isInventoryManager.value || isFinanceManager.value
     );
 
     // 5. ¿Mostrar la sección Catálogo en el menú? (Si puede hacer la 3 o la 4)
-    const showCatalogSection = computed(() => canManageCatalog.value || canViewProviders.value);
+    const showCatalogSection = computed(() => 
+        canManageCatalog.value || canViewProviders.value || canViewCategories.value || canViewBrands.value || canViewProducts.value
+    );
 
     // Agrega esta computada junto a las otras
     const canManageUsers = computed(() => isSuperAdmin.value || isBranchAdmin.value);
@@ -55,6 +61,9 @@
     const isInventoryManager = computed(() => roles.value.includes('inventory_manager'));
     
     const canManageCatalog = computed(() => isSuperAdmin.value || isLogistics.value);
+    const canViewCategories = computed(() => 
+        canManageCatalog.value || isBranchAdmin.value || isInventoryManager.value || isFinanceManager.value
+    );
     const canManageStock = computed(() => isSuperAdmin.value || isLogistics.value || isBranchAdmin.value || isInventoryManager.value);
     
     // --- COMUNICACIÓN CON EL PADRE ---
@@ -155,30 +164,26 @@
                         Transformaciones
                     </SidebarLink>
                 </template>
-    
                 <template v-if="showCatalogSection">
                     <div v-if="!isCollapsed" class="mt-6 mb-2 px-3 text-[10px] font-bold text-skin-muted/70 uppercase tracking-widest fade-in whitespace-nowrap overflow-hidden">
                         Catálogo
                     </div>
                     <div v-else class="my-4 border-t border-skin-border"></div>
 
-                    <template v-if="canManageCatalog">
-                        <SidebarLink :href="route('admin.products.index')" :active="$page.url.startsWith('/admin/products')" :collapsed="isCollapsed">
-                            <template #icon><Tag :size="20" /></template>
-                            Productos
-                        </SidebarLink>
-                        
-                        <div class="pt-2 mt-2 border-t border-skin-border space-y-0.5">
-                            <SidebarLink :href="route('admin.brands.index')" :active="$page.url.startsWith('/admin/brands')" :collapsed="isCollapsed">
-                                <template #icon><Layers :size="18" /></template>
-                                Marcas
-                            </SidebarLink>
-                            <SidebarLink :href="route('admin.categories.index')" :active="$page.url.startsWith('/admin/categories')" :collapsed="isCollapsed">
-                                <template #icon><Box :size="18" /></template>
-                                Categorías
-                            </SidebarLink>
-                        </div>
-                    </template>
+                    <SidebarLink v-if="canViewProducts" :href="route('admin.products.index')" :active="$page.url.startsWith('/admin/products')" :collapsed="isCollapsed">
+                        <template #icon><Tag :size="20" /></template>
+                        Productos
+                    </SidebarLink>
+
+                    <SidebarLink v-if="canViewBrands" :href="route('admin.brands.index')" :active="$page.url.startsWith('/admin/brands')" :collapsed="isCollapsed">
+                        <template #icon><Layers :size="18" /></template>
+                        Marcas
+                    </SidebarLink>
+
+                    <SidebarLink v-if="canViewCategories" :href="route('admin.categories.index')" :active="$page.url.startsWith('/admin/categories')" :collapsed="isCollapsed">
+                        <template #icon><Box :size="18" /></template>
+                        Categorías
+                    </SidebarLink>
                     
                     <SidebarLink v-if="canViewProviders" :href="route('admin.providers.index')" :active="$page.url.startsWith('/admin/providers')" :collapsed="isCollapsed">
                         <template #icon><Factory :size="18" /></template>

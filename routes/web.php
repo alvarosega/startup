@@ -146,17 +146,14 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         // --- GESTIÓN GENERAL (Compartido con restricciones por Policy) ---
         Route::resource('users', UserController::class);
         Route::resource('providers', ProviderController::class);
-
-
+        Route::resource('categories', CategoryController::class);
+        Route::resource('brands', BrandController::class);
+        Route::resource('products', ProductController::class);
+        Route::resource('skus', SkuController::class)->only(['store', 'destroy']);
         // --- GRUPO 2: CATÁLOGO DE PRODUCTOS (Logistics + Super Admin) ---
         // Protegido por permiso 'manage_catalog'. El Branch Admin NO entra aquí.
         Route::middleware(['permission:manage_catalog'])->group(function () {
-            // ELIMINAR DE AQUÍ: Route::resource('providers', ProviderController::class);
-            
-            Route::resource('brands', BrandController::class);
-            Route::resource('categories', CategoryController::class);
-            Route::resource('products', ProductController::class);
-            Route::resource('skus', SkuController::class)->only(['store', 'destroy']);
+           
         });
 
 

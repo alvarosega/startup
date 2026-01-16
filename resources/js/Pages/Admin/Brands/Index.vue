@@ -1,7 +1,7 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
     import { Link, router } from '@inertiajs/vue3';
-    import { ref, watch, computed } from 'vue';
+    import { ref, watch } from 'vue';
     import debounce from 'lodash/debounce';
     
     // Iconos
@@ -10,11 +10,15 @@
         Globe, Tag, Edit, Trash2, ShieldCheck 
     } from 'lucide-vue-next';
 
-    const props = defineProps({ brands: Array });
+    const props = defineProps({ 
+        brands: Array,
+        can_manage: Boolean // <--- NUEVO: Recibe el permiso del Backend
+    });
+
     const search = ref('');
     const filteredBrands = ref(props.brands);
 
-    // Lógica de colores para los Tiers (Niveles)
+    // Lógica de colores para los Tiers
     const tierColors = {
         'Luxury': 'bg-purple-500/10 text-purple-500 border-purple-500/20',
         'Premium': 'bg-amber-500/10 text-amber-600 border-amber-500/20',
@@ -22,7 +26,7 @@
         'Economy': 'bg-skin-fill text-skin-muted border-skin-border',
     };
 
-    // Búsqueda en cliente (Instant Search)
+    // Búsqueda en cliente
     watch(search, debounce((val) => {
         const lower = val.toLowerCase();
         filteredBrands.value = props.brands.filter(b => 
@@ -32,6 +36,11 @@
         );
     }, 300));
     
+    // Actualizar si cambian las props (ej: después de borrar)
+    watch(() => props.brands, (newVal) => {
+        filteredBrands.value = newVal;
+    });
+
     const deleteItem = (brand) => {
         if(confirm(`¿Eliminar la marca ${brand.name}? Esto desvinculará los productos asociados.`)) {
             router.delete(route('admin.brands.destroy', brand.id));
@@ -61,7 +70,7 @@
                     >
                 </div>
 
-                <Link :href="route('admin.brands.create')" 
+                <Link v-if="can_manage" :href="route('admin.brands.create')" 
                       class="flex items-center justify-center gap-2 bg-skin-primary text-skin-primary-text px-4 py-2 rounded-global text-sm font-bold shadow-sm hover:brightness-110 transition-all active:scale-95 whitespace-nowrap">
                     <Plus :size="16" />
                     <span>Nueva Marca</span>
@@ -93,7 +102,7 @@
                                 {{ brand.name }}
                             </h3>
                             
-                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
+                            <div v-if="can_manage" class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
                                 <Link :href="route('admin.brands.edit', brand.id)" class="p-1 rounded text-skin-muted hover:text-skin-primary hover:bg-skin-primary/10 transition">
                                     <Edit :size="14" />
                                 </Link>
@@ -125,7 +134,7 @@
                         
                         <div class="flex items-center justify-between text-xs mt-2">
                             <span class="text-skin-muted flex items-center gap-1.5">
-                                <Globe :size="12" /> Fabricsadsdsdante
+                                <Globe :size="12" /> Fabricante
                             </span>
                             <span class="font-medium text-skin-base truncate max-w-[120px]">
                                 {{ brand.manufacturer || 'N/A' }}
