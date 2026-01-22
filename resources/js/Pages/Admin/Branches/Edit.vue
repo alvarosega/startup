@@ -1,187 +1,261 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
     import { useForm, Link } from '@inertiajs/vue3';
-    import { ref } from 'vue';
-    import "leaflet/dist/leaflet.css";
-    import { LMap, LTileLayer, LMarker, LPolygon, LTooltip, LCircleMarker } from "@vue-leaflet/vue-leaflet";
+    import { ref, onMounted, computed, nextTick } from 'vue';
     
+    // Iconos
+    import { 
+        Store, MapPin, Phone, Navigation, Save, 
+        ArrowLeft, ArrowRight, Trash2, RotateCcw, AlertTriangle, CheckCircle 
+    } from 'lucide-vue-next';
+
+    import "leaflet/dist/leaflet.css";
+    import { LMap, LTileLayer, LMarker, LPolygon, LTooltip, LCircleMarker, LControlZoom } from "@vue-leaflet/vue-leaflet";
+    import L from 'leaflet';
+
     const props = defineProps({
         branch: Object
     });
+
+    const currentStep = ref(1);
     
-    // Inicializamos el formulario con los datos existentes
+    const steps = [
+        { id: 1, title: 'Ubicación', icon: Store, fields: ['name', 'city', 'latitude'] }, 
+        { id: 2, title: 'Cobertura', icon: MapPin, fields: ['coverage_polygon'] }, 
+        { id: 3, title: 'Detalles', icon: Phone, fields: ['phone', 'address', 'is_active'] }, 
+    ];
+
     const form = useForm({
+        _method: 'PUT',
         name: props.branch.name,
         phone: props.branch.phone,
         city: props.branch.city,
         address: props.branch.address,
         latitude: parseFloat(props.branch.latitude), 
         longitude: parseFloat(props.branch.longitude),
-        // Aseguramos que sea un array, si viene null ponemos []
         coverage_polygon: props.branch.coverage_polygon || [], 
         is_active: Boolean(props.branch.is_active)
     });
-    
-    // Configuración del Mapa
-    const zoom = ref(14); // Un poco más de zoom para editar
-    // Centramos el mapa en la sucursal actual
+
+    const zoom = ref(14);
     const center = ref([props.branch.latitude, props.branch.longitude]);
-    
-    // --- ESTILOS DE MAPA (TILES) ---
-    // Opción A: CartoDB Dark Matter (Oscuro, Tech, Elegante) - RECOMENDADO
-    const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-    const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-    
-    // Opción B: Esri Satellite (Satélite Real) - Descomenta si prefieres ver casas reales
-    // const tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    
-    // Lógica del Mapa (Idéntica a Create)
+    const mapRef = ref(null);
+
+    // --- LEAFLET SETUP ---
+    onMounted(() => {
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+            iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
+            iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
+            shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
+        });
+    });
+
+    const onMapReady = async (mapInstance) => {
+        await nextTick();
+        mapInstance.invalidateSize(); 
+    };
+
+    // --- INTERACCIÓN MAPA ---
     const onMarkerDrag = (event) => {
         const { lat, lng } = event.target.getLatLng();
         form.latitude = lat;
         form.longitude = lng;
     };
-    
+
     const onMapClick = (event) => {
-        if (event.latlng) {
+        // Solo permitimos dibujar en el paso 2
+        if (currentStep.value === 2 && event.latlng) {
             form.coverage_polygon.push([event.latlng.lat, event.latlng.lng]);
         }
     };
-    
+
     const undoLastPoint = () => form.coverage_polygon.pop();
     const clearPolygon = () => form.coverage_polygon = [];
-    
-    const submit = () => {
-        form.put(route('admin.branches.update', props.branch.id));
+
+    // --- NAVEGACIÓN WIZARD ---
+    const nextStep = () => {
+        if (currentStep.value === 1) {
+            if (!form.name) { form.setError('name', 'Nombre requerido'); return; }
+        }
+        if (currentStep.value === 2) {
+            if (form.coverage_polygon.length > 0 && form.coverage_polygon.length < 3) {
+                alert("Debes marcar al menos 3 puntos para cerrar el área.");
+                return;
+            }
+        }
+        if (currentStep.value < steps.length) currentStep.value++;
     };
-    </script>
-    
-    <template>
-        <AdminLayout>
-            <div class="max-w-5xl mx-auto">
+
+    const prevStep = () => {
+        if (currentStep.value > 1) currentStep.value--;
+    };
+
+    const submit = () => {
+        form.post(route('admin.branches.update', props.branch.id)); // POST con _method: PUT
+    };
+
+    const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
+</script>
+
+<template>
+    <AdminLayout>
+        <div class="max-w-5xl mx-auto py-6">
+            
+            <div class="mb-8">
                 <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-2xl font-bold text-white">Editar Sucursal: <span class="text-blue-400">{{ form.name }}</span></h1>
-                    <Link :href="route('admin.branches.index')" class="text-gray-400 hover:text-white transition">Cancelar</Link>
+                    <div>
+                        <h1 class="text-2xl font-black text-skin-base tracking-tight">Editar Sucursal</h1>
+                        <p class="text-skin-muted text-sm mt-1">Modificando: <span class="text-skin-primary font-bold">{{ branch.name }}</span></p>
+                    </div>
+                    <Link :href="route('admin.branches.index')" class="text-sm font-bold text-skin-muted hover:text-skin-danger transition-colors">Cancelar</Link>
                 </div>
-    
-                <form @submit.prevent="submit" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    
-                    <div class="space-y-6">
-                        <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg">
-                            <h2 class="text-lg font-bold text-blue-400 mb-4">Información General</h2>
+
+                <div class="relative px-4">
+                    <div class="absolute top-5 left-0 w-full h-1 bg-skin-border -z-10 rounded-full"></div>
+                    <div class="absolute top-5 left-0 h-1 bg-skin-primary -z-10 rounded-full transition-all duration-500 ease-out" :style="{ width: progressPercentage + '%' }"></div>
+
+                    <div class="flex justify-between">
+                        <div v-for="step in steps" :key="step.id" 
+                             class="flex flex-col items-center gap-2 cursor-pointer group"
+                             @click="currentStep >= step.id ? currentStep = step.id : null">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all bg-skin-fill-card"
+                                 :class="[currentStep === step.id ? 'border-skin-primary text-skin-primary scale-110 shadow-lg' : currentStep > step.id ? 'border-skin-success bg-skin-success text-white' : 'border-skin-border text-skin-muted']">
+                                <CheckCircle v-if="currentStep > step.id" :size="20" />
+                                <component v-else :is="step.icon" :size="18" />
+                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-skin-fill px-1" :class="currentStep >= step.id ? 'text-skin-base' : 'text-skin-muted'">{{ step.title }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-skin-fill-card border border-skin-border rounded-global shadow-xl overflow-hidden min-h-[500px] flex flex-col">
+                <form class="flex-1 flex flex-col">
+                    <div class="flex-1 relative"> <Transition name="fade" mode="out-in">
                             
-                            <div class="mb-4">
-                                <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Nombre</label>
-                                <input v-model="form.name" type="text" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 focus:border-blue-500">
-                                <p v-if="form.errors.name" class="text-red-500 text-xs mt-1">{{ form.errors.name }}</p>
-                            </div>
-    
-                            <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Ciudad</label>
-                                    <select v-model="form.city" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2">
-                                        <option>La Paz</option>
-                                        <option>El Alto</option>
-                                        <option>Cochabamba</option>
-                                        <option>Santa Cruz</option>
-                                    </select>
+                            <div v-if="currentStep === 1" key="1" class="p-8 h-full flex flex-col lg:flex-row gap-8">
+                                <div class="w-full lg:w-1/3 space-y-6 z-10">
+                                    <div>
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Nombre Sucursal *</label>
+                                        <input v-model="form.name" type="text" class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                                        <p v-if="form.errors.name" class="text-red-500 text-xs mt-1">{{ form.errors.name }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Ciudad Base *</label>
+                                        <select v-model="form.city" class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 outline-none focus:border-blue-500">
+                                            <option>La Paz</option>
+                                            <option>El Alto</option>
+                                            <option>Cochabamba</option>
+                                            <option>Santa Cruz</option>
+                                            <option>Tarija</option>
+                                        </select>
+                                    </div>
+                                    <div class="bg-blue-900/10 border border-blue-500/20 p-4 rounded-global">
+                                        <h4 class="text-blue-400 font-bold text-xs uppercase mb-2 flex items-center gap-2"><Navigation :size="14"/> Instrucción</h4>
+                                        <p class="text-xs text-blue-200/70">Arrastra el pin en el mapa para ubicar la tienda exacta.</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Teléfono</label>
-                                    <input v-model="form.phone" type="text" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2">
+
+                                <div class="flex-1 rounded-global overflow-hidden border border-skin-border h-[400px] lg:h-auto relative z-0">
+                                    <l-map ref="mapRef" v-model:zoom="zoom" :center="center" :use-global-leaflet="false" :options="{ zoomControl: false }" @ready="onMapReady" class="h-full w-full bg-gray-200">
+                                        <l-tile-layer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap'></l-tile-layer>
+                                        <l-control-zoom position="bottomright" />
+                                        <l-marker :lat-lng="[form.latitude, form.longitude]" draggable @dragend="onMarkerDrag">
+                                            <l-tooltip :options="{ permanent: true, direction: 'top', offset: [0, -20] }">📍 {{ form.name }}</l-tooltip>
+                                        </l-marker>
+                                    </l-map>
                                 </div>
                             </div>
-    
-                            <div class="mb-4">
-                                <label class="block text-gray-400 text-xs uppercase font-bold mb-2">Dirección</label>
-                                <textarea v-model="form.address" rows="2" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2"></textarea>
+
+                            <div v-else-if="currentStep === 2" key="2" class="h-[500px] relative flex flex-col">
+                                <div class="absolute top-4 left-4 right-4 z-[500] bg-skin-fill-card/90 backdrop-blur border border-skin-border p-3 rounded-global flex justify-between items-center shadow-lg">
+                                    <div>
+                                        <h2 class="text-skin-base font-bold text-sm flex items-center gap-2"><MapPin :size="16" class="text-green-500"/> Zona de Reparto</h2>
+                                        <p class="text-[10px] text-skin-muted">Puntos: {{ form.coverage_polygon.length }}</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" @click="undoLastPoint" :disabled="form.coverage_polygon.length === 0" class="flex items-center gap-1 bg-skin-fill border border-skin-border hover:bg-skin-border text-skin-base text-xs px-3 py-1.5 rounded transition disabled:opacity-50"><RotateCcw :size="12" /> Deshacer</button>
+                                        <button type="button" @click="clearPolygon" :disabled="form.coverage_polygon.length === 0" class="flex items-center gap-1 bg-red-900/20 border border-red-900/50 hover:bg-red-900/40 text-red-400 text-xs px-3 py-1.5 rounded transition disabled:opacity-50"><Trash2 :size="12" /> Limpiar</button>
+                                    </div>
+                                </div>
+
+                                <l-map ref="mapRef" v-model:zoom="zoom" :center="center" :use-global-leaflet="false" :options="{ zoomControl: false }" @click="onMapClick" @ready="onMapReady" class="h-full w-full bg-gray-200">
+                                    <l-tile-layer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap'></l-tile-layer>
+                                    <l-control-zoom position="bottomright" />
+                                    
+                                    <l-marker :lat-lng="[form.latitude, form.longitude]">
+                                        <l-tooltip :options="{ permanent: true, direction: 'top' }">🏠 {{ form.name }}</l-tooltip>
+                                    </l-marker>
+
+                                    <l-circle-marker v-for="(point, index) in form.coverage_polygon" :key="index" :lat-lng="point" :radius="5" color="#000000" fill-color="#000000" :fill-opacity="1" :weight="2" />
+                                    <l-polygon v-if="form.coverage_polygon.length > 0" :lat-lngs="form.coverage_polygon" color="#374151" fill-color="#374151" :fill="true" :fill-opacity="0.5" :weight="3"></l-polygon>
+                                </l-map>
                             </div>
-    
-                            <div class="flex items-center bg-gray-900 p-3 rounded border border-gray-700">
-                                <input v-model="form.is_active" type="checkbox" class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded">
-                                <label class="ml-3 text-white text-sm font-bold">Sucursal Operativa</label>
+
+                            <div v-else key="3" class="p-8 h-full flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+                                <div class="w-full space-y-6">
+                                    <div class="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Teléfono de Contacto</label>
+                                            <input v-model="form.phone" type="text" class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 outline-none focus:border-blue-500">
+                                        </div>
+                                        <div class="flex items-end">
+                                            <label class="flex items-center gap-3 p-3 border border-skin-border rounded-global cursor-pointer hover:border-blue-500 transition bg-skin-fill/50 w-full h-[46px]">
+                                                <input v-model="form.is_active" type="checkbox" class="w-5 h-5 accent-blue-500">
+                                                <span class="text-sm font-bold text-skin-base">Sucursal Operativa</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs font-bold text-skin-muted uppercase mb-2">Dirección Física Completa</label>
+                                        <textarea v-model="form.address" rows="3" class="w-full bg-skin-fill border border-skin-border text-skin-base rounded-global p-3 outline-none focus:border-blue-500 resize-none"></textarea>
+                                    </div>
+
+                                    <div class="p-4 bg-skin-fill/30 border border-skin-border rounded-global text-sm text-skin-muted">
+                                        <h4 class="font-bold text-skin-base mb-2">Resumen:</h4>
+                                        <ul class="list-disc list-inside space-y-1">
+                                            <li>Nombre: <strong>{{ form.name }}</strong></li>
+                                            <li>Ubicación: <strong>{{ form.city }}</strong> ({{ form.latitude.toFixed(4) }}, {{ form.longitude.toFixed(4) }})</li>
+                                            <li>Zona de Reparto: <strong>{{ form.coverage_polygon.length > 0 ? 'Definida (' + form.coverage_polygon.length + ' ptos)' : 'Sin cobertura' }}</strong></li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+
+                        </Transition>
                     </div>
-    
-                    <div class="bg-gray-800 p-1 rounded-lg border border-gray-700 flex flex-col shadow-lg">
-                        <div class="p-4 bg-gray-800 rounded-t-lg z-10 flex justify-between items-start">
-                            <div>
-                                <h2 class="text-lg font-bold text-blue-400 flex items-center gap-2">📍 Cobertura</h2>
-                                <p class="text-xs text-gray-400 mt-1">
-                                    Ajusta el pin o redibuja la zona.<br>
-                                    <span :class="form.coverage_polygon.length < 3 ? 'text-red-400 font-bold' : 'text-green-400'">
-                                        Puntos: {{ form.coverage_polygon.length }} (Mínimo 3)
-                                    </span>
-                                </p>
-                            </div>
-                            <div class="flex gap-2">
-                                 <button type="button" @click="undoLastPoint" v-if="form.coverage_polygon.length > 0" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded">
-                                    ↩ Deshacer
-                                </button>
-                                <button type="button" @click="clearPolygon" v-if="form.coverage_polygon.length > 0" class="bg-red-900/50 hover:bg-red-900 text-white text-xs px-2 py-1 rounded">
-                                    🗑️ Borrar
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="flex-1 bg-gray-900 relative h-96 w-full z-0">
-                            <l-map 
-                                ref="map" 
-                                v-model:zoom="zoom" 
-                                :center="center" 
-                                :use-global-leaflet="false"
-                                @click="onMapClick"
-                                class="h-full w-full rounded-b-lg"
-                            >
-                                <l-tile-layer
-                                    :url="tileUrl"
-                                    :attribution="attribution"
-                                    layer-type="base"
-                                    name="Dark Matter"
-                                ></l-tile-layer>
-    
-                                <l-marker 
-                                    :lat-lng="[form.latitude, form.longitude]" 
-                                    draggable 
-                                    @dragend="onMarkerDrag"
-                                >
-                                    <l-tooltip :options="{ permanent: true, direction: 'top' }">Tienda</l-tooltip>
-                                </l-marker>
-    
-                                <l-circle-marker
-                                    v-for="(point, index) in form.coverage_polygon"
-                                    :key="index"
-                                    :lat-lng="point"
-                                    :radius="5"
-                                    color="white"
-                                    fill-color="#10b981"
-                                    :fill-opacity="1"
-                                />
-    
-                                <l-polygon
-                                    v-if="form.coverage_polygon.length > 0"
-                                    :lat-lngs="form.coverage_polygon"
-                                    color="#10b981" 
-                                    :fill="true"
-                                    :fill-opacity="0.3"
-                                ></l-polygon>
-                            </l-map>
-                        </div>
-    
-                        <div class="p-3 bg-red-900/20" v-if="form.errors.coverage_polygon">
-                            <p class="text-red-400 text-xs font-bold text-center">
-                                ⚠️ {{ form.errors.coverage_polygon }}
-                            </p>
-                        </div>
-                    </div>
-    
-                    <div class="col-span-1 lg:col-span-2 flex justify-end pt-4 border-t border-gray-700">
-                        <button type="submit" :disabled="form.processing" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-10 rounded-lg shadow-lg">
-                            {{ form.processing ? 'Actualizando...' : 'Actualizar Sucursal' }}
+
+                    <div class="px-8 py-4 bg-skin-fill/50 border-t border-skin-border flex justify-between items-center z-20 relative">
+                        <button type="button" @click="prevStep" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-skin-muted hover:text-skin-base disabled:opacity-0" :disabled="currentStep === 1">
+                            <ArrowLeft :size="16" /> Atrás
+                        </button>
+
+                        <button v-if="currentStep < steps.length" type="button" @click="nextStep" class="flex items-center gap-2 px-6 py-2.5 bg-skin-fill-card border border-skin-border hover:border-skin-primary text-skin-base rounded-global text-sm font-bold shadow-sm active:scale-95 transition-all">
+                            Siguiente <ArrowRight :size="16" />
+                        </button>
+
+                        <button v-else type="button" @click="submit" :disabled="form.processing" class="flex items-center gap-2 px-8 py-2.5 bg-skin-primary hover:bg-skin-primary-hover text-skin-primary-text rounded-global text-sm font-bold shadow-lg shadow-skin-primary/30 active:scale-95 transition-all disabled:opacity-50">
+                            <Save :size="18" /> {{ form.processing ? 'Guardando...' : 'Actualizar Sucursal' }}
                         </button>
                     </div>
                 </form>
             </div>
-        </AdminLayout>
-    </template>
+        </div>
+    </AdminLayout>
+</template>
+
+<style>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.leaflet-container { background-color: #e5e7eb; }
+.leaflet-tooltip {
+    background-color: #1f2937;
+    border: 1px solid #374151;
+    color: white;
+    font-weight: bold;
+    border-radius: 4px;
+}
+.leaflet-tooltip-top:before { border-top-color: #374151; }
+</style>

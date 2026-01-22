@@ -18,10 +18,11 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['brand', 'category'])
-            ->withCount('skus'); // Optimización
-
-        // 1. Lógica de Búsqueda
+        // CAMBIO CRÍTICO: Agregamos 'skus' al eager loading
+        // También traemos 'skus.prices' si quisieras mostrar precios (opcional por ahora)
+        $query = Product::with(['brand', 'category', 'skus']) 
+            ->withCount('skus'); 
+    
         if ($request->search) {
             $query->where(function($q) use ($request) {
                 $q->where('name', 'like', "%{$request->search}%")
@@ -31,13 +32,14 @@ class ProductController extends Controller
                   });
             });
         }
-
-        $products = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
-
+    
+        $products = $query->orderBy('name', 'asc') // Orden alfabético es mejor para listas largas
+            ->paginate(15)
+            ->withQueryString();
+    
         return Inertia::render('Admin/Products/Index', [
             'products' => $products,
-            // 2. ESTO ES LO QUE FALTABA: Devolver el filtro a la vista
-            'filters' => $request->only(['search']) 
+            'filters' => $request->only(['search'])
         ]);
     }
 

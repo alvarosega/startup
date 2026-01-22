@@ -4,26 +4,38 @@
     import { ref, watch } from 'vue';
     import debounce from 'lodash/debounce';
     
-    // Iconos para enriquecer visualmente las tarjetas
+    // Iconos
     import { 
         Search, Plus, MapPin, Phone, Mail, Clock, 
         DollarSign, CreditCard, Edit, Trash2, Building2 
     } from 'lucide-vue-next';
 
-    const props = defineProps({ providers: Array });
-    const search = ref('');
-    const filteredProviders = ref(props.providers);
+    // 1. Definir PROPS primero
+    const props = defineProps({ 
+        providers: Object, 
+        filters: Object,
+        can_manage: Boolean 
+    });
 
-    // Lógica de filtrado (Mantenemos tu lógica cliente-side por velocidad)
+    // 2. Definir variables reactivas
+    const search = ref(props.filters.search || '');
+    const filteredProviders = ref(props.providers.data); // Ojo: providers viene paginado (.data)
+
+    // 3. Watcher para búsqueda (Usando el servidor, no local)
+    // Es mejor filtrar en servidor con Inertia para paginación correcta
     watch(search, debounce((val) => {
-        const lower = val.toLowerCase();
-        filteredProviders.value = props.providers.filter(p => 
-            p.company_name.toLowerCase().includes(lower) || 
-            (p.commercial_name && p.commercial_name.toLowerCase().includes(lower)) ||
-            p.tax_id.includes(val)
-        );
+        router.get(route('admin.providers.index'), { search: val }, { 
+            preserveState: true, 
+            replace: true,
+            preserveScroll: true
+        });
     }, 300));
     
+    // Actualizar la lista local cuando cambian los props (por si acaso)
+    watch(() => props.providers, (newVal) => {
+        filteredProviders.value = newVal.data;
+    }, { deep: true });
+
     const deleteItem = (provider) => {
         if(confirm(`¿Eliminar a ${provider.commercial_name || provider.company_name}?`)) {
             router.delete(route('admin.providers.destroy', provider.id));
@@ -53,7 +65,7 @@
                     >
                 </div>
 
-                <Link :href="route('admin.providers.create')" 
+                <Link v-if="can_manage" :href="route('admin.providers.create')" 
                       class="flex items-center justify-center gap-2 bg-skin-primary text-skin-primary-text px-4 py-2 rounded-global text-sm font-bold shadow-sm hover:brightness-110 transition-all active:scale-95 whitespace-nowrap">
                     <Plus :size="16" />
                     <span>Nuevo</span>
@@ -63,7 +75,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             
-            <div v-for="prov in filteredProviders" :key="prov.id" 
+            <div v-for="prov in providers.data" :key="prov.id" 
                  class="group bg-skin-fill-card border border-skin-border rounded-global shadow-sm hover:shadow-md hover:border-skin-primary/30 transition-all duration-300 flex flex-col relative overflow-hidden">
                 
                 <div class="absolute top-0 left-0 w-1 h-full" 
@@ -132,7 +144,8 @@
                     <div class="text-[10px] font-mono text-skin-muted">
                         ERP: {{ prov.internal_code || 'N/A' }}
                     </div>
-                    <div class="flex items-center gap-2">
+                    
+                    <div v-if="can_manage" class="flex items-center gap-2">
                         <Link :href="route('admin.providers.edit', prov.id)" 
                               class="p-1.5 rounded text-skin-muted hover:text-skin-primary hover:bg-skin-primary/10 transition-colors"
                               title="Editar">
@@ -148,12 +161,13 @@
 
             </div>
 
-            <div v-if="filteredProviders.length === 0" class="col-span-full py-12 flex flex-col items-center justify-center text-skin-muted border-2 border-dashed border-skin-border rounded-global">
+            <div v-if="providers.data.length === 0" class="col-span-full py-12 flex flex-col items-center justify-center text-skin-muted border-2 border-dashed border-skin-border rounded-global">
                 <Search :size="48" class="mb-4 opacity-20" />
                 <p class="font-medium">No se encontraron proveedores</p>
                 <p class="text-sm opacity-70">Intenta con otro término de búsqueda</p>
             </div>
             
         </div>
-    </AdminLayout>
+        
+        </AdminLayout>
 </template>

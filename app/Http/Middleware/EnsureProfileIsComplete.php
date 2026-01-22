@@ -12,11 +12,16 @@ class EnsureProfileIsComplete
     {
         $user = Auth::user();
 
-        // Si está logueado pero no tiene perfil o nombre (Nivel 1)
+        // Verificamos si falta el perfil o el nombre
         if ($user && (!$user->profile || !$user->profile->first_name)) {
-            // Permitir solo la ruta de completar perfil para evitar bucles
-            if (!$request->is('complete-profile*') && !$request->is('logout')) {
-                return redirect()->route('profile.complete');
+            
+            // CORRECCIÓN: Usar los nombres de ruta y URL reales definidos en web.php
+            // Excluimos 'profile.wizard' y sus pasos, y el logout.
+            if (!$request->routeIs('profile.wizard') && 
+                !$request->routeIs('profile.step*') && 
+                !$request->routeIs('logout')) {
+                
+                return redirect()->route('profile.wizard');
             }
         }
 

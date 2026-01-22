@@ -2,63 +2,93 @@
 
 namespace Database\Seeders;
 
-namespace Database\Seeders;
-
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Level;
-use App\Models\Branch; // <--- ESTO FALTABA
-use Spatie\Permission\Models\Role; // Usamos el modelo de Spatie
+use App\Models\Branch;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
+
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // 1. Permisos y Roles (Base fundamental)
         $this->call(RolesAndPermissionsSeeder::class);
 
+        // 2. Datos Maestros
         $this->call([
             LevelSeeder::class,
             ComplianceSeeder::class,
-            
-            // LOGÍSTICA
             ProviderSeeder::class,
             BrandSeeder::class,
             CategorySeeder::class,
-            
-            // CATÁLOGO
             ProductSeeder::class,
-            
-            // OPERACIÓN
             InventorySeeder::class
         ]);
 
-        // ... (Keep your Branch creation logic) ...
+        // 3. Crear Sucursal Principal
         $branchLaPaz = Branch::firstOrCreate(
             ['name' => 'Sede Central - Sopocachi'],
-            ['city' => 'La Paz', 'address' => 'Av. 6 de Agosto #2020', 'is_active' => true]
+            [
+                'city' => 'La Paz', 
+                'address' => 'Av. 6 de Agosto #2020', 
+                'latitude' => -16.5083,
+                'longitude' => -68.1272,
+                'is_active' => true
+            ]
         );
 
-        // ... (Keep your User creation logic) ...
+        // 4. Recuperar Roles y Niveles necesarios
+        $roles = [
+            'super_admin' => Role::where('name', 'super_admin')->first(),
+            'branch_admin' => Role::where('name', 'branch_admin')->first(),
+            'inventory_manager' => Role::where('name', 'inventory_manager')->first(),
+        ];
         
-        // Retrieve roles created by RolesAndPermissionsSeeder
-        $roleSuperAdmin = Role::where('name', 'super_admin')->first();
         $levelBronce = Level::where('name', 'Bronce')->first();
 
+        // 5. Crear Usuarios
+
+        // A. Super Admin
         $this->createUser(
             '70000000', 'BO',
             'admin@bolivialogistics.com', 
             'Super', 'Admin', 
-            null, 
-            $roleSuperAdmin, 
+            null, // Sin sucursal fija (Global)
+            $roles['super_admin'], 
+            $levelBronce
+        );
+
+        // B. Branch Admin (Para pruebas locales)
+        $this->createUser(
+            '70000001', 'BO',
+            'branch@bolivialogistics.com', 
+            'Gerente', 'Sucursal', 
+            $branchLaPaz->id, 
+            $roles['branch_admin'], 
+            $levelBronce
+        );
+
+        // C. Inventory Manager (Para pruebas operativas)
+        $this->createUser(
+            '70000002', 'BO',
+            'inventory@bolivialogistics.com', 
+            'Jefe', 'Inventario', 
+            $branchLaPaz->id, 
+            $roles['inventory_manager'], 
             $levelBronce
         );
     }
 
-    // ... (Keep your createUser method) ...
+    /**
+     * Helper para crear usuarios completos con perfil y rol.
+     */
     private function createUser($phone, $countryCode, $email, $first, $last, $branchId, $role, $level)
     {
-        // ... (Keep existing implementation) ...
+        if (!$role) return; // Seguridad si el rol no existe
+
         $formattedPhone = $phone;
         if ($countryCode === 'BO' && !str_starts_with($phone, '+')) {
             $formattedPhone = '+591' . $phone;
@@ -90,7 +120,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Use assignRole from Spatie
         if (!$user->hasRole($role->name)) {
             $user->assignRole($role->name);
         }

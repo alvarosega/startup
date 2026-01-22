@@ -26,6 +26,28 @@
     const page = usePage();
     const user = computed(() => page.props.auth.user);
     const roles = computed(() => user.value.roles || []);
+// ... (después de const roles...)
+        // DEFINICIÓN DE ROLES
+    
+    
+    // AGREGAR: Nuevo rol necesario para lógica visual
+    const isFinanceManager = computed(() => roles.value.includes('finance_manager'));
+
+    // PERMISOS COMPUTADOS VISUALES
+    
+    // 1. Gestión de Stock (Movimientos)
+
+    
+    // 4. Ver Proveedores - (Se suman Branch y Finanzas)
+    const canViewProviders = computed(() => 
+        canManageCatalog.value || isBranchAdmin.value || isInventoryManager.value || isFinanceManager.value
+    );
+
+    // 5. ¿Mostrar la sección Catálogo en el menú? (Si puede hacer la 3 o la 4)
+    const showCatalogSection = computed(() => canManageCatalog.value || canViewProviders.value);
+
+    // Agrega esta computada junto a las otras
+    const canManageUsers = computed(() => isSuperAdmin.value || isBranchAdmin.value);
     
     const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
     const isBranchAdmin = computed(() => roles.value.includes('branch_admin'));
@@ -134,50 +156,50 @@
                     </SidebarLink>
                 </template>
     
-                <template v-if="canManageCatalog">
+                <template v-if="showCatalogSection">
                     <div v-if="!isCollapsed" class="mt-6 mb-2 px-3 text-[10px] font-bold text-skin-muted/70 uppercase tracking-widest fade-in whitespace-nowrap overflow-hidden">
                         Catálogo
                     </div>
                     <div v-else class="my-4 border-t border-skin-border"></div>
-    
-                    <SidebarLink :href="route('admin.products.index')" :active="$page.url.startsWith('/admin/products')" :collapsed="isCollapsed">
-                        <template #icon><Tag :size="20" /></template>
-                        Productos
-                    </SidebarLink>
-                    <SidebarLink :href="route('admin.skus.index')" :active="$page.url.startsWith('/admin/skus')" :collapsed="isCollapsed">
-                        <template #icon><Barcode :size="20" /></template>
-                        SKUs
-                    </SidebarLink>
+
+                    <template v-if="canManageCatalog">
+                        <SidebarLink :href="route('admin.products.index')" :active="$page.url.startsWith('/admin/products')" :collapsed="isCollapsed">
+                            <template #icon><Tag :size="20" /></template>
+                            Productos
+                        </SidebarLink>
+                        
+                        <div class="pt-2 mt-2 border-t border-skin-border space-y-0.5">
+                            <SidebarLink :href="route('admin.brands.index')" :active="$page.url.startsWith('/admin/brands')" :collapsed="isCollapsed">
+                                <template #icon><Layers :size="18" /></template>
+                                Marcas
+                            </SidebarLink>
+                            <SidebarLink :href="route('admin.categories.index')" :active="$page.url.startsWith('/admin/categories')" :collapsed="isCollapsed">
+                                <template #icon><Box :size="18" /></template>
+                                Categorías
+                            </SidebarLink>
+                        </div>
+                    </template>
                     
-                    <div class="pt-2 mt-2 border-t border-skin-border space-y-0.5">
-                        <SidebarLink :href="route('admin.brands.index')" :active="$page.url.startsWith('/admin/brands')" :collapsed="isCollapsed">
-                            <template #icon><Layers :size="18" /></template>
-                            Marcas
-                        </SidebarLink>
-                        <SidebarLink :href="route('admin.categories.index')" :active="$page.url.startsWith('/admin/categories')" :collapsed="isCollapsed">
-                            <template #icon><Box :size="18" /></template>
-                            Categorías
-                        </SidebarLink>
-                        <SidebarLink :href="route('admin.providers.index')" :active="$page.url.startsWith('/admin/providers')" :collapsed="isCollapsed">
-                            <template #icon><Factory :size="18" /></template>
-                            Proveedores
-                        </SidebarLink>
-                    </div>
+                    <SidebarLink v-if="canViewProviders" :href="route('admin.providers.index')" :active="$page.url.startsWith('/admin/providers')" :collapsed="isCollapsed">
+                        <template #icon><Factory :size="18" /></template>
+                        Proveedores
+                    </SidebarLink>
                 </template>
     
-                <template v-if="isSuperAdmin">
+                <template v-if="canManageUsers">
                     <div v-if="!isCollapsed" class="mt-6 mb-2 px-3 text-[10px] font-bold text-skin-muted/70 uppercase tracking-widest fade-in whitespace-nowrap overflow-hidden">
-                        Sistema
+                        Gestión
                     </div>
                     <div v-else class="my-4 border-t border-skin-border"></div>
-    
-                    <SidebarLink :href="route('admin.branches.index')" :active="$page.url.startsWith('/admin/branches')" :collapsed="isCollapsed">
+
+                    <SidebarLink v-if="isSuperAdmin" :href="route('admin.branches.index')" :active="$page.url.startsWith('/admin/branches')" :collapsed="isCollapsed">
                         <template #icon><MapPin :size="20" /></template>
                         Sucursales
                     </SidebarLink>
+                    
                     <SidebarLink :href="route('admin.users.index')" :active="$page.url.startsWith('/admin/users')" :collapsed="isCollapsed">
                         <template #icon><Users :size="20" /></template>
-                        Usuarios
+                        Equipo
                     </SidebarLink>
                 </template>
             </nav>
