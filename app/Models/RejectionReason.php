@@ -1,0 +1,19 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class RejectionReason extends Model
+{
+    use HasFactory;
+
+    protected $fillable = ['code', 'reason_text'];
+
+    // Un motivo puede estar en muchas verificaciones
+    public function verifications()
+    {
+        return $this->hasMany(UserVerification::class);
+    }
+}

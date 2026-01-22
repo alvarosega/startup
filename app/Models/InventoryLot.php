@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class InventoryLot extends Model
+{
+    protected $fillable = [
+        'purchase_id', 'sku_id', 'branch_id', 'lot_code',
+        'quantity', 'initial_quantity', 'reserved_quantity',
+        'unit_cost', 'expiration_date'
+    ];
+
+    protected $casts = [
+        'expiration_date' => 'date',
+        'unit_cost' => 'decimal:2'
+    ];
+
+    public function sku() { return $this->belongsTo(Sku::class); }
+    public function branch() { return $this->belongsTo(Branch::class); }
+    public function purchase() { return $this->belongsTo(Purchase::class); }
+}

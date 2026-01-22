@@ -1,3 +1,4 @@
+# --- TUS REGLAS ACTUALES (LARAVEL/PHP) ---
 *.log
 .DS_Store
 .env
@@ -5,6 +6,9 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+# --- Project IDX (Google) ---
+.idx/.data/
+.idx/dev.nix.lock
 /.fleet
 /.idea
 /.nova
@@ -22,3 +26,16 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# --- REGLAS CRÍTICAS DE FIREBASE (AÑADIDAS) ---
+# Cache y emuladores de Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Credenciales de servicio (NUNCA SUBIR)
+# Asegúrate de que tus llaves tengan estos nombres o agrégalos si son distintos
+serviceAccountKey.json
+google-services.json
+GoogleService-Info.plist
