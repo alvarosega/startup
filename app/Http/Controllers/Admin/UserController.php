@@ -61,6 +61,10 @@ class UserController extends Controller
                     'role_key' => $roleKey, // Para agrupar en el frontend
                     'branch' => $user->branch?->name,
                     'is_active' => $user->is_active,
+
+                    'is_verified' => $user->profile?->is_identity_verified ?? false,
+                    'vehicle' => $user->profile?->vehicle_type, // 'moto', 'car', etc.
+                    'plate' => $user->profile?->license_plate,
                 ];
             });
 

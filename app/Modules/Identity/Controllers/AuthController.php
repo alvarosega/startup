@@ -38,7 +38,7 @@ class AuthController extends Controller
 
         return DB::transaction(function () use ($request, $guestSessionId) {
             
-            // 2. Crear usuario
+            // 2. Crear usuario (Auth)
             $user = User::create([
                 'phone' => $request->phone, 
                 'password' => Hash::make($request->password),
@@ -47,12 +47,12 @@ class AuthController extends Controller
                 'avatar_source' => $request->avatar_source ?? 'avatar_1.svg',
             ]);
 
-            // 3. Dirección (Si aplica)
+            // 3. Dirección (Solo si es Cliente)
             if ($request->role === 'client' && $request->latitude) {
                 UserAddress::create([
                     'user_id' => $user->id,
                     'alias' => $request->alias ?? 'Casa',
-                    'address' => $request->address,
+                    'address' => $request->address ?? 'Ubicación seleccionada en mapa',
                     'details' => $request->details,
                     'latitude' => $request->latitude,
                     'longitude' => $request->longitude,
@@ -67,27 +67,38 @@ class AuthController extends Controller
                 $user->update(['avatar_source' => $path]);
             }
 
-            // 5. ASIGNACIÓN DE ROL (CORREGIDO - MÉTODO SPATIE)
-            // Usamos assignRole que busca por nombre automáticamente en la tabla roles
-            // Asegúrate que tu Seeder haya creado el rol 'client' (o 'customer')
-            $roleToAssign = ($request->role === 'driver') ? 'driver' : 'customer'; // <--- CAMBIO AQUÍ ('client' -> 'customer')
-            
-            // Asignar rol usando Spatie
+            // 5. Asignación de Rol
+            // Si el frontend envía 'client', lo convertimos a 'customer' (según tu seeder)
+            // Si el frontend envía 'driver', lo mantenemos.
+            $roleToAssign = ($request->role === 'driver') ? 'driver' : 'customer';
             $user->assignRole($roleToAssign);
 
-            // 6. Crear Perfil
-            UserProfile::create(['user_id' => $user->id]);
+            // 6. Crear Perfil (CON DATOS EXTENDIDOS)
+            // Aquí es donde aplicamos la corrección
+            $profileData = [
+                'user_id' => $user->id,
+                // Recibimos nombres si vienen en el request (Drivers)
+                'first_name' => $request->first_name, 
+                'last_name' => $request->last_name,
+            ];
 
-            // 7. Login
+            if ($roleToAssign === 'driver') {
+                $profileData['license_number'] = $request->license_number;
+                $profileData['vehicle_type'] = $request->vehicle_type;
+                $profileData['license_plate'] = $request->license_plate;
+                // Por seguridad, un driver nuevo no está verificado hasta que Admin lo apruebe
+                $profileData['is_identity_verified'] = false; 
+            }
+
+            UserProfile::create($profileData);
+
+            // 7. Login y Carrito
             Auth::login($user);
-            
-            // 8. Carrito
             $this->mergeGuestCart($user, $guestSessionId);
 
             return redirect()->route('shop.index');
         });
     }
-
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -122,7 +133,9 @@ class AuthController extends Controller
             if ($user->hasAnyRole(['super_admin', 'branch_admin', 'logistics_manager', 'finance_manager', 'inventory_manager'])) {
                  return redirect()->intended(route('admin.dashboard')); 
             }
-    
+            if ($user->hasRole('driver')) {
+                return redirect()->intended(route('driver.dashboard'));
+            }
             return redirect()->intended(route('shop.index'));
         }
     

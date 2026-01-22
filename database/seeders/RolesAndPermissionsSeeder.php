@@ -16,27 +16,32 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // 2. Definir Permisos del Sistema (Granularidad)
         $permissions = [
-            'view_admin_dashboard',   // Acceso base al panel
+            'view_admin_dashboard',   // Acceso base al panel ERP
             
+            // --- NUEVO: Permisos de Conductor ---
+            'access_driver_app',      // Acceso a la interfaz móvil de conductor
+            'manage_deliveries',      // Ver ruta, marcar entregado, subir foto
+            // ------------------------------------
+
             // Configuración Global
-            'manage_settings',        // Gestión de usuarios globales, configuraciones
+            'manage_settings',        
             
             // Catálogo (Logística Global)
-            'manage_catalog',         // ABM Productos, Marcas, Categorías
+            'manage_catalog',         
             
             // Operaciones de Inventario
-            'view_inventory',         // Ver stock/kardex
-            'create_purchase',        // Registrar compras (Ingresos)
-            'manage_transfers',       // Enviar/Recibir entre sucursales
-            'manage_transformations', // Desglose/Unpacking (Caja -> Unidad)
+            'view_inventory',         
+            'create_purchase',        
+            'manage_transfers',       
+            'manage_transformations', 
             
             // Auditoría y Bajas
-            'request_removal',        // Solicitar baja/merma
-            'approve_removal',        // Aprobar baja (Financiero)
+            'request_removal',        
+            'approve_removal',        
             
             // Especiales
-            'audit_identity',         // Verificación de KYC (Identity Auditor)
-            'view_analytics',         // Métricas de crecimiento (Growth)
+            'audit_identity',         
+            'view_analytics',         
         ];
 
         foreach ($permissions as $permission) {
@@ -45,11 +50,11 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // 3. DEFINICIÓN DE ROLES
 
-        // A. SUPER ADMIN (Acceso Total)
+        // A. SUPER ADMIN
         $roleSuper = Role::firstOrCreate(['name' => 'super_admin']);
         $roleSuper->syncPermissions(Permission::all());
 
-        // B. BRANCH ADMIN (Gerente de Sucursal)
+        // B. BRANCH ADMIN
         $roleBranch = Role::firstOrCreate(['name' => 'branch_admin']);
         $roleBranch->syncPermissions([
             'view_admin_dashboard',
@@ -60,25 +65,25 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_transformations'
         ]);
 
-        // C. LOGISTICS MANAGER (Jefe de Logística Global)
+        // C. LOGISTICS MANAGER
         $roleLogistics = Role::firstOrCreate(['name' => 'logistics_manager']);
         $roleLogistics->syncPermissions([
             'view_admin_dashboard',
-            'manage_catalog',        // Define qué se vende
-            'view_inventory',        // Ve todo el stock
-            'manage_transfers',      // Mueve stock global
-            'approve_removal'        // Puede aprobar bajas operativas
+            'manage_catalog',
+            'view_inventory',
+            'manage_transfers',
+            'approve_removal'
         ]);
 
-        // D. FINANCE MANAGER (Gerente Financiero)
+        // D. FINANCE MANAGER
         $roleFinance = Role::firstOrCreate(['name' => 'finance_manager']);
         $roleFinance->syncPermissions([
             'view_admin_dashboard',
-            'approve_removal',       // Control de pérdidas
+            'approve_removal',
             'view_analytics'
         ]);
 
-        // E. INVENTORY MANAGER (Encargado de Inventario Local)
+        // E. INVENTORY MANAGER
         $roleInventory = Role::firstOrCreate(['name' => 'inventory_manager']);
         $roleInventory->syncPermissions([
             'view_admin_dashboard',
@@ -88,30 +93,36 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_purchase'
         ]);
 
-        // F. GROWTH SPECIALIST (Analista de Crecimiento)
+        // F. GROWTH SPECIALIST
         $roleGrowth = Role::firstOrCreate(['name' => 'growth_specialist']);
         $roleGrowth->syncPermissions([
             'view_admin_dashboard',
             'view_analytics'
         ]);
 
-        // G. IDENTITY AUDITOR (Auditor de Identidad/KYC)
+        // G. IDENTITY AUDITOR
         $roleIdentity = Role::firstOrCreate(['name' => 'identity_auditor']);
         $roleIdentity->syncPermissions([
             'view_admin_dashboard',
             'audit_identity'
         ]);
 
-        // H. LOGISTICS OPERATOR (Operario de Almacén)
+        // H. LOGISTICS OPERATOR
         $roleOperator = Role::firstOrCreate(['name' => 'logistics_operator']);
         $roleOperator->syncPermissions([
-            'view_admin_dashboard', // Acceso limitado
-            'manage_transformations', // Trabajo físico
+            'view_admin_dashboard',
+            'manage_transformations',
             'view_inventory'
         ]);
 
-        // I. CUSTOMER (Cliente Final)
-        // No tiene permisos de dashboard administrativo por defecto
+        // I. DRIVER (NUEVO)
+        $roleDriver = Role::firstOrCreate(['name' => 'driver']);
+        $roleDriver->syncPermissions([
+            'access_driver_app',
+            'manage_deliveries'
+        ]);
+
+        // J. CUSTOMER
         Role::firstOrCreate(['name' => 'customer']);
     }
 }

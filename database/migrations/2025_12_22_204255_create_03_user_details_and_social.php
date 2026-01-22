@@ -23,7 +23,13 @@ return new class extends Migration
             $table->string('license_number')->nullable();
             $table->string('vehicle_type')->nullable(); 
             $table->string('license_plate', 15)->nullable();
-        
+            
+            // Documentos (Fotos) - Agregados sin 'after'
+            $table->string('ci_front_path')->nullable();
+            $table->string('ci_back_path')->nullable();
+            $table->string('license_photo_path')->nullable();
+            $table->string('vehicle_photo_path')->nullable();
+            
             // Estado de Verificación de Identidad
             $table->boolean('is_identity_verified')->default(false);
             
@@ -51,13 +57,11 @@ return new class extends Migration
             $table->timestamp('login_at')->useCurrent();
         });
 
-        // 4. DIRECCIONES DEL USUARIO (Aquí aplicamos la corrección)
+        // 4. DIRECCIONES DEL USUARIO
         Schema::create('user_addresses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             
-            // --- CORRECCIÓN APLICADA ---
-            // Añadimos '->nullable()' para permitir direcciones fuera de cobertura (sin sucursal)
             $table->unsignedBigInteger('branch_id')->nullable(); 
 
             $table->string('alias')->nullable(); 

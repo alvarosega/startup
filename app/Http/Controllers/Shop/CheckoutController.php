@@ -17,14 +17,10 @@ use Carbon\Carbon;
 
 class CheckoutController extends Controller
 {
-    /**
-     * Paso 1: Resumen y Selección de Dirección
-     */
     public function index()
     {
         $user = Auth::user();
         
-        // Cargar carrito con precios actualizados
         $cart = Cart::where('user_id', $user->id)
             ->with(['items.sku.product', 'items.sku.prices', 'branch'])
             ->first();
@@ -33,12 +29,12 @@ class CheckoutController extends Controller
             return redirect()->route('shop.index');
         }
 
-        // Calcular totales
+        // Calcular totales con precio actual
         $items = $cart->items->map(function ($item) use ($cart) {
             $price = $item->sku->getCurrentPrice($cart->branch_id);
             return [
                 'sku_id' => $item->sku_id,
-                'name' => $item->sku->name,
+                'name' => $item->sku->product->name . ' ' . $item->sku->name,
                 'quantity' => $item->quantity,
                 'unit_price' => $price,
                 'subtotal' => $price * $item->quantity
@@ -52,17 +48,15 @@ class CheckoutController extends Controller
                 'branch_name' => $cart->branch->name
             ],
             'addresses' => UserAddress::where('user_id', $user->id)->get(),
-            'default_address' => UserAddress::where('user_id', $user->id)->where('is_default', true)->first()
+            // Preseleccionar dirección default
+            'default_address_id' => UserAddress::where('user_id', $user->id)->where('is_default', true)->value('id')
         ]);
     }
 
-    /**
-     * Paso 2: CREACIÓN DE LA ORDEN (Reserva de Stock)
-     */
     public function store(Request $request)
     {
         $request->validate([
-            'address_id' => 'nullable|exists:user_addresses,id',
+            'address_id' => 'required|exists:user_addresses,id', // Obligatorio para delivery
         ]);
 
         $user = Auth::user();
@@ -70,7 +64,7 @@ class CheckoutController extends Controller
         try {
             return DB::transaction(function () use ($user, $request) {
                 
-                // 1. Recuperar Carrito Bloqueado
+                // 1. Bloquear Carrito para evitar modificaciones concurrentes
                 $cart = Cart::where('user_id', $user->id)
                     ->with('items.sku')
                     ->lockForUpdate()
@@ -78,64 +72,65 @@ class CheckoutController extends Controller
 
                 if ($cart->items->isEmpty()) throw new \Exception("El carrito está vacío.");
 
-                // 2. Preparar Datos de Entrega
-                $address = UserAddress::find($request->address_id);
+                // 2. Preparar Dirección (Snapshot)
+                $address = UserAddress::findOrFail($request->address_id);
                 $deliveryData = [
-                    'address' => $address ? $address->address : 'Retiro en Tienda',
-                    'coordinates' => $address ? ['lat' => $address->latitude, 'lng' => $address->longitude] : null,
+                    'alias' => $address->alias,
+                    'address' => $address->address,
+                    'details' => $address->details,
+                    'coordinates' => ['lat' => $address->latitude, 'lng' => $address->longitude],
                     'contact' => $user->phone
                 ];
 
-                // 3. Crear Orden
+                // 3. Crear Cabecera de Orden
                 $order = Order::create([
                     'code' => 'ORD-' . strtoupper(Str::random(8)),
                     'user_id' => $user->id,
                     'branch_id' => $cart->branch_id,
                     'status' => 'pending_proof',
-                    'reservation_expires_at' => Carbon::now()->addMinutes(5),
-                    'total_amount' => 0,
+                    'reservation_expires_at' => Carbon::now()->addMinutes(5), // VENTANA DE 5 MINUTOS
+                    'total_amount' => 0, // Se calcula abajo
                     'delivery_data' => $deliveryData
                 ]);
 
                 $totalOrder = 0;
 
-                // 4. Procesar Stock (FIFO)
+                // 4. LÓGICA DE RESERVA DE STOCK (CRÍTICO)
                 foreach ($cart->items as $cartItem) {
                     
-                    $requiredQty = $cartItem->quantity;
+                    $qtyNeeded = $cartItem->quantity;
                     
-                    // Verificar Stock Total
-                    $availableStock = InventoryLot::where('branch_id', $cart->branch_id)
-                        ->where('sku_id', $cartItem->sku_id)
-                        ->sum('quantity');
-
-                    if ($availableStock < $requiredQty) {
-                        throw new \Exception("Stock insuficiente para: " . $cartItem->sku->name);
-                    }
-
-                    // Descontar de Lotes
+                    // Buscar Lotes Disponibles (FIFO)
+                    // Filtramos donde (cantidad_real - cantidad_reservada) > 0
                     $lots = InventoryLot::where('branch_id', $cart->branch_id)
                         ->where('sku_id', $cartItem->sku_id)
-                        ->where('quantity', '>', 0)
+                        ->whereRaw('(quantity - reserved_quantity) > 0') 
+                        ->orderBy('expiration_date', 'asc') // Primero lo que vence antes
                         ->orderBy('created_at', 'asc')
                         ->lockForUpdate()
                         ->get();
 
-                    $qtyToDeduct = $requiredQty;
+                    // Verificar disponibilidad total antes de reservar
+                    $totalAvailable = $lots->sum(fn($lot) => $lot->quantity - $lot->reserved_quantity);
 
-                    foreach ($lots as $lot) {
-                        if ($qtyToDeduct <= 0) break;
-
-                        if ($lot->quantity >= $qtyToDeduct) {
-                            $lot->decrement('quantity', $qtyToDeduct);
-                            $qtyToDeduct = 0;
-                        } else {
-                            $qtyToDeduct -= $lot->quantity;
-                            $lot->update(['quantity' => 0]);
-                        }
+                    if ($totalAvailable < $qtyNeeded) {
+                        throw new \Exception("Stock insuficiente para: " . $cartItem->sku->name . ". Disponible: " . $totalAvailable);
                     }
 
-                    // Guardar Item Orden
+                    // Reservar en los lotes
+                    foreach ($lots as $lot) {
+                        if ($qtyNeeded <= 0) break;
+
+                        $lotAvailable = $lot->quantity - $lot->reserved_quantity;
+                        $take = min($lotAvailable, $qtyNeeded);
+
+                        // Aumentamos la reserva (No tocamos el físico 'quantity' aún)
+                        $lot->increment('reserved_quantity', $take);
+                        
+                        $qtyNeeded -= $take;
+                    }
+
+                    // Guardar Item en la Orden (Snapshot de precio)
                     $currentPrice = $cartItem->sku->getCurrentPrice($cart->branch_id);
                     
                     OrderItem::create([
@@ -151,12 +146,13 @@ class CheckoutController extends Controller
 
                 $order->update(['total_amount' => $totalOrder]);
                 
-                // Vaciar Carrito
-                $cart->items()->delete(); 
-                $cart->delete();
+                // 5. SOFT DELETE DEL CARRITO
+                // No lo borramos permanentemente, solo lo ocultamos.
+                // Si la orden expira, lo restauraremos.
+                $cart->delete(); 
 
                 return redirect()->route('orders.show', $order->code)
-                    ->with('success', 'Stock reservado. ¡Paga ahora!');
+                    ->with('success', 'Productos reservados por 5 minutos. ¡Sube tu comprobante!');
             });
 
         } catch (\Exception $e) {

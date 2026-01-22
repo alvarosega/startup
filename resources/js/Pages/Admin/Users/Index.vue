@@ -5,7 +5,7 @@
     import { Link, router } from '@inertiajs/vue3';
     import { ref, watch, computed } from 'vue';
     import { debounce } from 'lodash';
-    import { UserPlus, SearchX, Users, Shield, Building2, UserCog, Briefcase } from 'lucide-vue-next';
+    import { UserPlus, SearchX, Users, Shield, Building2, UserCog, Briefcase, Truck } from 'lucide-vue-next';
     
     const props = defineProps({ 
         users: Object,
@@ -21,7 +21,8 @@
     });
     
     // --- LÓGICA DE AGRUPACIÓN MEJORADA ---
-    const groupedUsers = computed(() => {
+// --- LÓGICA DE AGRUPACIÓN MEJORADA ---
+const groupedUsers = computed(() => {
         if (!props.users.data) return {};
     
         const groups = props.users.data.reduce((acc, user) => {
@@ -47,13 +48,19 @@
                 groupIcon = Briefcase;
                 groupColor = 'emerald';
             }
-            // 4. Clientes
+            // 4. CONDUCTORES (NUEVO - AQUÍ ESTABA EL PROBLEMA)
+            else if (user.role_key === 'driver') {
+                groupName = 'Flota de Conductores';
+                groupIcon = Truck; // Asegúrate de importar Truck
+                groupColor = 'orange'; // Color distintivo para drivers
+            }
+            // 5. Clientes
             else if (user.role_key === 'client' || user.role_key === 'customer') {
                 groupName = 'Clientes Registrados';
                 groupIcon = UserCog;
                 groupColor = 'amber';
             }
-            // 5. Sin categoría específica
+            // 6. Resto
             else {
                 groupName = user.branch || 'Sin Asignar';
                 groupIcon = Users;

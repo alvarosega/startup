@@ -36,6 +36,7 @@ use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Admin\BundleController;
 
 use App\Http\Controllers\Client\AddressController;
+use App\Http\Controllers\Driver\DriverController;
 
 
 // =============================================================================
@@ -154,10 +155,17 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/my-orders', [OrderController::class, 'history'])->name('orders.history');
     Route::get('/my-orders/{id}', [OrderController::class, 'show'])->name('orders.show');
-// ... ZONA PÚBLICA ...
 
-// AGREGAR ESTAS 2 LÍNEAS PARA QUE ZIGGY RECONOZCA LAS RUTAS
-   
+    // ... dentro de Route::middleware(['auth']) ...
+
+    // ZONA CONDUCTORES
+    Route::middleware(['role:driver'])->prefix('driver')->name('driver.')->group(function () {
+        Route::get('/dashboard', [App\Http\Controllers\Driver\DriverController::class, 'dashboard'])->name('dashboard');
+        Route::get('/history', [App\Http\Controllers\Driver\DriverController::class, 'history'])->name('history');
+        Route::post('/upload-docs', [App\Http\Controllers\Driver\DriverController::class, 'uploadDocuments'])->name('upload-docs');
+    });
+    // AGREGAR ESTAS 2 LÍNEAS PARA QUE ZIGGY RECONOZCA LAS RUTAS
+    
 });
 
 
@@ -213,7 +221,8 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         });
         Route::get('orders/kanban', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.kanban');
         Route::patch('orders/{id}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('orders.status');
-
+        // En routes/web.php, dentro del grupo 'admin.'
+        Route::resource('drivers', App\Http\Controllers\Admin\DriverController::class);
     });
 
 // 5. REDIRECCIÓN DEFAULT
@@ -224,3 +233,4 @@ Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
     }
     return redirect()->route('profile.index');
 })->name('dashboard');
+

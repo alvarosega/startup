@@ -163,6 +163,10 @@
                         <template #icon><Building2 :size="20" class="transition-transform group-hover:scale-110" /></template>
                         Sucursales
                     </SidebarLink>
+                    <SidebarLink v-if="isSuperAdmin || isBranchAdmin" :href="route('admin.drivers.index')" :active="$page.url.startsWith('/admin/drivers')" :collapsed="isCollapsed">
+                        <template #icon><Truck :size="20" class="transition-transform group-hover:scale-110" /></template>
+                        Conductores
+                    </SidebarLink>
                     <SidebarLink :href="route('admin.users.index')" :active="$page.url.startsWith('/admin/users')" :collapsed="isCollapsed">
                         <template #icon><UserCog :size="20" class="transition-transform group-hover:scale-110" /></template>
                         Equipo
