@@ -22,33 +22,42 @@ class Sku extends Model
         'conversion_factor' => 'decimal:2',
         'weight' => 'decimal:3'
     ];
-
+    protected $appends = ['image'];
         
-
-    public function updatePrice(float $newPrice)
+/**
+     * Relación con Lotes de Inventario.
+     * Necesaria para filtrar stock disponible.
+     */
+    public function inventoryLots()
     {
-        // Buscamos el último precio registrado
-        $latestPrice = $this->prices()->latest('id')->first();
-
-        // Si no tiene precio O el precio cambió, registramos/actualizamos
-        if (!$latestPrice || floatval($latestPrice->final_price) !== floatval($newPrice)) {
-            
-            // OPCIÓN A: Sobreescribir el último si fue creado hoy (Para corregir errores)
-            // if ($latestPrice && $latestPrice->created_at->isToday()) { ... }
-
-            // OPCIÓN B (Elegida): Crear nuevo registro histórico siempre (Auditoría)
-            // O actualización directa para MVP simple:
-            $this->prices()->create([
-                'branch_id' => null, // Precio Base Nacional
-                'list_price' => $newPrice * 1.10, // Margen teórico
-                'final_price' => $newPrice,
-                'min_quantity' => 1,
-                'valid_from' => now()
-            ]);
-        }
+        return $this->hasMany(InventoryLot::class);
     }
+    public function updatePrice(float $newPrice, $branchId = null)
+    {
+        // 1. Buscar el precio ACTIVO actual para este contexto
+        // (Eloquent por defecto solo busca where deleted_at IS NULL)
+        $currentPrice = $this->prices()
+            ->where('branch_id', $branchId)
+            ->first();
 
+        // 2. Si existe, lo enviamos al historial (Soft Delete)
+        if ($currentPrice) {
+            // Pequeña optimización: Si el precio es idéntico, no hacemos nada para no llenar la BD
+            if (floatval($currentPrice->final_price) === floatval($newPrice)) {
+                return;
+            }
+            $currentPrice->delete(); 
+        }
 
+        // 3. Crear el nuevo precio vigente
+        $this->prices()->create([
+            'branch_id' => $branchId,
+            'list_price' => $newPrice * 1.10, // Margen teórico
+            'final_price' => $newPrice,
+            'min_quantity' => 1,
+            'valid_from' => now()
+        ]);
+    }
 
     use SoftDeletes;
     protected $guarded = [];
@@ -86,6 +95,27 @@ class Sku extends Model
                 : ($this->product->image_path ? '/storage/' . $this->product->image_path : '/images/default-product.png')
         );
     }
+/**
+     * Helper lógico: Retorna el precio final (float) 
+     * discriminando si es para una sucursal específica o nacional.
+     */
+    public function getCurrentPrice($branchId = null)
+    {
+        // La relación 'prices' ya viene filtrada por SoftDeletes (solo activos)
+        // si usas $this->prices (Eager Loading) o $this->prices()->get().
+        
+        $prices = $this->prices ?? collect();
 
+        // 1. Prioridad: Precio Sucursal
+        if ($branchId) {
+            $branchPrice = $prices->where('branch_id', $branchId)->first();
+            if ($branchPrice) return (float) $branchPrice->final_price;
+        }
+
+        // 2. Fallback: Precio Base Nacional
+        $basePrice = $prices->whereNull('branch_id')->first();
+
+        return $basePrice ? (float) $basePrice->final_price : 0.00;
+    }
 
 }

@@ -3,11 +3,10 @@
     import { usePage, Link } from '@inertiajs/vue3';
     import SidebarLink from '@/Components/Admin/SidebarLink.vue';
     import { 
-        LayoutDashboard, ShoppingCart, Package, Truck, AlertTriangle, 
-        RefreshCw, Tag, Barcode, Layers, Box, Factory, MapPin, Users, LogOut,
-        Menu, ChevronLeft 
+    LayoutDashboard, ShoppingCart, Package, Truck, AlertTriangle, 
+    RefreshCw, Tag, Barcode, Layers, Box, Factory, MapPin, Users, LogOut,
+    Menu, ChevronLeft, Banknote 
     } from 'lucide-vue-next';
-    
     // Definimos los eventos que este componente enviará al Layout padre
     const emit = defineEmits(['width-change', 'resizing-state']);
     
@@ -65,7 +64,7 @@
         canManageCatalog.value || isBranchAdmin.value || isInventoryManager.value || isFinanceManager.value
     );
     const canManageStock = computed(() => isSuperAdmin.value || isLogistics.value || isBranchAdmin.value || isInventoryManager.value);
-    
+    const canManagePrices = computed(() => isSuperAdmin.value);
     // --- COMUNICACIÓN CON EL PADRE ---
     // Cada vez que cambia el ancho o el estado de resizing, avisamos al Layout
     watch(width, (val) => emit('width-change', val), { immediate: true });
@@ -174,7 +173,10 @@
                         <template #icon><Tag :size="20" /></template>
                         Productos
                     </SidebarLink>
-
+                    <SidebarLink v-if="canManagePrices" :href="route('admin.prices.index')" :active="$page.url.startsWith('/admin/prices')" :collapsed="isCollapsed">
+                        <template #icon><Banknote :size="20" /></template>
+                        Precios
+                    </SidebarLink>
                     <SidebarLink v-if="canViewBrands" :href="route('admin.brands.index')" :active="$page.url.startsWith('/admin/brands')" :collapsed="isCollapsed">
                         <template #icon><Layers :size="18" /></template>
                         Marcas

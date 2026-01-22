@@ -16,14 +16,14 @@ class SkuController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Sku::class);
-        // Validación estricta
+        
         $data = $request->validate([
             'product_id' => 'required|exists:products,id',
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:skus,code',
+            'code' => 'nullable|string|max:50|unique:skus,code', // Lo cambié a nullable por flexibilidad
             'conversion_factor' => 'required|numeric|min:1',
             'weight' => 'nullable|numeric|min:0',
-            'price' => 'required|numeric|min:0', // Precio base
+            'price' => 'required|numeric|min:0', 
         ]);
 
         // 1. Crear el SKU
@@ -36,16 +36,11 @@ class SkuController extends Controller
             'is_active' => true
         ]);
 
-        // 2. Crear el Precio Inicial
-        Price::create([
-            'sku_id' => $sku->id,
-            'list_price' => $data['price'],
-            'final_price' => $data['price'],
-            'min_quantity' => 1,
-            'valid_from' => now()
-        ]);
+        // 2. Crear el Precio (Usando el helper del Modelo para consistencia)
+        // Esto automáticamente pone branch_id = null y fechas correctas
+        $sku->updatePrice($data['price']);
 
-        return back()->with('message', 'SKU añadido correctamente.');
+        return back()->with('message', 'SKU y Precio añadidos correctamente.');
     }
 
     public function destroy($id)
@@ -67,5 +62,33 @@ class SkuController extends Controller
         $this->authorize('update', $sku->product); // Usamos policy de producto padre
         
         return redirect()->route('admin.products.edit', $sku->product_id);
+    }
+    // AGREGAR ESTE MÉTODO A TU CONTROLADOR EXISTENTE
+    public function update(Request $request, $id)
+    {
+        $sku = Sku::findOrFail($id);
+        $this->authorize('update', $sku->product); // Usamos permiso del padre
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:50|unique:skus,code,'.$id, // Ignoramos el propio ID
+            'conversion_factor' => 'required|numeric|min:1',
+            'weight' => 'nullable|numeric|min:0',
+            'price' => 'required|numeric|min:0', 
+        ]);
+
+        // 1. Actualizar datos básicos
+        $sku->update([
+            'name' => $data['name'],
+            'code' => $data['code'],
+            'conversion_factor' => $data['conversion_factor'],
+            'weight' => $data['weight'] ?? 0,
+        ]);
+
+        // 2. Actualizar Precio (Si cambió)
+        // El helper updatePrice del modelo se encarga de verificar si es necesario crear uno nuevo
+        $sku->updatePrice($data['price']);
+
+        return back()->with('message', 'SKU actualizado correctamente.');
     }
 }

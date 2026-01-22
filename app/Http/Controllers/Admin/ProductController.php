@@ -20,12 +20,17 @@ class ProductController extends Controller
     use AuthorizesRequests;
     public function index(Request $request)
     {
-
         $this->authorize('viewAny', Product::class);
-        // CAMBIO CRÍTICO: Agregamos 'skus' al eager loading
-        // También traemos 'skus.prices' si quisieras mostrar precios (opcional por ahora)
-        $query = Product::with(['brand', 'category', 'skus']) 
-            ->withCount('skus'); 
+
+        $query = Product::with([
+                'brand', 
+                'category', 
+                // CORRECCIÓN: Gracias a SoftDeletes, esto solo trae el precio activo
+                'skus.prices' => function($q) {
+                    $q->whereNull('branch_id'); // Solo precio base nacional
+                }
+            ]) 
+            ->withCount('skus');
     
         if ($request->search) {
             $query->where(function($q) use ($request) {
@@ -37,7 +42,7 @@ class ProductController extends Controller
             });
         }
     
-        $products = $query->orderBy('name', 'asc') // Orden alfabético es mejor para listas largas
+        $products = $query->orderBy('name', 'asc')
             ->paginate(15)
             ->withQueryString();
     

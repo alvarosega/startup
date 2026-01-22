@@ -7,8 +7,7 @@ use App\Models\Product;
 use App\Models\Sku;
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\Price;
-use Illuminate\Support\Str; // <--- IMPORTANTE
+use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
@@ -59,12 +58,11 @@ class ProductSeeder extends Seeder
     private function createFullProduct($productName, $brandName, $catSlug, $variants)
     {
         $brand = Brand::where('name', $brandName)->first();
-        // Búsqueda más flexible de categorías (para evitar errores si el slug no es exacto)
+        // Búsqueda flexible de categorías
         $category = Category::where('slug', 'like', "%$catSlug%")->first();
 
         if (!$brand || !$category) {
-            // Log para debug si falla algún seed
-            // dump("Saltando $productName: Marca ($brandName) o Categ ($catSlug) no encontrada.");
+            // dump("Saltando $productName: Marca o Categ no encontrada.");
             return;
         }
 
@@ -74,14 +72,15 @@ class ProductSeeder extends Seeder
         ], [
             'brand_id' => $brand->id,
             'category_id' => $category->id,
-            'slug' => Str::slug($productName), // <--- CORRECCIÓN AQUÍ: Generar Slug Manualmente
+            'slug' => Str::slug($productName),
             'description' => "La mejor calidad de $brandName en su variedad $productName.",
             'is_active' => true,
-            'is_alcoholic' => $catSlug !== 'gaseosas' // Lógica simple para demo
+            'is_alcoholic' => $catSlug !== 'gaseosas'
         ]);
 
-        // Crear SKUs
+        // Crear SKUs y asignar Precios
         foreach ($variants as $v) {
+            /** @var Sku $sku */
             $sku = Sku::firstOrCreate([
                 'product_id' => $product->id,
                 'name' => $v['name']
@@ -89,17 +88,14 @@ class ProductSeeder extends Seeder
                 'code' => $v['code'] ?? null,
                 'conversion_factor' => $v['factor'] ?? 1,
                 'weight' => $v['weight'] ?? 1.0,
+                'is_active' => true
             ]);
 
-            // Crear Precio Base Global
-            Price::updateOrCreate([
-                'sku_id' => $sku->id,
-                'branch_id' => null
-            ], [
-                'list_price' => $v['price'] * 1.10,
-                'final_price' => $v['price'],
-                'min_quantity' => 1
-            ]);
+            // CORRECCIÓN CENTRAL:
+            // Usamos el helper del modelo Sku.
+            // Esto asegura consistencia con el Controller y la lógica de SoftDeletes.
+            // Al no pasar branch_id, se crea como Precio Base Nacional (null).
+            $sku->updatePrice((float) $v['price']);
         }
     }
 }

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
-
+use App\Models\InventoryLot;
 
 class Product extends Model
 {
@@ -40,8 +40,25 @@ class Product extends Model
         return $this->hasMany(Sku::class);
     }
     
+
+    public function inventoryLots()
+    {
+        return $this->hasManyThrough(
+            InventoryLot::class, // Modelo final (Lotes)
+            Sku::class,          // Modelo intermedio (SKUs)
+            'product_id',        // FK en tabla SKUs
+            'sku_id',            // FK en tabla InventoryLots
+            'id',                // PK en tabla Products
+            'id'                 // PK en tabla SKUs
+        );
+    }
+    /**
+     * Un producto pertenece a una marca.
+     */
     public function brand()
     {
         return $this->belongsTo(Brand::class);
     }
+
+
 }

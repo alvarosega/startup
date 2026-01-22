@@ -7,10 +7,9 @@
     import { 
         Search, Plus, Package, Image as ImageIcon, 
         Box, Layers, Tag, Edit, Trash2, 
-        Cuboid, DollarSign, X
+        Cuboid, DollarSign, X, Pencil // Importamos Pencil
     } from 'lucide-vue-next';
 
-    // 1. PROPS: Recibimos 'can_manage' del controlador
     const props = defineProps({ 
         products: Object, 
         filters: Object,
@@ -20,9 +19,11 @@
     const search = ref(props.filters.search || '');
     const selectedProductId = ref(null);
     const showSkuModal = ref(false);
+    const isEditingSku = ref(false); // Estado para saber si editamos
 
-    // --- FORMULARIO SKU ---
+    // --- FORMULARIO SKU (Añadimos ID para edición) ---
     const skuForm = useForm({
+        id: null,
         product_id: '',
         name: '',
         code: '',
@@ -65,26 +66,60 @@
 
     const deleteSku = (skuId) => {
         if(confirm('¿Archivar este SKU?')) {
-            router.delete(route('admin.skus.destroy', skuId));
+            router.delete(route('admin.skus.destroy', skuId), { preserveScroll: true });
         }
     };
 
-    // --- LÓGICA DEL MODAL SKU ---
-    const openSkuModal = () => {
+    // --- LÓGICA DEL MODAL SKU (CREAR vs EDITAR) ---
+    
+    const openCreateSkuModal = () => {
+        isEditingSku.value = false;
         skuForm.reset();
         skuForm.product_id = activeProduct.value.id;
         skuForm.name = activeProduct.value.name + ' - '; 
         showSkuModal.value = true;
     };
 
+    const openEditSkuModal = (sku) => {
+        isEditingSku.value = true;
+        skuForm.clearErrors();
+        
+        // Cargar datos del SKU seleccionado
+        skuForm.id = sku.id;
+        skuForm.product_id = sku.product_id;
+        skuForm.name = sku.name;
+        skuForm.code = sku.code;
+        skuForm.conversion_factor = parseFloat(sku.conversion_factor);
+        skuForm.weight = parseFloat(sku.weight);
+        
+        // Extraer precio actual (si existe)
+        skuForm.price = sku.prices && sku.prices.length > 0 
+            ? parseFloat(sku.prices[0].final_price) 
+            : 0;
+
+        showSkuModal.value = true;
+    };
+
     const submitSku = () => {
-        skuForm.post(route('admin.skus.store'), {
-            onSuccess: () => {
-                showSkuModal.value = false;
-                skuForm.reset();
-            },
-            preserveScroll: true
-        });
+        if (isEditingSku.value) {
+            // ACTUALIZAR (PUT)
+            skuForm.put(route('admin.skus.update', skuForm.id), {
+                onSuccess: () => {
+                    showSkuModal.value = false;
+                    skuForm.reset();
+                },
+                preserveScroll: true
+            });
+        } else {
+            // CREAR (POST)
+            skuForm.post(route('admin.skus.store'), {
+                onSuccess: () => {
+                    showSkuModal.value = false;
+                    skuForm.reset();
+                },
+                preserveScroll: true
+            });
+        }
     };
 </script>
 
@@ -127,7 +162,7 @@
                             </div>
                             <div class="flex items-center justify-between mt-0.5">
                                 <p class="text-[10px] text-skin-muted truncate max-w-[100px]">{{ prod.brand?.name }}</p>
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-skin-fill border border-skin-border text-skin-muted">{{ prod.skus?.length || 0 }} SKUs</span>
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-skin-fill border border-skin-border text-skin-muted">{{ prod.skus_count || 0 }} SKUs</span>
                             </div>
                         </div>
                     </div>
@@ -171,7 +206,7 @@
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 
-                                <div v-if="can_manage" @click="openSkuModal" 
+                                <div v-if="can_manage" @click="openCreateSkuModal" 
                                      class="border-2 border-dashed border-skin-border rounded-global flex flex-col items-center justify-center text-skin-muted hover:text-skin-primary hover:border-skin-primary hover:bg-skin-primary/5 transition-all cursor-pointer min-h-[140px] group order-first">
                                     <div class="p-3 rounded-full bg-skin-fill group-hover:bg-skin-primary/10 transition mb-2">
                                         <Plus :size="24" />
@@ -192,14 +227,28 @@
                                             <span v-if="parseFloat(sku.conversion_factor) > 1" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 text-[10px] font-black uppercase shadow-sm"><Box :size="10" /> Pack x{{ parseFloat(sku.conversion_factor) }}</span>
                                             <span v-else class="inline-flex items-center gap-1 px-2 py-1 rounded bg-skin-fill text-skin-muted border border-skin-border text-[10px] font-bold uppercase"><Cuboid :size="10" /> Unidad Base</span>
                                             
-                                            <button v-if="can_manage" @click="deleteSku(sku.id)" class="p-1 text-skin-muted hover:text-skin-danger rounded hover:bg-skin-fill opacity-0 group-hover:opacity-100 transition"><Trash2 :size="14" /></button>
+                                            <div v-if="can_manage" class="flex gap-1 opacity-0 group-hover:opacity-100 transition duration-200">
+                                                <button @click="openEditSkuModal(sku)" class="p-1.5 text-skin-muted hover:text-skin-primary hover:bg-skin-fill rounded transition" title="Editar SKU">
+                                                    <Pencil :size="14" />
+                                                </button>
+                                                <button @click="deleteSku(sku.id)" class="p-1.5 text-skin-muted hover:text-skin-danger hover:bg-skin-fill rounded transition" title="Eliminar SKU">
+                                                    <Trash2 :size="14" />
+                                                </button>
+                                            </div>
                                         </div>
+
                                         <h4 class="font-bold text-skin-base text-sm leading-tight mb-1 line-clamp-2 min-h-[1.25rem]">{{ sku.name }}</h4>
-                                        <p class="font-mono text-xs text-skin-primary font-bold mb-4 bg-skin-primary/5 inline-block px-1 rounded">{{ sku.code }}</p>
+                                        <p class="font-mono text-xs text-skin-primary font-bold mb-4 bg-skin-primary/5 inline-block px-1 rounded">{{ sku.code || 'S/C' }}</p>
                                         
                                         <div class="grid grid-cols-2 gap-2 pt-3 border-t border-skin-border/50">
                                             <div><span class="block text-[9px] text-skin-muted uppercase font-bold">Peso</span><span class="text-xs font-mono text-skin-base">{{ sku.weight || '0' }} kg</span></div>
-                                            <div><span class="block text-[9px] text-skin-muted uppercase font-bold text-right">Precio</span><span class="block text-xs font-mono text-skin-success text-right font-bold">{{ sku.prices?.[0]?.final_price || '---' }}</span></div>
+                                            
+                                            <div>
+                                                <span class="block text-[9px] text-skin-muted uppercase font-bold text-right">Precio</span>
+                                                <span class="block text-xs font-mono text-skin-success text-right font-bold">
+                                                    {{ sku.prices && sku.prices.length > 0 ? parseFloat(sku.prices[0].final_price).toFixed(2) : '0.00' }}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -217,7 +266,9 @@
             <div v-if="showSkuModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div class="bg-skin-fill-card border border-skin-border rounded-lg shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
                     <div class="flex justify-between items-center p-4 border-b border-skin-border">
-                        <h3 class="font-bold text-lg text-skin-base">Nueva Presentación</h3>
+                        <h3 class="font-bold text-lg text-skin-base">
+                            {{ isEditingSku ? 'Editar Presentación' : 'Nueva Presentación' }}
+                        </h3>
                         <button @click="showSkuModal = false" class="text-skin-muted hover:text-skin-danger"><X :size="20" /></button>
                     </div>
                     
@@ -253,7 +304,9 @@
 
                         <div class="pt-4 flex justify-end gap-3">
                             <button type="button" @click="showSkuModal = false" class="px-4 py-2 text-sm text-skin-muted hover:text-skin-base">Cancelar</button>
-                            <button type="submit" :disabled="skuForm.processing" class="px-6 py-2 bg-skin-primary text-skin-primary-text rounded text-sm font-bold shadow hover:brightness-110 disabled:opacity-50">Guardar SKU</button>
+                            <button type="submit" :disabled="skuForm.processing" class="px-6 py-2 bg-skin-primary text-skin-primary-text rounded text-sm font-bold shadow hover:brightness-110 disabled:opacity-50">
+                                {{ isEditingSku ? 'Actualizar' : 'Guardar' }}
+                            </button>
                         </div>
                     </form>
                 </div>

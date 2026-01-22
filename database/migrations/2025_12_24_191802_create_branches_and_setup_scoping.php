@@ -32,6 +32,11 @@ return new class extends Migration {
         Schema::table('user_verifications', function (Blueprint $table) {
             $table->foreignId('branch_id')->after('user_id')->nullable()->constrained('branches')->onDelete('set null');
         });
+        
+
+        Schema::table('user_addresses', function (Blueprint $table) {
+            $table->foreign('branch_id')->references('id')->on('branches');
+        });
     }
 
     public function down(): void {

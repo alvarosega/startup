@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,34 +21,70 @@ return new class extends Migration
             
             // Datos específicos de Repartidor (🛵)
             $table->string('license_number')->nullable();
-            $table->string('vehicle_type')->nullable(); // Moto, Automóvil, Camioneta, Bicicleta/Pie
+            $table->string('vehicle_type')->nullable(); 
             $table->string('license_plate', 15)->nullable();
         
-            // Estado de Verificación de Identidad (Bloqueo de Seguridad)
+            // Estado de Verificación de Identidad
             $table->boolean('is_identity_verified')->default(false);
             
             $table->timestamps();
         });
+
         // 2. Identidades Sociales
         Schema::create('social_identities', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('provider_name'); // google, apple
-            $table->string('provider_id'); // ID externo
+            $table->string('provider_name'); 
+            $table->string('provider_id'); 
             $table->json('data_json')->nullable();
             $table->timestamps();
-            // Evitar duplicados del mismo proveedor
             $table->unique(['provider_name', 'provider_id']);
         });
 
-        // 3. Historial de Login (Auditoría de Acceso)
+        // 3. Historial de Login
         Schema::create('login_history', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('ip_address', 45)->nullable();
             $table->string('user_agent')->nullable();
-            $table->string('device_fingerprint')->nullable(); // Futura implementación
+            $table->string('device_fingerprint')->nullable(); 
             $table->timestamp('login_at')->useCurrent();
+        });
+
+        // 4. DIRECCIONES DEL USUARIO (Aquí aplicamos la corrección)
+        Schema::create('user_addresses', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            
+            // --- CORRECCIÓN APLICADA ---
+            // Añadimos '->nullable()' para permitir direcciones fuera de cobertura (sin sucursal)
+            $table->unsignedBigInteger('branch_id')->nullable(); 
+
+            $table->string('alias')->nullable(); 
+            $table->string('address');
+            // COORDENADAS
+            $table->decimal('latitude', 10, 8);
+            $table->decimal('longitude', 11, 8);
+            
+            $table->string('reference')->nullable(); 
+            
+            $table->boolean('is_default')->default(false); 
+            
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // 5. DATOS DE FACTURACIÓN
+        Schema::create('user_billing_infos', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            
+            $table->string('nit_number'); 
+            $table->string('business_name'); 
+            
+            $table->boolean('is_default')->default(false); 
+            
+            $table->timestamps();
         });
     }
 
@@ -56,5 +93,7 @@ return new class extends Migration
         Schema::dropIfExists('login_history');
         Schema::dropIfExists('social_identities');
         Schema::dropIfExists('user_profiles');
+        Schema::dropIfExists('user_billing_infos');
+        Schema::dropIfExists('user_addresses');
     }
 };

@@ -11,131 +11,137 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Models\Cart;      // Importante
+use App\Models\CartItem;  // Importante
+use App\Models\Branch;    // Importante
+use App\Models\UserAddress; // Importante
 
 class AuthController extends Controller
 {
     public function showLogin() { return Inertia::render('Auth/Login'); }
-    public function showRegister() { return Inertia::render('Auth/Register'); }
+    
+    public function showRegister() { 
+        // Enviamos las sucursales para que el mapa del registro funcione
+        $branches = Branch::where('is_active', true)
+            ->select('id', 'name', 'coverage_polygon')
+            ->get();
+
+        return Inertia::render('Auth/Register', [
+            'activeBranches' => $branches
+        ]); 
+    }
 
     /**
-     * Registro de nuevo usuario (Nivel 1)
+     * Registro de nuevo usuario (Completo con Dirección y Carrito)
      */
-// En App\Modules\Identity\Controllers\AuthController.php
-
     public function register(RegisterRequest $request)
     {
-        return DB::transaction(function () use ($request) {
-            
-            // 1. Preparar datos del avatar
-            $avatarType = $request->avatar_type;
-            $avatarSource = $request->avatar_source; // Por defecto el icono
+        // 1. CRÍTICO: Capturamos el ID de la sesión del invitado ANTES de cualquier login
+        // Si lo hacemos después de Auth::login, Laravel ya habrá regenerado el ID y perderemos el carrito.
+        $guestSessionId = $request->session()->getId();
 
-            // 2. Crear usuario BASE
+        return DB::transaction(function () use ($request, $guestSessionId) {
+            
+            // 2. Crear usuario
             $user = User::create([
-                'phone' => $request->phone, // Ya viene limpio del Request
+                'phone' => $request->phone, 
                 'password' => Hash::make($request->password),
                 'is_active' => true,
-                'avatar_type' => $avatarType,
-                'avatar_source' => $avatarSource, // Guardamos temporalmente el icono o string vacio
+                'avatar_type' => $request->avatar_type ?? 'icon',
+                'avatar_source' => $request->avatar_source ?? 'avatar_1.svg',
             ]);
 
-            // 3. Si subió imagen propia, la guardamos ahora usando el ID del usuario
-            if ($avatarType === 'custom' && $request->hasFile('avatar_file')) {
+            // 3. Dirección (Si aplica)
+            if ($request->role === 'client' && $request->latitude) {
+                UserAddress::create([
+                    'user_id' => $user->id,
+                    'alias' => $request->alias ?? 'Casa',
+                    'address' => $request->address,
+                    'details' => $request->details,
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude,
+                    'branch_id' => $request->branch_id,
+                    'is_default' => true
+                ]);
+            }
+
+            // 4. Avatar Custom
+            if ($request->avatar_type === 'custom' && $request->hasFile('avatar_file')) {
                 $path = $request->file('avatar_file')->store("avatars/{$user->id}", 'private');
-                // Actualizamos el usuario con la ruta real
                 $user->update(['avatar_source' => $path]);
             }
 
-            // 4. Asignar Rol
-            $roleName = ($request->role === 'client') ? 'client' : 'driver'; // Ojo: en tus seeders usa nombres en inglés
+            // 5. Roles y Perfil
+            $roleName = ($request->role === 'client') ? 'client' : 'driver'; 
             $role = Role::where('name', $roleName)->first();
             if ($role) $user->roles()->attach($role->id);
 
-            // 5. Crear Perfil Vacío (Necesario para el porcentaje de completitud)
             \App\Models\UserProfile::create(['user_id' => $user->id]);
 
-            // 6. Auditoría Legal
-            DB::table('legal_agreements_log')->insert([
-                'user_id' => $user->id,
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'accepted_at' => now(),
-            ]);
-
+            // 6. Login (Esto regenera la sesión, por eso capturamos el ID antes)
             Auth::login($user);
+            
+            // 7. Fusión de Carrito USANDO EL ID VIEJO
+            $this->mergeGuestCart($user, $guestSessionId);
 
             return redirect()->route('shop.index');
         });
     }
 
     /**
-     * Inicio de sesión con redirección por rol
+     * Inicio de sesión corregido
      */
     public function login(Request $request)
     {
-        // 1. Validamos la entrada básica
+        // 1. Validar
         $credentials = $request->validate([
             'phone' => ['required', 'string'],
             'password' => ['required'],
         ]);
     
-        // 2. NORMALIZACIÓN DE DATOS
-        $phone = $credentials['phone'];
-        $phone = str_replace(' ', '', $phone); // Limpiamos espacios
+        // 2. Normalizar teléfono
+        $phone = str_replace(' ', '', $credentials['phone']); 
     
-        // Si no empieza con '+', asumimos que es un número local de Bolivia (+591)
         if (!str_starts_with($phone, '+')) {
             $phone = '+591' . $phone;
         }
     
-        // Actualizamos la credencial a usar
         $credentials['phone'] = $phone;
-    
-        // 3. Intento de Login
+        
+        // 3. Capturar ID de sesión ANTES de loguear
+        $guestSessionId = $request->session()->getId();
+
+        // 4. Intento de Login
         if (Auth::attempt($credentials, $request->remember)) {
+            
             $request->session()->regenerate();
-            $request->user()->update(['last_login_at' => now()]);
-    
-            // --- LÓGICA DE RUTEO ESCALABLE ---
             $user = $request->user();
+            $user->update(['last_login_at' => now()]);
     
-            // CASO A: PERSONAL OPERATIVO (Dashboards Especializados)
-            // El Operador Logístico va a su panel táctico (Alertas y stock)
+            // 5. Fusión de Carrito
+            $this->mergeGuestCart($user, $guestSessionId);
+    
+            // 6. Redirección por Roles
+            
+            // Operativos
             if ($user->hasRole('logistics_operator')) {
                 return redirect()->intended(route('admin.logistics.dashboard'));
             }
-            
-            // (Futuro) Repartidores
-            if ($user->hasRole('driver')) {
-                // return redirect()->route('driver.dashboard');
-            }
     
-            // CASO B: GERENCIA Y ADMINISTRACIÓN (Dashboard General)
-            // Usamos 'hasAnyRole' para verificar múltiples roles en una sola línea
-            if ($user->hasAnyRole([
-                'super_admin',
-                'branch_admin',
-                'identity_auditor',
-                'logistics_manager', // El Gerente sí ve todo
-                'finance_manager',
-                'inventory_manager'
-            ])) {
+            // Administrativos
+            if ($user->hasAnyRole(['super_admin', 'branch_admin', 'logistics_manager', 'finance_manager', 'inventory_manager'])) {
                  return redirect()->intended(route('admin.dashboard')); 
             }
     
-            // CASO C: Clientes normales -> Home / Catálogo
-            return redirect()->route('shop.index');
+            // Clientes (Checkout o Home)
+            return redirect()->intended(route('shop.index'));
         }
     
-        // 4. Feedback de error
         return back()->withErrors([
             'phone' => 'Credenciales incorrectas.',
         ]);
     }
 
-    /**
-     * Cierre de sesión y limpieza de tokens
-     */
     public function logout(Request $request)
     {
         Auth::logout();
@@ -143,30 +149,65 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
         return redirect()->route('shop.index');
     }
-    public function updateAvatar(Request $request)
+
+    public function validateStep1(Request $request)
     {
-        $request->validate([
-            'avatar_type' => 'required|in:icon,custom',
-            'avatar_source' => 'required_if:avatar_type,icon',
-            'avatar_file' => 'required_if:avatar_type,custom|image|max:1024',
-        ]);
-    
-        $user = auth()->user();
-    
-        if ($request->avatar_type === 'custom') {
-            // Guardar en disco privado
-            $path = $request->file('avatar_file')->store("avatars/{$user->id}", 'private');
-            $user->update([
-                'avatar_type' => 'custom',
-                'avatar_source' => $path
-            ]);
-        } else {
-            $user->update([
-                'avatar_type' => 'icon',
-                'avatar_source' => $request->avatar_source
-            ]);
+        $input = $request->all();
+        if (isset($input['phone'])) {
+            $phone = str_replace([' ', '-', '(', ')'], '', $input['phone']);
+            if (!str_starts_with($phone, '+')) {
+                $phone = '+591' . $phone;
+            }
+            $input['phone'] = $phone;
         }
-    
-        return redirect()->route('profile.wizard');
+
+        $validator = \Illuminate\Support\Facades\Validator::make($input, [
+            'phone' => ['required', 'string', 'regex:/^\+[0-9]{8,15}$/', 'unique:users,phone'],
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        return response()->json(['message' => 'Step 1 OK']);
+    }
+
+    /**
+     * Mueve el carrito de la sesión de invitado al usuario autenticado.
+     */
+    private function mergeGuestCart(User $user, string $guestSessionId)
+    {
+        $guestCart = Cart::where('session_id', $guestSessionId)->first();
+
+        if ($guestCart) {
+            // Ver si el usuario ya tenía carrito en esa sucursal
+            $userCart = Cart::where('user_id', $user->id)
+                ->where('branch_id', $guestCart->branch_id)
+                ->first();
+
+            if ($userCart) {
+                // Fusión de items
+                foreach ($guestCart->items as $item) {
+                    $existingItem = CartItem::where('cart_id', $userCart->id)
+                        ->where('sku_id', $item->sku_id)
+                        ->first();
+
+                    if ($existingItem) {
+                        $existingItem->increment('quantity', $item->quantity);
+                        $item->delete();
+                    } else {
+                        $item->update(['cart_id' => $userCart->id]);
+                    }
+                }
+                $guestCart->delete();
+            } else {
+                // Asignación directa
+                $guestCart->update([
+                    'user_id' => $user->id,
+                    'session_id' => null
+                ]);
+            }
+        }
     }
 }

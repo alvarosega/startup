@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use App\Models\Cart;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -33,7 +34,29 @@ class HandleInertiaRequests extends Middleware
                     // Estado de verificación
                     'verification_status' => $user->verifications()->latest()->first()?->status,
                 ]) : null,
+                'addresses' => $request->user() 
+                    ? $request->user()->addresses()
+                        ->select('id', 'alias', 'address', 'branch_id', 'is_default')
+                        ->orderBy('is_default', 'desc') // La default primero
+                        ->get() 
+                : [],
             ],
+            'cart_count' => function () use ($request) {
+                // 1. Identificar al dueño del carrito
+                $query = Cart::query();
+                
+                if ($request->user()) {
+                    $query->where('user_id', $request->user()->id);
+                } else {
+                    $query->where('session_id', $request->session()->getId());
+                }
+
+                // 2. Obtener la suma de cantidades (Items * Cantidad)
+                // Usamos 'withSum' o accedemos a la relación si el carrito existe
+                $cart = $query->withSum('items', 'quantity')->first();
+
+                return $cart ? (int)$cart->items_sum_quantity : 0;
+            },        
             // Flash messages para las notificaciones (Toast)
             'flash' => [
                 'message' => fn () => $request->session()->get('message'),

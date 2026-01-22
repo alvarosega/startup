@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+// Al inicio del archivo importa:
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -72,19 +74,22 @@ class User extends Authenticatable
         return '?';
     }
 
-    protected $appends = ['completion_percentage', 'avatar_url'];
+
+
+    // Dentro de la clase User:
+    protected $appends = ['avatar_url', 'completion_percentage']; // Asegúrate que esté aquí
 
     public function getAvatarUrlAttribute()
     {
-        if (empty($this->avatar_source)) {
-            return asset("assets/avatars/avatar_1.svg");
+        if ($this->avatar_type === 'custom' && $this->avatar_source) {
+            // Esta ruta debe existir en web.php para servir archivos privados
+            return route('avatar.download', ['filename' => basename($this->avatar_source)]);
         }
-    
-        if ($this->avatar_type === 'icon') {
-            return asset("assets/avatars/{$this->avatar_source}");
-        }
-    
-        return route('avatar.download', ['filename' => basename($this->avatar_source)]);
+        
+        // Si es ícono o null
+        $icon = $this->avatar_source ?? 'avatar_1.svg';
+        // Asegúrate de que la ruta coincida con donde tienes tus SVGs en public/
+        return asset('assets/avatars/' . $icon); 
     }
 
     public function getCompletionPercentageAttribute(): int
@@ -120,4 +125,22 @@ class User extends Authenticatable
         return $this->email ?? $this->phone ?? 'Usuario';
     }
 
+
+    // Relación: Un usuario tiene muchas direcciones (Historial)
+    public function addresses()
+    {
+        return $this->hasMany(UserAddress::class);
+    }
+
+    // Helper: Obtener la dirección predeterminada para el Checkout
+    public function defaultAddress()
+    {
+        return $this->hasOne(UserAddress::class)->where('is_default', true);
+    }
+
+    // Relación: Datos de facturación (NITs)
+    public function billingInfos()
+    {
+        return $this->hasMany(UserBillingInfo::class);
+    }
 }
