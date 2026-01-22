@@ -1,25 +1,27 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
-    import { Link, router, useForm } from '@inertiajs/vue3'; // Importamos useForm
+    import { Link, router, useForm } from '@inertiajs/vue3';
     import { ref, computed, watch, onMounted } from 'vue';
     import debounce from 'lodash/debounce';
     
     import { 
         Search, Plus, Package, Image as ImageIcon, 
-        Barcode, Box, Layers, Tag, Edit, Trash2, 
-        ChevronRight, AlertTriangle, Cuboid, Scale, DollarSign, X
+        Box, Layers, Tag, Edit, Trash2, 
+        Cuboid, DollarSign, X
     } from 'lucide-vue-next';
 
+    // 1. PROPS: Recibimos 'can_manage' del controlador
     const props = defineProps({ 
         products: Object, 
-        filters: Object 
+        filters: Object,
+        can_manage: Boolean 
     });
 
     const search = ref(props.filters.search || '');
     const selectedProductId = ref(null);
-    const showSkuModal = ref(false); // Estado del Modal
+    const showSkuModal = ref(false);
 
-    // --- FORMULARIO SKU (Para el Modal) ---
+    // --- FORMULARIO SKU ---
     const skuForm = useForm({
         product_id: '',
         name: '',
@@ -71,7 +73,6 @@
     const openSkuModal = () => {
         skuForm.reset();
         skuForm.product_id = activeProduct.value.id;
-        // Pre-llenar nombre sugerido
         skuForm.name = activeProduct.value.name + ' - '; 
         showSkuModal.value = true;
     };
@@ -96,7 +97,8 @@
                 <div class="p-4 border-b border-skin-border bg-skin-fill/50 shrink-0">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="font-black text-lg text-skin-base tracking-tight">Productos</h2>
-                        <Link :href="route('admin.products.create')" class="p-2 bg-skin-primary text-skin-primary-text rounded-global hover:brightness-110 transition shadow-sm" title="Crear Nuevo Producto Maestro">
+                        
+                        <Link v-if="can_manage" :href="route('admin.products.create')" class="p-2 bg-skin-primary text-skin-primary-text rounded-global hover:brightness-110 transition shadow-sm" title="Crear Nuevo Producto Maestro">
                             <Plus :size="16" />
                         </Link>
                     </div>
@@ -158,7 +160,8 @@
                                         <p class="text-sm text-skin-muted max-w-xl line-clamp-2">{{ activeProduct.description }}</p>
                                     </div>
                                 </div>
-                                <div class="flex flex-col gap-2">
+                                
+                                <div v-if="can_manage" class="flex flex-col gap-2">
                                     <Link :href="route('admin.products.edit', activeProduct.id)" class="flex items-center gap-2 px-4 py-2 bg-skin-primary text-skin-primary-text rounded-global text-xs font-bold shadow-sm hover:brightness-110 transition text-center justify-center"><Edit :size="14" /> Editar</Link>
                                     <button @click="deleteProduct(activeProduct.id)" class="flex items-center gap-2 px-4 py-2 bg-skin-fill border border-skin-border hover:border-skin-danger text-skin-muted hover:text-skin-danger rounded-global text-xs font-bold transition text-center justify-center"><Trash2 :size="14" /> Eliminar</button>
                                 </div>
@@ -168,7 +171,7 @@
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 
-                                <div @click="openSkuModal" 
+                                <div v-if="can_manage" @click="openSkuModal" 
                                      class="border-2 border-dashed border-skin-border rounded-global flex flex-col items-center justify-center text-skin-muted hover:text-skin-primary hover:border-skin-primary hover:bg-skin-primary/5 transition-all cursor-pointer min-h-[140px] group order-first">
                                     <div class="p-3 rounded-full bg-skin-fill group-hover:bg-skin-primary/10 transition mb-2">
                                         <Plus :size="24" />
@@ -189,7 +192,7 @@
                                             <span v-if="parseFloat(sku.conversion_factor) > 1" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 text-[10px] font-black uppercase shadow-sm"><Box :size="10" /> Pack x{{ parseFloat(sku.conversion_factor) }}</span>
                                             <span v-else class="inline-flex items-center gap-1 px-2 py-1 rounded bg-skin-fill text-skin-muted border border-skin-border text-[10px] font-bold uppercase"><Cuboid :size="10" /> Unidad Base</span>
                                             
-                                            <button @click="deleteSku(sku.id)" class="p-1 text-skin-muted hover:text-skin-danger rounded hover:bg-skin-fill opacity-0 group-hover:opacity-100 transition"><Trash2 :size="14" /></button>
+                                            <button v-if="can_manage" @click="deleteSku(sku.id)" class="p-1 text-skin-muted hover:text-skin-danger rounded hover:bg-skin-fill opacity-0 group-hover:opacity-100 transition"><Trash2 :size="14" /></button>
                                         </div>
                                         <h4 class="font-bold text-skin-base text-sm leading-tight mb-1 line-clamp-2 min-h-[1.25rem]">{{ sku.name }}</h4>
                                         <p class="font-mono text-xs text-skin-primary font-bold mb-4 bg-skin-primary/5 inline-block px-1 rounded">{{ sku.code }}</p>

@@ -8,28 +8,42 @@ use App\Http\Requests\Category\StoreCategoryRequest;
 use App\Http\Requests\Category\UpdateCategoryRequest;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+// 1. IMPORTANTE: Trait de autorización
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CategoryController extends Controller
 {
-    public function index()
+    // 2. USAR EL TRAIT
+    use AuthorizesRequests;
+
+    // 3. CORRECCIÓN CLAVE: Inyectar (Request $request)
+    public function index(Request $request)
     {
-        // CORRECCIÓN TÉCNICA:
-        // Eliminamos el 'where like search' del backend.
-        // Enviamos todo el dataset para que el Frontend pueda construir el Árbol
-        // y filtrar dinámicamente sin romper la relación Padre-Hijo.
-        
+        // Seguridad
+        $this->authorize('viewAny', Category::class);
+
+        // Lógica de búsqueda y ordenamiento
         $categories = Category::with('parent')
-            ->orderBy('name', 'asc') // Orden alfabético por defecto
+            ->when($request->search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%");
+            })
+            ->orderBy('name', 'asc')
             ->get();
 
         return Inertia::render('Admin/Categories/Index', [
             'categories' => $categories,
-            // No necesitamos pasar 'filters' porque el filtro es local en Vue
+            'filters' => $request->only(['search']),
+            // Permiso para el frontend
+            'can_manage' => auth()->user()->can('create', Category::class)
         ]);
     }
 
     public function create()
     {
+        $this->authorize('create', Category::class);
+        
         return Inertia::render('Admin/Categories/Create', [
             'parents' => Category::roots()->orderBy('name')->get(['id', 'name'])
         ]);
@@ -37,10 +51,17 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request)
     {
+        $this->authorize('create', Category::class);
+
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
             $data['image_path'] = $request->file('image')->store('categories', 'public');
+        }
+        
+        // Generar slug si no viene (aunque el Request debería validarlo)
+        if (empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['name']);
         }
 
         Category::create($data);
@@ -50,11 +71,12 @@ class CategoryController extends Controller
 
     public function edit(Category $category)
     {
-        // CORRECCIÓN DE RUTA: Quitamos 'SuperAdmin' para mantener consistencia
+        $this->authorize('update', $category);
+
         return Inertia::render('Admin/Categories/Edit', [
             'category' => $category,
             'parents' => Category::roots()
-                                 ->where('id', '!=', $category->id) // Evitar auto-referencia cíclica
+                                 ->where('id', '!=', $category->id)
                                  ->orderBy('name')
                                  ->get(['id', 'name'])
         ]);
@@ -62,6 +84,8 @@ class CategoryController extends Controller
 
     public function update(UpdateCategoryRequest $request, Category $category)
     {
+        $this->authorize('update', $category);
+
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
@@ -75,14 +99,11 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
+        $this->authorize('delete', $category);
+
         if ($category->children()->count() > 0) {
             return back()->withErrors(['error' => 'No se puede eliminar: Tiene subcategorías asociadas.']);
         }
-
-        /* if ($category->products()->count() > 0) {
-            return back()->withErrors(['error' => 'No se puede eliminar: Hay productos asociados.']);
-        }
-        */
 
         $category->delete();
 

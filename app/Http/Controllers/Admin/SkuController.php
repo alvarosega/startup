@@ -7,11 +7,15 @@ use App\Models\Sku;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Price; 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class SkuController extends Controller
 {
+    use AuthorizesRequests;
+
     public function store(Request $request)
     {
+        $this->authorize('create', Sku::class);
         // Validación estricta
         $data = $request->validate([
             'product_id' => 'required|exists:products,id',
@@ -47,6 +51,7 @@ class SkuController extends Controller
     public function destroy($id)
     {
         $sku = Sku::findOrFail($id);
+        $this->authorize('delete', $sku);
         // Aquí podrías agregar validación de stock antes de borrar
         $sku->delete();
         return back()->with('message', 'SKU archivado.');
@@ -58,9 +63,9 @@ class SkuController extends Controller
     public function edit($id)
     {
         $sku = Sku::findOrFail($id);
-        // Estrategia: Redirigir al editor del Padre para mantener integridad
+        // Aunque redirija, validamos permiso
+        $this->authorize('update', $sku->product); // Usamos policy de producto padre
+        
         return redirect()->route('admin.products.edit', $sku->product_id);
     }
-    
-
 }

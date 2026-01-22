@@ -13,11 +13,15 @@ use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ProductController extends Controller
 {
+    use AuthorizesRequests;
     public function index(Request $request)
     {
+
+        $this->authorize('viewAny', Product::class);
         // CAMBIO CRÍTICO: Agregamos 'skus' al eager loading
         // También traemos 'skus.prices' si quisieras mostrar precios (opcional por ahora)
         $query = Product::with(['brand', 'category', 'skus']) 
@@ -39,12 +43,14 @@ class ProductController extends Controller
     
         return Inertia::render('Admin/Products/Index', [
             'products' => $products,
-            'filters' => $request->only(['search'])
+            'filters' => $request->only(['search']),
+            'can_manage' => auth()->user()->can('create', Product::class)
         ]);
     }
 
     public function create()
     {
+        $this->authorize('create', Product::class);
         return Inertia::render('Admin/Products/Create', [
             'brands' => Brand::where('is_active', true)->orderBy('name')->get(['id', 'name', 'provider_id']),
             'categories' => Category::where('is_active', true)->orderBy('name')->get(['id', 'name'])
@@ -53,6 +59,7 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
+        $this->authorize('create', Product::class);
         // La validación ya pasó aquí gracias al Request
         $data = $request->validated();
 
@@ -113,7 +120,7 @@ class ProductController extends Controller
                 $p->orderBy('id', 'desc')->limit(1); // Último precio
             }]);
         }])->findOrFail($id);
-        
+        $this->authorize('update', $product);
         return Inertia::render('Admin/Products/Edit', [
             'product' => $product,
             'brands' => Brand::orderBy('name')->get(['id', 'name']),
@@ -123,7 +130,9 @@ class ProductController extends Controller
     
     public function update(UpdateProductRequest $request, $id)
     {
+
         $product = Product::findOrFail($id);
+        $this->authorize('update', $product);
         $data = $request->validated();
 
         try {
@@ -191,5 +200,18 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al actualizar: ' . $e->getMessage()]);
         }
+    }
+    // 5. AGREGAR MÉTODO DESTROY (Faltaba en tu código original)
+    public function destroy($id)
+    {
+        $product = Product::findOrFail($id);
+        
+        // SEGURIDAD
+        $this->authorize('delete', $product);
+
+        // Opcional: Validar si tiene stock o ventas históricas antes de borrar
+        $product->delete(); // SoftDelete
+
+        return redirect()->route('admin.products.index')->with('message', 'Producto eliminado.');
     }
 }
