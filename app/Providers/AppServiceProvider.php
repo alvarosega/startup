@@ -23,7 +23,7 @@ use App\Policies\ProviderPolicy;
 use App\Policies\BrandPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\SkuPolicy;
-
+use App\Policies\TransferPolicy; // <--- IMPORTAR 
 // 3. IMPORTAR OBSERVERS
 use App\Observers\CategoryObserver;
 use App\Observers\ProviderObserver;
@@ -56,6 +56,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Brand::class, BrandPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Sku::class, SkuPolicy::class);
+        Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(Purchase::class, PurchasePolicy::class);
+        
+        // --- AGREGA ESTA LÍNEA ---
+        Gate::policy(Transfer::class, TransferPolicy::class);
 
         // 3. Gate Legacy para Dashboard
         Gate::define('view_admin_dashboard', function (User $user) {

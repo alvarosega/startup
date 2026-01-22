@@ -13,13 +13,19 @@ class Purchase extends Model
     protected $fillable = [
         'branch_id', 'provider_id', 'user_id', 
         'document_number', 'purchase_date', 
+        'payment_type', 'payment_due_date', // <--- AGREGADOS
         'total_amount', 'notes', 'status'
     ];
 
+    protected $casts = [
+        'purchase_date' => 'date',
+        'payment_due_date' => 'date',
+        'total_amount' => 'decimal:2'
+    ];
+
+    // Relaciones...
     public function provider() { return $this->belongsTo(Provider::class); }
     public function branch() { return $this->belongsTo(Branch::class); }
     public function user() { return $this->belongsTo(User::class); }
-    
-    // Relación con los Lotes (Detalles)
     public function inventoryLots() { return $this->hasMany(InventoryLot::class); }
 }

@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class InventoryLot extends Model
 {
     protected $fillable = [
-        'purchase_id', 'sku_id', 'branch_id', 'lot_code',
+        'purchase_id', 'transfer_id',
+        'sku_id', 'branch_id', 'lot_code',
         'quantity', 'initial_quantity', 'reserved_quantity',
         'unit_cost', 'expiration_date'
     ];
@@ -20,4 +21,5 @@ class InventoryLot extends Model
     public function sku() { return $this->belongsTo(Sku::class); }
     public function branch() { return $this->belongsTo(Branch::class); }
     public function purchase() { return $this->belongsTo(Purchase::class); }
+    public function transfer() { return $this->belongsTo(Transfer::class); }
 }

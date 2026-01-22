@@ -14,114 +14,156 @@ use App\Http\Requests\Transfer\ReceiveTransferRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class TransferController extends Controller
 {
-    // --- VISTAS ---
+    use AuthorizesRequests;
+
     public function index()
     {
-        $transfers = Transfer::with(['origin', 'destination', 'sender'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $this->authorize('viewAny', Transfer::class);
+        $user = auth()->user();
 
-        return Inertia::render('Admin/Inventory/Transfers/Index', ['transfers' => $transfers]);
+        $query = Transfer::with(['origin', 'destination', 'sender'])
+            ->withCount('items')
+            ->orderBy('created_at', 'desc');
+
+        if (!$user->hasRole('super_admin')) {
+            $query->where(function($q) use ($user) {
+                $q->where('origin_branch_id', $user->branch_id)
+                  ->orWhere('destination_branch_id', $user->branch_id);
+            });
+        }
+
+        return Inertia::render('Admin/Inventory/Transfers/Index', [
+            'transfers' => $query->paginate(20),
+            'user_branch_id' => $user->branch_id
+        ]);
     }
 
     public function create()
     {
-        // Enviamos Inventario Real para que no seleccionen algo sin stock
-        // (Reutiliza la lógica optimizada que hicimos en Transformaciones)
-        $inventory = InventoryLot::join('skus', 'inventory_lots.sku_id', '=', 'skus.id')
-            ->join('products', 'skus.product_id', '=', 'products.id')
-            ->where('inventory_lots.quantity', '>', 0)
-            ->select(
-                'inventory_lots.branch_id',
-                'inventory_lots.sku_id as id',
-                'products.name as product_name',
-                'skus.name as sku_name',
-                DB::raw('SUM(inventory_lots.quantity - inventory_lots.reserved_quantity) as stock_real')
-            )
-            ->groupBy('inventory_lots.branch_id', 'inventory_lots.sku_id', 'products.name', 'skus.name')
-            ->having('stock_real', '>', 0)
-            ->get();
+        $this->authorize('create', Transfer::class);
+        $user = auth()->user();
 
+        // 1. ORIGENES PERMITIDOS (Aquí está la lógica del bloqueo)
+        if ($user->hasRole('super_admin')) {
+            // Super Admin puede sacar de cualquier lado
+            $origins = Branch::where('is_active', true)->get(['id', 'name']);
+        } else {
+            // Branch Admin SOLO puede sacar de SU sucursal
+            $origins = Branch::where('id', $user->branch_id)->get(['id', 'name']);
+        }
+
+        // 2. DESTINOS POSIBLES (Todas las sucursales activas)
+        $destinations = Branch::where('is_active', true)->get(['id', 'name']);
+
+        // 3. PRODUCTOS (SKUs) para el buscador
+        $skus = Sku::with('product')
+            ->where('is_active', true)
+            ->get()
+            ->map(function ($s) {
+                return [
+                    'id' => $s->id,
+                    'full_name' => ($s->product->name ?? 'Sin Nombre') . ' - ' . $s->name,
+                    'code' => $s->code
+                ];
+            });
+
+        // ENVIAMOS LAS VARIABLES EXACTAS QUE PIDE VUE
         return Inertia::render('Admin/Inventory/Transfers/Create', [
-            'branches' => Branch::where('is_active', true)->get(['id', 'name']),
-            'inventory' => $inventory
+            'origins' => $origins,
+            'destinations' => $destinations,
+            'skus' => $skus
         ]);
     }
 
+    // ... (Mantén tus métodos store, show y receive como ya los tenías aprobados) ...
+    // Asegúrate de incluir el método store y receive completos que te di en la respuesta anterior
+    
     public function show(Transfer $transfer)
     {
+        // Cargamos relaciones necesarias para la vista Show
         $transfer->load(['origin', 'destination', 'sender', 'items.sku.product']);
         return Inertia::render('Admin/Inventory/Transfers/Show', ['transfer' => $transfer]);
     }
 
-    // --- LOGICA DE ENVÍO (ORIGEN -> TRÁNSITO) ---
     public function store(StoreTransferRequest $request)
     {
+        $this->authorize('create', Transfer::class);
         $data = $request->validated();
+        $user = $request->user();
+
+        // SEGURIDAD: FORZAR ORIGEN
+        if ($user->hasRole('super_admin')) {
+            $originId = $data['origin_branch_id'];
+        } else {
+            $originId = $user->branch_id;
+        }
 
         try {
-            DB::transaction(function () use ($data, $request) {
-                // 1. Crear Cabecera
+            DB::transaction(function () use ($data, $user, $originId) {
+                // Crear Transferencia
                 $transfer = Transfer::create([
-                    'origin_branch_id' => $data['origin_branch_id'],
+                    'code' => 'TRF-' . strtoupper(Str::random(8)),
+                    'origin_branch_id' => $originId,
                     'destination_branch_id' => $data['destination_branch_id'],
-                    'created_by' => $request->user()->id,
-                    'notes' => $data['notes'],
-                    'status' => 'in_transit'
+                    'created_by' => $user->id,
+                    'status' => 'in_transit',
+                    'notes' => $data['notes'] ?? null,
+                    'shipped_at' => now()
                 ]);
 
-                // 2. Procesar Items (FIFO)
+                // Procesar Items (FIFO)
                 foreach ($data['items'] as $item) {
                     $qtyNeeded = $item['quantity'];
                     $totalCost = 0;
                     
-                    // Buscar lotes en Origen (FIFO)
-                    $lots = InventoryLot::where('branch_id', $data['origin_branch_id'])
+                    // Buscar lotes
+                    $lots = InventoryLot::where('branch_id', $originId)
                         ->where('sku_id', $item['sku_id'])
                         ->whereRaw('(quantity - reserved_quantity) > 0')
                         ->orderBy('expiration_date', 'asc')
+                        ->lockForUpdate()
                         ->get();
 
-                    if ($lots->sum('quantity') < $qtyNeeded) {
-                        throw new \Exception("Stock insuficiente para el SKU ID {$item['sku_id']}");
+                    // Validar Stock Total
+                    $currentStock = $lots->sum(fn($l) => $l->quantity - $l->reserved_quantity);
+                    if ($currentStock < $qtyNeeded) {
+                        throw new \Exception("Stock insuficiente para el SKU ID {$item['sku_id']}. Tienes {$currentStock}, necesitas {$qtyNeeded}.");
                     }
 
-                    // Descontar Stock
                     foreach ($lots as $lot) {
                         if ($qtyNeeded <= 0) break;
                         
                         $available = $lot->quantity - $lot->reserved_quantity;
                         $take = min($available, $qtyNeeded);
                         
+                        // Descontar
                         $lot->decrement('quantity', $take);
                         
                         InventoryMovement::create([
-                            'branch_id' => $data['origin_branch_id'],
+                            'branch_id' => $originId,
                             'sku_id' => $item['sku_id'],
                             'inventory_lot_id' => $lot->id,
-                            'user_id' => $request->user()->id,
+                            'user_id' => $user->id,
                             'type' => 'transfer_out',
                             'quantity' => -$take,
                             'unit_cost' => $lot->unit_cost,
-                            'reference' => 'Envío TRF ' . $transfer->code
+                            'reference' => 'Envío ' . $transfer->code
                         ]);
 
                         $totalCost += ($take * $lot->unit_cost);
                         $qtyNeeded -= $take;
                     }
 
-                    // Calcular Costo Promedio Ponderado de este envío
-                    // Si envié 5 de 10bs y 5 de 12bs, el costo unitario de transferencia es 11bs.
-                    $avgCost = $totalCost / $item['quantity'];
-
+                    // Guardar Item Transferencia
                     TransferItem::create([
                         'transfer_id' => $transfer->id,
                         'sku_id' => $item['sku_id'],
                         'qty_sent' => $item['quantity'],
-                        'unit_cost' => $avgCost 
+                        'unit_cost' => $item['quantity'] > 0 ? ($totalCost / $item['quantity']) : 0
                     ]);
                 }
             });
@@ -133,89 +175,100 @@ class TransferController extends Controller
         }
     }
 
-    // --- LOGICA DE RECEPCIÓN (TRÁNSITO -> DESTINO + DEVOLUCIÓN) ---
-    public function receive(ReceiveTransferRequest $request, Transfer $transfer)
+    // Nota: Cambiamos "Transfer $transfer" por "$id" para poder aplicar el bloqueo manual
+    public function receive(ReceiveTransferRequest $request, $id)
     {
-        if ($transfer->status !== 'in_transit') {
-            return back()->withErrors(['error' => 'Esta transferencia ya fue procesada.']);
-        }
-
-        $data = $request->validated();
-
         try {
-            DB::transaction(function () use ($data, $request, $transfer) {
+            return DB::transaction(function () use ($request, $id) {
                 
+                // 1. BLOQUEO PESIMISTA (La clave para evitar doble clic)
+                // Buscamos la transferencia y "congelamos" la fila hasta terminar la transacción
+                $transfer = Transfer::where('id', $id)->lockForUpdate()->firstOrFail();
+
+                // 2. Validación de Estado (Ahora es segura porque tenemos el bloqueo)
+                if ($transfer->status !== 'in_transit') {
+                    // Si ya estaba lista, redirigimos al index sin lanzar error
+                    return redirect()->route('admin.transfers.index')
+                        ->with('message', 'Esta transferencia ya había sido procesada anteriormente.');
+                }
+
+                $data = $request->validated();
+
+                // 3. Procesamiento de Ítems
                 foreach ($data['items'] as $receivedItem) {
                     $transferItem = TransferItem::findOrFail($receivedItem['id']);
                     $qtyReceived = $receivedItem['qty_received'];
-                    $qtySent = $transferItem->qty_sent;
-                    $diff = $qtySent - $qtyReceived;
+                    
+                    // Calculamos la diferencia (Lo que se perdió/no llegó)
+                    // qty_sent (10) - qty_received (8) = diff (2)
+                    $diff = $transferItem->qty_sent - $qtyReceived;
 
-                    // 1. Ingresar lo Recibido en DESTINO (B)
+                    // A. INGRESAR LO RECIBIDO EN DESTINO
                     if ($qtyReceived > 0) {
-                        $newLotB = InventoryLot::create([
-                            'branch_id' => $transfer->destination_branch_id,
-                            'sku_id' => $transferItem->sku_id,
-                            'lot_code' => 'TRF-IN-' . Str::random(6),
-                            'quantity' => $qtyReceived,
-                            'initial_quantity' => $qtyReceived,
-                            'unit_cost' => $transferItem->unit_cost, // Mantiene costo histórico
-                            'expiration_date' => null // Opcional: Podríamos haber pasado la fecha en el envío
+                        $newLot = InventoryLot::create([
+                        'branch_id' => $transfer->destination_branch_id,
+                        'sku_id' => $transferItem->sku_id,
+                        'transfer_id' => $transfer->id, // <--- AHORA VINCULAMOS
+                        'purchase_id' => null,           // <--- EXPLÍCITAMENTE NULL
+                        'lot_code' => 'TRF-IN-' . Str::upper(Str::random(8)),
+                        'quantity' => $qtyReceived,
+                        'initial_quantity' => $qtyReceived,
+                        'unit_cost' => $transferItem->unit_cost,
                         ]);
-
+                        
                         InventoryMovement::create([
                             'branch_id' => $transfer->destination_branch_id,
                             'sku_id' => $transferItem->sku_id,
-                            'inventory_lot_id' => $newLotB->id,
+                            'inventory_lot_id' => $newLot->id,
                             'user_id' => $request->user()->id,
                             'type' => 'transfer_in',
-                            'quantity' => $qtyReceived,
+                            'quantity' => $qtyReceived, // Positivo (Entrada)
                             'unit_cost' => $transferItem->unit_cost,
-                            'reference' => 'Recepción TRF ' . $transfer->code
+                            'reference' => 'Recepción Guía #' . $transfer->code
                         ]);
                     }
 
-                    // 2. Devolver la Diferencia a ORIGEN (A)
+                    // B. DEVOLVER LA DIFERENCIA A ORIGEN (Retorno Automático)
                     if ($diff > 0) {
-                        // Creamos un lote nuevo en A con la diferencia
-                        $returnLotA = InventoryLot::create([
-                            'branch_id' => $transfer->origin_branch_id,
-                            'sku_id' => $transferItem->sku_id,
-                            'lot_code' => 'RET-' . $transfer->code . '-' . Str::random(3),
-                            'quantity' => $diff,
-                            'initial_quantity' => $diff,
-                            'unit_cost' => $transferItem->unit_cost,
-                            'expiration_date' => null 
+                        $returnLot = InventoryLot::create([
+                        'branch_id' => $transfer->origin_branch_id,
+                        'sku_id' => $transferItem->sku_id,
+                        'transfer_id' => $transfer->id, // <--- AHORA VINCULAMOS
+                        'purchase_id' => null,           // <--- EXPLÍCITAMENTE NULL
+                        'lot_code' => 'RET-' . $transfer->code . '-' . Str::upper(Str::random(4)),
+                        'quantity' => $diff,
+                        'initial_quantity' => $diff,
+                        'unit_cost' => $transferItem->unit_cost,
                         ]);
-
+                        
                         InventoryMovement::create([
                             'branch_id' => $transfer->origin_branch_id,
                             'sku_id' => $transferItem->sku_id,
-                            'inventory_lot_id' => $returnLotA->id,
+                            'inventory_lot_id' => $returnLot->id,
                             'user_id' => $request->user()->id,
-                            'type' => 'transfer_return', // Tipo especial: Devolución
-                            'quantity' => $diff,
+                            'type' => 'transfer_return',
+                            'quantity' => $diff, // Positivo (Reingreso a origen)
                             'unit_cost' => $transferItem->unit_cost,
-                            'reference' => 'Devolución TRF ' . $transfer->code . ' (No Recibido)'
+                            'reference' => 'Devolución Auto (Faltante) Guía #' . $transfer->code
                         ]);
                     }
-                    
-                    // Actualizar el item con lo que realmente llegó
+
+                    // Actualizamos el ítem con lo que realmente se declaró
                     $transferItem->update(['qty_received' => $qtyReceived]);
                 }
 
-                // Cerrar Transferencia
+                // 4. Cerrar la Transferencia
                 $transfer->update([
                     'status' => 'completed',
                     'received_by' => $request->user()->id,
                     'received_at' => now()
                 ]);
+
+                return redirect()->route('admin.transfers.index')->with('message', 'Recepción procesada correctamente.');
             });
 
-            return redirect()->route('admin.transfers.index')->with('message', 'Recepción procesada. Diferencias devueltas a origen.');
-
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al procesar: ' . $e->getMessage()]);
         }
     }
 }

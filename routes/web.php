@@ -150,19 +150,24 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         Route::resource('brands', BrandController::class);
         Route::resource('products', ProductController::class);
         Route::resource('skus', SkuController::class)->only(['store', 'destroy']);
+        Route::resource('purchases', PurchaseController::class);
+        Route::resource('transfers', TransferController::class);
         // --- GRUPO 2: CATÁLOGO DE PRODUCTOS (Logistics + Super Admin) ---
         // Protegido por permiso 'manage_catalog'. El Branch Admin NO entra aquí.
         Route::middleware(['permission:manage_catalog'])->group(function () {
            
         });
+        // En routes/web.php, dentro del grupo auth y admin:
 
+        Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])
+            ->name('inventory.stock-by-branch');
 
         // --- GRUPO 3: OPERACIONES DIARIAS (Inventory + Logistics + Super Admin) ---
         // Protegido por permiso 'view_inventory'. Aquí ocurre el movimiento de cajas.
         Route::middleware(['permission:view_inventory'])->group(function () {
             
             // A. Compras (Ingresos)
-            Route::resource('purchases', PurchaseController::class);
+            
 
             // B. Inventario (Kardex y Stock)
             Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');

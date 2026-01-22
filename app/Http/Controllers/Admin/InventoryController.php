@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryLot;
 use App\Models\Branch;
+use app\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -16,34 +17,44 @@ class InventoryController extends Controller
      */
     public function index(Request $request)
     {
-        // Agrupamos por SKU y Sucursal para mostrar totales
+        $user = auth()->user();
+        
         $query = InventoryLot::with(['sku.product.brand', 'branch'])
             ->select(
                 'branch_id',
                 'sku_id',
                 DB::raw('SUM(quantity) as total_quantity'),
                 DB::raw('SUM(reserved_quantity) as total_reserved'),
-                // Costo Promedio Ponderado simple (Cuidado: esto es aproximado)
                 DB::raw('SUM(quantity * unit_cost) / NULLIF(SUM(quantity), 0) as avg_cost')
             )
             ->groupBy('branch_id', 'sku_id')
-            ->havingRaw('SUM(quantity) > 0'); // Solo stock positivo
+            ->havingRaw('SUM(quantity) > 0');
 
-        // Filtro por Sucursal
-        if ($request->branch_id) {
-            $query->where('branch_id', $request->branch_id);
+        // --- LÓGICA DE SEGURIDAD Y FILTROS ---
+        
+        // 1. Si es Branch Admin, FORZAMOS el filtro a su sucursal
+        if ($user->hasRole('branch_admin')) {
+            $query->where('branch_id', $user->branch_id);
+            // Solo le enviamos SU sucursal para los filtros del frontend
+            $branches = Branch::where('id', $user->branch_id)->select('id', 'name')->get();
+        } else {
+            // 2. Si es Super Admin, permitimos filtrar por lo que venga en el request
+            if ($request->branch_id) {
+                $query->where('branch_id', $request->branch_id);
+            }
+            $branches = Branch::where('is_active', true)->select('id', 'name')->get();
         }
 
-        // Búsqueda (Producto, Código, Marca)
+        // Búsqueda General
         if ($request->search) {
             $query->whereHas('sku', function($q) use ($request) {
                 $q->where('name', 'like', "%{$request->search}%")
                   ->orWhere('code', 'like', "%{$request->search}%")
                   ->orWhereHas('product', function($q2) use ($request) {
                       $q2->where('name', 'like', "%{$request->search}%")
-                         ->orWhereHas('brand', function($q3) use ($request) {
+                          ->orWhereHas('brand', function($q3) use ($request) {
                              $q3->where('name', 'like', "%{$request->search}%");
-                         });
+                          });
                   });
             });
         }
@@ -52,7 +63,7 @@ class InventoryController extends Controller
 
         return Inertia::render('Admin/Inventory/Index', [
             'inventory' => $inventory,
-            'branches' => Branch::where('is_active', true)->select('id', 'name')->get(),
+            'branches' => $branches, // Si es Branch Admin, esto es un array de 1 elemento
             'filters' => $request->only(['branch_id', 'search'])
         ]);
     }
@@ -88,7 +99,35 @@ class InventoryController extends Controller
 
         return response()->json($lots);
     }
-    
-    // Eliminamos create, store, edit, update de aquí.
-    // Esa responsabilidad ahora es exclusiva de PurchaseController.
+/**
+     * API: Obtener lista de productos con stock positivo en una sucursal específica.
+     * Usado para llenar el select de Transferencias.
+     */
+    public function getStockByBranch($branchId)
+    {
+        // Validar seguridad: Si es Branch Admin, solo puede consultar SU sucursal
+        $user = auth()->user();
+        if ($user->hasRole('branch_admin') && $user->branch_id != $branchId) {
+            abort(403, 'No autorizado para ver stock de otra sucursal.');
+        }
+
+        $products = \App\Models\InventoryLot::where('branch_id', $branchId)
+            ->where('quantity', '>', 0) // Solo lo que tiene stock físico
+            ->join('skus', 'inventory_lots.sku_id', '=', 'skus.id')
+            ->join('products', 'skus.product_id', '=', 'products.id')
+            ->select(
+                'skus.id',
+                'skus.code',
+                'skus.name as sku_name',
+                'products.name as product_name',
+                // Sumamos todo el stock disponible (excluyendo lo reservado si usas esa lógica)
+                \Illuminate\Support\Facades\DB::raw('SUM(inventory_lots.quantity - inventory_lots.reserved_quantity) as available_stock')
+            )
+            ->groupBy('skus.id', 'skus.code', 'skus.name', 'products.name')
+            ->having('available_stock', '>', 0) // Doble chequeo
+            ->orderBy('products.name')
+            ->get();
+
+        return response()->json($products);
+    }
 }

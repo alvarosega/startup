@@ -110,4 +110,14 @@ class User extends Authenticatable
     {
         return $this->branch_id ? [$this->branch_id] : [];
     }
+    public function getNameAttribute(): string
+    {
+        if ($this->relationLoaded('profile') && $this->profile) {
+            return trim("{$this->profile->first_name} {$this->profile->last_name}");
+        }
+        
+        // Si no tiene perfil, devolvemos el email o el teléfono
+        return $this->email ?? $this->phone ?? 'Usuario';
+    }
+
 }
