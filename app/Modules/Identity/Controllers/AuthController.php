@@ -4,24 +4,24 @@ namespace App\Modules\Identity\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Role;
+// use App\Models\Role; // YA NO NECESITAMOS IMPORTAR EL MODELO ROL MANUALMENTE
 use App\Modules\Identity\Requests\RegisterRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use App\Models\Cart;      // Importante
-use App\Models\CartItem;  // Importante
-use App\Models\Branch;    // Importante
-use App\Models\UserAddress; // Importante
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\Branch;
+use App\Models\UserAddress;
+use App\Models\UserProfile;
 
 class AuthController extends Controller
 {
     public function showLogin() { return Inertia::render('Auth/Login'); }
     
     public function showRegister() { 
-        // Enviamos las sucursales para que el mapa del registro funcione
         $branches = Branch::where('is_active', true)
             ->select('id', 'name', 'coverage_polygon')
             ->get();
@@ -31,13 +31,9 @@ class AuthController extends Controller
         ]); 
     }
 
-    /**
-     * Registro de nuevo usuario (Completo con Dirección y Carrito)
-     */
     public function register(RegisterRequest $request)
     {
-        // 1. CRÍTICO: Capturamos el ID de la sesión del invitado ANTES de cualquier login
-        // Si lo hacemos después de Auth::login, Laravel ya habrá regenerado el ID y perderemos el carrito.
+        // 1. Capturar Session ID
         $guestSessionId = $request->session()->getId();
 
         return DB::transaction(function () use ($request, $guestSessionId) {
@@ -71,35 +67,34 @@ class AuthController extends Controller
                 $user->update(['avatar_source' => $path]);
             }
 
-            // 5. Roles y Perfil
-            $roleName = ($request->role === 'client') ? 'client' : 'driver'; 
-            $role = Role::where('name', $roleName)->first();
-            if ($role) $user->roles()->attach($role->id);
+            // 5. ASIGNACIÓN DE ROL (CORREGIDO - MÉTODO SPATIE)
+            // Usamos assignRole que busca por nombre automáticamente en la tabla roles
+            // Asegúrate que tu Seeder haya creado el rol 'client' (o 'customer')
+            $roleToAssign = ($request->role === 'driver') ? 'driver' : 'customer'; // <--- CAMBIO AQUÍ ('client' -> 'customer')
+            
+            // Asignar rol usando Spatie
+            $user->assignRole($roleToAssign);
 
-            \App\Models\UserProfile::create(['user_id' => $user->id]);
+            // 6. Crear Perfil
+            UserProfile::create(['user_id' => $user->id]);
 
-            // 6. Login (Esto regenera la sesión, por eso capturamos el ID antes)
+            // 7. Login
             Auth::login($user);
             
-            // 7. Fusión de Carrito USANDO EL ID VIEJO
+            // 8. Carrito
             $this->mergeGuestCart($user, $guestSessionId);
 
             return redirect()->route('shop.index');
         });
     }
 
-    /**
-     * Inicio de sesión corregido
-     */
     public function login(Request $request)
     {
-        // 1. Validar
         $credentials = $request->validate([
             'phone' => ['required', 'string'],
             'password' => ['required'],
         ]);
     
-        // 2. Normalizar teléfono
         $phone = str_replace(' ', '', $credentials['phone']); 
     
         if (!str_starts_with($phone, '+')) {
@@ -108,32 +103,26 @@ class AuthController extends Controller
     
         $credentials['phone'] = $phone;
         
-        // 3. Capturar ID de sesión ANTES de loguear
         $guestSessionId = $request->session()->getId();
 
-        // 4. Intento de Login
         if (Auth::attempt($credentials, $request->remember)) {
             
             $request->session()->regenerate();
             $user = $request->user();
             $user->update(['last_login_at' => now()]);
     
-            // 5. Fusión de Carrito
             $this->mergeGuestCart($user, $guestSessionId);
     
-            // 6. Redirección por Roles
-            
-            // Operativos
+            // Redirección por Roles (Usando métodos Spatie)
             if ($user->hasRole('logistics_operator')) {
                 return redirect()->intended(route('admin.logistics.dashboard'));
             }
     
-            // Administrativos
+            // Verificamos cualquier rol administrativo
             if ($user->hasAnyRole(['super_admin', 'branch_admin', 'logistics_manager', 'finance_manager', 'inventory_manager'])) {
                  return redirect()->intended(route('admin.dashboard')); 
             }
     
-            // Clientes (Checkout o Home)
             return redirect()->intended(route('shop.index'));
         }
     
@@ -173,21 +162,16 @@ class AuthController extends Controller
         return response()->json(['message' => 'Step 1 OK']);
     }
 
-    /**
-     * Mueve el carrito de la sesión de invitado al usuario autenticado.
-     */
     private function mergeGuestCart(User $user, string $guestSessionId)
     {
         $guestCart = Cart::where('session_id', $guestSessionId)->first();
 
         if ($guestCart) {
-            // Ver si el usuario ya tenía carrito en esa sucursal
             $userCart = Cart::where('user_id', $user->id)
                 ->where('branch_id', $guestCart->branch_id)
                 ->first();
 
             if ($userCart) {
-                // Fusión de items
                 foreach ($guestCart->items as $item) {
                     $existingItem = CartItem::where('cart_id', $userCart->id)
                         ->where('sku_id', $item->sku_id)
@@ -202,7 +186,6 @@ class AuthController extends Controller
                 }
                 $guestCart->delete();
             } else {
-                // Asignación directa
                 $guestCart->update([
                     'user_id' => $user->id,
                     'session_id' => null

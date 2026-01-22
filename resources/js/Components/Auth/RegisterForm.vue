@@ -92,30 +92,47 @@
     // Refrescar mapa al entrar al paso 3
     watch(currentStep, (val) => {
         if (val === 3) {
-            nextTick(() => {
+            // Esperamos a que termine la animación del modal para renderizar el mapa
+            setTimeout(() => {
                 if (mapComponentRef.value && typeof mapComponentRef.value.refreshMap === 'function') {
                     mapComponentRef.value.refreshMap();
                 }
-            });
+            }, 350); 
         }
     });
     
     const getMyLocation = () => {
         if (!navigator.geolocation) return alert('Tu navegador no soporta geolocalización.');
         locating.value = true;
+        // Feedback visual inmediato
+        form.address = "Obteniendo ubicación...";
+        
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 form.latitude = pos.coords.latitude;
                 form.longitude = pos.coords.longitude;
                 locating.value = false;
+                // El componente de mapa debería actualizar la dirección, 
+                // pero si falla, ya tenemos las coordenadas en el form.
             },
-            (err) => { console.error(err); locating.value = false; },
+            (err) => { 
+                console.error(err); 
+                locating.value = false; 
+                form.address = ""; // Limpiamos si falla
+            },
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
     };
     
-    // --- ENVÍO ---
+    // --- ENVÍO CORREGIDO ---
     const submit = () => {
+        // [CORRECCIÓN CRÍTICA]: Fallback de dirección
+        // Si el usuario usó el pin o GPS pero la dirección de texto sigue vacía,
+        // generamos una dirección técnica para evitar el error 500 en BD.
+        if (!form.address || form.address.trim() === '') {
+            form.address = `Ubicación GPS (${form.latitude.toFixed(5)}, ${form.longitude.toFixed(5)})`;
+        }
+
         form.post(route('register'), {
             preserveScroll: true,
             onSuccess: () => emit('close'),
@@ -208,75 +225,57 @@
                     </div>
     
                     <div v-show="currentStep === 3" class="flex-1 flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
-                    
-                    <div class="flex justify-between items-end mb-2 shrink-0">
-                        <label class="block text-xs font-bold text-gray-700 uppercase ml-1">Ubicación de Entrega</label>
-                        <button type="button" @click="getMyLocation" 
-                                class="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1 rounded-full font-bold flex items-center gap-1 transition border border-blue-100">
-                            <Crosshair v-if="!locating" :size="12" />
-                            <span v-if="locating">Buscando...</span>
-                            <span v-else>Usar mi GPS</span>
-                        </button>
-                    </div>
-
-                    <div class="w-full h-64 rounded-xl overflow-hidden border border-gray-300 relative shadow-inner bg-gray-100 shrink-0">
-                        <ClientLocationPicker
-                            ref="mapComponentRef" 
-                            v-model:modelValueLat="form.latitude"
-                            v-model:modelValueLng="form.longitude"
-                            v-model:modelValueAddress="form.address"
-                            v-model:modelValueBranchId="form.branch_id"
-                            :activeBranches="props.activeBranches"
-                        />
-                    </div>
-
-                    <div class="mt-4 space-y-3 pb-2 flex-1">
-                        <div class="grid grid-cols-2 gap-3">
-                            <BaseInput v-model="form.alias" label="Alias" placeholder="Ej: Casa" />
-                            <BaseInput v-model="form.details" label="Referencia" placeholder="Ej: Portón rojo" />
-                        </div>
                         
-                        <p v-if="form.errors.branch_id" class="text-red-500 text-[10px] text-center font-bold bg-red-50 p-2 rounded border border-red-100">
-                            ⚠️ Mueve el pin a una zona con cobertura azul.
-                        </p>
-
-                        <div class="flex gap-3 pt-2 mt-auto">
-                            <button type="button" @click="currentStep = 2" class="px-4 py-3 text-gray-400 font-bold text-xs hover:text-gray-600 hover:bg-gray-50 rounded-lg transition">Atrás</button>
-                            <BaseButton type="submit" :isLoading="form.processing" class="flex-1 shadow-lg">Finalizar Registro</BaseButton>
+                        <div class="flex justify-between items-end mb-2 shrink-0">
+                            <label class="block text-xs font-bold text-gray-700 uppercase ml-1">Ubicación de Entrega</label>
+                            <button type="button" @click="getMyLocation" 
+                                    class="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1 rounded-full font-bold flex items-center gap-1 transition border border-blue-100">
+                                <Crosshair v-if="!locating" :size="12" />
+                                <span v-if="locating">Buscando...</span>
+                                <span v-else>Usar mi GPS</span>
+                            </button>
+                        </div>
+    
+                        <div class="w-full h-64 rounded-xl overflow-hidden border border-gray-300 relative shadow-inner bg-gray-100 shrink-0">
+                            <ClientLocationPicker
+                                ref="mapComponentRef" 
+                                v-model:modelValueLat="form.latitude"
+                                v-model:modelValueLng="form.longitude"
+                                v-model:modelValueAddress="form.address"
+                                v-model:modelValueBranchId="form.branch_id"
+                                :activeBranches="props.activeBranches"
+                            />
+                        </div>
+    
+                        <div class="mt-4 space-y-3 pb-2 flex-1">
+                            <div class="grid grid-cols-2 gap-3">
+                                <BaseInput v-model="form.alias" label="Alias" placeholder="Ej: Casa" />
+                                <BaseInput v-model="form.details" label="Referencia" placeholder="Ej: Portón rojo" />
+                            </div>
+                            
+                            <p v-if="form.errors.branch_id" class="text-red-500 text-[10px] text-center font-bold bg-red-50 p-2 rounded border border-red-100">
+                                ⚠️ Mueve el pin a una zona con cobertura azul.
+                            </p>
+    
+                            <div class="flex gap-3 pt-2 mt-auto">
+                                <button type="button" @click="currentStep = 2" class="px-4 py-3 text-gray-400 font-bold text-xs hover:text-gray-600 hover:bg-gray-50 rounded-lg transition">Atrás</button>
+                                <BaseButton type="submit" :isLoading="form.processing" class="flex-1 shadow-lg">Finalizar Registro</BaseButton>
+                            </div>
                         </div>
                     </div>
-                </div>
-    
                 </form>
             </div>
     
             <div class="mt-4 pt-4 border-t border-gray-100">
-                <div class="flex gap-3 mb-4">
-                    
+                <div v-if="currentStep < 3" class="flex gap-3 mb-4">
                     <button v-if="currentStep > 1" type="button" @click="prevStep" 
                             class="px-5 py-3 text-gray-400 font-bold text-xs hover:text-gray-600 hover:bg-gray-50 rounded-xl transition">
                         Atrás
                     </button>
     
-                    <BaseButton 
-                        v-if="currentStep < 3"
-                        type="button" 
-                        @click="nextStep" 
-                        class="flex-1 shadow-lg"
-                        :isLoading="validatingStep1"
-                        :disabled="currentStep === 1 && !form.terms"
-                    >
+                    <BaseButton type="button" @click="nextStep" class="flex-1 shadow-lg"
+                                :isLoading="validatingStep1" :disabled="currentStep === 1 && !form.terms">
                         Siguiente Paso
-                    </BaseButton>
-    
-                    <BaseButton 
-                        v-else
-                        type="submit" 
-                        @click="submit"
-                        :isLoading="form.processing" 
-                        class="flex-1 shadow-lg bg-green-600 hover:bg-green-700 text-white"
-                    >
-                        Finalizar Registro
                     </BaseButton>
                 </div>
     

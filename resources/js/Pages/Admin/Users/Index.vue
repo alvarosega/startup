@@ -1,209 +1,317 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
+    import UserFilters from '@/Components/Admin/Users/UserFilters.vue';
+    import UserGroup from '@/Components/Admin/Users/UserGroup.vue';
     import { Link, router } from '@inertiajs/vue3';
     import { ref, watch, computed } from 'vue';
     import { debounce } from 'lodash';
+    import { UserPlus, SearchX, Users, Shield, Building2, UserCog, Briefcase } from 'lucide-vue-next';
     
-    // Iconos
-    import { 
-        Search, UserPlus, MapPin, Phone, Mail, 
-        Shield, Edit, Trash2, MoreVertical, Building 
-    } from 'lucide-vue-next';
-
     const props = defineProps({ 
-        users: Object, // Paginado
+        users: Object,
         filters: Object,
         roles: Array,
         branches: Array
     });
-
-    const formFilters = ref({
+    
+    const params = ref({
         search: props.filters.search || '',
         role_id: props.filters.role_id || '',
         branch_id: props.filters.branch_id || '',
     });
-
-    // --- LÓGICA DE AGRUPACIÓN Y ORDENAMIENTO ---
+    
+    // --- LÓGICA DE AGRUPACIÓN MEJORADA ---
     const groupedUsers = computed(() => {
         if (!props.users.data) return {};
-
-        // 1. Agrupar por Sucursal
+    
         const groups = props.users.data.reduce((acc, user) => {
-            const branchName = user.branch || 'Sin Asignar (Oficina Central)';
-            if (!acc[branchName]) acc[branchName] = [];
-            acc[branchName].push(user);
+            let groupName = '';
+            let groupIcon = Users;
+            let groupColor = 'primary';
+    
+            // 1. Administración Global
+            if (user.role_key === 'super_admin') {
+                groupName = 'Administración Global';
+                groupIcon = Shield;
+                groupColor = 'violet';
+            } 
+            // 2. Gestión de Sucursal
+            else if (user.role_key === 'branch_admin') {
+                groupName = `Gestión - ${user.branch || 'Sin Sucursal'}`;
+                groupIcon = Building2;
+                groupColor = 'blue';
+            }
+            // 3. Equipo Operativo
+            else if (['logistics_manager', 'inventory_manager', 'finance_manager'].includes(user.role_key)) {
+                groupName = `Operaciones - ${user.branch || 'General'}`;
+                groupIcon = Briefcase;
+                groupColor = 'emerald';
+            }
+            // 4. Clientes
+            else if (user.role_key === 'client' || user.role_key === 'customer') {
+                groupName = 'Clientes Registrados';
+                groupIcon = UserCog;
+                groupColor = 'amber';
+            }
+            // 5. Sin categoría específica
+            else {
+                groupName = user.branch || 'Sin Asignar';
+                groupIcon = Users;
+                groupColor = 'slate';
+            }
+    
+            if (!acc[groupName]) {
+                acc[groupName] = {
+                    users: [],
+                    icon: groupIcon,
+                    color: groupColor
+                };
+            }
+            acc[groupName].users.push(user);
             return acc;
         }, {});
-
-        // 2. Ordenar dentro de cada grupo (Admin primero)
-        // Define aquí la prioridad de tus roles (String exacto o ID)
-        const rolePriority = {
-            'Admin': 1,
-            'Gerente': 2,
-            'Administrador Sucursal': 2,
-            'Vendedor': 3,
-            'Almacenero': 4
-        };
-
-        Object.keys(groups).forEach(branch => {
-            groups[branch].sort((a, b) => {
-                const prioA = rolePriority[a.role] || 99;
-                const prioB = rolePriority[b.role] || 99;
-                return prioA - prioB;
-            });
-        });
-
+    
         return groups;
     });
-
-    // --- HELPERS VISUALES ---
-    const getRoleColor = (roleName) => {
-        if (!roleName) return 'bg-gray-700 text-gray-300 border-gray-600';
-        const lower = roleName.toLowerCase();
-        if (lower.includes('admin') || lower.includes('gerente')) return 'bg-purple-900/40 text-purple-300 border-purple-700';
-        if (lower.includes('vendedor')) return 'bg-green-900/40 text-green-300 border-green-700';
-        if (lower.includes('almacen')) return 'bg-orange-900/40 text-orange-300 border-orange-700';
-        return 'bg-blue-900/40 text-blue-300 border-blue-700';
-    };
-
-    // --- FILTROS ---
-    watch(formFilters, debounce(() => {
-        router.get(route('admin.users.index'), formFilters.value, {
-            preserveState: true, replace: true,
+    
+    // Búsqueda reactiva con debounce
+    watch(params, debounce((val) => {
+        router.get(route('admin.users.index'), val, { 
+            preserveState: true, 
+            replace: true, 
+            preserveScroll: true 
         });
     }, 300), { deep: true });
-
-    const confirmDelete = (userId) => {
-        if (confirm('¿Eliminar usuario y revocar accesos?')) {
+    
+    const handleDelete = (userId) => {
+        if (confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
             router.delete(route('admin.users.destroy', userId));
         }
     };
-
-</script>
-
-<template>
-    <AdminLayout>
-        
-        <div class="flex flex-col gap-6 mb-8">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 class="text-3xl font-black text-white tracking-tight">Equipo de Trabajo</h1>
-                    <p class="text-gray-400 text-sm mt-1">Gestión de usuarios y permisos por sucursal</p>
-                </div>
-                <Link :href="route('admin.users.create')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-blue-900/20 transition flex items-center gap-2">
-                    <UserPlus :size="18" /> Nuevo Usuario
-                </Link>
-            </div>
-
-            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="relative">
-                    <Search :size="16" class="absolute left-3 top-3 text-gray-500" />
-                    <input v-model="formFilters.search" type="text" placeholder="Buscar nombre, correo..." 
-                           class="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-9 p-2.5 focus:border-blue-500 outline-none text-sm placeholder-gray-500 transition">
-                </div>
+    </script>
+    
+    <template>
+        <AdminLayout>
+            <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
                 
-                <div class="relative" v-if="branches.length > 1">
-                    <Building :size="16" class="absolute left-3 top-3 text-gray-500" />
-                    <select v-model="formFilters.branch_id" class="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-9 p-2.5 focus:border-blue-500 outline-none text-sm appearance-none">
-                        <option value="">Todas las Sucursales</option>
-                        <option v-for="branch in branches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-                    </select>
-                </div>
-
-                <div class="relative">
-                    <Shield :size="16" class="absolute left-3 top-3 text-gray-500" />
-                    <select v-model="formFilters.role_id" class="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-9 p-2.5 focus:border-blue-500 outline-none text-sm appearance-none">
-                        <option value="">Todos los Roles</option>
-                        <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.display_name }}</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="space-y-10">
-            
-            <template v-for="(groupUsers, branchName) in groupedUsers" :key="branchName">
-                <div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    
-                    <div class="flex items-center gap-3 mb-4 px-2 border-b border-gray-700 pb-2">
-                        <div class="p-2 bg-gray-700 rounded-lg text-blue-400">
-                            <MapPin :size="20" />
+                <!-- HEADER SECTION -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+                    <div class="animate-slide-up">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                                <Users :size="24" class="text-white" />
+                            </div>
+                            <div>
+                                <h1 class="text-3xl lg:text-4xl font-black text-foreground font-display tracking-tight">
+                                    Gestión de Equipo
+                                </h1>
+                                <p class="text-muted-foreground font-medium text-sm mt-1">
+                                    Administra usuarios, permisos y accesos
+                                </p>
+                            </div>
                         </div>
-                        <h2 class="text-xl font-bold text-white">{{ branchName }}</h2>
-                        <span class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400 border border-gray-700">
-                            {{ groupUsers.length }} Usuarios
-                        </span>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        <div v-for="user in groupUsers" :key="user.id" 
-                             class="group bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-gray-500 transition-all duration-200 shadow-md hover:shadow-xl relative flex flex-col">
-                            
-                            <div class="absolute top-0 left-0 w-1 h-full" :class="user.is_active ? 'bg-green-500' : 'bg-red-500'"></div>
-
-                            <div class="p-5 flex-1">
-                                <div class="flex justify-between items-start mb-4">
-                                    <span class="text-[10px] uppercase font-black tracking-wider px-2 py-1 rounded border"
-                                          :class="getRoleColor(user.role)">
-                                        {{ user.role }}
-                                    </span>
-                                    
-                                    <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Link :href="route('admin.users.edit', user.id)" class="text-gray-400 hover:text-white p-1 hover:bg-gray-700 rounded">
-                                            <Edit :size="16" />
-                                        </Link>
-                                        <button @click="confirmDelete(user.id)" class="text-gray-400 hover:text-red-400 p-1 hover:bg-gray-700 rounded">
-                                            <Trash2 :size="16" />
-                                        </button>
-                                    </div>
+                    
+                    <Link :href="route('admin.users.create')" 
+                          class="flex items-center gap-3 bg-gradient-to-r from-primary to-secondary text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 ease-elastic hover:scale-[1.02] active:scale-[0.98] cursor-pointer group animate-slide-up">
+                        <UserPlus :size="20" class="transition-transform duration-300 group-hover:scale-110" /> 
+                        <span class="font-semibold">Nuevo Usuario</span>
+                    </Link>
+                </div>
+    
+                <!-- FILTERS SECTION -->
+                <div class="mb-10 sticky top-4 z-20 animate-fade-in">
+                    <div class="glass rounded-2xl p-1 border border-border/50">
+                        <UserFilters v-model="params" :roles="roles" :branches="branches" />
+                    </div>
+                </div>
+    
+                <!-- USERS CONTENT -->
+                <div v-if="users.data.length > 0" class="space-y-6 animate-in">
+                    <!-- STATS BAR -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <div class="card p-5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-muted-foreground font-medium">Total Usuarios</p>
+                                    <p class="text-3xl font-bold text-foreground mt-2">{{ users.total }}</p>
                                 </div>
-
-                                <div class="flex items-center gap-4 mb-4">
-                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-white font-bold text-lg border-2 border-gray-600 shadow-inner">
-                                        {{ user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U' }}
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-white text-lg leading-tight">{{ user.full_name }}</h3>
-                                        <p v-if="!user.is_active" class="text-xs text-red-400 font-bold mt-0.5">● Acceso Revocado</p>
-                                        <p v-else class="text-xs text-green-500 font-bold mt-0.5">● Activo</p>
-                                    </div>
+                                <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                                    <Users :size="20" class="text-blue-600" />
                                 </div>
-
-                                <div class="space-y-2 text-sm border-t border-gray-700/50 pt-3">
-                                    <div class="flex items-center gap-3 text-gray-400">
-                                        <Mail :size="14" /> <span class="truncate">{{ user.email }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-3 text-gray-400">
-                                        <Phone :size="14" /> <span>{{ user.phone || '---' }}</span>
-                                    </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card p-5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-muted-foreground font-medium">Administradores</p>
+                                    <p class="text-3xl font-bold text-foreground mt-2">
+                                        {{ users.data.filter(u => u.role_key === 'super_admin').length }}
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-violet-50 flex items-center justify-center">
+                                    <Shield :size="20" class="text-violet-600" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card p-5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-muted-foreground font-medium">Equipo Operativo</p>
+                                    <p class="text-3xl font-bold text-foreground mt-2">
+                                        {{ users.data.filter(u => ['logistics_manager', 'inventory_manager', 'finance_manager'].includes(u.role_key)).length }}
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+                                    <Briefcase :size="20" class="text-emerald-600" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card p-5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-muted-foreground font-medium">Sucursales Activas</p>
+                                    <p class="text-3xl font-bold text-foreground mt-2">
+                                        {{ new Set(users.data.map(u => u.branch)).size }}
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center">
+                                    <Building2 :size="20" class="text-amber-600" />
                                 </div>
                             </div>
                         </div>
                     </div>
-
+    
+                    <!-- USER GROUPS -->
+                    <div class="space-y-8">
+                        <div v-for="(groupData, groupName) in groupedUsers" :key="groupName" 
+                             class="card overflow-hidden border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg group">
+                            
+                            <!-- GROUP HEADER -->
+                            <div class="px-6 py-4 bg-gradient-to-r from-white to-gray-50/50 border-b border-border/50 flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div :class="`w-10 h-10 rounded-full bg-${groupData.color}-50 flex items-center justify-center border border-${groupData.color}-100`">
+                                        <component :is="groupData.icon" :size="18" :class="`text-${groupData.color}-600`" />
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-foreground font-display text-lg">{{ groupName }}</h3>
+                                        <p class="text-xs text-muted-foreground font-medium">
+                                            {{ groupData.users.length }} miembro{{ groupData.users.length !== 1 ? 's' : '' }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold bg-white border border-border px-3 py-1.5 rounded-full text-muted-foreground">
+                                        {{ groupData.users.length }} usuarios
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- USER LIST -->
+                            <UserGroup :users="groupData.users" @delete-user="handleDelete" />
+                        </div>
+                    </div>
+    
+                    <!-- PAGINATION -->
+                    <div v-if="users.links && users.links.length > 3" class="mt-10">
+                        <div class="flex justify-center">
+                            <div class="flex items-center gap-1 bg-white rounded-xl border border-border p-2 shadow-sm">
+                                <template v-for="(link, index) in users.links" :key="index">
+                                    <Link 
+                                        v-if="link.url"
+                                        :href="link.url"
+                                        :class="[
+                                            'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200',
+                                            link.active 
+                                                ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                                                : 'text-foreground hover:bg-muted hover:text-foreground'
+                                        ]"
+                                        v-html="link.label"
+                                    />
+                                    <span v-else class="px-4 py-2 text-muted-foreground" v-html="link.label" />
+                                </template>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </template>
-
-            <div v-if="users.data.length === 0" class="py-20 text-center border-2 border-dashed border-gray-700 rounded-xl">
-                <p class="text-gray-500 text-lg">No se encontraron usuarios con estos filtros.</p>
-                <button @click="formFilters = { search: '', role_id: '', branch_id: '' }" class="text-blue-400 hover:underline text-sm mt-2">
-                    Limpiar filtros
-                </button>
-            </div>
-
-            <div v-if="users.links && users.data.length > 0" class="flex justify-center pt-6">
-                <div class="flex gap-1">
-                    <Link v-for="(link, k) in users.links" :key="k" 
-                          :href="link.url ?? '#'" 
-                          v-html="link.label"
-                          class="px-3 py-1.5 text-xs rounded-lg border transition-colors"
-                          :class="link.active 
-                            ? 'bg-blue-600 text-white border-blue-600 font-bold' 
-                            : 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700 hover:text-white'"
-                          :preserve-state="true" />
+    
+                <!-- EMPTY STATE -->
+                <div v-else class="py-20 text-center animate-fade-in">
+                    <div class="max-w-md mx-auto">
+                        <div class="w-24 h-24 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <SearchX :size="40" class="text-gray-300" />
+                        </div>
+                        <h3 class="text-2xl font-bold text-foreground font-display mb-3">No se encontraron usuarios</h3>
+                        <p class="text-muted-foreground mb-8">
+                            No hay usuarios que coincidan con los filtros actuales.
+                            Intenta ajustar los criterios de búsqueda o crea un nuevo usuario.
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                            <button @click="params = { search: '', role_id: '', branch_id: '' }"
+                                    class="px-6 py-3 bg-white border border-border rounded-xl font-medium text-foreground hover:bg-muted transition-all duration-200 hover:border-primary/30">
+                                Limpiar filtros
+                            </button>
+                            <Link :href="route('admin.users.create')"
+                                  class="px-6 py-3 gradient-primary text-white rounded-xl font-medium shadow-md shadow-primary/25 hover:shadow-primary/40 transition-all duration-200">
+                                Crear primer usuario
+                            </Link>
+                        </div>
+                    </div>
                 </div>
+    
             </div>
-
-        </div>
-    </AdminLayout>
-</template>
+        </AdminLayout>
+    </template>
+    
+    <style scoped>
+    .gradient-primary {
+        background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    }
+    
+    .glass {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+    }
+    
+    .animate-slide-up {
+        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    .animate-in {
+        animation: enter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes enter {
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    </style>

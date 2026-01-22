@@ -3,7 +3,21 @@
     import "leaflet/dist/leaflet.css";
     import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
     import L from 'leaflet';
-    
+    const mapRef = ref(null); // Referencia al LMap
+
+    const refreshMap = () => {
+        // IMPORTANTE: Accedemos a leafletObject
+        if (mapRef.value && mapRef.value.leafletObject) {
+            mapRef.value.leafletObject.invalidateSize(); // <-- ESTO ARREGLA EL MAPA GRIS
+            
+            // Opcional: Recentrar si hay coordenadas
+            if (props.modelValueLat) {
+                mapRef.value.leafletObject.setView([props.modelValueLat, props.modelValueLng]);
+            }
+        }
+    };
+
+    defineExpose({ refreshMap }); // <-- IMPRESCINDIBLE
     const props = defineProps({
         modelValueLat: Number,
         modelValueLng: Number,

@@ -33,7 +33,7 @@ use App\Http\Controllers\Shop\LocationController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 
-
+use App\Http\Controllers\Admin\BundleController;
 
 use App\Http\Controllers\Client\AddressController;
 
@@ -77,8 +77,8 @@ Route::middleware('guest')->group(function () {
     Route::get('reset-password', [PasswordResetController::class, 'showResetForm'])->name('password.reset'); // Cambié la ruta para no pedir token en URL
     Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
 });
-
-Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+ 
+Route::post('logout',[AuthController::class, 'logout'])->name('logout');
 
 Route::prefix('cart')->name('cart.')->group(function () {
     Route::get('/', [CartController::class, 'index'])->name('index'); // Ver carrito
@@ -86,7 +86,8 @@ Route::prefix('cart')->name('cart.')->group(function () {
     Route::put('/{id}', [CartController::class, 'update'])->name('update'); // Cambiar cantidad
     Route::delete('/{id}', [CartController::class, 'destroy'])->name('destroy'); // Quitar item
 });
-
+Route::get('/bundles', [App\Http\Controllers\Shop\BundleController::class, 'index'])->name('shop.bundles.index');
+Route::post('/bundles/{bundle}/add', [App\Http\Controllers\Shop\BundleController::class, 'addToCart'])->name('shop.bundles.add');
 
 // =============================================================================
 // 3. ZONA CLIENTE & PERFIL (AUTENTICADOS)
@@ -153,6 +154,10 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/my-orders', [OrderController::class, 'history'])->name('orders.history');
     Route::get('/my-orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+// ... ZONA PÚBLICA ...
+
+// AGREGAR ESTAS 2 LÍNEAS PARA QUE ZIGGY RECONOZCA LAS RUTAS
+   
 });
 
 
@@ -170,6 +175,7 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         // GESTIÓN CRÍTICA (Solo Super Admin)
         Route::middleware(['role:super_admin'])->group(function () {
             Route::resource('branches', BranchController::class);
+            Route::resource('bundles', BundleController::class);
             Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
             Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
                         // GESTIÓN DE PRECIOS
@@ -205,6 +211,9 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
             Route::get('transformations/create', [TransformationController::class, 'create'])->name('transformations.create');
             Route::post('transformations', [TransformationController::class, 'store'])->name('transformations.store');
         });
+        Route::get('orders/kanban', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.kanban');
+        Route::patch('orders/{id}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('orders.status');
+
     });
 
 // 5. REDIRECCIÓN DEFAULT

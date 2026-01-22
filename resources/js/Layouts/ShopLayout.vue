@@ -7,11 +7,11 @@
     import { useAuthModal } from '@/Composables/useAuthModal'; 
     import { 
         MapPin, ChevronDown, ShoppingCart, 
-        User, Menu, X, LogIn, UserPlus, LayoutDashboard 
+        Menu, X, LogIn, UserPlus, Gift 
     } from 'lucide-vue-next';
     
     const page = usePage();
-    // Obtenemos el usuario de forma segura
+    // Datos del usuario y entorno
     const user = computed(() => page.props.auth?.user || null);
     const addresses = computed(() => page.props.auth?.addresses || []);
     const cartCount = computed(() => page.props.cart_count || 0);
@@ -24,7 +24,7 @@
     
     const { showLogin, showRegister, openLogin, openRegister, closeModals } = useAuthModal();
     
-    // --- LÓGICA SEGURA ---
+    // --- LÓGICA DE DIRECCIÓN ---
     const currentAddress = computed(() => {
         if (!user.value || addresses.value.length === 0) return null;
         return addresses.value.find(a => a.is_default) || addresses.value[0];
@@ -37,28 +37,17 @@
         });
     };
     
-    // --- CORRECCIÓN CRÍTICA DEL ERROR CHARAT ---
-    // Esta función evita que la pantalla se ponga blanca si el usuario no tiene nombre
+    // --- HELPERS VISUALES ---
     const getUserInitial = () => {
         if (!user.value) return '';
-        // Prioridad: Nombre -> Alias -> Teléfono -> 'U'
         const label = user.value.name || user.value.alias || user.value.phone || 'U';
         return String(label).charAt(0).toUpperCase();
     };
     
-    // Helper para mostrar nombre o teléfono
     const getUserDisplayName = () => {
         if (!user.value) return '';
         return user.value.name || user.value.phone || 'Usuario';
     };
-    
-    // Verificar si tiene permiso de admin (ajusta según cómo mandes tus roles/permisos)
-    const isAdminOrStaff = computed(() => {
-        // Si usas Spatie y compartes los roles en el handleInertiaRequests:
-        const roles = user.value?.roles || [];
-        // Si roles es un array de objetos (Spatie standard) o strings, ajusta aquí:
-        return roles.some(r => ['super_admin', 'branch_admin', 'logistics_manager'].includes(r.name || r));
-    });
     </script>
     
     <template>
@@ -73,6 +62,12 @@
                                 <span class="text-blue-600">BOLIVIA</span>LOGISTICS
                             </Link>
     
+                            <div class="hidden md:flex items-center h-full border-l border-gray-100 pl-6">
+                                <Link :href="route('shop.bundles.index')" class="text-sm font-bold text-gray-500 hover:text-blue-600 flex items-center gap-2 transition uppercase tracking-tight">
+                                    <Gift :size="18" class="text-blue-500" /> Packs & Ofertas
+                                </Link>
+                            </div>
+    
                             <div v-if="user" class="relative hidden md:block">
                                 <button @click.stop="showAddressMenu = !showAddressMenu; showUserMenu = false" class="flex items-center gap-2 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition text-left border border-transparent hover:border-gray-200">
                                     <div class="bg-blue-50 p-1.5 rounded-full text-blue-600"><MapPin :size="16" /></div>
@@ -83,21 +78,23 @@
                                         </span>
                                     </div>
                                 </button>
+                                
                                 <div v-if="showAddressMenu" class="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
                                     <div class="p-3 bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-500 uppercase tracking-wider">Mis Direcciones</div>
                                     <div v-if="addresses.length > 0" class="max-h-64 overflow-y-auto">
-                                        <button v-for="addr in addresses" :key="addr.id" @click="switchAddress(addr.id)" class="w-full text-left px-4 py-3 hover:bg-blue-50 transition border-b border-gray-50">
-                                            <div class="font-bold text-sm">{{ addr.alias }} <span v-if="addr.is_default" class="text-[9px] bg-green-100 text-green-700 px-1 rounded">ACTIVA</span></div>
+                                        <button v-for="addr in addresses" :key="addr.id" @click="switchAddress(addr.id)" class="w-full text-left px-4 py-3 hover:bg-blue-50 transition border-b border-gray-50 last:border-0">
+                                            <div class="font-bold text-sm">{{ addr.alias }} <span v-if="addr.is_default" class="text-[9px] bg-green-100 text-green-700 px-1 rounded ml-1">ACTIVA</span></div>
                                             <div class="text-xs text-gray-500 truncate">{{ addr.address }}</div>
                                         </button>
                                     </div>
-                                    <Link :href="route('addresses.create')" class="block w-full text-center bg-blue-600 text-white py-3 text-xs font-bold">+ AÑADIR NUEVA</Link>
+                                    <Link :href="route('addresses.create')" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white py-3 text-xs font-bold transition">+ AÑADIR NUEVA</Link>
                                 </div>
                                 <div v-if="showAddressMenu" @click="showAddressMenu = false" class="fixed inset-0 z-[-1]"></div>
                             </div>
                         </div>
     
                         <div class="flex items-center gap-4">
+                            
                             <Link :href="route('cart.index')" class="relative p-2 text-gray-500 hover:text-blue-600 transition group mr-2">
                                 <ShoppingCart class="group-hover:scale-110 transition" :size="24" />
                                 <span v-if="cartCount > 0" class="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-600 rounded-full border-2 border-white shadow-sm animate-bounce-short">{{ cartCount }}</span>
@@ -115,16 +112,13 @@
                                 </button>
     
                                 <div v-if="showUserMenu" class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 border border-gray-100 z-50">
-                                    
-                                    <div v-if="isAdminOrStaff" class="px-4 py-2 mb-2 border-b border-gray-100">
-                                        <a :href="route('admin.dashboard')" class="flex items-center gap-2 text-xs font-black text-blue-700 hover:underline">
-                                            <LayoutDashboard :size="14"/> IR AL PANEL ADMIN
-                                        </a>
+                                    <div class="px-4 py-2 border-b border-gray-100 mb-1">
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Bienvenido</span>
                                     </div>
-    
-                                    <Link :href="route('profile.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Perfil de Cliente</Link>
+                                    <Link :href="route('profile.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Perfil & Datos</Link>
                                     <Link :href="route('orders.history')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Mis Compras</Link>
-                                    <Link :href="route('logout')" method="post" as="button" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50">Cerrar Sesión</Link>
+                                    <div class="border-t border-gray-100 my-1"></div>
+                                    <Link :href="route('logout')" method="post" as="button" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold">Cerrar Sesión</Link>
                                 </div>
                                 <div v-if="showUserMenu" @click="showUserMenu = false" class="fixed inset-0 z-40"></div>
                             </div>
@@ -138,7 +132,7 @@
                                 </button>
                             </div>
     
-                            <button @click="showMobileMenu = !showMobileMenu" class="md:hidden p-2 text-gray-500">
+                            <button @click="showMobileMenu = !showMobileMenu" class="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
                                 <Menu v-if="!showMobileMenu" :size="24" />
                                 <X v-else :size="24" />
                             </button>
@@ -147,16 +141,20 @@
                 </div>
     
                 <div v-if="showMobileMenu" class="md:hidden bg-white border-t border-gray-100 p-4 space-y-4 shadow-lg absolute w-full z-40">
-                    <div v-if="!user" class="grid grid-cols-2 gap-4">
-                        <button @click="openLogin" class="text-center py-2 border rounded-lg font-bold text-gray-700">Ingresar</button>
-                        <button @click="openRegister" class="text-center py-2 bg-blue-600 text-white rounded-lg font-bold">Regístrate</button>
+                    
+                    <Link :href="route('shop.bundles.index')" class="flex items-center gap-2 py-3 px-2 font-bold text-gray-600 hover:bg-gray-50 rounded-lg">
+                        <Gift :size="20" class="text-blue-500" /> Packs & Ofertas
+                    </Link>
+    
+                    <div v-if="!user" class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                        <button @click="openLogin" class="text-center py-3 border rounded-xl font-bold text-gray-700">Ingresar</button>
+                        <button @click="openRegister" class="text-center py-3 bg-blue-600 text-white rounded-xl font-bold">Regístrate</button>
                     </div>
-                    <div v-else>
-                        <div v-if="isAdminOrStaff" class="mb-2 pb-2 border-b border-gray-100">
-                            <a :href="route('admin.dashboard')" class="block py-2 text-blue-700 font-black text-xs">IR AL PANEL ADMIN</a>
-                        </div>
-                        <Link :href="route('profile.index')" class="block py-2 font-medium">Mi Perfil</Link>
-                        <Link :href="route('logout')" method="post" as="button" class="block py-2 text-red-600 font-bold">Salir</Link>
+                    <div v-else class="space-y-1 pt-2 border-t border-gray-100">
+                        <div class="px-2 py-2 text-xs font-bold text-gray-400 uppercase">Hola, {{ getUserDisplayName() }}</div>
+                        <Link :href="route('profile.index')" class="block py-2 px-2 font-medium text-gray-700 hover:bg-gray-50 rounded-lg">Mi Perfil</Link>
+                        <Link :href="route('orders.history')" class="block py-2 px-2 font-medium text-gray-700 hover:bg-gray-50 rounded-lg">Mis Compras</Link>
+                        <Link :href="route('logout')" method="post" as="button" class="block w-full text-left py-2 px-2 text-red-600 font-bold hover:bg-red-50 rounded-lg">Salir</Link>
                     </div>
                 </div>
             </nav>
@@ -173,10 +171,12 @@
                 <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
                     <div v-if="showLogin || showRegister" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModals"></div>
+                        
                         <div v-if="showLogin" class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden z-10">
                             <button @click="closeModals" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 z-20"><X :size="20" /></button>
                             <LoginForm @close="closeModals" @switchToRegister="openRegister" />
                         </div>
+    
                         <div v-if="showRegister" class="relative bg-white w-full max-w-lg h-[650px] rounded-2xl shadow-2xl overflow-hidden z-10">
                             <button @click="closeModals" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 z-20"><X :size="20" /></button>
                             <RegisterForm :activeBranches="activeBranches" @close="closeModals" @switchToLogin="openLogin" />
