@@ -1,322 +1,383 @@
 <script setup>
-    import AdminLayout from '@/Layouts/AdminLayout.vue';
-    import { Link, router, useForm } from '@inertiajs/vue3';
-    import { ref, computed, watch, onMounted } from 'vue';
-    import debounce from 'lodash/debounce';
+import { ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { 
+    Package, Plus, Search, Edit, Trash2, 
+    Tag, Layers, Image as ImageIcon, CheckCircle, 
+    XCircle, ChevronDown, ChevronRight, Barcode, Box, Cuboid
+} from 'lucide-vue-next';
+import debounce from 'lodash/debounce';
+
+const props = defineProps({
+    products: Object,
+    filters: Object
+});
+
+const search = ref(props.filters?.search || '');
+const expandedRows = ref([]);
+
+watch(search, debounce((val) => {
+    router.get(route('admin.products.index'), { search: val }, {
+        preserveState: true, replace: true, preserveScroll: true
+    });
+}, 300));
+
+const toggleRow = (id) => {
+    if (expandedRows.value.includes(id)) {
+        expandedRows.value = expandedRows.value.filter(rowId => rowId !== id);
+    } else {
+        expandedRows.value.push(id);
+    }
+};
+
+const deleteProduct = (id, name) => {
+    if (confirm(`⚠ ATENCIÓN: Eliminar "${name}" borrará permanentemente todas sus variantes. ¿Proceder?`)) {
+        router.delete(route('admin.products.destroy', id));
+    }
+};
+
+// Helper para mostrar imagen
+// Helper para obtener la URL correcta de la imagen
+const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
     
-    import { 
-        Search, Plus, Package, Image as ImageIcon, 
-        Box, Layers, Tag, Edit, Trash2, 
-        Cuboid, DollarSign, X, Pencil // Importamos Pencil
-    } from 'lucide-vue-next';
-
-    const props = defineProps({ 
-        products: Object, 
-        filters: Object,
-        can_manage: Boolean 
-    });
-
-    const search = ref(props.filters.search || '');
-    const selectedProductId = ref(null);
-    const showSkuModal = ref(false);
-    const isEditingSku = ref(false); // Estado para saber si editamos
-
-    // --- FORMULARIO SKU (Añadimos ID para edición) ---
-    const skuForm = useForm({
-        id: null,
-        product_id: '',
-        name: '',
-        code: '',
-        conversion_factor: 1,
-        weight: 0,
-        price: 0
-    });
-
-    const activeProduct = computed(() => {
-        return props.products.data.find(p => p.id === selectedProductId.value) || null;
-    });
-
-    const selectProduct = (id) => {
-        selectedProductId.value = id;
-    };
-
-    onMounted(() => {
-        if (props.products.data.length > 0 && !selectedProductId.value) {
-            selectedProductId.value = props.products.data[0].id;
-        }
-    });
-
-    watch(search, debounce((val) => {
-        router.get(route('admin.products.index'), { search: val }, { 
-            preserveState: true, replace: true, preserveScroll: true,
-            onSuccess: () => {
-                if (props.products.data.length > 0) selectedProductId.value = props.products.data[0].id;
-            }
-        });
-    }, 300));
-
-    // --- ACCIONES DE PRODUCTO ---
-    const deleteProduct = (id) => {
-        if(confirm('⚠ ALERTA: Eliminar este producto archivará TODOS sus SKUs. ¿Estás seguro?')) {
-            router.delete(route('admin.products.destroy', id), {
-                onSuccess: () => selectedProductId.value = null
-            });
-        }
-    };
-
-    const deleteSku = (skuId) => {
-        if(confirm('¿Archivar este SKU?')) {
-            router.delete(route('admin.skus.destroy', skuId), { preserveScroll: true });
-        }
-    };
-
-    // --- LÓGICA DEL MODAL SKU (CREAR vs EDITAR) ---
+    // Si ya es una URL completa
+    if (imagePath.startsWith('http')) return imagePath;
     
-    const openCreateSkuModal = () => {
-        isEditingSku.value = false;
-        skuForm.reset();
-        skuForm.product_id = activeProduct.value.id;
-        skuForm.name = activeProduct.value.name + ' - '; 
-        showSkuModal.value = true;
-    };
-
-    const openEditSkuModal = (sku) => {
-        isEditingSku.value = true;
-        skuForm.clearErrors();
-        
-        // Cargar datos del SKU seleccionado
-        skuForm.id = sku.id;
-        skuForm.product_id = sku.product_id;
-        skuForm.name = sku.name;
-        skuForm.code = sku.code;
-        skuForm.conversion_factor = parseFloat(sku.conversion_factor);
-        skuForm.weight = parseFloat(sku.weight);
-        
-        // Extraer precio actual (si existe)
-        skuForm.price = sku.prices && sku.prices.length > 0 
-            ? parseFloat(sku.prices[0].final_price) 
-            : 0;
-
-        showSkuModal.value = true;
-    };
-
-    const submitSku = () => {
-        if (isEditingSku.value) {
-            // ACTUALIZAR (PUT)
-            skuForm.put(route('admin.skus.update', skuForm.id), {
-                onSuccess: () => {
-                    showSkuModal.value = false;
-                    skuForm.reset();
-                },
-                preserveScroll: true
-            });
-        } else {
-            // CREAR (POST)
-            skuForm.post(route('admin.skus.store'), {
-                onSuccess: () => {
-                    showSkuModal.value = false;
-                    skuForm.reset();
-                },
-                preserveScroll: true
-            });
-        }
-    };
+    // Si ya empieza con /storage, no duplicar
+    if (imagePath.startsWith('/storage/')) return imagePath;
+    
+    // Si ya tiene storage/ sin la barra inicial
+    if (imagePath.startsWith('storage/')) return `/${imagePath}`;
+    
+    // Caso por defecto: agregar /storage/
+    return `/storage/${imagePath}`;
+};
 </script>
 
 <template>
     <AdminLayout>
-        
-        <div class="flex flex-col md:flex-row h-[calc(100vh-6rem)] gap-6 overflow-hidden relative">
+        <Head title="Inventario Maestro" />
+
+        <div class="max-w-7xl mx-auto space-y-6">
             
-            <div class="w-full md:w-1/3 lg:w-1/4 flex flex-col bg-skin-fill-card border border-skin-border rounded-global shadow-sm overflow-hidden h-full">
-                <div class="p-4 border-b border-skin-border bg-skin-fill/50 shrink-0">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="font-black text-lg text-skin-base tracking-tight">Productos</h2>
-                        
-                        <Link v-if="can_manage" :href="route('admin.products.create')" class="p-2 bg-skin-primary text-skin-primary-text rounded-global hover:brightness-110 transition shadow-sm" title="Crear Nuevo Producto Maestro">
-                            <Plus :size="16" />
-                        </Link>
-                    </div>
-                    <div class="relative group">
-                        <Search :size="14" class="absolute left-3 top-2.5 text-skin-muted pointer-events-none" />
-                        <input v-model="search" type="text" placeholder="Buscar..." 
-                               class="pl-9 w-full bg-skin-fill border border-skin-border text-skin-base text-xs font-medium rounded-global py-2 focus:ring-2 focus:ring-skin-primary/50 outline-none transition-all">
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-                    <div v-for="prod in products.data" :key="prod.id"
-                         @click="selectProduct(prod.id)"
-                         class="flex items-center gap-3 p-3 rounded-global cursor-pointer transition-all duration-200 border border-transparent group"
-                         :class="selectedProductId === prod.id ? 'bg-skin-primary/10 border-skin-primary/20 shadow-sm' : 'hover:bg-skin-fill hover:border-skin-border'">
-                        
-                        <div class="w-10 h-10 rounded bg-white border border-skin-border overflow-hidden shrink-0 flex items-center justify-center p-0.5">
-                            <img v-if="prod.image_url" :src="prod.image_url" class="w-full h-full object-contain">
-                            <Package v-else :size="16" class="text-gray-300" />
-                        </div>
-
-                        <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-center">
-                                <h3 class="font-bold text-sm truncate" :class="selectedProductId === prod.id ? 'text-skin-primary' : 'text-skin-base'">{{ prod.name }}</h3>
-                                <div v-if="!prod.is_active" class="w-2 h-2 rounded-full bg-skin-danger" title="Inactivo"></div>
-                            </div>
-                            <div class="flex items-center justify-between mt-0.5">
-                                <p class="text-[10px] text-skin-muted truncate max-w-[100px]">{{ prod.brand?.name }}</p>
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-skin-fill border border-skin-border text-skin-muted">{{ prod.skus_count || 0 }} SKUs</span>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-black text-foreground tracking-tight">Catálogo de Productos</h1>
+                    <p class="text-muted-foreground mt-1 text-sm">Gestión jerárquica de Productos Maestros y sus Presentaciones (SKUs)</p>
                 </div>
                 
-                <div v-if="products.links.length > 3" class="p-3 border-t border-skin-border bg-skin-fill/50 flex justify-center gap-1 shrink-0 overflow-x-auto">
-                    <template v-for="(link, k) in products.links" :key="k">
-                        <Link v-if="link.url" :href="link.url" v-html="link.label" class="px-2 py-1 rounded text-[10px] transition border" :class="link.active ? 'bg-skin-primary text-white border-skin-primary' : 'bg-skin-fill border-skin-border text-skin-muted hover:bg-white'"/>
-                    </template>
+                <Link 
+                    :href="route('admin.products.create')" 
+                    class="btn btn-primary btn-md flex items-center gap-2"
+                >
+                    <Plus :size="16" />
+                    <span>Nuevo Producto</span>
+                </Link>
+            </div>
+
+            <!-- Barra de búsqueda -->
+            <div class="card">
+                <div class="relative w-full md:w-96">
+                    <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" :size="18" />
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Buscar producto, marca, código..." 
+                        class="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-lg text-sm focus:ring-2 focus:ring-ring focus:border-primary outline-none transition-all"
+                    />
                 </div>
             </div>
 
-            <div class="flex-1 flex flex-col h-full overflow-hidden bg-skin-fill rounded-global border border-transparent">
-                <Transition name="fade" mode="out-in">
-                    <div v-if="activeProduct" :key="activeProduct.id" class="flex flex-col h-full">
+            <!-- Tabla de productos -->
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[1000px]">
+                        <thead class="bg-muted/50 border-b border-border">
+                            <tr>
+                                <th class="w-12 px-6 py-4"></th>
+                                <th class="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                    Producto Maestro
+                                </th>
+                                <th class="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                    Clasificación
+                                </th>
+                                <th class="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">
+                                    SKUs
+                                </th>
+                                <th class="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                    Estado
+                                </th>
+                                <th class="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-right">
+                                    Acciones
+                                </th>
+                            </tr>
+                        </thead>
                         
-                        <div class="bg-skin-fill-card border border-skin-border rounded-global shadow-sm p-6 mb-6 shrink-0 relative overflow-hidden">
-                            <div class="flex justify-between items-start relative z-10">
-                                <div class="flex gap-6">
-                                    <div class="w-24 h-24 rounded-lg bg-white border-2 border-skin-border shadow-inner flex items-center justify-center p-2 shrink-0">
-                                        <img v-if="activeProduct.image_url" :src="activeProduct.image_url" class="w-full h-full object-contain">
-                                        <Package v-else :size="40" class="text-gray-200" />
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-2 mb-2">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-skin-fill border border-skin-border text-skin-muted flex items-center gap-1"><Tag :size="10" /> {{ activeProduct.brand?.name }}</span>
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-skin-fill border border-skin-border text-skin-muted flex items-center gap-1"><Layers :size="10" /> {{ activeProduct.category?.name }}</span>
-                                        </div>
-                                        <h1 class="text-3xl font-black text-skin-base tracking-tight mb-2">{{ activeProduct.name }}</h1>
-                                        <p class="text-sm text-skin-muted max-w-xl line-clamp-2">{{ activeProduct.description }}</p>
-                                    </div>
-                                </div>
-                                
-                                <div v-if="can_manage" class="flex flex-col gap-2">
-                                    <Link :href="route('admin.products.edit', activeProduct.id)" class="flex items-center gap-2 px-4 py-2 bg-skin-primary text-skin-primary-text rounded-global text-xs font-bold shadow-sm hover:brightness-110 transition text-center justify-center"><Edit :size="14" /> Editar</Link>
-                                    <button @click="deleteProduct(activeProduct.id)" class="flex items-center gap-2 px-4 py-2 bg-skin-fill border border-skin-border hover:border-skin-danger text-skin-muted hover:text-skin-danger rounded-global text-xs font-bold transition text-center justify-center"><Trash2 :size="14" /> Eliminar</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
-                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                
-                                <div v-if="can_manage" @click="openCreateSkuModal" 
-                                     class="border-2 border-dashed border-skin-border rounded-global flex flex-col items-center justify-center text-skin-muted hover:text-skin-primary hover:border-skin-primary hover:bg-skin-primary/5 transition-all cursor-pointer min-h-[140px] group order-first">
-                                    <div class="p-3 rounded-full bg-skin-fill group-hover:bg-skin-primary/10 transition mb-2">
-                                        <Plus :size="24" />
-                                    </div>
-                                    <span class="text-xs font-bold">Añadir Presentación</span>
-                                </div>
-
-                                <div v-for="sku in activeProduct.skus" :key="sku.id" 
-                                     class="group bg-skin-fill-card border border-skin-border rounded-global p-4 relative overflow-hidden transition-all hover:shadow-md hover:border-skin-primary/50">
+                        <tbody class="divide-y divide-border/50">
+                            <template v-for="product in products.data" :key="product.id">
+                                <!-- Fila principal -->
+                                <tr 
+                                    class="group hover:bg-muted/30 transition-colors cursor-pointer animate-in"
+                                    @click="toggleRow(product.id)"
+                                >
+                                    <td class="px-6 py-4">
+                                        <button class="p-1 rounded-md hover:bg-muted transition">
+                                            <ChevronDown 
+                                                v-if="expandedRows.includes(product.id)" 
+                                                :size="20" 
+                                                class="text-primary"
+                                            />
+                                            <ChevronRight v-else :size="20" class="text-muted-foreground" />
+                                        </button>
+                                    </td>
                                     
-                                    <div class="absolute -right-4 -bottom-4 text-skin-fill-hover opacity-50 transform rotate-12 group-hover:scale-110 transition-transform pointer-events-none">
-                                        <Box v-if="parseFloat(sku.conversion_factor) > 1" :size="80" />
-                                        <Cuboid v-else :size="80" />
-                                    </div>
-
-                                    <div class="relative z-10">
-                                        <div class="flex justify-between items-start mb-3">
-                                            <span v-if="parseFloat(sku.conversion_factor) > 1" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 text-[10px] font-black uppercase shadow-sm"><Box :size="10" /> Pack x{{ parseFloat(sku.conversion_factor) }}</span>
-                                            <span v-else class="inline-flex items-center gap-1 px-2 py-1 rounded bg-skin-fill text-skin-muted border border-skin-border text-[10px] font-bold uppercase"><Cuboid :size="10" /> Unidad Base</span>
-                                            
-                                            <div v-if="can_manage" class="flex gap-1 opacity-0 group-hover:opacity-100 transition duration-200">
-                                                <button @click="openEditSkuModal(sku)" class="p-1.5 text-skin-muted hover:text-skin-primary hover:bg-skin-fill rounded transition" title="Editar SKU">
-                                                    <Pencil :size="14" />
-                                                </button>
-                                                <button @click="deleteSku(sku.id)" class="p-1.5 text-skin-muted hover:text-skin-danger hover:bg-skin-fill rounded transition" title="Eliminar SKU">
-                                                    <Trash2 :size="14" />
-                                                </button>
+                                    <!-- Información del producto -->
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-12 h-12 rounded-lg bg-card border border-border overflow-hidden shrink-0 flex items-center justify-center">
+                                                <img 
+                                                    v-if="getImageUrl(product.image_url)" 
+                                                    :src="getImageUrl(product.image_url)" 
+                                                    class="w-full h-full object-cover"
+                                                    @error="e => { e.target.style.display = 'none'; }"
+                                                />
+                                                <ImageIcon 
+                                                    v-else 
+                                                    class="text-muted-foreground/30" 
+                                                    :size="20" 
+                                                />
                                             </div>
-                                        </div>
-
-                                        <h4 class="font-bold text-skin-base text-sm leading-tight mb-1 line-clamp-2 min-h-[1.25rem]">{{ sku.name }}</h4>
-                                        <p class="font-mono text-xs text-skin-primary font-bold mb-4 bg-skin-primary/5 inline-block px-1 rounded">{{ sku.code || 'S/C' }}</p>
-                                        
-                                        <div class="grid grid-cols-2 gap-2 pt-3 border-t border-skin-border/50">
-                                            <div><span class="block text-[9px] text-skin-muted uppercase font-bold">Peso</span><span class="text-xs font-mono text-skin-base">{{ sku.weight || '0' }} kg</span></div>
-                                            
                                             <div>
-                                                <span class="block text-[9px] text-skin-muted uppercase font-bold text-right">Precio</span>
-                                                <span class="block text-xs font-mono text-skin-success text-right font-bold">
-                                                    {{ sku.prices && sku.prices.length > 0 ? parseFloat(sku.prices[0].final_price).toFixed(2) : '0.00' }}
-                                                </span>
+                                                <div class="font-bold text-foreground text-sm group-hover:text-primary transition-colors">
+                                                    {{ product.name }}
+                                                </div>
+                                                <div class="text-[11px] text-muted-foreground font-mono mt-0.5">
+                                                    ID: {{ product.id.substring(0,8) }}...
+                                                </div>
                                             </div>
                                         </div>
+                                    </td>
+
+                                    <!-- Clasificación -->
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col gap-1.5">
+                                            <span 
+                                                class="badge badge-outline text-xs inline-flex items-center gap-1.5 w-fit"
+                                            >
+                                                <Tag :size="10" />
+                                                {{ product.brand?.name || 'Sin marca' }}
+                                            </span>
+                                            <span 
+                                                class="badge badge-outline text-xs inline-flex items-center gap-1.5 w-fit"
+                                            >
+                                                <Layers :size="10" />
+                                                {{ product.category?.name || 'Sin categoría' }}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Conteo de SKUs -->
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs border border-primary/20">
+                                            {{ product.skus_count }}
+                                        </span>
+                                    </td>
+
+                                    <!-- Estado -->
+                                    <td class="px-6 py-4">
+                                        <span 
+                                            v-if="product.is_active" 
+                                            class="badge badge-success text-xs inline-flex items-center gap-1"
+                                        >
+                                            <CheckCircle :size="12" />
+                                            Activo
+                                        </span>
+                                        <span 
+                                            v-else 
+                                            class="badge badge-outline text-xs inline-flex items-center gap-1"
+                                        >
+                                            <XCircle :size="12" />
+                                            Inactivo
+                                        </span>
+                                    </td>
+
+                                    <!-- Acciones -->
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="flex items-center justify-end gap-2" @click.stop>
+                                            <Link 
+                                                :href="route('admin.products.edit', product.id)" 
+                                                class="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                title="Editar"
+                                            >
+                                                <Edit :size="18" />
+                                            </Link>
+                                            <button 
+                                                @click="deleteProduct(product.id, product.name)" 
+                                                class="p-2 rounded-lg text-muted-foreground hover:text-error hover:bg-error/10 transition-colors"
+                                                title="Eliminar"
+                                            >
+                                                <Trash2 :size="18" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila expandida con SKUs -->
+                                <tr v-if="expandedRows.includes(product.id)" class="bg-muted/10">
+                                    <td colspan="6" class="p-0 border-b border-border/50">
+                                        <div class="px-6 py-4">
+                                            <div class="card border border-border/50">
+                                                <div class="px-4 py-3 bg-muted/20 border-b border-border/50 flex items-center gap-2">
+                                                    <Barcode :size="16" class="text-muted-foreground"/>
+                                                    <span class="text-xs font-bold text-foreground uppercase tracking-wide">
+                                                        Variantes de Venta (SKUs)
+                                                    </span>
+                                                </div>
+                                                
+                                                <div class="overflow-x-auto">
+                                                    <table class="w-full text-sm">
+                                                        <thead>
+                                                            <tr class="text-left text-xs uppercase text-muted-foreground bg-card">
+                                                                <th class="px-4 py-2 font-bold w-16">Imagen</th>
+                                                                <th class="px-4 py-2 font-bold">Nombre Variante</th>
+                                                                <th class="px-4 py-2 font-bold">Código EAN</th>
+                                                                <th class="px-4 py-2 font-bold text-center">Unidad de Medida</th>
+                                                                <th class="px-4 py-2 font-bold text-right">Precio Base</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="divide-y divide-border/30">
+                                                            <tr 
+                                                                v-for="sku in product.skus" 
+                                                                :key="sku.id" 
+                                                                class="hover:bg-muted/20 transition-colors"
+                                                            >
+                                                                <!-- Imagen SKU -->
+                                                                <td class="px-4 py-3">
+                                                                    <div class="w-8 h-8 rounded bg-card border border-border overflow-hidden flex items-center justify-center">
+                                                                        <img 
+                                                                            v-if="getImageUrl(sku.image_url)" 
+                                                                            :src="getImageUrl(sku.image_url)" 
+                                                                            class="w-full h-full object-cover"
+                                                                            @error="e => { e.target.style.display = 'none'; }"
+                                                                        />
+                                                                        <ImageIcon 
+                                                                            v-else 
+                                                                            :size="14" 
+                                                                            class="text-muted-foreground/30" 
+                                                                        />
+                                                                    </div>
+                                                                </td>
+                                                                
+                                                                <!-- Nombre -->
+                                                                <td class="px-4 py-3 font-medium text-foreground">
+                                                                    {{ sku.name }}
+                                                                </td>
+                                                                
+                                                                <!-- Código EAN -->
+                                                                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">
+                                                                    {{ sku.code || '---' }}
+                                                                </td>
+                                                                
+                                                                <!-- Unidad de medida -->
+                                                                <td class="px-4 py-3 text-center">
+                                                                    <span 
+                                                                        v-if="parseFloat(sku.conversion_factor) === 1" 
+                                                                        class="badge badge-primary text-xs inline-flex items-center gap-1"
+                                                                    >
+                                                                        <Cuboid :size="10" />
+                                                                        Unidad
+                                                                    </span>
+                                                                    <span 
+                                                                        v-else 
+                                                                        class="badge badge-secondary text-xs inline-flex items-center gap-1"
+                                                                    >
+                                                                        <Box :size="10" />
+                                                                        Pack x{{ parseFloat(sku.conversion_factor) }}
+                                                                    </span>
+                                                                </td>
+                                                                
+                                                                <!-- Precio -->
+                                                                <td class="px-4 py-3 text-right font-mono font-bold text-success">
+                                                                    Bs {{ parseFloat(sku.price).toFixed(2) }}
+                                                                </td>
+                                                            </tr>
+                                                            
+                                                            <!-- Estado vacío -->
+                                                            <tr v-if="!product.skus || product.skus.length === 0">
+                                                                <td colspan="5" class="px-4 py-4 text-center text-sm text-muted-foreground">
+                                                                    No hay variantes registradas
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+
+                            <!-- Estado vacío -->
+                            <tr v-if="products.data.length === 0">
+                                <td colspan="6" class="px-6 py-12 text-center">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <Package :size="48" class="mb-4 text-muted-foreground/30" />
+                                        <p class="font-medium text-foreground">Sin resultados</p>
+                                        <p class="text-sm text-muted-foreground">
+                                            {{ search ? 'No hay productos que coincidan con la búsqueda' : 'No hay productos registrados' }}
+                                        </p>
+                                        <Link 
+                                            v-if="!search"
+                                            :href="route('admin.products.create')"
+                                            class="btn btn-outline btn-sm mt-4"
+                                        >
+                                            Crear primer producto
+                                        </Link>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                    <div v-else class="h-full flex flex-col items-center justify-center text-skin-muted opacity-50">
-                        <Package :size="64" class="mb-4 text-skin-border" />
-                        <p class="font-bold text-lg">Selecciona un producto</p>
-                    </div>
-                </Transition>
-            </div>
-
-            <div v-if="showSkuModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                <div class="bg-skin-fill-card border border-skin-border rounded-lg shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
-                    <div class="flex justify-between items-center p-4 border-b border-skin-border">
-                        <h3 class="font-bold text-lg text-skin-base">
-                            {{ isEditingSku ? 'Editar Presentación' : 'Nueva Presentación' }}
-                        </h3>
-                        <button @click="showSkuModal = false" class="text-skin-muted hover:text-skin-danger"><X :size="20" /></button>
-                    </div>
-                    
-                    <form @submit.prevent="submitSku" class="p-6 space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-skin-muted uppercase mb-1">Nombre Presentación</label>
-                            <input v-model="skuForm.name" type="text" class="w-full bg-skin-fill border border-skin-border rounded p-2 text-sm focus:border-skin-primary outline-none">
-                            <p v-if="skuForm.errors.name" class="text-skin-danger text-xs mt-1">{{ skuForm.errors.name }}</p>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-skin-muted uppercase mb-1">Código EAN</label>
-                                <input v-model="skuForm.code" type="text" class="w-full bg-skin-fill border border-skin-border rounded p-2 text-sm font-mono focus:border-skin-primary outline-none">
-                                <p v-if="skuForm.errors.code" class="text-skin-danger text-xs mt-1">{{ skuForm.errors.code }}</p>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-skin-muted uppercase mb-1">Unidades (Factor)</label>
-                                <input v-model.number="skuForm.conversion_factor" type="number" min="1" class="w-full bg-skin-fill border border-skin-border rounded p-2 text-sm text-center focus:border-skin-primary outline-none">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-skin-muted uppercase mb-1">Peso (Kg)</label>
-                                <input v-model.number="skuForm.weight" type="number" step="0.01" class="w-full bg-skin-fill border border-skin-border rounded p-2 text-sm text-center focus:border-skin-primary outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-skin-success uppercase mb-1">Precio Base (Bs)</label>
-                                <input v-model.number="skuForm.price" type="number" step="0.01" class="w-full bg-skin-fill border border-skin-border rounded p-2 text-sm text-right font-bold text-skin-success focus:border-skin-success outline-none">
-                            </div>
-                        </div>
-
-                        <div class="pt-4 flex justify-end gap-3">
-                            <button type="button" @click="showSkuModal = false" class="px-4 py-2 text-sm text-skin-muted hover:text-skin-base">Cancelar</button>
-                            <button type="submit" :disabled="skuForm.processing" class="px-6 py-2 bg-skin-primary text-skin-primary-text rounded text-sm font-bold shadow hover:brightness-110 disabled:opacity-50">
-                                {{ isEditingSku ? 'Actualizar' : 'Guardar' }}
-                            </button>
-                        </div>
-                    </form>
+                <!-- Paginación -->
+                <div 
+                    v-if="products.meta?.last_page > 1" 
+                    class="px-6 py-4 border-t border-border flex justify-end gap-1"
+                >
+                    <Link
+                        v-for="(link, k) in products.meta.links"
+                        :key="k"
+                        :href="link.url || '#'"
+                        v-html="link.label"
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                        :class="{
+                            'bg-primary text-primary-foreground': link.active,
+                            'text-muted-foreground hover:text-foreground hover:bg-muted': !link.active && link.url,
+                            'text-muted-foreground/50 pointer-events-none': !link.url
+                        }"
+                        :preserve-scroll="true"
+                    />
                 </div>
             </div>
-
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(10px); }
+.animate-in {
+    animation: fadeIn 0.2s var(--ease-smooth);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
 </style>

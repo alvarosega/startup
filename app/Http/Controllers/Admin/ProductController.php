@@ -6,113 +6,129 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Brand;
 use App\Models\Category;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-
-// Arquitectura
-use App\DTOs\Product\ProductData;
-use App\Http\Requests\Product\StoreProductRequest;
-use App\Http\Requests\Product\UpdateProductRequest;
-use App\Actions\Product\CreateProduct;
-use App\Actions\Product\UpdateProduct;
+use App\Http\Requests\Product\UpsertProductRequest;
+use App\DTOs\Product\ProductDTO;
+use App\Actions\Product\UpsertProductAction;
 use App\Http\Resources\ProductResource;
+use Illuminate\Http\Request; // Importante para el filtro
+use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
+
 
 class ProductController extends Controller
 {
-    use AuthorizesRequests;
-
     public function index(Request $request)
     {
-        $this->authorize('viewAny', Product::class);
-
+        // Consulta base
         $query = Product::with([
             'brand', 
-            'category', 
-            'skus.prices' => fn($q) => $q->whereNull('branch_id')->latest()
+            'category',
+            // CRÍTICO: Cargar SKUs con TODOS los campos necesarios, incluyendo image_path
+            'skus' => function ($query) {
+                $query->with(['prices' => fn($q) => $q->whereNull('branch_id')->latest()]);
+            }
         ])->withCount('skus');
-
+    
+        // Filtro de búsqueda (Buscamos por Producto, Marca o Código de SKU)
         if ($request->search) {
-            $query->where(function($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('description', 'like', "%{$request->search}%")
-                  ->orWhereHas('brand', function($q2) use ($request) {
-                      $q2->where('name', 'like', "%{$request->search}%");
-                  });
+            $term = $request->search;
+            $query->where(function($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                  ->orWhere('description', 'like', "%{$term}%")
+                  ->orWhereHas('brand', fn($q2) => $q2->where('name', 'like', "%{$term}%"))
+                  ->orWhereHas('skus', fn($q3) => $q3->where('code', 'like', "%{$term}%"));
             });
         }
-
-        // 1. Obtenemos el Paginator original
-        $products = $query->orderBy('name')->paginate(15)->withQueryString();
-
-        // 2. Transformamos solo los items usando el Resource
-        $transformedData = ProductResource::collection($products)->resolve();
-
+    
+        $products = $query->latest()->paginate(15)->withQueryString();
+    
         return Inertia::render('Admin/Products/Index', [
-            // 3. Construimos manualmente la respuesta para mantener 'data' y 'links' al nivel raíz
-            // Esto es necesario para que tu <v-for="link in products.links"> funcione
-            'products' => [
-                'data' => $transformedData,
-                'links' => $products->linkCollection()->toArray(), 
-                'total' => $products->total(),
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'from' => $products->firstItem(),
-                'to' => $products->lastItem(),
-            ],
-            'filters' => $request->only(['search']),
-            'can_manage' => auth()->user()->can('create', Product::class)
+            'products' => ProductResource::collection($products),
+            'filters' => $request->only(['search'])
         ]);
     }
 
+    // ... create, store, edit, update, destroy se mantienen igual ...
+    
     public function create()
     {
-        $this->authorize('create', Product::class);
         return Inertia::render('Admin/Products/Create', [
             'brands' => Brand::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'categories' => Category::where('is_active', true)->orderBy('name')->get(['id', 'name'])
+            'categories' => Category::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
-    public function store(StoreProductRequest $request, CreateProduct $action)
+    public function store(UpsertProductRequest $request, UpsertProductAction $action)
     {
-        $this->authorize('create', Product::class);
-        
-        $data = ProductData::fromRequest($request);
-        $action->execute($data);
-
-        return redirect()->route('admin.products.index')->with('success', 'Producto creado.');
+        $action->execute(ProductDTO::fromRequest($request));
+        return redirect()->route('admin.products.index')->with('success', 'Producto creado correctamente.');
     }
 
-    public function edit(Product $product) // Route Model Binding inyecta el modelo
+    public function edit(Product $product)
     {
-        $this->authorize('update', $product);
-        
-        // Cargar relaciones necesarias para el formulario
-        $product->load([
-            'skus.prices' => fn($q) => $q->whereNull('branch_id')->orderBy('id', 'desc')
+        // Carga simple pero efectiva
+        $product->load(['brand:id,name', 'category:id,name', 'skus.prices' => function($q) {
+            $q->whereNull('branch_id')->latest();
+        }]);
+    
+        // DEBUG: Ver qué estamos cargando
+        \Log::info('Product loaded for edit:', [
+            'id' => $product->id,
+            'name' => $product->name,
+            'brand_id' => $product->brand_id,
+            'category_id' => $product->category_id,
+            'brand' => $product->brand ? $product->brand->toArray() : null,
+            'skus_count' => $product->skus->count(),
+            'skus' => $product->skus->map(function($sku) {
+                return [
+                    'id' => $sku->id,
+                    'name' => $sku->name,
+                    'code' => $sku->code,
+                    'price' => $sku->prices->first() ? $sku->prices->first()->final_price : 0,
+                ];
+            })->toArray(),
         ]);
-
+    
+        // Enviar datos planos SIN Resource
+        $productArray = [
+            'id' => $product->id,
+            'name' => $product->name,
+            'brand_id' => (string) $product->brand_id, // IMPORTANTE: convertir a string
+            'category_id' => $product->category_id,
+            'description' => $product->description,
+            'image_url' => $product->image_path ? Storage::url($product->image_path) : null,
+            'is_active' => (bool) $product->is_active,
+            'is_alcoholic' => (bool) $product->is_alcoholic,
+            'brand' => $product->brand ? ['id' => $product->brand->id, 'name' => $product->brand->name] : null,
+            'category' => $product->category ? ['id' => $product->category->id, 'name' => $product->category->name] : null,
+            'skus' => $product->skus->map(function($sku) {
+                return [
+                    'id' => $sku->id,
+                    'name' => $sku->name,
+                    'code' => $sku->code,
+                    'price' => $sku->prices->first() ? (float) $sku->prices->first()->final_price : 0,
+                    'conversion_factor' => (float) $sku->conversion_factor,
+                    'weight' => (float) $sku->weight,
+                    'image_url' => $sku->image_path ? Storage::url($sku->image_path) : null,
+                ];
+            })->toArray(),
+        ];
+    
         return Inertia::render('Admin/Products/Edit', [
-            'product' => (new ProductResource($product))->resolve(),
+            'product' => $productArray, // Datos planos en lugar de Resource
             'brands' => Brand::orderBy('name')->get(['id', 'name']),
-            'categories' => Category::orderBy('name')->get(['id', 'name'])
+            'categories' => Category::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
-    public function update(UpdateProductRequest $request, Product $product, UpdateProduct $action)
+    public function update(UpsertProductRequest $request, Product $product, UpsertProductAction $action)
     {
-        $this->authorize('update', $product);
-
-        $data = ProductData::fromRequest($request);
-        $action->execute($product, $data);
-
+        $action->execute(ProductDTO::fromRequest($request), $product);
         return redirect()->route('admin.products.index')->with('success', 'Producto actualizado.');
     }
 
     public function destroy(Product $product)
     {
-        $this->authorize('delete', $product);
         $product->delete();
         return redirect()->route('admin.products.index')->with('success', 'Producto eliminado.');
     }

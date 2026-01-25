@@ -23,22 +23,32 @@ class Brand extends Model
     ];
     
     protected $appends = ['image_url'];
-
+    
+    // Estas son las configuraciones por defecto, puedes omitirlas
+    // public $incrementing = true;
+    // protected $keyType = 'int';
+    
     public function getImageUrlAttribute()
     {
         return $this->image_path 
             ? Storage::url($this->image_path) 
-            : null; // Frontend manejará el placeholder
+            : null;
     }
 
-    // --- RELACIONES ---
+    // Relaciones
     public function provider()
     {
-        return $this->belongsTo(Provider::class);
+        return $this->belongsTo(Provider::class, 'provider_id', 'id');
     }
     
     public function categories()
     {
-        return $this->belongsToMany(Category::class, 'brand_category');
+        return $this->belongsToMany(Category::class, 'brand_category', 'brand_id', 'category_id');
+    }
+    
+    // Relación con productos
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'brand_id', 'id');
     }
 }

@@ -5,7 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Concerns\HasUuidv7;
 
 class Sku extends Model
@@ -13,117 +15,113 @@ class Sku extends Model
     use HasFactory, SoftDeletes, HasUuidv7;
 
     protected $fillable = [
-        'product_id', 'code', 'name', 
-        'weight', 'conversion_factor', 'is_active'
+        'id',
+        'product_id',
+        'name',
+        'code',
+        'conversion_factor',
+        'weight',
+        'image_path',
+        'is_active'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'conversion_factor' => 'decimal:2',
+        'conversion_factor' => 'decimal:3', // Cambiado a 3 decimales
         'weight' => 'decimal:3'
     ];
-    protected $appends = ['image'];
-        
-/**
-     * Relación con Lotes de Inventario.
-     * Necesaria para filtrar stock disponible.
-     */
-    public function inventoryLots()
+
+    protected $appends = ['image_url'];
+
+    // Relación con Product
+    public function product(): BelongsTo
     {
-        return $this->hasMany(InventoryLot::class);
+        return $this->belongsTo(Product::class, 'product_id', 'id');
     }
+
+    // Relación con Prices
+    public function prices(): HasMany
+    {
+        return $this->hasMany(Price::class, 'sku_id', 'id');
+    }
+
+    // Relación con InventoryLots
+    public function inventoryLots(): HasMany
+    {
+        return $this->hasMany(InventoryLot::class, 'sku_id', 'id');
+    }
+
+    // Accessor para la URL de la imagen
+    public function getImageUrlAttribute()
+    {
+        if ($this->image_path) {
+            return Storage::url($this->image_path);
+        }
+        
+        // Fallback a la imagen del producto si existe
+        if ($this->relationLoaded('product') && $this->product && $this->product->image_path) {
+            return Storage::url($this->product->image_path);
+        }
+        
+        return null;
+    }
+
+    // Método para actualizar precio
     public function updatePrice(float $newPrice, $branchId = null)
     {
-        // 1. Buscar el precio ACTIVO actual para este contexto
-        // (Eloquent por defecto solo busca where deleted_at IS NULL)
+        // Buscar el precio activo actual
         $currentPrice = $this->prices()
             ->where('branch_id', $branchId)
             ->first();
 
-        // 2. Si existe, lo enviamos al historial (Soft Delete)
-        if ($currentPrice) {
-            // Pequeña optimización: Si el precio es idéntico, no hacemos nada para no llenar la BD
-            if (floatval($currentPrice->final_price) === floatval($newPrice)) {
-                return;
-            }
-            $currentPrice->delete(); 
+        // Si existe y el precio es diferente, eliminarlo (soft delete)
+        if ($currentPrice && floatval($currentPrice->final_price) !== floatval($newPrice)) {
+            $currentPrice->delete();
         }
 
-        // 3. Crear el nuevo precio vigente
+        // Crear nuevo precio
         $this->prices()->create([
             'branch_id' => $branchId,
-            'list_price' => $newPrice * 1.10, // Margen teórico
+            'list_price' => $newPrice * 1.10,
             'final_price' => $newPrice,
             'min_quantity' => 1,
             'valid_from' => now()
         ]);
     }
 
-    use SoftDeletes;
-    protected $guarded = [];
-
-    // Relación Inversa
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
-
-    // Relación con Precios (Tabla 'prices')
-    public function prices()
-    {
-        return $this->hasMany(Price::class);
-    }
-
-    // Helper para obtener el precio actual vigente
+    // Helper para obtener el precio actual
     public function currentPrice()
     {
-        return $this->hasOne(Price::class)
+        return $this->hasOne(Price::class, 'sku_id', 'id')
             ->where('valid_from', '<=', now())
             ->where(function ($query) {
                 $query->whereNull('valid_to')
                       ->orWhere('valid_to', '>=', now());
             })
-            ->latest('valid_from'); // Prioriza el más reciente
+            ->latest('valid_from');
     }
-    
-    // Accessor para obtener la imagen correcta (SKU o Producto Padre)
-    protected function image(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->image_path 
-                ? '/storage/' . $this->image_path 
-                : ($this->product->image_path ? '/storage/' . $this->product->image_path : '/images/default-product.png')
-        );
-    }
-/**
-     * Helper lógico: Retorna el precio final (float) 
-     * discriminando si es para una sucursal específica o nacional.
-     */
+
+    // Obtener precio para una sucursal específica o nacional
     public function getCurrentPrice($branchId = null)
     {
-        // La relación 'prices' ya viene filtrada por SoftDeletes (solo activos)
-        // si usas $this->prices (Eager Loading) o $this->prices()->get().
-        
         $prices = $this->prices ?? collect();
 
-        // 1. Prioridad: Precio Sucursal
         if ($branchId) {
             $branchPrice = $prices->where('branch_id', $branchId)->first();
             if ($branchPrice) return (float) $branchPrice->final_price;
         }
 
-        // 2. Fallback: Precio Base Nacional
         $basePrice = $prices->whereNull('branch_id')->first();
-
         return $basePrice ? (float) $basePrice->final_price : 0.00;
     }
+
+    // Obtener precio para sucursal con fallback a nacional
     public function getPriceForBranch(?int $branchId = null)
     {
-        // 1. Si especificaron sucursal, intentamos buscar precio específico
         if ($branchId) {
             $branchPrice = $this->prices()
                 ->where('branch_id', $branchId)
-                ->orderBy('id', 'desc') // El más reciente si hubiera duplicados
+                ->orderBy('id', 'desc')
                 ->first();
 
             if ($branchPrice) {
@@ -131,12 +129,9 @@ class Sku extends Model
             }
         }
 
-        // 2. Fallback: Retornar precio Nacional (branch_id IS NULL)
         return $this->prices()
             ->whereNull('branch_id')
             ->orderBy('id', 'desc')
             ->first();
     }
-    
-
 }

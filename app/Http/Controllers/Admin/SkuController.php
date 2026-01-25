@@ -4,91 +4,216 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sku;
+use App\Models\Product;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\Price; 
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\Sku\UpsertSkuRequest; // Necesitarás crear este Request
+use App\DTOs\Sku\SkuDTO; // Necesitarás crear este DTO
 
 class SkuController extends Controller
 {
-    use AuthorizesRequests;
-
     public function store(Request $request)
     {
-        $this->authorize('create', Sku::class);
-        
-        $data = $request->validate([
-            'product_id' => 'required|exists:products,id',
+        // Validación básica (mejor usar Form Request)
+        $validated = $request->validate([
+            'product_id' => 'required|uuid|exists:products,id',
             'name' => 'required|string|max:255',
-            'code' => 'nullable|string|max:50|unique:skus,code', // Lo cambié a nullable por flexibilidad
-            'conversion_factor' => 'required|numeric|min:1',
+            'code' => 'nullable|string|max:50|unique:skus,code',
+            'conversion_factor' => 'required|numeric|min:0.001|max:1000',
             'weight' => 'nullable|numeric|min:0',
-            'price' => 'required|numeric|min:0', 
+            'price' => 'required|numeric|min:0',
+            'image' => 'nullable|image|max:2048',
         ]);
 
-        // 1. Crear el SKU
-        $sku = Sku::create([
-            'product_id' => $data['product_id'],
-            'name' => $data['name'],
-            'code' => $data['code'],
-            'conversion_factor' => $data['conversion_factor'],
-            'weight' => $data['weight'] ?? 0,
-            'is_active' => true
-        ]);
+        try {
+            DB::transaction(function () use ($validated, $request) {
+                // Crear SKU
+                $sku = Sku::create([
+                    'product_id' => $validated['product_id'],
+                    'name' => $validated['name'],
+                    'code' => $validated['code'] ?? null,
+                    'conversion_factor' => $validated['conversion_factor'],
+                    'weight' => $validated['weight'] ?? 0,
+                    'image_path' => $request->hasFile('image') 
+                        ? $request->file('image')->store('skus', 'public')
+                        : null,
+                    'is_active' => true,
+                ]);
 
-        // 2. Crear el Precio (Usando el helper del Modelo para consistencia)
-        // Esto automáticamente pone branch_id = null y fechas correctas
-        $sku->updatePrice($data['price']);
+                // Crear precio base (nacional)
+                $sku->prices()->create([
+                    'branch_id' => null,
+                    'list_price' => $validated['price'] * 1.10,
+                    'final_price' => $validated['price'],
+                    'min_quantity' => 1,
+                    'valid_from' => now(),
+                ]);
+            });
 
-        return back()->with('message', 'SKU y Precio añadidos correctamente.');
+            return redirect()->back()->with([
+                'success' => 'SKU creado exitosamente.',
+                'refresh' => true, // Para que Inertia recargue
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors([
+                'error' => 'Error al crear SKU: ' . $e->getMessage()
+            ]);
+        }
     }
 
-    public function destroy($id)
+    public function update(Request $request, Sku $sku)
     {
-        $sku = Sku::findOrFail($id);
-        $this->authorize('delete', $sku);
-        // Aquí podrías agregar validación de stock antes de borrar
-        $sku->delete();
-        return back()->with('message', 'SKU archivado.');
-    }
-
-    // No implementamos create/store aquí. 
-    // Razón: Un SKU requiere contexto de un Producto Padre.
-    
-    public function edit($id)
-    {
-        $sku = Sku::findOrFail($id);
-        // Aunque redirija, validamos permiso
-        $this->authorize('update', $sku->product); // Usamos policy de producto padre
-        
-        return redirect()->route('admin.products.edit', $sku->product_id);
-    }
-    // AGREGAR ESTE MÉTODO A TU CONTROLADOR EXISTENTE
-    public function update(Request $request, $id)
-    {
-        $sku = Sku::findOrFail($id);
-        $this->authorize('update', $sku->product); // Usamos permiso del padre
-
-        $data = $request->validate([
+        // Validación
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'code' => 'nullable|string|max:50|unique:skus,code,'.$id, // Ignoramos el propio ID
-            'conversion_factor' => 'required|numeric|min:1',
+            'code' => 'nullable|string|max:50|unique:skus,code,' . $sku->id,
+            'conversion_factor' => 'required|numeric|min:0.001|max:1000',
             'weight' => 'nullable|numeric|min:0',
-            'price' => 'required|numeric|min:0', 
+            'price' => 'required|numeric|min:0',
+            'image' => 'nullable|image|max:2048',
         ]);
 
-        // 1. Actualizar datos básicos
-        $sku->update([
-            'name' => $data['name'],
-            'code' => $data['code'],
-            'conversion_factor' => $data['conversion_factor'],
-            'weight' => $data['weight'] ?? 0,
-        ]);
+        try {
+            DB::transaction(function () use ($validated, $request, $sku) {
+                // Manejar imagen
+                $imagePath = $sku->image_path;
+                if ($request->hasFile('image')) {
+                    // Eliminar imagen anterior si existe
+                    if ($sku->image_path) {
+                        Storage::disk('public')->delete($sku->image_path);
+                    }
+                    $imagePath = $request->file('image')->store('skus', 'public');
+                }
 
-        // 2. Actualizar Precio (Si cambió)
-        // El helper updatePrice del modelo se encarga de verificar si es necesario crear uno nuevo
-        $sku->updatePrice($data['price']);
+                // Actualizar SKU
+                $sku->update([
+                    'name' => $validated['name'],
+                    'code' => $validated['code'] ?? null,
+                    'conversion_factor' => $validated['conversion_factor'],
+                    'weight' => $validated['weight'] ?? 0,
+                    'image_path' => $imagePath,
+                ]);
 
-        return back()->with('message', 'SKU actualizado correctamente.');
+                // Actualizar precio si cambió
+                $currentPrice = $sku->prices()
+                    ->whereNull('branch_id')
+                    ->latest()
+                    ->first();
+
+                if (!$currentPrice || (float)$currentPrice->final_price !== (float)$validated['price']) {
+                    if ($currentPrice) {
+                        $currentPrice->delete(); // Soft delete del precio anterior
+                    }
+
+                    $sku->prices()->create([
+                        'branch_id' => null,
+                        'list_price' => $validated['price'] * 1.10,
+                        'final_price' => $validated['price'],
+                        'min_quantity' => 1,
+                        'valid_from' => now(),
+                    ]);
+                }
+            });
+
+            return redirect()->back()->with([
+                'success' => 'SKU actualizado exitosamente.',
+                'refresh' => true,
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors([
+                'error' => 'Error al actualizar SKU: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    public function destroy(Sku $sku)
+    {
+        try {
+            // Verificar si el SKU tiene inventario o pedidos antes de eliminar
+            $hasInventory = $sku->inventoryLots()->exists();
+            // $hasOrders = $sku->orderItems()->exists(); // Si tienes relación con órdenes
+
+            if ($hasInventory) {
+                return redirect()->back()->withErrors([
+                    'error' => 'No se puede eliminar el SKU porque tiene inventario asociado.'
+                ]);
+            }
+
+            // Soft delete del SKU
+            $sku->delete();
+
+            return redirect()->back()->with([
+                'success' => 'SKU eliminado exitosamente.',
+                'refresh' => true,
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors([
+                'error' => 'Error al eliminar SKU: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    // Método adicional útil: Activar/Desactivar SKU
+    public function toggleStatus(Sku $sku)
+    {
+        try {
+            $sku->update([
+                'is_active' => !$sku->is_active
+            ]);
+
+            $status = $sku->is_active ? 'activado' : 'desactivado';
+            
+            return redirect()->back()->with([
+                'success' => "SKU {$status} exitosamente.",
+                'refresh' => true,
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors([
+                'error' => 'Error al cambiar estado: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    // Método para clonar SKU
+    public function duplicate(Sku $sku)
+    {
+        try {
+            DB::transaction(function () use ($sku) {
+                $newSku = $sku->replicate();
+                $newSku->code = $sku->code . '-COPY';
+                $newSku->save();
+
+                // Clonar precio si existe
+                $currentPrice = $sku->prices()
+                    ->whereNull('branch_id')
+                    ->latest()
+                    ->first();
+
+                if ($currentPrice) {
+                    $newSku->prices()->create([
+                        'branch_id' => null,
+                        'list_price' => $currentPrice->list_price,
+                        'final_price' => $currentPrice->final_price,
+                        'min_quantity' => $currentPrice->min_quantity,
+                        'valid_from' => now(),
+                    ]);
+                }
+            });
+
+            return redirect()->back()->with([
+                'success' => 'SKU duplicado exitosamente.',
+                'refresh' => true,
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors([
+                'error' => 'Error al duplicar SKU: ' . $e->getMessage()
+            ]);
+        }
     }
 }

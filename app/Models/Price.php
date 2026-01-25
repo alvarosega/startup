@@ -25,13 +25,16 @@ class Price extends Model
         'valid_from' => 'datetime',
     ];
 
+    // Relación con SKU
     public function sku()
     {
-        return $this->belongsTo(Sku::class);
+        return $this->belongsTo(Sku::class, 'sku_id', 'id');
     }
 
+    // Relación con Branch (si existe el modelo Branch)
     public function branch()
     {
-        return $this->belongsTo(Branch::class);
+        // Si tienes modelo Branch
+        return $this->belongsTo(Branch::class, 'branch_id', 'id');
     }
 }

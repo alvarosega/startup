@@ -5,8 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Storage;
-use App\Models\InventoryLot;
 use App\Models\Concerns\HasUuidv7;
 
 class Product extends Model
@@ -14,8 +16,14 @@ class Product extends Model
     use HasFactory, SoftDeletes, HasUuidv7;
 
     protected $fillable = [
-        'brand_id', 'category_id', 'name', 'slug',
-        'description', 'image_path', 'is_active', 'is_alcoholic'
+        'brand_id', 
+        'category_id', 
+        'name', 
+        'slug',
+        'description', 
+        'image_path', 
+        'is_active', 
+        'is_alcoholic'
     ];
 
     protected $casts = [
@@ -25,41 +33,40 @@ class Product extends Model
 
     protected $appends = ['image_url'];
 
+    // Accessor para la URL de la imagen
     public function getImageUrlAttribute()
     {
         return $this->image_path ? Storage::url($this->image_path) : null;
     }
 
-    
-    public function category() { return $this->belongsTo(Category::class); }
-
-    use SoftDeletes;
-    protected $guarded = [];
-
-    public function skus()
+    // Relación con SKUs
+    public function skus(): HasMany
     {
         return $this->hasMany(Sku::class);
     }
-    
 
-    public function inventoryLots()
+    // Relación con Brand (brands.id es bigint)
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class, 'brand_id', 'id');
+    }
+
+    // Relación con Category (categories.id es UUID)
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'category_id', 'id');
+    }
+
+    // Relación con InventoryLots a través de SKUs
+    public function inventoryLots(): HasManyThrough
     {
         return $this->hasManyThrough(
-            InventoryLot::class, // Modelo final (Lotes)
-            Sku::class,          // Modelo intermedio (SKUs)
-            'product_id',        // FK en tabla SKUs
-            'sku_id',            // FK en tabla InventoryLots
-            'id',                // PK en tabla Products
-            'id'                 // PK en tabla SKUs
+            InventoryLot::class,  // Modelo final
+            Sku::class,           // Modelo intermedio
+            'product_id',         // FK en SKUs que apunta a Products
+            'sku_id',             // FK en InventoryLots que apunta a SKUs
+            'id',                 // PK en Products
+            'id'                  // PK en SKUs
         );
     }
-    /**
-     * Un producto pertenece a una marca.
-     */
-    public function brand()
-    {
-        return $this->belongsTo(Brand::class);
-    }
-
-
 }
