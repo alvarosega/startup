@@ -2,10 +2,9 @@
 
 namespace App\Actions\Purchase;
 
-use App\DTOs\Purchase\PurchaseData;
 use App\Models\Purchase;
 use App\Models\InventoryLot;
-use App\Models\InventoryMovement;
+use App\DTOs\Purchase\PurchaseData;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -15,54 +14,36 @@ class CreatePurchase
     {
         return DB::transaction(function () use ($data) {
             
-            // Calcular total
-            $totalAmount = 0;
-            foreach ($data->items as $item) {
-                $totalAmount += $item->quantity * $item->unitCost;
-            }
-
-            // 1. Crear Compra
+            // 1. Crear Cabecera de Compra
             $purchase = Purchase::create([
-                'branch_id' => $data->branchId,
-                'provider_id' => $data->providerId,
-                'user_id' => $data->userId,
-                'document_number' => $data->documentNumber,
-                'purchase_date' => $data->purchaseDate,
-                'payment_type' => $data->paymentType,
-                'payment_due_date' => $data->paymentType === 'CREDIT' ? $data->paymentDueDate : null,
-                'total_amount' => $totalAmount,
+                'branch_id' => $data->branch_id,
+                'provider_id' => $data->provider_id,
+                'user_id' => auth()->id(),
+                'document_number' => $data->document_number,
+                'purchase_date' => $data->purchase_date,
+                'payment_type' => $data->payment_type,
+                'payment_due_date' => $data->payment_due_date,
+                'total_amount' => $data->total_amount,
                 'notes' => $data->notes,
-                'status' => 'COMPLETED'
+                'status' => 'COMPLETED', // Asumimos que ingresa directo al stock
             ]);
 
-            // 2. Procesar Items
+            // 2. Generar Lotes (Inventory Lots)
             foreach ($data->items as $item) {
-                // Generar código de lote único (Ej: L-20231025-ABCD)
-                $lotCode = 'L-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+                // Generar código de lote único: L-{YYMMDD}-{RANDOM}
+                // Ejemplo: L-240125-X9Y2
+                $lotCode = 'L-' . $data->purchase_date->format('ymd') . '-' . Str::upper(Str::random(4));
 
-                // a) Crear Lote (Stock)
-                $lot = InventoryLot::create([
+                InventoryLot::create([
                     'purchase_id' => $purchase->id,
-                    'branch_id' => $data->branchId,
-                    'sku_id' => $item->skuId,
+                    'branch_id' => $data->branch_id,
+                    'sku_id' => $item->sku_id,
                     'lot_code' => $lotCode,
                     'quantity' => $item->quantity,
-                    'initial_quantity' => $item->quantity,
+                    'initial_quantity' => $item->quantity, // Para trazabilidad de consumo
                     'reserved_quantity' => 0,
-                    'unit_cost' => $item->unitCost,
-                    'expiration_date' => $item->expirationDate
-                ]);
-
-                // b) Registrar Movimiento (Kardex)
-                InventoryMovement::create([
-                    'branch_id' => $data->branchId,
-                    'sku_id' => $item->skuId,
-                    'inventory_lot_id' => $lot->id,
-                    'user_id' => $data->userId,
-                    'type' => 'purchase', // Entrada
-                    'quantity' => $item->quantity,
-                    'unit_cost' => $item->unitCost,
-                    'reference' => 'Compra #' . $purchase->document_number
+                    'unit_cost' => $item->unit_cost,
+                    'expiration_date' => $item->expiration_date,
                 ]);
             }
 

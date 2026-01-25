@@ -2,12 +2,11 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PurchaseResource extends JsonResource
 {
-    public function toArray(Request $request): array
+    public function toArray($request): array
     {
         return [
             'id' => $this->id,
@@ -18,38 +17,32 @@ class PurchaseResource extends JsonResource
             'total_amount' => (float) $this->total_amount,
             'notes' => $this->notes,
             'status' => $this->status,
+            'inventory_lots_count' => $this->inventory_lots_count ?? 0,
             
-            // Relaciones simples
-            'provider' => $this->whenLoaded('provider', fn() => [
-                'id' => $this->provider->id,
-                'commercial_name' => $this->provider->commercial_name
-            ]),
-            'branch' => $this->whenLoaded('branch', fn() => [
-                'id' => $this->branch->id,
-                'name' => $this->branch->name
-            ]),
+            // Relaciones
+            'branch' => $this->whenLoaded('branch'),
+            'provider' => $this->whenLoaded('provider'),
             'user' => $this->whenLoaded('user', fn() => [
-                'id' => $this->user->id,
-                'name' => $this->user->name ?? $this->user->email // Fallback simple
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+                // Si usas Spatie Permissions o un perfil:
+                // 'initials' => substr($this->user->name, 0, 2) 
             ]),
             
-            // Detalle de Lotes (Items)
-            'inventory_lots' => $this->whenLoaded('inventoryLots', function() {
-                return $this->inventoryLots->map(function($lot) {
-                    return [
-                        'id' => $lot->id,
-                        'lot_code' => $lot->lot_code,
-                        'initial_quantity' => $lot->initial_quantity,
-                        'unit_cost' => (float) $lot->unit_cost,
-                        'sku' => $lot->sku ? [
-                            'name' => $lot->sku->name,
-                            'product' => $lot->sku->product ? ['name' => $lot->sku->product->name] : null
-                        ] : null
-                    ];
-                });
-            }),
-            
-            'inventory_lots_count' => $this->whenCounted('inventoryLots'),
+            // Cargamos lotes solo si es necesario (Detalle expandible)
+            'inventory_lots' => $this->whenLoaded('inventoryLots', fn() => $this->inventoryLots->map(fn($lot) => [
+                'id' => $lot->id,
+                'lot_code' => $lot->lot_code,
+                'quantity' => $lot->quantity,
+                'initial_quantity' => $lot->initial_quantity,
+                'unit_cost' => (float) $lot->unit_cost,
+                'sku' => [
+                    'name' => $lot->sku->name ?? '?',
+                    'product' => [
+                        'name' => $lot->sku->product->name ?? '?'
+                    ]
+                ]
+            ])),
         ];
     }
 }
