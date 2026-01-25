@@ -12,7 +12,7 @@ class ResetCodeMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $code; // Variable pública para usar en la vista
+    public $code;
 
     public function __construct($code)
     {
@@ -22,14 +22,20 @@ class ResetCodeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Código de Recuperación de Contraseña',
+            subject: 'Código de Recuperación de Contraseña - BoliviaLogistics',
         );
     }
 
     public function content(): Content
     {
+        // Puedes usar una vista markdown o html simple
         return new Content(
-            view: 'emails.reset-code', // Apunta a la vista Blade
+            htmlString: '
+                <h1>Tu código de seguridad</h1>
+                <p>Usa el siguiente código para restablecer tu contraseña:</p>
+                <h2 style="font-size: 24px; letter-spacing: 5px;">' . $this->code . '</h2>
+                <p>Este código expira en 15 minutos.</p>
+            ',
         );
     }
 }

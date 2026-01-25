@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\HasUuidv7; // <--- OBLIGATORIO
 
 class Provider extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuidv7;
 
     protected $fillable = [
         'company_name', 'commercial_name', 'tax_id', 'internal_code',
@@ -17,11 +18,9 @@ class Provider extends Model
         'is_active', 'notes'
     ];
 
-    protected $casts = ['is_active' => 'boolean'];
-
-    // Relación: Marcas que este proveedor distribuye oficialmente
-    public function officialBrands()
-    {
-        return $this->hasMany(Brand::class, 'provider_id');
-    }
+    protected $casts = [
+        'is_active' => 'boolean',
+        'min_order_value' => 'decimal:2',
+        'credit_limit' => 'decimal:2'
+    ];
 }

@@ -1,65 +1,76 @@
-/* resources/css/root.css */
+/* resources/css/root.css - EL CORAZÓN DEL SISTEMA */
 :root {
-  /* ===== COLOR PALETTE - VIBRANT YET SOPHISTICATED ===== */
-  --background: 0 0% 100%;
-  --foreground: 0 0% 3.9%;
+  /* ===== VARIABLES DE MARCA (CAMBIAN POR CLIENTE) ===== */
+  --brand-hue: 172;            /* Tono base - CAMBIAR POR MARCA */
+  --brand-saturation: 66%;     /* Saturación - CAMBIAR POR MARCA */
+  --brand-lightness: 50%;      /* Luminosidad - CAMBIAR POR MARCA */
   
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.9%;
-  
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 3.9%;
-  
-  /* Primary: Deep Emerald with blue undertone */
-  --primary: 172 66% 50%;
+  /* Paleta derivada AUTOMÁTICAMENTE desde variables de marca */
+  --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   --primary-foreground: 0 0% 98%;
+  --primary-light: var(--brand-hue) calc(var(--brand-saturation) * 0.5) calc(var(--brand-lightness) * 1.2);
+  --primary-dark: var(--brand-hue) calc(var(--brand-saturation) * 1.2) calc(var(--brand-lightness) * 0.8);
   
-  /* Secondary: Deep Ocean Blue */
-  --secondary: 222 76% 55%;
+  --secondary: calc(var(--brand-hue) + 50) var(--brand-saturation) calc(var(--brand-lightness) * 0.9);
   --secondary-foreground: 0 0% 98%;
   
-  /* Muted: Sophisticated warm gray */
-  --muted: 220 14% 96%;
-  --muted-foreground: 220 8.9% 46.1%;
-  
-  /* Accent: Vibrant Coral */
-  --accent: 16 100% 66%;
+  --accent: calc(var(--brand-hue) - 50) calc(var(--brand-saturation) * 1.2) var(--brand-lightness);
   --accent-foreground: 0 0% 98%;
   
-  /* Destructive: Deep Red */
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  /* Colores semánticos (relativos a la marca) */
+  --success: calc(var(--brand-hue) + 120) var(--brand-saturation) var(--brand-lightness);
+  --success-foreground: 0 0% 98%;
   
-  /* Borders: Subtle but defined */
+  --warning: calc(var(--brand-hue) + 30) var(--brand-saturation) var(--brand-lightness);
+  --warning-foreground: 0 0% 13%;
+  
+  --error: calc(var(--brand-hue) - 30) var(--brand-saturation) var(--brand-lightness);
+  --error-foreground: 0 0% 98%;
+  
+  --info: calc(var(--brand-hue) + 180) var(--brand-saturation) var(--brand-lightness);
+  --info-foreground: 0 0% 98%;
+  
+  /* ===== TEMA CLARO (valores por defecto) ===== */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 8.9% 46.1%;
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 172 66% 50%;
+  --ring: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   
-  /* ===== ELEVATION SYSTEM ===== */
+  /* ===== SISTEMA DE SOMBRAS (consistentes) ===== */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.12);
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.04);
   
-  /* ===== ANIMATION CURVES ===== */
+  /* ===== SISTEMA DE ANIMACIONES ===== */
   --ease-elastic: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-exponential: cubic-bezier(0.16, 0.77, 0.23, 0.99);
   --ease-smooth: cubic-bezier(0.45, 0, 0.15, 1);
-  
-  /* ===== TIMING ===== */
   --duration-instant: 120ms;
   --duration-fast: 200ms;
   --duration-base: 300ms;
   --duration-slow: 500ms;
   
-  /* ===== RADII ===== */
+  /* ===== RADIOS ===== */
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
   --radius-full: 9999px;
   
-  /* ===== SPACING SCALE ===== */
+  /* ===== TIPOGRAFÍA ===== */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* ===== ESPACIADO (sistema 4px) ===== */
   --space-unit: 0.25rem;
   --space-0: 0;
   --space-1: calc(1 * var(--space-unit));
@@ -70,40 +81,67 @@
   --space-8: calc(8 * var(--space-unit));
   --space-12: calc(12 * var(--space-unit));
   --space-16: calc(16 * var(--space-unit));
+  --space-20: calc(20 * var(--space-unit));
+  --space-24: calc(24 * var(--space-unit));
 }
 
+/* ===== TEMA OSCURO ===== */
 .dark {
   --background: 0 0% 3.9%;
   --foreground: 0 0% 98%;
-  
   --card: 0 0% 7%;
   --card-foreground: 0 0% 98%;
-  
   --popover: 0 0% 7%;
   --popover-foreground: 0 0% 98%;
-  
-  --primary: 172 66% 50%;
-  --primary-foreground: 0 0% 98%;
-  
-  --secondary: 222 76% 55%;
-  --secondary-foreground: 0 0% 98%;
-  
   --muted: 0 0% 14.9%;
   --muted-foreground: 0 0% 63.9%;
-  
-  --accent: 16 100% 66%;
-  --accent-foreground: 0 0% 98%;
-  
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  
   --border: 0 0% 20%;
   --input: 0 0% 20%;
-  --ring: 172 66% 50%;
+  --ring: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   
-  /* Dark mode shadows are more pronounced */
+  /* Sombras más pronunciadas en dark mode */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.5);
   --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* ===== CLASES DE MARCA (white-labeling) ===== */
+/* Ejemplos prácticos de diferentes marcas */
+.brand-bolivia {
+  --brand-hue: 172;  /* Verde esmeralda */
+}
+
+.brand-peru {
+  --brand-hue: 30;   /* Naranja */
+  --brand-saturation: 80%;
+}
+
+.brand-chile {
+  --brand-hue: 210;  /* Azul */
+  --brand-saturation: 75%;
+  --brand-lightness: 45%;
+}
+
+.brand-argentina {
+  --brand-hue: 210;  /* Celeste */
+  --brand-saturation: 90%;
+  --brand-lightness: 60%;
+}
+
+/* Variantes de intensidad de marca */
+.brand-vibrant {
+  --brand-saturation: 85%;
+}
+
+.brand-subtle {
+  --brand-saturation: 45%;
+}
+
+.brand-light {
+  --brand-lightness: 65%;
+}
+
+.brand-dark {
+  --brand-lightness: 35%;
 }

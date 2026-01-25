@@ -5,28 +5,34 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryLot;
 use App\Models\Branch;
-use App\Models\Price;
-use App\Models\Sku;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
+// Arquitectura
+use App\DTOs\Price\PriceData;
+use App\Http\Requests\Price\UpdatePriceRequest;
+use App\Actions\Price\UpdateBranchPrice;
 
 class PriceController extends Controller
 {
+    use AuthorizesRequests;
+
     public function index(Request $request)
     {
-        // 1. Obtener combinaciones únicas de Stock (Sucursal + SKU)
-        // Solo nos interesa donde hay existencias físicas.
+        // $this->authorize('viewAny', Price::class); // Si tienes Policy
+
+        // 1. Consulta optimizada de Stock disponible
         $query = InventoryLot::query()
             ->select('branch_id', 'sku_id')
             ->where('quantity', '>', 0)
             ->distinct();
 
-        // Filtro opcional por sucursal
+        // Filtros
         if ($request->branch_id) {
             $query->where('branch_id', $request->branch_id);
         }
 
-        // Filtro por búsqueda (Requiere Join porque InventoryLot no tiene nombre)
         if ($request->search) {
             $query->whereHas('sku', function($q) use ($request) {
                 $q->where('name', 'like', "%{$request->search}%")
@@ -35,39 +41,31 @@ class PriceController extends Controller
             });
         }
 
-        // Cargar relaciones necesarias para la vista
+        // Ejecución y Carga de Relaciones
         $stockItems = $query->with([
-                'branch', 
-                'sku.product.category',
-                'sku.prices' // Traemos todos para filtrar en memoria o subquery
+                'branch:id,name', 
+                'sku:id,product_id,name,code',
+                'sku.product:id,name,category_id', // Solo campos necesarios
+                'sku.product.category:id,name',
+                'sku.prices' // Traemos historial para filtrar en frontend/backend
             ])
             ->get()
-            // 2. AGRUPAR POR SUCURSAL
-            // Esto crea la estructura: { "Sucursal Norte": [Items...], "Sucursal Sur": [Items...] }
-            ->groupBy(function($item) {
-                return $item->branch->name;
-            });
+            ->groupBy(fn($item) => $item->branch->name); // Agrupación
 
         return Inertia::render('Admin/Prices/Index', [
-            'stockByBranch' => $stockItems, // Estructura agrupada
+            'stockByBranch' => $stockItems,
             'branches' => Branch::where('is_active', true)->get(['id', 'name']),
             'filters' => $request->only(['search', 'branch_id']),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(UpdatePriceRequest $request, UpdateBranchPrice $action)
     {
-        $request->validate([
-            'sku_id' => 'required|exists:skus,id',
-            'branch_id' => 'required|exists:branches,id',
-            'final_price' => 'required|numeric|min:0',
-        ]);
+        // $this->authorize('create', Price::class);
 
-        $sku = Sku::findOrFail($request->sku_id);
-        
-        // Usamos el helper del modelo para mantener la consistencia (Borrar anterior -> Crear nuevo)
-        $sku->updatePrice($request->final_price, $request->branch_id);
+        $data = PriceData::fromRequest($request);
+        $action->execute($data);
 
-        return back()->with('success', 'Precio de sucursal actualizado.');
+        return back()->with('success', 'Precio actualizado correctamente.');
     }
 }

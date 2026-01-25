@@ -2,16 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes; // <--- Importante
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Price extends Model
 {
-    use SoftDeletes; // <--- Activar el comportamiento
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'sku_id', 'branch_id', 'list_price', 
-        'final_price', 'min_quantity', 'valid_from'
+        'sku_id', 
+        'branch_id', 
+        'list_price', 
+        'final_price', 
+        'min_quantity', 
+        'valid_from'
     ];
 
     protected $casts = [
@@ -23,5 +28,10 @@ class Price extends Model
     public function sku()
     {
         return $this->belongsTo(Sku::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

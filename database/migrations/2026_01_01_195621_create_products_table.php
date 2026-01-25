@@ -8,17 +8,21 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('products', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('brand_id')->constrained('brands')->onDelete('restrict');
-            $table->foreignId('category_id')->constrained('categories')->onDelete('restrict');
+            $table->uuid('id')->primary(); // <--- CAMBIO A UUID (Estandarización)
             
-            $table->string('name')->unique(); // Ej: "Ron Abuelo 12 Años"
+            // Relaciones
+            $table->foreignId('brand_id')->constrained('brands'); // Brands es INT, está bien así.
+            
+            // CORRECCIÓN DEL ERROR:
+            $table->foreignUuid('category_id')->constrained('categories'); // Categories es UUID.
+            
+            $table->string('name')->unique(); 
             $table->string('slug')->unique();
             $table->text('description')->nullable();
             $table->string('image_path')->nullable();
             
             $table->boolean('is_active')->default(true);
-            $table->boolean('is_alcoholic')->default(false); // Útil para filtros rápidos
+            $table->boolean('is_alcoholic')->default(false);
             
             $table->timestamps();
             $table->softDeletes();

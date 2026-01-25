@@ -11,19 +11,16 @@ return new class extends Migration
         Schema::create('inventory_removals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('branch_id')->constrained('branches');
-            $table->foreignId('sku_id')->constrained('skus');
-            $table->foreignId('user_id')->constrained('users'); // Quien solicita
-            $table->foreignId('approved_by')->nullable()->constrained('users'); // Quien aprueba
+            $table->foreignUuid('sku_id')->constrained('skus');
+            $table->foreignUuid('user_id')->constrained('users'); // CORREGIDO (Solicitante)
+            $table->foreignUuid('approved_by')->nullable()->constrained('users'); // CORREGIDO (Aprobador)
             
             $table->integer('cantidad');
-            $table->string('motivo'); // Enum: Rotura, Vencimiento, etc.
+            $table->string('motivo'); 
             $table->text('observaciones')->nullable();
-            $table->string('evidencia_url')->nullable(); // Foto opcional
+            $table->string('evidencia_url')->nullable(); 
             
-            // Estados: 'pendiente', 'aprobado', 'rechazado'
             $table->string('estado')->default('pendiente');
-            
-            // Fecha cuando se procesó (aprobó/rechazó)
             $table->timestamp('processed_at')->nullable();
             $table->timestamps();
         });

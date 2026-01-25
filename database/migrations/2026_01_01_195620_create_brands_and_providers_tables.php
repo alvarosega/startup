@@ -9,31 +9,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('providers', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary(); // <--- CAMBIO A UUID
             
             // Identidad
-            $table->string('company_name'); // Razón Social
-            $table->string('commercial_name')->nullable(); // Nombre Comercial (Marketing)
-            $table->string('tax_id')->unique(); // NIT/RUC
-            $table->string('internal_code')->nullable()->unique(); // CORREGIDO: Debe ser único
+            $table->string('company_name'); 
+            $table->string('commercial_name')->nullable();
+            $table->string('tax_id')->unique(); // NIT
+            $table->string('internal_code')->nullable()->unique();
             
             // Contacto
             $table->string('contact_name')->nullable();
-            $table->string('email_orders')->nullable(); // Para envío automático de POs
+            $table->string('email_orders')->nullable();
             $table->string('phone')->nullable();
             $table->string('address')->nullable();
             $table->string('city')->nullable();
             
-            // Reglas de Negocio
+            // Reglas
             $table->integer('lead_time_days')->default(1); 
             $table->decimal('min_order_value', 12, 2)->default(0); 
             $table->integer('credit_days')->default(0); 
             $table->decimal('credit_limit', 12, 2)->default(0);
-
+    
             // Control
             $table->boolean('is_active')->default(true);
             $table->text('notes')->nullable();
-
+    
             $table->timestamps();
             $table->softDeletes();
         });
@@ -43,10 +43,10 @@ return new class extends Migration
             $table->id();
             
             // Relación
-            $table->foreignId('provider_id')
-                  ->nullable()
-                  ->constrained('providers')
-                  ->nullOnDelete();
+            $table->foreignUuid('provider_id')
+                    ->nullable()
+                    ->constrained('providers')
+                    ->nullOnDelete();
 
             // Identidad
             $table->string('name')->unique();

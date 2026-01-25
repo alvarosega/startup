@@ -10,8 +10,12 @@ return new class extends Migration
         Schema::create('prices', function (Blueprint $table) {
             $table->id();
             
-            // Relaciones
-            $table->foreignId('sku_id')->constrained('skus')->onDelete('cascade');
+            // RELACIONES
+            
+            // 1. SKU usa UUID (Correcto)
+            $table->foreignUuid('sku_id')->constrained('skus')->onDelete('cascade');
+            
+            // 2. CORRECCIÓN: Branches usa ID Numérico, así que usamos foreignId
             $table->foreignId('branch_id')->nullable()->constrained('branches'); // Null = Precio Nacional
             
             // Datos Económicos
@@ -21,10 +25,9 @@ return new class extends Migration
             
             // Vigencia
             $table->timestamp('valid_from')->useCurrent();
-            // YA NO USAMOS valid_to, usamos el deleted_at para cerrar vigencia
             
             $table->timestamps();
-            $table->softDeletes(); // <--- ESTA ES LA COLUMNA QUE FALTA
+            $table->softDeletes();
         });
     }
 

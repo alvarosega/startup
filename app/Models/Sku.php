@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-
+use App\Models\Concerns\HasUuidv7;
 
 class Sku extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuidv7;
 
     protected $fillable = [
         'product_id', 'code', 'name', 
@@ -117,5 +117,26 @@ class Sku extends Model
 
         return $basePrice ? (float) $basePrice->final_price : 0.00;
     }
+    public function getPriceForBranch(?int $branchId = null)
+    {
+        // 1. Si especificaron sucursal, intentamos buscar precio específico
+        if ($branchId) {
+            $branchPrice = $this->prices()
+                ->where('branch_id', $branchId)
+                ->orderBy('id', 'desc') // El más reciente si hubiera duplicados
+                ->first();
+
+            if ($branchPrice) {
+                return $branchPrice;
+            }
+        }
+
+        // 2. Fallback: Retornar precio Nacional (branch_id IS NULL)
+        return $this->prices()
+            ->whereNull('branch_id')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+    
 
 }

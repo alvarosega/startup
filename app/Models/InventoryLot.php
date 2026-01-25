@@ -21,5 +21,5 @@ class InventoryLot extends Model
     public function sku() { return $this->belongsTo(Sku::class); }
     public function branch() { return $this->belongsTo(Branch::class); }
     public function purchase() { return $this->belongsTo(Purchase::class); }
-    public function transfer() { return $this->belongsTo(Transfer::class); }
+    // public function transfer() { return $this->belongsTo(Transfer::class); } // Descomentar cuando tengas Transfer
 }

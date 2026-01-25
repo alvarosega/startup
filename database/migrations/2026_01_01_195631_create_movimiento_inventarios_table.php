@@ -11,14 +11,14 @@ return new class extends Migration
         Schema::create('inventory_movements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('branch_id')->constrained('branches');
-            $table->foreignId('sku_id')->constrained('skus');
+            $table->foreignUuid('sku_id')->constrained('skus');
             $table->foreignId('inventory_lot_id')->constrained('inventory_lots');
-            $table->foreignId('user_id')->constrained('users');
+            $table->foreignUuid('user_id')->constrained('users'); // CORREGIDO
             
-            $table->string('type'); // purchase, sale, adjustment_in, adjustment_out, transfer_out, transfer_in
-            $table->integer('quantity'); // Positivo o Negativo
-            $table->decimal('unit_cost', 10, 2); // Costo en el momento del movimiento
-            $table->string('reference')->nullable(); // "Venta #123", "Merma #5"
+            $table->string('type'); 
+            $table->integer('quantity'); 
+            $table->decimal('unit_cost', 10, 2); 
+            $table->string('reference')->nullable(); 
             
             $table->timestamps();
         });

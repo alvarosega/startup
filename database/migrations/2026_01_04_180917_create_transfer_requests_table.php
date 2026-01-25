@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('code')->unique();
             $table->foreignId('origin_branch_id')->constrained('branches');
             $table->foreignId('destination_branch_id')->constrained('branches');
-            $table->foreignId('created_by')->constrained('users');
-            $table->foreignId('received_by')->nullable()->constrained('users');
+            $table->foreignUuid('created_by')->constrained('users'); // CORREGIDO
+            $table->foreignUuid('received_by')->nullable()->constrained('users'); // CORREGIDO
             $table->string('status')->default('in_transit'); 
             $table->text('notes')->nullable();
             $table->timestamp('shipped_at')->useCurrent();
@@ -29,7 +29,7 @@ return new class extends Migration
         Schema::create('transfer_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('transfer_id')->constrained('transfers')->onDelete('cascade');
-            $table->foreignId('sku_id')->constrained('skus');
+            $table->foreignUuid('sku_id')->constrained('skus');
             $table->integer('qty_sent');
             $table->integer('qty_received')->nullable();
             $table->decimal('unit_cost', 10, 2); 

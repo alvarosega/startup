@@ -5,7 +5,7 @@ use Inertia\Inertia;
 
 // --- CONTROLADORES ---
 use App\Http\Controllers\PublicController;
-use App\Modules\Identity\Controllers\AuthController;
+use App\Http\Controllers\Web\Auth\WebAuthController; 
 use App\Modules\Identity\Controllers\PasswordResetController;
 use App\Modules\Identity\Controllers\ProfileController;
 use App\Modules\Identity\Controllers\VerificationController;
@@ -57,18 +57,18 @@ Route::get('/privacy', function () { return Inertia::render('Legal/Privacy'); })
 Route::middleware('guest')->group(function () {
 
     
-    Route::get('login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::get('login', [WebAuthController::class, 'showLogin'])->name('login');
+    Route::post('login', [WebAuthController::class, 'login'])->middleware('throttle:login');
     
-    Route::get('register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('register', [AuthController::class, 'register']);
+    Route::get('register', [WebAuthController::class, 'showRegister'])->name('register');
+    Route::post('register', [WebAuthController::class, 'register']);
     
-    // Validación asíncrona del Paso 1 (Nuevo Registro)
-    Route::post('register/validate-step-1', [AuthController::class, 'validateStep1'])->name('register.validate-step-1');
-    
-    // Ruta placeholder para registro de conductores
+    // Validación Asíncrona Paso 1
+    Route::post('register/validate-step-1', [WebAuthController::class, 'validateStep1'])->name('register.validate-step-1');
+        
+    // Driver (Vista placeholder)
     Route::get('register/driver', function () { return Inertia::render('Auth/RegisterDriver'); })->name('register.driver');
-
+    Route::post('register/driver', [WebAuthController::class, 'registerDriver'])->name('register.driver.store');
     // Recuperación de Contraseña
     // Paso 1: Solicitar
     Route::get('forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])->name('password.request');
@@ -79,7 +79,7 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
 });
  
-Route::post('logout',[AuthController::class, 'logout'])->name('logout');
+Route::post('logout', [WebAuthController::class, 'logout'])->name('logout');
 
 Route::prefix('cart')->name('cart.')->group(function () {
     Route::get('/', [CartController::class, 'index'])->name('index'); // Ver carrito
@@ -108,6 +108,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     
+    // Avatar (POST separado para manejo de archivos limpio)
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     // 3. Verificación de Identidad (Subida de Docs)
     Route::get('/profile/verification', function() { return Inertia::render('Profile/Verification'); })->name('profile.verification');
     Route::post('/profile/verify', [VerificationController::class, 'store'])->name('profile.verify'); 
@@ -137,11 +139,14 @@ Route::middleware(['auth'])->group(function () {
     })->middleware(['throttle:6,1'])->name('verification.send'); // Máximo 6 intentos por minuto
 
     // Validar contraseña actual (para cambios sensibles)
-    Route::post('/user/confirm-password', [AuthController::class, 'confirmPassword'])->name('user.confirm-password');
+    // CORRECCIÓN: Usar WebAuthController, NO AuthController
+Route::post('/user/confirm-password', [WebAuthController::class, 'confirmPassword'])
+->name('user.confirm-password');
+
     // B. E-COMMERCE (Funciones de Compra)
     // -------------------------------------------------------------
     
-    Route::post('/shop/set-location', [LocationController::class, 'setLocation'])->name('shop.setLocation');
+    Route::post('/shop/set-location', [App\Http\Controllers\Shop\LocationController::class, 'setLocation'])->name('shop.setLocation');
     
     // --- AQUÍ ESTABA EL ERROR ---
     // Borra las líneas viejas que usan OrderController para el checkout
@@ -158,12 +163,33 @@ Route::middleware(['auth'])->group(function () {
 
     // ... dentro de Route::middleware(['auth']) ...
 
-    // ZONA CONDUCTORES
-    Route::middleware(['role:driver'])->prefix('driver')->name('driver.')->group(function () {
-        Route::get('/dashboard', [App\Http\Controllers\Driver\DriverController::class, 'dashboard'])->name('dashboard');
-        Route::get('/history', [App\Http\Controllers\Driver\DriverController::class, 'history'])->name('history');
-        Route::post('/upload-docs', [App\Http\Controllers\Driver\DriverController::class, 'uploadDocuments'])->name('upload-docs');
-    });
+// ZONA CONDUCTORES
+    Route::middleware(['role:driver']) // Asegura que solo entren conductores
+        ->prefix('driver')             // La URL será /driver/...
+        ->name('driver.')              // Las rutas se llamarán driver....
+        ->group(function () {
+            
+            // Dashboard y Historial
+            Route::get('/dashboard', [App\Http\Controllers\Driver\DriverController::class, 'dashboard'])->name('dashboard');
+            Route::get('/history', [App\Http\Controllers\Driver\DriverController::class, 'history'])->name('history');
+            
+            // Subida de Documentos
+            Route::post('/upload-docs', [App\Http\Controllers\Driver\DriverController::class, 'uploadDocuments'])->name('upload-docs');
+            
+            // --- AQUÍ ESTÁN LAS RUTAS DEL PERFIL ---
+            
+            // 1. Mostrar el formulario (Esta es la que usa el botón del menú)
+            // URL: /driver/profile | Nombre: driver.profile.edit
+            Route::get('/profile', [App\Http\Controllers\Driver\DriverController::class, 'editProfile'])->name('profile.edit');
+            
+            // 2. Guardar los cambios
+            // URL: /driver/profile | Nombre: driver.profile.update
+            Route::patch('/profile', [App\Http\Controllers\Driver\DriverController::class, 'updateProfile'])->name('profile.update');
+            // ... dentro del grupo driver ...
+            Route::get('/profile', [DriverController::class, 'indexProfile'])->name('profile.index'); // NUEVA
+            Route::get('/profile/edit', [DriverController::class, 'editProfile'])->name('profile.edit'); // MODIFICADA (antes era /profile)
+            Route::patch('/profile', [DriverController::class, 'updateProfile'])->name('profile.update');
+        });
     // AGREGAR ESTAS 2 LÍNEAS PARA QUE ZIGGY RECONOZCA LAS RUTAS
     
 });
@@ -226,11 +252,29 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
     });
 
 // 5. REDIRECCIÓN DEFAULT
+// 5. REDIRECCIÓN CENTRALIZADA (TRAFFIC CONTROLLER)
 Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
-    // Si tiene permiso de admin, va al admin. Si no, al Centro de Mando del Perfil.
-    if (auth()->user()->can('view_admin_dashboard')) {
+    $user = auth()->user();
+
+    // 1. NIVEL LOGÍSTICO
+    if ($user->hasRole('logistics_operator')) {
+        return redirect()->route('admin.logistics.dashboard');
+    }
+
+    // 2. NIVEL CONDUCTOR (DriverLayout)
+    if ($user->hasRole('driver')) {
+        return redirect()->route('driver.dashboard');
+    }
+
+    // 3. NIVEL ADMINISTRATIVO (AdminLayout)
+    // Usamos el permiso 'view_admin_dashboard' o un array de roles
+    if ($user->can('view_admin_dashboard') || $user->hasRole('super_admin')) {
         return redirect()->route('admin.dashboard');
     }
-    return redirect()->route('profile.index');
+
+    // 4. NIVEL CLIENTE (ShopLayout)
+    // Si no es ninguno de los anteriores, es un cliente.
+    // Aquí decidimos si va al Perfil o a la Tienda. Tú pediste ShopLayout:
+    return redirect()->route('shop.index'); 
 })->name('dashboard');
 

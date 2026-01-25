@@ -12,11 +12,10 @@ return new class extends Migration
         Schema::create('carts', function (Blueprint $table) {
             $table->id();
             $table->string('session_id')->nullable()->index();
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('user_id')->nullable()->constrained('users')->onDelete('cascade'); // CORREGIDO
             $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
-            
             $table->timestamps();
-            $table->softDeletes(); // <--- ¡AQUÍ ESTÁ LA CLAVE! (Permite restaurar)
+            $table->softDeletes();
 
             $table->index(['session_id', 'branch_id']);
             $table->index(['user_id', 'branch_id']);
@@ -26,7 +25,7 @@ return new class extends Migration
         Schema::create('cart_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('cart_id')->constrained('carts')->onDelete('cascade');
-            $table->foreignId('sku_id')->constrained('skus')->onDelete('cascade');
+            $table->foreignUuid('sku_id')->constrained('skus')->onDelete('cascade');
             $table->integer('quantity')->default(1);
             $table->timestamps();
             $table->unique(['cart_id', 'sku_id']);

@@ -1,12 +1,18 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
     import { useForm, Link } from '@inertiajs/vue3';
+    import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
     import { ref } from 'vue';
-    import { Save, UserCheck, KeyRound, Building, History, X } from 'lucide-vue-next';
+    import { Save, UserCheck, KeyRound, Building, History, X, ArrowLeft } from 'lucide-vue-next';
     import BaseInput from '@/Components/Base/BaseInput.vue';
     import RoleSelector from '@/Components/Base/RoleSelector.vue';
     
-    const props = defineProps({ user: Object, roles: Array, branches: Array });
+    const props = defineProps({ 
+        user: Object, 
+        roles: Array, 
+        branches: Array 
+        // NOTA: No hay prop 'filters' aquí - eliminado
+    });
     
     // Toggle de Seguridad
     const isChangingPassword = ref(false);
@@ -27,116 +33,217 @@
     
     <template>
         <AdminLayout>
-            <div class="max-w-5xl mx-auto py-8">
-                
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <!-- HEADER -->
+            <template #header>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 class="text-3xl font-display font-black text-content">Editar Perfil</h1>
-                        <p class="text-sm text-content-light font-medium mt-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <Link :href="route('admin.users.index')" 
+                                  class="btn btn-ghost btn-sm">
+                                <ArrowLeft :size="16" />
+                            </Link>
+                            <h1 class="text-3xl font-display font-black text-foreground">
+                                Editar Perfil
+                            </h1>
+                        </div>
+                        <p class="text-muted-foreground font-medium text-sm">
                             Actualizando datos de <span class="text-primary font-bold">{{ user.first_name }} {{ user.last_name }}</span>
                         </p>
                     </div>
-                    <div class="flex gap-3 w-full sm:w-auto">
-                        <Link :href="route('admin.users.index')" 
-                              class="px-5 py-2.5 text-sm font-bold text-content-light bg-surface border border-line rounded-xl hover:bg-base hover:text-content transition-colors flex-1 sm:flex-none text-center">
-                            Cancelar
-                        </Link>
-                        <button @click="submit" :disabled="form.processing" 
-                                class="flex items-center justify-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-primary/25 hover:brightness-110 active:scale-95 transition-all flex-1 sm:flex-none disabled:opacity-50">
-                            <Save :size="18" /> Guardar Cambios
-                        </button>
-                    </div>
                 </div>
+            </template>
     
+            <div class="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     
                     <div class="lg:col-span-2 space-y-8">
                         
-                        <div class="bg-surface rounded-2xl p-6 border border-line shadow-sm">
-                            <div class="flex items-center gap-2 mb-6 pb-4 border-b border-line">
-                                <div class="p-2 bg-base rounded-lg text-primary"><UserCheck :size="20" /></div>
-                                <h2 class="text-sm font-black text-content uppercase tracking-widest">Información Personal</h2>
+                        <!-- INFORMACIÓN PERSONAL -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="flex items-center gap-2">
+                                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <UserCheck :size="20" />
+                                    </div>
+                                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wider">
+                                        Información Personal
+                                    </h2>
+                                </div>
                             </div>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <BaseInput v-model="form.first_name" label="Nombre" :error="form.errors.first_name" />
-                                <BaseInput v-model="form.last_name" label="Apellido" :error="form.errors.last_name" />
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <BaseInput v-model="form.email" label="Email Corporativo" :error="form.errors.email" />
-                                <BaseInput v-model="form.phone" label="Celular (ID Login)" :error="form.errors.phone" />
+                            <div class="card-content">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <BaseInput v-model="form.first_name" 
+                                             label="Nombre" 
+                                             :error="form.errors.first_name" 
+                                             required />
+                                    <BaseInput v-model="form.last_name" 
+                                             label="Apellido" 
+                                             :error="form.errors.last_name" 
+                                             required />
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <BaseInput v-model="form.email" 
+                                             type="email"
+                                             label="Email Corporativo" 
+                                             :error="form.errors.email" />
+                                    <BaseInput v-model="form.phone" 
+                                             label="Celular (ID Login)" 
+                                             :error="form.errors.phone" 
+                                             required />
+                                </div>
                             </div>
                         </div>
     
-                        <div class="bg-surface rounded-2xl p-6 border border-line shadow-sm">
-                            <div class="flex items-center gap-2 mb-6 pb-4 border-b border-line">
-                                <div class="p-2 bg-base rounded-lg text-primary"><KeyRound :size="20" /></div>
-                                <h2 class="text-sm font-black text-content uppercase tracking-widest">Credenciales</h2>
-                            </div>
-    
-                            <div v-if="!isChangingPassword" class="flex items-center justify-between p-5 bg-base rounded-xl border border-line">
-                                <div>
-                                    <span class="block font-bold text-content text-sm mb-1">Contraseña Encriptada</span>
-                                    <p class="text-xs text-content-light">La contraseña actual es segura y no es visible.</p>
+                        <!-- CREDENCIALES -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="flex items-center gap-2">
+                                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <KeyRound :size="20" />
+                                    </div>
+                                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wider">
+                                        Credenciales
+                                    </h2>
                                 </div>
-                                <button @click="isChangingPassword = true" type="button" 
-                                        class="px-4 py-2 text-xs font-bold text-primary bg-white border border-line rounded-lg hover:border-primary transition-colors shadow-sm">
-                                    Restablecer
-                                </button>
                             </div>
     
-                            <div v-else class="bg-base/50 p-5 rounded-xl border border-line animate-in fade-in slide-in-from-top-2 duration-300">
-                                <div class="flex items-center justify-between mb-4">
-                                    <label class="text-xs font-bold text-content uppercase tracking-wider">Nueva Contraseña</label>
-                                    <button @click="isChangingPassword = false; form.password = ''" type="button" 
-                                            class="text-xs font-bold text-red-500 hover:text-red-600 flex items-center gap-1 bg-white px-2 py-1 rounded border border-line">
-                                        <X :size="12" /> Cancelar
+                            <div class="card-content">
+                                <div v-if="!isChangingPassword" class="flex items-center justify-between p-5 bg-muted/20 rounded-xl border border-border">
+                                    <div>
+                                        <span class="block font-bold text-foreground text-sm mb-1">
+                                            Contraseña Encriptada
+                                        </span>
+                                        <p class="text-xs text-muted-foreground">
+                                            La contraseña actual es segura y no es visible.
+                                        </p>
+                                    </div>
+                                    <button @click="isChangingPassword = true" type="button" 
+                                            class="btn btn-outline btn-sm">
+                                        Restablecer
                                     </button>
                                 </div>
-                                <BaseInput v-model="form.password" type="password" placeholder="Escribe la nueva contraseña..." :error="form.errors.password" autofocus />
-                                <p class="text-[11px] text-content-light mt-3 flex items-center gap-1">
-                                    <History :size="12" />
-                                    Si dejas este campo vacío o cancelas, se mantendrá la contraseña anterior.
-                                </p>
+    
+                                <div v-else class="bg-muted/10 p-5 rounded-xl border border-border animate-in">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <label class="text-xs font-bold text-foreground uppercase tracking-wider">
+                                            Nueva Contraseña
+                                        </label>
+                                        <button @click="isChangingPassword = false; form.password = ''" type="button" 
+                                                class="btn btn-ghost btn-sm text-error">
+                                            <X :size="12" /> Cancelar
+                                        </button>
+                                    </div>
+                                    <BaseInput v-model="form.password" 
+                                             type="password" 
+                                             placeholder="Escribe la nueva contraseña..." 
+                                             :error="form.errors.password" 
+                                             autofocus />
+                                    <p class="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                                        <History :size="12" />
+                                        Si dejas este campo vacío o cancelas, se mantendrá la contraseña anterior.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
     
+                    <!-- PANEL LATERAL: ACCESO Y ROL -->
                     <div class="space-y-8">
-                        <div class="bg-surface rounded-2xl p-6 border border-line shadow-sm h-full">
-                            <div class="flex items-center gap-2 mb-6 pb-4 border-b border-line">
-                                <div class="p-2 bg-base rounded-lg text-primary"><Building :size="20" /></div>
-                                <h2 class="text-sm font-black text-content uppercase tracking-widest">Acceso & Rol</h2>
-                            </div>
-    
-                            <div class="mb-8 p-4 bg-base rounded-xl border border-line flex items-center gap-4 hover:border-primary/30 transition-colors cursor-pointer" @click="form.is_active = !form.is_active">
-                                <div class="relative flex items-center">
-                                    <input type="checkbox" v-model="form.is_active" class="checkbox checkbox-primary rounded-md w-6 h-6 border-line data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-                                </div>
-                                <div class="flex flex-col">
-                                    <span class="text-sm font-bold text-content">Estado de Cuenta</span>
-                                    <span class="text-xs font-medium" :class="form.is_active ? 'text-green-600' : 'text-red-500'">
-                                        {{ form.is_active ? '● Activo' : '● Acceso Revocado' }}
-                                    </span>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="flex items-center gap-2">
+                                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Building :size="20" />
+                                    </div>
+                                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wider">
+                                        Acceso & Rol
+                                    </h2>
                                 </div>
                             </div>
     
-                            <div class="mb-8">
-                                <RoleSelector v-model="form.role_id" :roles="roles" :error="form.errors.role_id" />
-                            </div>
+                            <div class="card-content space-y-6">
+                                <!-- ESTADO DE CUENTA -->
+                                <BaseCheckbox 
+                                    v-model="form.is_active" 
+                                    label="Estado de Cuenta"
+                                    :true-value="1" 
+                                    :false-value="0"
+                                    class="p-4 bg-muted/10 rounded-xl border border-border"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-bold text-foreground">Estado de Cuenta</span>
+                                        <span class="text-xs font-medium" :class="form.is_active ? 'text-success' : 'text-error'">
+                                            {{ form.is_active ? '● Activo' : '● Acceso Revocado' }}
+                                        </span>
+                                    </div>
+                                </BaseCheckbox>
     
-                            <div v-if="branches.length > 1">
-                                 <label class="block text-xs font-bold text-content-light uppercase tracking-wider mb-2">Sucursal Base</label>
-                                 <select v-model="form.branch_id" class="w-full bg-base border border-line rounded-xl p-3 text-content text-sm font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all">
-                                    <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
-                                 </select>
-                                 <p v-if="form.errors.branch_id" class="text-xs text-red-500 font-bold mt-1">{{ form.errors.branch_id }}</p>
+                                <!-- SELECTOR DE ROL -->
+                                <div>
+                                    <RoleSelector v-model="form.role_id" 
+                                                :roles="roles" 
+                                                :error="form.errors.role_id" 
+                                                required />
+                                </div>
+    
+                                <!-- SELECTOR DE SUCURSAL -->
+                                <div v-if="branches && branches.length > 0">
+                                    <label class="form-label">
+                                        Sucursal Base
+                                    </label>
+                                    <select v-model="form.branch_id" 
+                                            class="form-input">
+                                        <option :value="null">Sin sucursal</option>
+                                        <option v-for="b in branches" 
+                                                :key="b.id" 
+                                                :value="b.id">
+                                            {{ b.name }}
+                                        </option>
+                                    </select>
+                                    <p v-if="form.errors.branch_id" class="form-error">
+                                        {{ form.errors.branch_id }}
+                                    </p>
+                                </div>
+    
+                                <!-- BOTONES DE ACCIÓN -->
+                                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/50">
+                                    <Link :href="route('admin.users.index')" 
+                                          class="btn btn-outline btn-md flex-1">
+                                        Cancelar
+                                    </Link>
+                                    <button @click="submit" 
+                                            :disabled="form.processing" 
+                                            class="btn btn-primary btn-md flex-1 flex items-center justify-center gap-2">
+                                        <Save :size="18" /> 
+                                        <span>Guardar Cambios</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <!-- INFORMACIÓN ADICIONAL -->
+                        <div class="card">
+                            <div class="card-content">
+                                <h3 class="text-sm font-bold text-foreground mb-3">Información Adicional</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-muted-foreground">ID:</span>
+                                        <span class="font-mono text-foreground">{{ user.id }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-muted-foreground">Creado:</span>
+                                        <span class="text-foreground">{{ new Date(user.created_at).toLocaleDateString() }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-muted-foreground">Última actualización:</span>
+                                        <span class="text-foreground">{{ new Date(user.updated_at).toLocaleDateString() }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-    
                 </div>
             </div>
         </AdminLayout>
     </template>
-    

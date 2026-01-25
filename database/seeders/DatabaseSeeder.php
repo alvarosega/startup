@@ -14,21 +14,24 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Permisos y Roles (Base fundamental)
-        $this->call(RolesAndPermissionsSeeder::class);
-
-        // 2. Datos Maestros
+        // =================================================================
+        // FASE 1: CIMIENTOS (Roles, Niveles, Catálogos Base)
+        // =================================================================
         $this->call([
+            RolesAndPermissionsSeeder::class,
             LevelSeeder::class,
             ComplianceSeeder::class,
             ProviderSeeder::class,
             BrandSeeder::class,
             CategorySeeder::class,
-            ProductSeeder::class,
-            InventorySeeder::class
+            // Products depende de Brand/Category, así que va aquí
+            ProductSeeder::class, 
         ]);
 
-        // 3. Crear Sucursal Principal
+        // =================================================================
+        // FASE 2: INFRAESTRUCTURA (Sucursales)
+        // =================================================================
+        // Creamos la Sucursal ANTES de los usuarios, porque el usuario necesita branch_id
         $branchLaPaz = Branch::firstOrCreate(
             ['name' => 'Sede Central - Sopocachi'],
             [
@@ -40,7 +43,9 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // 4. Recuperar Roles y Niveles necesarios
+        // =================================================================
+        // FASE 3: ACTORES (Usuarios y Roles)
+        // =================================================================
         $roles = [
             'super_admin' => Role::where('name', 'super_admin')->first(),
             'branch_admin' => Role::where('name', 'branch_admin')->first(),
@@ -49,19 +54,17 @@ class DatabaseSeeder extends Seeder
         
         $levelBronce = Level::where('name', 'Bronce')->first();
 
-        // 5. Crear Usuarios
-
         // A. Super Admin
         $this->createUser(
             '70000000', 'BO',
             'admin@bolivialogistics.com', 
             'Super', 'Admin', 
-            null, // Sin sucursal fija (Global)
+            null, // Global
             $roles['super_admin'], 
             $levelBronce
         );
 
-        // B. Branch Admin (Para pruebas locales)
+        // B. Branch Admin
         $this->createUser(
             '70000001', 'BO',
             'branch@bolivialogistics.com', 
@@ -71,7 +74,7 @@ class DatabaseSeeder extends Seeder
             $levelBronce
         );
 
-        // C. Inventory Manager (Para pruebas operativas)
+        // C. Inventory Manager
         $this->createUser(
             '70000002', 'BO',
             'inventory@bolivialogistics.com', 
@@ -80,20 +83,27 @@ class DatabaseSeeder extends Seeder
             $roles['inventory_manager'], 
             $levelBronce
         );
+
+        // =================================================================
+        // FASE 4: OPERACIONES (Inventario)
+        // =================================================================
+        // AHORA SÍ: Ejecutamos InventorySeeder al final.
+        // Ya existen Productos, Sucursales y Usuarios para asignar las compras.
+        $this->call([
+            InventorySeeder::class
+        ]);
     }
 
-    /**
-     * Helper para crear usuarios completos con perfil y rol.
-     */
     private function createUser($phone, $countryCode, $email, $first, $last, $branchId, $role, $level)
     {
-        if (!$role) return; // Seguridad si el rol no existe
+        if (!$role) return;
 
         $formattedPhone = $phone;
         if ($countryCode === 'BO' && !str_starts_with($phone, '+')) {
             $formattedPhone = '+591' . $phone;
         }
 
+        // Eloquent (HasUuidv7) generará el ID automáticamente aquí
         $user = User::firstOrCreate(
             ['email' => $email], 
             [
@@ -103,7 +113,7 @@ class DatabaseSeeder extends Seeder
                 'trust_score' => 100,
                 'is_active' => true,
                 'branch_id' => $branchId,
-                'current_level_id' => $level ? $level->id : null,
+                'current_level_id' => $level?->id, // Null safe operator
                 'email_verified_at' => now(),
                 'avatar_type' => 'icon',
                 'avatar_source' => 'avatar_1.svg'
@@ -111,7 +121,7 @@ class DatabaseSeeder extends Seeder
         );
 
         UserProfile::updateOrCreate(
-            ['user_id' => $user->id],
+            ['user_id' => $user->id], // $user->id ya es un UUID String válido
             [
                 'first_name' => $first,
                 'last_name' => $last,

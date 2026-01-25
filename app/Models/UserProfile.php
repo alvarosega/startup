@@ -8,27 +8,28 @@ use Illuminate\Database\Eloquent\Model;
 class UserProfile extends Model
 {
     use HasFactory;
-    
+
+    protected $primaryKey = 'user_id';
+    public $incrementing = false; 
+
     protected $fillable = [
         'user_id',
         'first_name',
         'last_name',
         'birth_date',
         'gender',
-        'license_number',
-        'vehicle_type',
-        'license_plate',
-        'is_identity_verified'
+        'is_identity_verified', // Útil si necesitamos actualizar esto, aunque suele ser por sistema
+        'ci_front_path',
+        'ci_back_path'
     ];
-    // Relación inversa: El perfil pertenece al usuario
+
+    protected $casts = [
+        'birth_date' => 'date',
+        'is_identity_verified' => 'boolean',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    // Accessor: Nombre Completo virtual
-    public function getFullNameAttribute()
-    {
-        return "{$this->first_name} {$this->last_name}";
     }
 }

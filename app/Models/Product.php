@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 use App\Models\InventoryLot;
+use App\Models\Concerns\HasUuidv7;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuidv7;
 
     protected $fillable = [
         'brand_id', 'category_id', 'name', 'slug',

@@ -4,71 +4,59 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
+use App\DTOs\Branch\BranchData;
+use App\Http\Requests\Branch\StoreBranchRequest;
+use App\Http\Requests\Branch\UpdateBranchRequest;
+use App\Actions\Branch\CreateBranch;
+use App\Actions\Branch\UpdateBranch;
+use App\Http\Resources\BranchResource;
 
 class BranchController extends Controller
 {
+    use AuthorizesRequests;
 
     public function index()
     {
+        // $this->authorize('viewAny', Branch::class);
+        $branches = Branch::orderBy('id', 'desc')->get();
+
         return Inertia::render('Admin/Branches/Index', [
-            'branches' => Branch::orderBy('id', 'desc')->get()
+            'branches' => BranchResource::collection($branches)->resolve()
         ]);
     }
 
     public function create()
     {
+        // $this->authorize('create', Branch::class);
         return Inertia::render('Admin/Branches/Create');
     }
 
-    public function store(Request $request)
+    public function store(StoreBranchRequest $request, CreateBranch $action)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:branches,name',
-            'city' => 'required|string',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'required|string',
-            'is_active' => 'boolean',
-            
-            // 1. Ubicación Física (El Pin)
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-            
-            // 2. Área de Cobertura (El Polígono)
-            // Debe ser un array y tener al menos 3 puntos para formar una figura
-            'coverage_polygon' => 'required|array|min:3', 
-            'coverage_polygon.*' => 'array|size:2', // Cada punto es [lat, lng]
-        ]);
+        // $this->authorize('create', Branch::class);
+        $data = BranchData::fromRequest($request);
+        $action->execute($data);
 
-        Branch::create($validated);
-
-        return redirect()->route('admin.branches.index')->with('message', 'Sucursal creada correctamente.');
+        return redirect()->route('admin.branches.index')->with('success', 'Sucursal creada correctamente.');
     }
+
     public function edit(Branch $branch)
     {
+        // $this->authorize('update', $branch);
         return Inertia::render('Admin/Branches/Edit', [
-            'branch' => $branch
+            'branch' => (new BranchResource($branch))->resolve()
         ]);
     }
 
-    public function update(Request $request, Branch $branch)
+    public function update(UpdateBranchRequest $request, Branch $branch, UpdateBranch $action)
     {
-        $validated = $request->validate([
-            // unique:tabla,columna,ID_A_IGNORAR
-            'name' => 'required|string|max:255|unique:branches,name,' . $branch->id,
-            'city' => 'required|string',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'required|string',
-            'is_active' => 'boolean',
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-            'coverage_polygon' => 'required|array|min:3', 
-            'coverage_polygon.*' => 'array|size:2',
-        ]);
+        // $this->authorize('update', $branch);
+        $data = BranchData::fromRequest($request);
+        $action->execute($branch, $data);
 
-        $branch->update($validated);
-
-        return redirect()->route('admin.branches.index')->with('message', 'Sucursal actualizada correctamente.');
+        return redirect()->route('admin.branches.index')->with('success', 'Sucursal actualizada correctamente.');
     }
 }

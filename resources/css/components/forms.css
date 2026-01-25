@@ -1,0 +1,151 @@
+/* resources/css/components/forms.css */
+/* ===== FORM COMPONENTS ===== */
+
+/* Checkbox System */
+.checkbox-input {
+    @apply sr-only;
+}
+
+.checkbox-box {
+    @apply w-5 h-5 rounded-md border-2 border-input bg-background flex items-center justify-center transition-all duration-fast ease-smooth;
+    @apply hover:border-primary hover:bg-primary/5;
+    @apply focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background;
+}
+
+.checkbox-input:checked ~ .checkbox-box {
+    @apply bg-primary border-primary text-primary-foreground;
+}
+
+.checkbox-input:disabled ~ .checkbox-box {
+    @apply opacity-50 cursor-not-allowed bg-muted border-muted;
+}
+
+/* Radio System */
+.radio-input {
+    @apply sr-only;
+}
+
+.radio-circle {
+    @apply w-5 h-5 rounded-full border-2 border-input bg-background flex items-center justify-center transition-all duration-fast ease-smooth;
+    @apply hover:border-primary hover:bg-primary/5;
+}
+
+.radio-input:checked ~ .radio-circle {
+    @apply border-primary;
+}
+
+.radio-input:checked ~ .radio-circle::after {
+    content: '';
+    @apply w-2.5 h-2.5 rounded-full bg-primary;
+}
+
+.radio-input:disabled ~ .radio-circle {
+    @apply opacity-50 cursor-not-allowed bg-muted border-muted;
+}
+
+/* Switch/Toggle System */
+.switch-input {
+    @apply sr-only;
+}
+
+.switch-track {
+    @apply w-12 h-6 rounded-full bg-input border border-input transition-all duration-fast ease-smooth relative;
+    @apply hover:border-primary/50;
+}
+
+.switch-input:checked ~ .switch-track {
+    @apply bg-primary border-primary;
+}
+
+.switch-input:disabled ~ .switch-track {
+    @apply opacity-50 cursor-not-allowed bg-muted border-muted;
+}
+
+.switch-thumb {
+    @apply absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-background shadow-md transition-transform duration-fast ease-smooth;
+}
+
+.switch-input:checked ~ .switch-track .switch-thumb {
+    @apply transform translate-x-6;
+}
+
+/* Select Styling */
+.select-wrapper {
+    @apply relative;
+}
+
+.select-wrapper::after {
+    content: '';
+    @apply absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none;
+    width: 0; 
+    height: 0; 
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid hsl(var(--muted-foreground));
+}
+
+/* File Upload */
+.file-input-wrapper {
+    @apply relative overflow-hidden;
+}
+
+.file-input {
+    @apply sr-only;
+}
+
+.file-input-label {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-background border border-input rounded-lg text-foreground cursor-pointer transition-all duration-fast ease-smooth;
+    @apply hover:bg-accent hover:border-primary/30;
+}
+
+.file-input:disabled ~ .file-input-label {
+    @apply opacity-50 cursor-not-allowed;
+}
+
+/* Form Validation States */
+.input-error {
+    @apply border-error focus:border-error focus:ring-error/20;
+}
+
+.input-success {
+    @apply border-success focus:border-success focus:ring-success/20;
+}
+
+.input-warning {
+    @apply border-warning focus:border-warning focus:ring-warning/20;
+}
+
+/* Form Helper Text */
+.form-helper {
+    @apply text-xs text-muted-foreground mt-1;
+}
+
+.form-helper-error {
+    @apply text-error;
+}
+
+.form-helper-success {
+    @apply text-success;
+}
+
+.form-helper-warning {
+    @apply text-warning;
+}
+
+/* Inline Form Groups */
+.form-group-inline {
+    @apply flex items-center gap-3;
+}
+
+/* Form Field Sizes */
+.input-sm {
+    @apply px-3 py-1.5 text-sm;
+}
+
+.input-md {
+    @apply px-4 py-2.5 text-sm;
+}
+
+.input-lg {
+    @apply px-6 py-3.5 text-base;
+}

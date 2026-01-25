@@ -5,7 +5,10 @@
     import { Link, router } from '@inertiajs/vue3';
     import { ref, watch, computed } from 'vue';
     import { debounce } from 'lodash';
-    import { UserPlus, SearchX, Users, Shield, Building2, UserCog, Briefcase, Truck } from 'lucide-vue-next';
+    import { 
+        UserPlus, SearchX, Users, Shield, Building2, UserCog, 
+        Briefcase, Truck, Filter, RefreshCw 
+    } from 'lucide-vue-next';
     
     const props = defineProps({ 
         users: Object,
@@ -20,9 +23,11 @@
         branch_id: props.filters.branch_id || '',
     });
     
+    // Estado para mostrar/ocultar filtros en móvil
+    const showMobileFilters = ref(false);
+    
     // --- LÓGICA DE AGRUPACIÓN MEJORADA ---
-// --- LÓGICA DE AGRUPACIÓN MEJORADA ---
-const groupedUsers = computed(() => {
+    const groupedUsers = computed(() => {
         if (!props.users.data) return {};
     
         const groups = props.users.data.reduce((acc, user) => {
@@ -48,11 +53,11 @@ const groupedUsers = computed(() => {
                 groupIcon = Briefcase;
                 groupColor = 'emerald';
             }
-            // 4. CONDUCTORES (NUEVO - AQUÍ ESTABA EL PROBLEMA)
+            // 4. Conductores
             else if (user.role_key === 'driver') {
                 groupName = 'Flota de Conductores';
-                groupIcon = Truck; // Asegúrate de importar Truck
-                groupColor = 'orange'; // Color distintivo para drivers
+                groupIcon = Truck;
+                groupColor = 'orange';
             }
             // 5. Clientes
             else if (user.role_key === 'client' || user.role_key === 'customer') {
@@ -95,21 +100,24 @@ const groupedUsers = computed(() => {
             router.delete(route('admin.users.destroy', userId));
         }
     };
+    
+    const clearFilters = () => {
+        params.value = { search: '', role_id: '', branch_id: '' };
+    };
     </script>
     
     <template>
         <AdminLayout>
-            <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                
-                <!-- HEADER SECTION -->
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+            <!-- HEADER SECTION -->
+            <template #header>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
                     <div class="animate-slide-up">
-                        <div class="flex items-center gap-3 mb-3">
-                            <div class="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                                <Users :size="24" class="text-white" />
+                        <div class="flex items-center gap-4 mb-3">
+                            <div class="avatar avatar-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-lg">
+                                <Users :size="24" />
                             </div>
                             <div>
-                                <h1 class="text-3xl lg:text-4xl font-black text-foreground font-display tracking-tight">
+                                <h1 class="text-3xl lg:text-4xl font-display font-black text-foreground tracking-tight">
                                     Gestión de Equipo
                                 </h1>
                                 <p class="text-muted-foreground font-medium text-sm mt-1">
@@ -119,25 +127,66 @@ const groupedUsers = computed(() => {
                         </div>
                     </div>
                     
-                    <Link :href="route('admin.users.create')" 
-                          class="flex items-center gap-3 bg-gradient-to-r from-primary to-secondary text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 ease-elastic hover:scale-[1.02] active:scale-[0.98] cursor-pointer group animate-slide-up">
-                        <UserPlus :size="20" class="transition-transform duration-300 group-hover:scale-110" /> 
-                        <span class="font-semibold">Nuevo Usuario</span>
-                    </Link>
-                </div>
+                    <div class="flex items-center gap-3">
+                        <!-- Mobile Filter Toggle -->
+                        <button @click="showMobileFilters = !showMobileFilters"
+                                class="md:hidden btn btn-outline btn-sm flex items-center gap-2">
+                            <Filter :size="16" />
+                            <span>Filtros</span>
+                        </button>
     
+                        <Link :href="route('admin.users.create')" 
+                              class="btn btn-primary btn-lg flex items-center gap-2 group">
+                            <UserPlus :size="18" class="transition-transform duration-fast group-hover:scale-110" /> 
+                            <span>Nuevo Usuario</span>
+                        </Link>
+                    </div>
+                </div>
+            </template>
+    
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <!-- FILTERS SECTION -->
-                <div class="mb-10 sticky top-4 z-20 animate-fade-in">
-                    <div class="glass rounded-2xl p-1 border border-border/50">
-                        <UserFilters v-model="params" :roles="roles" :branches="branches" />
+                <div class="mb-8">
+                    <!-- Mobile Filters Overlay -->
+                    <div v-if="showMobileFilters" 
+                         class="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" 
+                         @click="showMobileFilters = false">
+                    </div>
+                    
+                    <div :class="[
+                        'transition-all duration-300 ease-smooth',
+                        showMobileFilters 
+                            ? 'md:relative fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-md' 
+                            : 'relative'
+                    ]">
+                        <div class="card p-1 shadow-lg" :class="showMobileFilters ? 'max-h-[80vh] overflow-y-auto' : ''">
+                            <div class="flex items-center justify-between mb-4 p-3 border-b border-border/50">
+                                <div class="flex items-center gap-2">
+                                    <Filter :size="18" class="text-muted-foreground" />
+                                    <h3 class="text-sm font-bold text-foreground">Filtros de Búsqueda</h3>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button @click="clearFilters" 
+                                            class="btn btn-ghost btn-sm text-xs flex items-center gap-1">
+                                        <RefreshCw :size="14" />
+                                        <span class="hidden sm:inline">Limpiar</span>
+                                    </button>
+                                    <button @click="showMobileFilters = false" 
+                                            class="md:hidden btn btn-ghost btn-sm">
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                            <UserFilters v-model="params" :roles="roles" :branches="branches" />
+                        </div>
                     </div>
                 </div>
     
                 <!-- USERS CONTENT -->
-                <div v-if="users.data.length > 0" class="space-y-6 animate-in">
+                <div v-if="users.data.length > 0" class="space-y-8 animate-in">
                     <!-- STATS BAR -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                        <div class="card p-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div class="card p-5 hover-lift">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm text-muted-foreground font-medium">Total Usuarios</p>
@@ -149,7 +198,7 @@ const groupedUsers = computed(() => {
                             </div>
                         </div>
                         
-                        <div class="card p-5">
+                        <div class="card p-5 hover-lift">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm text-muted-foreground font-medium">Administradores</p>
@@ -163,7 +212,7 @@ const groupedUsers = computed(() => {
                             </div>
                         </div>
                         
-                        <div class="card p-5">
+                        <div class="card p-5 hover-lift">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm text-muted-foreground font-medium">Equipo Operativo</p>
@@ -177,7 +226,7 @@ const groupedUsers = computed(() => {
                             </div>
                         </div>
                         
-                        <div class="card p-5">
+                        <div class="card p-5 hover-lift">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm text-muted-foreground font-medium">Sucursales Activas</p>
@@ -195,13 +244,13 @@ const groupedUsers = computed(() => {
                     <!-- USER GROUPS -->
                     <div class="space-y-8">
                         <div v-for="(groupData, groupName) in groupedUsers" :key="groupName" 
-                             class="card overflow-hidden border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg group">
+                             class="card overflow-hidden hover-lift-lg">
                             
                             <!-- GROUP HEADER -->
-                            <div class="px-6 py-4 bg-gradient-to-r from-white to-gray-50/50 border-b border-border/50 flex justify-between items-center">
+                            <div class="px-6 py-4 bg-gradient-to-r from-background to-muted/10 border-b border-border/50 flex justify-between items-center">
                                 <div class="flex items-center gap-3">
-                                    <div :class="`w-10 h-10 rounded-full bg-${groupData.color}-50 flex items-center justify-center border border-${groupData.color}-100`">
-                                        <component :is="groupData.icon" :size="18" :class="`text-${groupData.color}-600`" />
+                                    <div class="avatar avatar-md bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-md">
+                                        <component :is="groupData.icon" :size="18" />
                                     </div>
                                     <div>
                                         <h3 class="font-bold text-foreground font-display text-lg">{{ groupName }}</h3>
@@ -210,10 +259,8 @@ const groupedUsers = computed(() => {
                                         </p>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-bold bg-white border border-border px-3 py-1.5 rounded-full text-muted-foreground">
-                                        {{ groupData.users.length }} usuarios
-                                    </span>
+                                <div class="badge badge-outline">
+                                    {{ groupData.users.length }} usuarios
                                 </div>
                             </div>
                             
@@ -225,16 +272,16 @@ const groupedUsers = computed(() => {
                     <!-- PAGINATION -->
                     <div v-if="users.links && users.links.length > 3" class="mt-10">
                         <div class="flex justify-center">
-                            <div class="flex items-center gap-1 bg-white rounded-xl border border-border p-2 shadow-sm">
+                            <div class="flex items-center gap-1 bg-card rounded-xl border border-border p-2 shadow-sm">
                                 <template v-for="(link, index) in users.links" :key="index">
                                     <Link 
                                         v-if="link.url"
                                         :href="link.url"
                                         :class="[
-                                            'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200',
+                                            'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-fast',
                                             link.active 
-                                                ? 'bg-primary text-white shadow-md shadow-primary/20' 
-                                                : 'text-foreground hover:bg-muted hover:text-foreground'
+                                                ? 'btn btn-primary btn-sm' 
+                                                : 'btn btn-ghost btn-sm'
                                         ]"
                                         v-html="link.label"
                                     />
@@ -248,77 +295,26 @@ const groupedUsers = computed(() => {
                 <!-- EMPTY STATE -->
                 <div v-else class="py-20 text-center animate-fade-in">
                     <div class="max-w-md mx-auto">
-                        <div class="w-24 h-24 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-                            <SearchX :size="40" class="text-gray-300" />
+                        <div class="w-24 h-24 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <SearchX :size="40" class="text-muted-foreground" />
                         </div>
-                        <h3 class="text-2xl font-bold text-foreground font-display mb-3">No se encontraron usuarios</h3>
+                        <h3 class="text-2xl font-display font-bold text-foreground mb-3">No se encontraron usuarios</h3>
                         <p class="text-muted-foreground mb-8">
                             No hay usuarios que coincidan con los filtros actuales.
                             Intenta ajustar los criterios de búsqueda o crea un nuevo usuario.
                         </p>
                         <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                            <button @click="params = { search: '', role_id: '', branch_id: '' }"
-                                    class="px-6 py-3 bg-white border border-border rounded-xl font-medium text-foreground hover:bg-muted transition-all duration-200 hover:border-primary/30">
+                            <button @click="clearFilters"
+                                    class="btn btn-outline btn-md">
                                 Limpiar filtros
                             </button>
                             <Link :href="route('admin.users.create')"
-                                  class="px-6 py-3 gradient-primary text-white rounded-xl font-medium shadow-md shadow-primary/25 hover:shadow-primary/40 transition-all duration-200">
+                                  class="btn btn-primary btn-md">
                                 Crear primer usuario
                             </Link>
                         </div>
                     </div>
                 </div>
-    
             </div>
         </AdminLayout>
     </template>
-    
-    <style scoped>
-    .gradient-primary {
-        background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
-    }
-    
-    .glass {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(12px);
-    }
-    
-    .animate-slide-up {
-        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    
-    .animate-fade-in {
-        animation: fadeIn 0.3s ease-out;
-    }
-    
-    .animate-in {
-        animation: enter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes enter {
-        from {
-            opacity: 0;
-            transform: translateY(10px) scale(0.98);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-    </style>

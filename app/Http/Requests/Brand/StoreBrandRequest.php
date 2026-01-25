@@ -11,19 +11,18 @@ class StoreBrandRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'                => ['required', 'string', 'max:255', 'unique:brands,name'],
-            'provider_id'         => ['required', 'exists:providers,id'],
-            'manufacturer'        => ['nullable', 'string', 'max:255'],
-            'origin_country_code' => ['nullable', 'string', 'size:2'], // ISO 2 chars (BO, US)
-            'tier'                => ['required', 'in:Economy,Standard,Premium,Luxury'],
-            'website'             => ['nullable', 'url', 'max:255'],
-            
-            'categories'          => ['nullable', 'array'],
-            'categories.*'        => ['exists:categories,id'], // Cada ID debe existir
-            
-            'image'               => ['nullable', 'image', 'max:2048'],
-            'is_active'           => ['boolean'],
-            'is_featured'         => ['boolean'],
+            'name' => ['required', 'string', 'max:255', 'unique:brands,name'],
+            'slug' => ['nullable', 'string', 'max:255'],
+            'provider_id' => ['nullable', 'exists:providers,id'], // UUID check automático
+            'manufacturer' => ['nullable', 'string', 'max:255'],
+            'origin_country_code' => ['nullable', 'string', 'size:2'],
+            'tier' => ['required', 'in:Economy,Standard,Premium,Luxury'],
+            'website' => ['nullable', 'url'],
+            'is_active' => ['boolean'],
+            'is_featured' => ['boolean'],
+            'image' => ['nullable', 'image', 'max:2048'], // Max 2MB
+            'categories' => ['array'],
+            'categories.*' => ['exists:categories,id'],
         ];
     }
 }

@@ -10,25 +10,26 @@ class StorePurchaseRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            // Branch es nullable porque el backend lo puede inyectar para Branch Admin
-            'branch_id' => ['nullable', 'exists:branches,id'], 
+        $rules = [
             'provider_id' => ['required', 'exists:providers,id'],
             'document_number' => ['required', 'string', 'max:50'],
             'purchase_date' => ['required', 'date'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            
-            // --- VALIDACIÓN FINANCIERA ---
             'payment_type' => ['required', 'in:CASH,CREDIT'],
-            // Si es Crédito, la fecha de vencimiento es obligatoria
-            'payment_due_date' => ['required_if:payment_type,CREDIT', 'nullable', 'date', 'after_or_equal:purchase_date'],
-
-            // --- DETALLES ---
+            'payment_due_date' => ['nullable', 'date', 'required_if:payment_type,CREDIT'],
+            'notes' => ['nullable', 'string'],
+            
             'items' => ['required', 'array', 'min:1'],
             'items.*.sku_id' => ['required', 'exists:skus,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
-            'items.*.expiration_date' => ['nullable', 'date', 'after:today'],
+            'items.*.expiration_date' => ['nullable', 'date'],
         ];
+
+        // Solo validamos branch_id si NO es branch_admin (el DTO se encarga de forzarlo si lo es)
+        if (!$this->user()->hasRole('branch_admin')) {
+            $rules['branch_id'] = ['required', 'exists:branches,id'];
+        }
+
+        return $rules;
     }
 }

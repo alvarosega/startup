@@ -3,62 +3,75 @@
 namespace App\Http\Controllers\Driver;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Request as RequestFacade; // Facade para validar inputs
-use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
+
+// Arquitectura
+use App\DTOs\Driver\DriverProfileData;
+use App\DTOs\Driver\DriverDocumentsData;
+use App\Http\Requests\Driver\UpdateDriverProfileRequest;
+use App\Http\Requests\Driver\UploadDocumentsRequest;
+use App\Actions\Driver\UpdateDriverProfile;
+use App\Actions\Driver\UpdateDriverDocuments;
+use App\Http\Resources\DriverProfileResource;
 
 class DriverController extends Controller
 {
+    /**
+     * Dashboard Principal
+     * Muestra estado, ruta actual O formulario de subida de docs si falta.
+     */
     public function dashboard()
     {
-        $user = Auth::user()->load('profile');
-        $profile = $user->profile;
+        $user = Auth::user();
         
-        // 1. ESTADO: ¿Tiene documentos subidos?
-        $hasDocuments = $profile->ci_front_path && $profile->license_photo_path;
-        
-        // 2. ESTADO: ¿Está verificado por Admin?
-        $isVerified = $profile->is_identity_verified;
-
-        // Si ya está verificado, cargamos pedidos (Lógica futura)
-        $pendingOrders = []; 
+        // Cargar relación driverProfile para verificar estado y documentos
+        $user->load('driverProfile');
+        $driver = $user->driverProfile;
 
         return Inertia::render('Driver/Dashboard', [
-            'auth_status' => [
-                'has_documents' => (bool)$hasDocuments,
-                'is_verified'   => (bool)$isVerified,
-                'rejection_reason' => null // Podríamos añadir esto a futuro si lo rechazan
-            ],
-            'pendingOrders' => $pendingOrders
+            'driver' => $driver, // La vista Dashboard.vue usa esto para v-if="!driver.has_documents"
+            'pendingOrders' => [] // Aquí cargarás las órdenes asignadas en el futuro
         ]);
     }
 
-    // NUEVO MÉTODO: Subir Documentos
-    public function uploadDocuments(Request $request)
+    /**
+     * Vista para Editar Perfil (Datos del Vehículo)
+     */
+    public function editProfile()
     {
-        $request->validate([
-            'ci_front' => 'required|image|max:5120', // Max 5MB
-            'license_photo' => 'required|image|max:5120',
-            // Opcionales
-            'vehicle_photo' => 'nullable|image|max:5120',
-        ]);
-
         $user = Auth::user();
-        $profile = $user->profile;
+        $driver = $user->driverProfile;
 
-        // Guardar archivos en disco 'public' (o 'private' si quieres mas seguridad)
-        if ($request->hasFile('ci_front')) {
-            $profile->ci_front_path = $request->file('ci_front')->store('drivers/docs', 'public');
-        }
-        if ($request->hasFile('license_photo')) {
-            $profile->license_photo_path = $request->file('license_photo')->store('drivers/docs', 'public');
-        }
-        if ($request->hasFile('vehicle_photo')) {
-            $profile->vehicle_photo_path = $request->file('vehicle_photo')->store('drivers/docs', 'public');
-        }
+        return Inertia::render('Driver/Profile/Edit', [
+            'driver' => $driver
+        ]);
+    }
 
-        $profile->save();
+    /**
+     * Actualizar Datos del Vehículo (Texto)
+     */
+    public function updateProfile(UpdateDriverProfileRequest $request, UpdateDriverProfile $action)
+    {
+        try {
+            $data = DriverProfileData::fromRequest($request);
+            $action->execute($request->user(), $data);
+
+            return back()->with('success', 'Información del vehículo actualizada.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al actualizar perfil.']);
+        }
+    }
+
+    /**
+     * Subir Documentos (Imágenes) - Usado desde el Dashboard
+     */
+    public function uploadDocuments(UploadDocumentsRequest $request, UpdateDriverDocuments $action)
+    {
+        // Nota: Asegúrate de tener DriverDocumentsData y UpdateDriverDocuments creados previamente
+        // Si no los tienes, avísame para dártelos.
+        $data = \App\DTOs\Driver\DriverDocumentsData::fromRequest($request);
+        $action->execute($request->user(), $data);
 
         return back()->with('success', 'Documentos enviados a revisión.');
     }
@@ -66,5 +79,23 @@ class DriverController extends Controller
     public function history()
     {
         return Inertia::render('Driver/History');
+    }
+    // --- NUEVO: Ver Perfil Completo ---
+    public function indexProfile()
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $user->load(['driverProfile', 'profile']); 
+
+        // CORRECCIÓN CRÍTICA: Usar ->resolve() para quitar el envoltorio 'data'
+        $driverData = $user->driverProfile 
+            ? (new \App\Http\Resources\DriverProfileResource($user->driverProfile))->resolve()
+            : null;
+
+        return Inertia::render('Driver/Profile/Index', [
+            'driver' => $driverData, // Ahora enviamos el array limpio
+            'user_profile' => $user->profile, 
+            'email' => $user->email,
+            'phone' => $user->phone
+        ]);
     }
 }

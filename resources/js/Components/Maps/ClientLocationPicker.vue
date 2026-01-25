@@ -1,43 +1,53 @@
 <script setup>
     import { ref, onMounted, watch } from 'vue';
     import "leaflet/dist/leaflet.css";
-    import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
+    import { LMap, LTileLayer, LMarker, LControlZoom } from "@vue-leaflet/vue-leaflet";
     import L from 'leaflet';
-    const mapRef = ref(null); // Referencia al LMap
-
-    const refreshMap = () => {
-        // IMPORTANTE: Accedemos a leafletObject
-        if (mapRef.value && mapRef.value.leafletObject) {
-            mapRef.value.leafletObject.invalidateSize(); // <-- ESTO ARREGLA EL MAPA GRIS
-            
-            // Opcional: Recentrar si hay coordenadas
-            if (props.modelValueLat) {
-                mapRef.value.leafletObject.setView([props.modelValueLat, props.modelValueLng]);
-            }
-        }
-    };
-
-    defineExpose({ refreshMap }); // <-- IMPRESCINDIBLE
+    
     const props = defineProps({
         modelValueLat: Number,
         modelValueLng: Number,
         modelValueAddress: String,
-        // Nuevo Prop para v-model del branch_id
-        modelValueBranchId: { type: [Number, String], default: null }, 
-        activeBranches: { type: Array, default: () => [] } 
+        modelValueBranchId: { type: [Number, String], default: null },
+        activeBranches: { type: Array, default: () => [] },
+        markers: { type: Array, default: () => [] },
+        center: { type: Array, default: () => [-16.5000, -68.1500] },
+        height: { type: String, default: '400px' },
+        zoom: { type: Number, default: 13 }
     });
     
-    // Añadimos el emit 'update:modelValueBranchId'
-    const emit = defineEmits(['update:modelValueLat', 'update:modelValueLng', 'update:modelValueAddress', 'update:modelValueBranchId', 'coverage-status-change']);
+    const emit = defineEmits([
+        'update:modelValueLat', 
+        'update:modelValueLng', 
+        'update:modelValueAddress', 
+        'update:modelValueBranchId', 
+        'coverage-status-change'
+    ]);
     
-    // ... (Resto de la configuración de zoom, center, etc. igual que antes) ...
-    const zoom = ref(15);
-    const center = ref(props.modelValueLat ? [props.modelValueLat, props.modelValueLng] : [-16.5000, -68.1500]);
-    const markerPosition = ref(props.modelValueLat ? [props.modelValueLat, props.modelValueLng] : [-16.5000, -68.1500]);
+    const zoom = ref(props.zoom);
+    const mapRef = ref(null);
+    const center = ref(props.center);
+    const markerPosition = ref(props.modelValueLat ? [props.modelValueLat, props.modelValueLng] : props.center);
     const isInsideCoverage = ref(false);
     const closestBranchName = ref('');
     
-    // --- ALGORITMO MATEMÁTICO: Ray Casting ---
+    // --- LEAFLET SETUP ---
+    onMounted(() => {
+        if (typeof L !== 'undefined') {
+            delete L.Icon.Default.prototype._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            });
+        }
+        
+        if (props.modelValueLat) {
+            validateCoverage(props.modelValueLat, props.modelValueLng);
+        }
+    });
+    
+    // --- VALIDACIÓN DE COBERTURA ---
     const isPointInPolygon = (point, vs) => {
         let x = point[0], y = point[1];
         let inside = false;
@@ -50,10 +60,9 @@
         return inside;
     };
     
-    // --- VALIDACIÓN DE COBERTURA ---
     const validateCoverage = (lat, lng) => {
         let covered = false;
-        let detectedBranchId = null; // Variable local para el ID
+        let detectedBranchId = null;
         closestBranchName.value = '';
     
         for (const branch of props.activeBranches) {
@@ -61,20 +70,18 @@
                 if (isPointInPolygon([lat, lng], branch.coverage_polygon)) {
                     covered = true;
                     closestBranchName.value = branch.name;
-                    detectedBranchId = branch.id; // ¡Capturamos el ID!
-                    break; 
+                    detectedBranchId = branch.id;
+                    break;
                 }
             }
         }
     
         isInsideCoverage.value = covered;
-        
-        // Emitimos el ID encontrado (será un número si hay cobertura, o null si no)
         emit('update:modelValueBranchId', detectedBranchId);
         emit('coverage-status-change', covered);
     };
     
-    // ... (Resto del onMarkerDragEnd y onMounted igual que antes) ...
+    // --- DRAG MARKER ---
     const onMarkerDragEnd = async (event) => {
         const { lat, lng } = event.target.getLatLng();
         markerPosition.value = [lat, lng];
@@ -97,43 +104,113 @@
         }
     };
     
-    onMounted(() => {
-        // ... Fix iconos Leaflet ...
-        delete L.Icon.Default.prototype._getIconUrl;
-        L.Icon.Default.mergeOptions({
-            iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-            iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
-            shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
-        });
-        
-        if (props.modelValueLat) {
-            validateCoverage(props.modelValueLat, props.modelValueLng);
+    // --- REFRESH MAP ---
+    const refreshMap = () => {
+        if (mapRef.value && mapRef.value.leafletObject) {
+            mapRef.value.leafletObject.invalidateSize();
+            if (props.modelValueLat) {
+                mapRef.value.leafletObject.setView([props.modelValueLat, props.modelValueLng]);
+            }
+        }
+    };
+    
+    defineExpose({ refreshMap });
+    
+    // Watch for props changes
+    watch(() => props.center, (newCenter) => {
+        center.value = newCenter;
+    });
+    
+    watch(() => props.modelValueLat, (newLat) => {
+        if (newLat && props.modelValueLng) {
+            markerPosition.value = [newLat, props.modelValueLng];
+            validateCoverage(newLat, props.modelValueLng);
         }
     });
     </script>
     
     <template>
-       <div class="space-y-3">
-            <div class="h-[400px] rounded-lg border border-gray-300 overflow-hidden relative z-0 shadow-sm">
-                <l-map v-model:zoom="zoom" :center="center" :use-global-leaflet="false">
-                    <l-tile-layer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"></l-tile-layer>
-                    <l-marker :lat-lng="markerPosition" draggable @dragend="onMarkerDragEnd"></l-marker>
+        <div class="space-y-3">
+            <!-- MAP CONTAINER -->
+            <div class="rounded-xl border border-border overflow-hidden relative z-0" :style="{ height: height }">
+                <l-map ref="mapRef" 
+                       v-model:zoom="zoom" 
+                       :center="center" 
+                       :use-global-leaflet="false"
+                       class="h-full w-full">
+                    <l-tile-layer 
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        layer-type="base"
+                        name="OpenStreetMap"
+                    />
+                    <l-control-zoom position="bottomright" />
+                    
+                    <!-- MARKERS FOR BRANCHES INDEX -->
+                    <l-marker 
+                        v-for="marker in markers" 
+                        :key="marker.id"
+                        :lat-lng="[marker.latitude, marker.longitude]"
+                        :icon="L.icon({
+                            iconUrl: marker.is_active 
+                                ? 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png'
+                                : 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-red.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        })"
+                    >
+                        <l-tooltip :options="{ permanent: false, direction: 'top' }">
+                            {{ marker.name }} ({{ marker.city }})
+                        </l-tooltip>
+                    </l-marker>
+                    
+                    <!-- DRAGGABLE MARKER FOR SELECTION -->
+                    <l-marker 
+                        v-if="modelValueLat !== undefined"
+                        :lat-lng="markerPosition" 
+                        draggable 
+                        @dragend="onMarkerDragEnd"
+                    />
                 </l-map>
-                <div class="absolute top-2 left-2 right-2 z-[1000] pointer-events-none">
-                    <div v-if="isInsideCoverage" class="bg-green-500/90 text-white text-xs py-1 px-3 rounded-full inline-block shadow-md">
+                
+                <!-- COVERAGE STATUS OVERLAY -->
+                <div class="absolute top-3 left-3 right-3 z-[1000] pointer-events-none">
+                    <div v-if="isInsideCoverage && closestBranchName" 
+                         class="badge badge-success inline-flex items-center gap-1 shadow-lg animate-in">
                         ✓ Cobertura Disponible ({{ closestBranchName }})
+                    </div>
+                    <div v-else-if="!isInsideCoverage && modelValueLat" 
+                         class="badge badge-warning inline-flex items-center gap-1 shadow-lg animate-in">
+                        ⚠️ Fuera de cobertura
                     </div>
                 </div>
             </div>
-            <transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
-                <div v-if="!isInsideCoverage" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
-                     <p class="text-sm text-yellow-700 font-bold">Estás fuera de nuestra zona de reparto actual</p>
-                     <p class="text-xs text-yellow-600 mt-1">Guardaremos tu dirección para futuras expansiones.</p>
+    
+            <!-- STATUS MESSAGES -->
+            <transition 
+                enter-active-class="transition duration-300 ease-out" 
+                enter-from-class="opacity-0 -translate-y-2" 
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition duration-200 ease-in" 
+                leave-from-class="opacity-100 translate-y-0" 
+                leave-to-class="opacity-0 -translate-y-2"
+            >
+                <div v-if="!isInsideCoverage && modelValueLat" class="alert alert-warning animate-in">
+                    <p class="text-sm font-bold">Estás fuera de nuestra zona de reparto actual</p>
+                    <p class="text-xs mt-1">Guardaremos tu dirección para futuras expansiones.</p>
                 </div>
-                <div v-else class="bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-sm">
-                    <p class="text-sm text-green-700 font-bold">¡Tenemos cobertura!</p>
-                    <p class="text-xs text-green-600 mt-1">Atendido por: <strong>{{ closestBranchName }}</strong></p>
+                <div v-else-if="isInsideCoverage" class="alert alert-success animate-in">
+                    <p class="text-sm font-bold">¡Tenemos cobertura!</p>
+                    <p class="text-xs mt-1">
+                        Atendido por: <strong>{{ closestBranchName }}</strong>
+                    </p>
                 </div>
             </transition>
         </div>
     </template>
+    
+    <style scoped>
+    .leaflet-container {
+        background-color: hsl(var(--muted) / 0.3);
+    }
+    </style>

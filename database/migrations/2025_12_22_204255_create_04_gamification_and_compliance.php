@@ -7,12 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Libro Mayor de Puntos (Loyalty Ledger)
+        // 1. Libro Mayor de Puntos
         Schema::create('loyalty_ledger', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->integer('amount'); // Positivo o Negativo
-            $table->string('type'); // purchase, expiration, bonus
+            $table->foreignUuid('user_id')->constrained()->onDelete('cascade'); // CORREGIDO
+            $table->integer('amount'); 
+            $table->string('type'); 
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
         });
@@ -20,13 +20,12 @@ return new class extends Migration
         // 2. Verificaciones de Identidad (KYC)
         Schema::create('user_verifications', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Solicitante
-            $table->foreignId('reviewer_id')->nullable()->constrained('users'); // Auditor Admin
+            $table->foreignUuid('user_id')->constrained()->onDelete('cascade'); // CORREGIDO
+            $table->foreignUuid('reviewer_id')->nullable()->constrained('users'); // CORREGIDO
             $table->string('front_ci_path')->nullable();
             $table->string('back_ci_path')->nullable();
             $table->string('selfie_path')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            // Relación con tabla de motivos estandarizados
             $table->foreignId('rejection_reason_id')->nullable()->constrained('rejection_reasons');
             $table->timestamps();
         });

@@ -8,105 +8,81 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
+// Arquitectura
+use App\DTOs\Provider\ProviderData;
+use App\Http\Requests\Provider\StoreProviderRequest;
+use App\Http\Requests\Provider\UpdateProviderRequest;
+use App\Actions\Provider\CreateProvider;
+use App\Actions\Provider\UpdateProvider;
+use App\Http\Resources\ProviderResource;
+
 class ProviderController extends Controller
 {
     use AuthorizesRequests;
 
-    // ELIMINAMOS EL CONSTRUCTOR QUE CAUSABA EL ERROR 500
-    // public function __construct() { ... }
-
     public function index(Request $request)
     {
-        // 1. Seguridad Explícita: ¿Puede ver la lista?
         $this->authorize('viewAny', Provider::class);
 
-        $providers = Provider::orderByRaw('COALESCE(commercial_name, company_name) ASC')
+        $providers = Provider::query()
             ->when($request->search, function ($query, $search) {
                 $query->where('company_name', 'like', "%{$search}%")
                       ->orWhere('commercial_name', 'like', "%{$search}%")
                       ->orWhere('tax_id', 'like', "%{$search}%");
             })
-            ->paginate(10) // Paginamos para no saturar la vista
+            ->orderBy('company_name')
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Providers/Index', [
-            'providers' => $providers,
+            'providers' => ProviderResource::collection($providers), // Usamos el Resource
             'filters' => $request->only(['search']),
-            // Pasamos el permiso para que el botón "Crear" se muestre u oculte
             'can_manage' => auth()->user()->can('create', Provider::class)
         ]);
     }
 
     public function create()
     {
-        // 2. Seguridad Explícita: ¿Puede crear?
         $this->authorize('create', Provider::class);
-
         return Inertia::render('Admin/Providers/Create');
     }
 
-    public function store(Request $request)
+    public function store(StoreProviderRequest $request, CreateProvider $action)
     {
         $this->authorize('create', Provider::class);
+        
+        $data = ProviderData::fromRequest($request);
+        $action->execute($data);
 
-        // Validación manual aquí o mediante StoreProviderRequest si lo creaste
-        $validated = $request->validate([
-            'company_name' => 'required|string|max:255',
-            'commercial_name' => 'nullable|string|max:255',
-            'tax_id' => 'required|string|max:20|unique:providers,tax_id',
-            'email_orders' => 'nullable|email',
-            'phone' => 'nullable|string',
-            'contact_name' => 'nullable|string',
-            'lead_time_days' => 'integer|min:0',
-            'min_order_value' => 'numeric|min:0',
-            'is_active' => 'boolean'
-        ]);
-
-        Provider::create($validated);
-
-        return redirect()->route('admin.providers.index')->with('success', 'Proveedor registrado correctamente.');
+        return redirect()->route('admin.providers.index')->with('success', 'Proveedor creado.');
     }
 
     public function edit(Provider $provider)
     {
-        // 3. Seguridad Explícita: ¿Puede editar? (Usamos 'update' en la policy)
         $this->authorize('update', $provider);
-
+        
         return Inertia::render('Admin/Providers/Edit', [
-            'provider' => $provider
+            // AGREGAMOS ->resolve() AQUÍ:
+            // Esto "desempaqueta" el objeto 'data' y envía el array limpio a Vue
+            'provider' => (new ProviderResource($provider))->resolve() 
         ]);
     }
 
-    public function update(Request $request, Provider $provider)
+    public function update(UpdateProviderRequest $request, Provider $provider, UpdateProvider $action)
     {
         $this->authorize('update', $provider);
 
-        $validated = $request->validate([
-            'company_name' => 'required|string|max:255',
-            'commercial_name' => 'nullable|string|max:255',
-            'tax_id' => 'required|string|max:20|unique:providers,tax_id,' . $provider->id,
-            'email_orders' => 'nullable|email',
-            'phone' => 'nullable|string',
-            'contact_name' => 'nullable|string',
-            'lead_time_days' => 'integer|min:0',
-            'min_order_value' => 'numeric|min:0',
-            'is_active' => 'boolean'
-        ]);
+        $data = ProviderData::fromRequest($request);
+        $action->execute($provider, $data);
 
-        $provider->update($validated);
-
-        return redirect()->route('admin.providers.index')->with('success', 'Proveedor actualizado correctamente.');
+        return redirect()->route('admin.providers.index')->with('success', 'Proveedor actualizado.');
     }
 
     public function destroy(Provider $provider)
     {
-        // 4. Seguridad Explícita: ¿Puede eliminar?
         $this->authorize('delete', $provider);
-
-        // Validación de Integridad (Opcional pero recomendada)
-        // if ($provider->purchases()->exists()) { ... }
-        
         $provider->delete();
+        
         return redirect()->route('admin.providers.index')->with('success', 'Proveedor eliminado.');
     }
 }

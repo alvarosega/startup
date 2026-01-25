@@ -35,7 +35,8 @@ class InventorySeeder extends Seeder
 
                     $cantidad = rand(10, 200);
                     // Obtenemos precio actual
-                    $currentPrice = $sku->getPriceForBranch(null)->final_price ?? 10;
+                    // Usamos ?-> para que si getPriceForBranch devuelve null, no explote.
+                    $currentPrice = $sku->getPriceForBranch(null)?->final_price ?? 10;          
                     $costo = $currentPrice * 0.70;
 
                     // 2. CREAR COMPRA (Purchase)
@@ -55,8 +56,11 @@ class InventorySeeder extends Seeder
                         'sku_id' => $sku->id,
                         'purchase_id' => $purchase->id,
                         'lot_code' => 'LOT-' . now()->format('y') . Str::upper(Str::random(4)),
-                        'quantity' => $cantidad,
+                        
+                        'quantity' => $cantidad,         // Saldo actual
+                        'initial_quantity' => $cantidad, // <--- FALTABA ESTA LÍNEA (Igual a la cantidad comprada)
                         'reserved_quantity' => 0,
+                        
                         'unit_cost' => $costo,
                         'expiration_date' => now()->addMonths(rand(3, 24)),
                     ]);

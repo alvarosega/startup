@@ -11,26 +11,25 @@ class UpdateProductRequest extends FormRequest
 
     public function rules(): array
     {
-        $productId = $this->route('product'); // ID del producto en la URL
+        // En update, el ID viene en la ruta
+        $productId = $this->route('product'); 
+        // Nota: Si usas Route Model Binding, $productId es el objeto Product. 
+        // Si pasas solo ID, es string/int. Asumimos objeto o ID.
+        $id = is_object($productId) ? $productId->id : $productId;
 
         return [
-            // 1. Validación del Padre (Producto)
-            'name' => ['required', 'string', 'max:255', Rule::unique('products', 'name')->ignore($productId)],
+            'name' => ['required', 'string', 'max:255', Rule::unique('products')->ignore($id)],
             'brand_id' => ['required', 'exists:brands,id'],
             'category_id' => ['required', 'exists:categories,id'],
             'description' => ['nullable', 'string'],
+            'image' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['boolean'],
             'is_alcoholic' => ['boolean'],
-            'image' => ['nullable', 'image', 'max:2048'], // Si envían foto nueva
-
-            // 2. Validación de Hijos (SKUs)
-            'skus' => ['required', 'array', 'min:1'], // Al menos 1 SKU siempre
             
-            // ID del SKU: Si viene, debe existir en la tabla skus. Si es null, es nuevo.
-            'skus.*.id' => ['nullable', 'integer', 'exists:skus,id'],
-            
-            'skus.*.name' => ['required', 'string', 'max:100'],
-            'skus.*.code' => ['nullable', 'string', 'distinct'], // 'distinct' valida duplicados en el array enviado
+            'skus' => ['required', 'array', 'min:1'],
+            'skus.*.id' => ['nullable', 'uuid'], // ID opcional para SKUs nuevos
+            'skus.*.name' => ['required', 'string', 'max:255'],
+            'skus.*.code' => ['nullable', 'string', 'max:50'], // Quitamos unique estricto aquí para simplificar validación array
             'skus.*.price' => ['required', 'numeric', 'min:0'],
             'skus.*.conversion_factor' => ['required', 'numeric', 'min:1'],
             'skus.*.weight' => ['nullable', 'numeric', 'min:0'],

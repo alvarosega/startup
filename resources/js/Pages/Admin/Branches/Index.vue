@@ -1,123 +1,166 @@
 <script setup>
     import AdminLayout from '@/Layouts/AdminLayout.vue';
-    import { Link, router } from '@inertiajs/vue3';
-    import MapComponent from '@/Components/Base/MapComponent.vue'; // Tu nuevo componente
+    import { Link } from '@inertiajs/vue3';
+    import MapComponent from '@/Components/Base/MapComponent.vue';
     import { ref } from 'vue';
-    
-    // Iconos
     import { 
-        MapPin, Phone, Edit, Building, Navigation, Plus 
+        MapPin, Phone, Edit, Building, Navigation, Plus, CheckCircle, XCircle
     } from 'lucide-vue-next';
-
+    
     const props = defineProps({
         branches: Array
     });
-
+    
     // Calcular el centro del mapa basado en la primera sucursal o default La Paz
     const mapCenter = ref([-16.5000, -68.1500]);
     if (props.branches.length > 0 && props.branches[0].latitude) {
         mapCenter.value = [props.branches[0].latitude, props.branches[0].longitude];
     }
-</script>
-
-<template>
-    <AdminLayout>
-        
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <div>
-                <h1 class="text-2xl font-black text-white tracking-tight">Red de Sucursales</h1>
-                <p class="text-gray-400 text-sm mt-1">Gestión de puntos de venta y centros de distribución</p>
-            </div>
-            
-            <Link :href="route('admin.branches.create')" 
-                  class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-blue-900/20 transition-all hover:scale-105 active:scale-95">
-                <Plus :size="18" />
-                <span>Nueva Sucursal</span>
-            </Link>
-        </div>
-
-        <div class="mb-8">
-            <MapComponent 
-                :markers="branches" 
-                :center="mapCenter" 
-                height="350px"
-                :zoom="12"
-            />
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            
-            <div v-for="branch in branches" :key="branch.id" 
-                 class="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-md hover:shadow-xl hover:border-gray-600 transition-all duration-300 group relative flex flex-col">
-                
-                <div class="absolute left-0 top-0 bottom-0 w-1" 
-                     :class="branch.is_active ? 'bg-green-500' : 'bg-red-500'"></div>
-
-                <div class="p-6 flex-1">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="flex gap-3 items-center">
-                            <div class="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-gray-400 border border-gray-600">
-                                <Building :size="20" />
+    </script>
+    
+    <template>
+        <AdminLayout>
+            <!-- HEADER -->
+            <template #header>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div class="animate-slide-up">
+                        <div class="flex items-center gap-4 mb-3">
+                            <div class="avatar avatar-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-lg">
+                                <Building :size="24" />
                             </div>
                             <div>
-                                <h3 class="text-lg font-bold text-white leading-tight">{{ branch.name }}</h3>
-                                <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700">
-                                    {{ branch.city }}
-                                </span>
+                                <h1 class="text-3xl lg:text-4xl font-display font-black text-foreground tracking-tight">
+                                    Red de Sucursales
+                                </h1>
+                                <p class="text-muted-foreground font-medium text-sm mt-1">
+                                    Gestión de puntos de venta y centros de distribución
+                                </p>
                             </div>
                         </div>
-                        
-                        <div v-if="branch.is_active" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-900/30 text-green-400 border border-green-800 text-[10px] font-bold uppercase">
-                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Activa
-                        </div>
-                        <div v-else class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-red-900/30 text-red-400 border border-red-800 text-[10px] font-bold uppercase">
-                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Cerrada
-                        </div>
-                    </div>
-
-                    <div class="space-y-3 text-sm">
-                        <div class="flex items-start gap-3 text-gray-400">
-                            <MapPin :size="16" class="mt-0.5 text-gray-500 shrink-0" />
-                            <p class="leading-snug">{{ branch.address }}</p>
-                        </div>
-                        <div class="flex items-center gap-3 text-gray-400">
-                            <Phone :size="16" class="text-gray-500 shrink-0" />
-                            <p>{{ branch.phone || 'Sin teléfono directo' }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-900/50 p-4 border-t border-gray-700 flex justify-between items-center">
-                    <div class="text-xs text-gray-500 font-mono">
-                        ID: {{ branch.id }}
                     </div>
                     
-                    <div class="flex gap-2">
-                        <a v-if="branch.latitude" 
-                           :href="`https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`" 
-                           target="_blank"
-                           class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition"
-                           title="Ver en Google Maps">
-                            <Navigation :size="16" />
-                        </a>
-
-                        <Link :href="route('admin.branches.edit', branch.id)" 
-                              class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-colors">
-                            <Edit :size="14" /> Editar
-                        </Link>
+                    <Link :href="route('admin.branches.create')" 
+                          class="btn btn-primary btn-lg flex items-center gap-2 group">
+                        <Plus :size="18" class="transition-transform duration-fast group-hover:scale-110" />
+                        <span>Nueva Sucursal</span>
+                    </Link>
+                </div>
+            </template>
+    
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <!-- MAPA OVERVIEW -->
+                <div class="mb-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                                <MapPin :size="20" class="text-primary" />
+                                Vista General de Sucursales
+                            </h2>
+                        </div>
+                        <div class="card-content p-0">
+                            <MapComponent 
+                                :markers="branches" 
+                                :center="mapCenter" 
+                                height="350px"
+                                :zoom="12"
+                            />
+                        </div>
                     </div>
                 </div>
-
+    
+                <!-- LISTA DE SUCURSALES -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div v-for="branch in branches" :key="branch.id" 
+                         class="card hover-lift-lg group">
+                        
+                        <!-- STATUS INDICATOR -->
+                        <div class="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl" 
+                             :class="branch.is_active ? 'bg-success' : 'bg-error'"></div>
+    
+                        <div class="p-6">
+                            <!-- HEADER -->
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex gap-3 items-center">
+                                    <div class="avatar avatar-md bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-md">
+                                        <Building :size="18" />
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-display font-bold text-foreground leading-tight">
+                                            {{ branch.name }}
+                                        </h3>
+                                        <div class="badge badge-outline mt-1">
+                                            {{ branch.city }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- STATUS BADGE -->
+                                <div v-if="branch.is_active" class="badge badge-success flex items-center gap-1.5">
+                                    <CheckCircle :size="12" />
+                                    <span>Activa</span>
+                                </div>
+                                <div v-else class="badge badge-error flex items-center gap-1.5">
+                                    <XCircle :size="12" />
+                                    <span>Cerrada</span>
+                                </div>
+                            </div>
+    
+                            <!-- INFO -->
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-start gap-3 text-muted-foreground">
+                                    <MapPin :size="16" class="mt-0.5 shrink-0" />
+                                    <p class="leading-snug">{{ branch.address || 'Sin dirección registrada' }}</p>
+                                </div>
+                                <div class="flex items-center gap-3 text-muted-foreground">
+                                    <Phone :size="16" class="shrink-0" />
+                                    <p>{{ branch.phone || 'Sin teléfono directo' }}</p>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <!-- FOOTER -->
+                        <div class="px-6 py-4 border-t border-border/50 bg-muted/5 flex justify-between items-center">
+                            <div class="text-xs text-muted-foreground font-mono">
+                                ID: {{ branch.id }}
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <a v-if="branch.latitude" 
+                                   :href="`https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`" 
+                                   target="_blank"
+                                   class="btn btn-ghost btn-sm"
+                                   title="Ver en Google Maps">
+                                    <Navigation :size="16" />
+                                </a>
+    
+                                <Link :href="route('admin.branches.edit', branch.id)" 
+                                      class="btn btn-primary btn-sm flex items-center gap-2">
+                                    <Edit :size="14" />
+                                    <span>Editar</span>
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <!-- EMPTY STATE -->
+                    <div v-if="branches.length === 0" class="col-span-full">
+                        <div class="card border-dashed border-2">
+                            <div class="card-content text-center py-12">
+                                <Building :size="48" class="text-muted-foreground mx-auto mb-4" />
+                                <h3 class="text-lg font-display font-bold text-foreground mb-2">
+                                    No hay sucursales registradas
+                                </h3>
+                                <p class="text-muted-foreground mb-6">
+                                    Comienza creando tu primera sucursal
+                                </p>
+                                <Link :href="route('admin.branches.create')" 
+                                      class="btn btn-primary btn-md">
+                                    Crear primera sucursal
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <div v-if="branches.length === 0" class="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed border-gray-700 rounded-xl bg-gray-800/50">
-                <Building :size="48" class="text-gray-600 mb-4" />
-                <p class="text-gray-400 font-medium">No hay sucursales registradas</p>
-                <Link :href="route('admin.branches.create')" class="mt-4 text-blue-400 hover:text-blue-300 text-sm font-bold hover:underline">
-                    Crear la primera sucursal
-                </Link>
-            </div>
-
-        </div>
-    </AdminLayout>
-</template>
+        </AdminLayout>
+    </template>

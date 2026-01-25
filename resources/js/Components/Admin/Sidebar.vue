@@ -13,7 +13,7 @@
     
     // --- ESTADO INTERNO ---
     const isCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
-    const activeMobileMenu = ref(null); // 'ops', 'cat', 'ges'
+    const activeMobileMenu = ref(null);
     
     // --- PERMISOS Y USUARIO ---
     const page = usePage();
@@ -59,22 +59,22 @@
     <template>
         <!-- SIDEBAR DESKTOP -->
         <aside 
-            class="hidden md:flex flex-col fixed h-full z-30 bg-card border-r border-border shadow-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width] backdrop-blur-sm bg-white/90"
+            class="hidden md:flex flex-col fixed h-full z-30 bg-card border-r border-border shadow-md transition-all duration-base ease-elastic will-change-[width]"
             :class="isCollapsed ? 'w-[88px]' : 'w-[280px]'"
         >
             <!-- HEADER -->
             <div class="h-20 flex items-center justify-between px-6 border-b border-border/50 shrink-0">
-                <div class="font-display font-black tracking-tighter italic text-2xl transition-all duration-300 overflow-hidden whitespace-nowrap text-foreground"
+                <div class="font-display font-black tracking-tighter italic text-2xl transition-all duration-base overflow-hidden whitespace-nowrap text-foreground"
                      :class="isCollapsed ? 'opacity-0 w-0 scale-95' : 'opacity-100 scale-100'">
-                    <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BOLIVIA</span><span class="text-primary">LOGISTICS</span>
+                    <span class="text-gradient-primary">BOLIVIA</span><span class="text-primary">LOGISTICS</span>
                 </div>
                 
                 <button @click="toggleSidebar" 
-                        class="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-primary transition-all duration-150 ease-out active:scale-95 cursor-pointer"
+                        class="btn btn-ghost btn-sm p-2 rounded-full"
                         :class="isCollapsed ? 'mx-auto' : ''"
                         aria-label="Toggle sidebar">
-                    <ChevronRight v-if="isCollapsed" :size="20" class="transition-transform duration-150" />
-                    <ChevronLeft v-else :size="20" class="transition-transform duration-150" />
+                    <ChevronRight v-if="isCollapsed" :size="20" class="transition-transform duration-fast" />
+                    <ChevronLeft v-else :size="20" class="transition-transform duration-fast" />
                 </button>
             </div>
     
@@ -175,21 +175,23 @@
             </nav>
     
             <!-- FOOTER / USER INFO -->
-            <div class="p-4 border-t border-border/50 bg-background/50 shrink-0">
-                <div v-if="!isCollapsed" class="flex items-center mb-4 transition-all duration-300">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary text-white flex items-center justify-center font-bold text-sm shadow-lg shadow-primary/25 shrink-0 ring-2 ring-primary/20">
+            <div class="p-4 border-t border-border/50 bg-card/50 shrink-0">
+                <div v-if="!isCollapsed" class="flex items-center mb-4 transition-all duration-base">
+                    <div class="avatar avatar-md bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-lg shadow-primary/25">
                         {{ user.first_name ? user.first_name[0] : 'U' }}
                     </div>
                     <div class="ml-3 overflow-hidden">
                         <p class="text-sm font-bold text-foreground truncate">{{ user.first_name }} {{ user.last_name }}</p>
-                        <p class="text-xs text-muted-foreground font-medium tracking-wide">{{ roles[0]?.replace('_', ' ') || 'Usuario' }}</p>
+                        <p class="text-xs text-muted-foreground font-medium tracking-wide">
+                            {{ roles[0]?.replace('_', ' ') || 'Usuario' }}
+                        </p>
                     </div>
                 </div>
                 <Link :href="route('logout')" method="post" as="button" 
-                      class="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 hover:border-red-600 rounded-lg transition-all duration-150 ease-out active:scale-95 cursor-pointer"
+                      class="btn btn-outline btn-sm w-full text-error hover:text-error-foreground hover:bg-error border-error/30"
                       :class="isCollapsed ? 'aspect-square p-0 rounded-full' : ''">
-                    <LogOut :size="isCollapsed ? 18 : 16" class="transition-transform duration-150 group-hover:-translate-x-0.5" />
-                    <span v-if="!isCollapsed" class="transition-opacity duration-150">Cerrar Sesión</span>
+                    <LogOut :size="isCollapsed ? 18 : 16" class="transition-transform duration-fast group-hover:-translate-x-0.5" />
+                    <span v-if="!isCollapsed" class="transition-opacity duration-fast">Cerrar Sesión</span>
                 </Link>
             </div>
         </aside>
@@ -198,56 +200,56 @@
         <div class="md:hidden">
             <div v-if="activeMobileMenu" 
                  @click="closeMobileMenu"
-                 class="fixed inset-0 bg-black/60 backdrop-blur-md z-40">
+                 class="modal-backdrop animate-in">
             </div>
     
             <!-- MOBILE MENU MODAL -->
             <div v-if="activeMobileMenu" 
-                 class="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-2xl z-50 p-5 border border-border/50 backdrop-blur-sm max-h-[70vh] overflow-y-auto scrollbar-hide">
+                 class="fixed bottom-20 left-4 right-4 bg-card rounded-xl shadow-xl z-50 p-5 border border-border backdrop-blur-sm max-h-[70vh] overflow-y-auto scrollbar-hide animate-scale-in">
                     
                 <div class="flex justify-between items-center mb-5 pb-3 border-b border-border/50">
                     <h3 class="text-sm font-black text-foreground font-display uppercase tracking-wider">
                         {{ activeMobileMenu === 'ops' ? '📦 Operaciones' : activeMobileMenu === 'cat' ? '🏷️ Catálogo' : '⚙️ Gestión' }}
                     </h3>
-                    <button @click="closeMobileMenu" class="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-150 active:scale-95 cursor-pointer">
+                    <button @click="closeMobileMenu" class="btn btn-ghost btn-sm">
                         <X :size="18"/>
                     </button>
                 </div>
     
                 <!-- OPERACIONES MOBILE -->
                 <div v-if="activeMobileMenu === 'ops'" class="grid grid-cols-3 gap-3">
-                    <Link @click="closeMobileMenu" :href="route('admin.purchases.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-blue-50 text-blue-600 border-blue-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.purchases.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-info/10 text-info border-info/20">
                             <ShoppingCart :size="20" />
                         </div>
                         <span class="mobile-label">Ingresos</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-gradient-to-r from-primary to-secondary text-white border-primary/30 shadow-md shadow-primary/20">
+                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-gradient-to-r from-primary to-secondary text-primary-foreground border-primary/30 shadow-md">
                             <Package :size="20" />
                         </div>
                         <span class="mobile-label font-bold text-primary">Kardex</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.transfers.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-purple-50 text-purple-600 border-purple-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.transfers.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-secondary/10 text-secondary border-secondary/20">
                             <Truck :size="20" />
                         </div>
                         <span class="mobile-label">Transferencias</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.removals.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-orange-50 text-orange-600 border-orange-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.removals.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-warning/10 text-warning border-warning/20">
                             <AlertTriangle :size="20" />
                         </div>
                         <span class="mobile-label">Bajas</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.transformations.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-cyan-50 text-cyan-600 border-cyan-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.transformations.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-accent/10 text-accent border-accent/20">
                             <RefreshCw :size="20" />
                         </div>
                         <span class="mobile-label">Transformaciones</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.orders.kanban')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-indigo-50 text-indigo-600 border-indigo-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.orders.kanban')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-muted text-muted-foreground border-border">
                             <ClipboardList :size="20" />
                         </div>
                         <span class="mobile-label">Tablero Kanban</span>
@@ -256,38 +258,38 @@
     
                 <!-- CATÁLOGO MOBILE -->
                 <div v-if="activeMobileMenu === 'cat'" class="grid grid-cols-3 gap-3">
-                    <Link @click="closeMobileMenu" :href="route('admin.products.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-gradient-to-r from-primary to-secondary text-white border-primary/30">
+                    <Link @click="closeMobileMenu" :href="route('admin.products.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-gradient-to-r from-primary to-secondary text-primary-foreground border-primary/30">
                             <Tag :size="20" />
                         </div>
                         <span class="mobile-label font-bold">Productos</span>
                     </Link>
-                    <Link v-if="isSuperAdmin" @click="closeMobileMenu" :href="route('admin.bundles.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-pink-50 text-pink-600 border-pink-200">
+                    <Link v-if="isSuperAdmin" @click="closeMobileMenu" :href="route('admin.bundles.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-success/10 text-success border-success/20">
                             <Gift :size="20" />
                         </div>
                         <span class="mobile-label">Packs</span>
                     </Link>
-                    <Link v-if="canManagePrices" @click="closeMobileMenu" :href="route('admin.prices.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-green-50 text-green-600 border-green-200">
+                    <Link v-if="canManagePrices" @click="closeMobileMenu" :href="route('admin.prices.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-primary/10 text-primary border-primary/20">
                             <Banknote :size="20" />
                         </div>
                         <span class="mobile-label">Precios</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.brands.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-amber-50 text-amber-600 border-amber-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.brands.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-warning/10 text-warning border-warning/20">
                             <Layers :size="20" />
                         </div>
                         <span class="mobile-label">Marcas</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.categories.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-emerald-50 text-emerald-600 border-emerald-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.categories.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-success/10 text-success border-success/20">
                             <FolderTree :size="20" />
                         </div>
                         <span class="mobile-label">Categorías</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.providers.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-slate-50 text-slate-600 border-slate-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.providers.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-muted text-muted-foreground border-border">
                             <Factory :size="20" />
                         </div>
                         <span class="mobile-label">Proveedores</span>
@@ -296,14 +298,14 @@
     
                 <!-- GESTIÓN MOBILE -->
                 <div v-if="activeMobileMenu === 'ges'" class="grid grid-cols-2 gap-4">
-                    <Link v-if="isSuperAdmin" @click="closeMobileMenu" :href="route('admin.branches.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-violet-50 text-violet-600 border-violet-200">
+                    <Link v-if="isSuperAdmin" @click="closeMobileMenu" :href="route('admin.branches.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-secondary/10 text-secondary border-secondary/20">
                             <Building2 :size="20" />
                         </div>
                         <span class="mobile-label">Sucursales</span>
                     </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.users.index')" class="mobile-grid-item">
-                        <div class="mobile-icon-box bg-rose-50 text-rose-600 border-rose-200">
+                    <Link @click="closeMobileMenu" :href="route('admin.users.index')" class="card hover:shadow-md active:scale-95 transition-all duration-fast">
+                        <div class="mobile-icon-box bg-accent/10 text-accent border-accent/20">
                             <UserCog :size="20" />
                         </div>
                         <span class="mobile-label">Equipo</span>
@@ -313,12 +315,14 @@
                 <!-- USER INFO EN MÓVIL -->
                 <div class="mt-6 pt-4 border-t border-border/30">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary text-white flex items-center justify-center font-bold text-sm shadow-lg shadow-primary/25 ring-2 ring-primary/20">
+                        <div class="avatar avatar-md bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-lg">
                             {{ user.first_name ? user.first_name[0] : 'U' }}
                         </div>
                         <div>
                             <p class="text-sm font-bold text-foreground">{{ user.first_name }} {{ user.last_name }}</p>
-                            <p class="text-xs text-gray-600 font-medium">{{ roles[0]?.replace('_', ' ') || 'Usuario' }}</p>
+                            <p class="text-xs text-muted-foreground font-medium">
+                                {{ roles[0]?.replace('_', ' ') || 'Usuario' }}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -326,39 +330,39 @@
         </div>
     
         <!-- BOTTOM NAVIGATION MOBILE -->
-        <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-xl border-t border-border flex items-center justify-between px-2 z-50 pb-safe">
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 glass border-t border-border flex items-center justify-between px-2 z-50 pb-safe">
             
             <Link :href="route('admin.dashboard')" @click="closeMobileMenu"
                   class="mobile-nav-item"
-                  :class="$page.url.startsWith('/admin/dashboard') ? 'text-primary' : 'text-gray-600'">
+                  :class="$page.url.startsWith('/admin/dashboard') ? 'text-primary' : 'text-muted-foreground'">
                 <LayoutDashboard :size="22" :stroke-width="$page.url.startsWith('/admin/dashboard') ? 2.5 : 2" />
                 <span class="text-[10px] font-semibold mt-0.5">Dashboard</span>
             </Link>
     
             <button @click="toggleMobileMenu('ops')" v-if="canManageStock"
                   class="mobile-nav-item"
-                  :class="activeMobileMenu === 'ops' ? 'text-primary' : 'text-gray-600'">
-                <ClipboardList :size="22" :stroke-width="activeMobileMenu === 'ops' ? 2.5 : 2" class="transition-transform duration-150"/>
+                  :class="activeMobileMenu === 'ops' ? 'text-primary' : 'text-muted-foreground'">
+                <ClipboardList :size="22" :stroke-width="activeMobileMenu === 'ops' ? 2.5 : 2" class="transition-transform duration-fast"/>
                 <span class="text-[10px] font-semibold mt-0.5">Operaciones</span>
             </button>
     
             <button @click="toggleMobileMenu('cat')" v-if="showCatalogSection"
                   class="mobile-nav-item"
-                  :class="activeMobileMenu === 'cat' ? 'text-primary' : 'text-gray-600'">
-                <Tag :size="22" :stroke-width="activeMobileMenu === 'cat' ? 2.5 : 2" class="transition-transform duration-150"/>
+                  :class="activeMobileMenu === 'cat' ? 'text-primary' : 'text-muted-foreground'">
+                <Tag :size="22" :stroke-width="activeMobileMenu === 'cat' ? 2.5 : 2" class="transition-transform duration-fast"/>
                 <span class="text-[10px] font-semibold mt-0.5">Catálogo</span>
             </button>
     
             <button @click="toggleMobileMenu('ges')" v-if="canManageUsers"
                   class="mobile-nav-item"
-                  :class="activeMobileMenu === 'ges' ? 'text-primary' : 'text-gray-600'">
-                <Settings :size="22" :stroke-width="activeMobileMenu === 'ges' ? 2.5 : 2" class="transition-transform duration-150"/>
+                  :class="activeMobileMenu === 'ges' ? 'text-primary' : 'text-muted-foreground'">
+                <Settings :size="22" :stroke-width="activeMobileMenu === 'ges' ? 2.5 : 2" class="transition-transform duration-fast"/>
                 <span class="text-[10px] font-semibold mt-0.5">Gestión</span>
             </button>
     
             <Link :href="route('logout')" method="post" as="button"
-                  class="mobile-nav-item text-gray-600 active:text-red-500 hover:text-red-500/80">
-                <LogOut :size="22" class="transition-transform duration-150" />
+                  class="mobile-nav-item text-muted-foreground hover:text-error active:text-error">
+                <LogOut :size="22" class="transition-transform duration-fast" />
                 <span class="text-[10px] font-semibold mt-0.5">Salir</span>
             </Link>
     
@@ -372,33 +376,23 @@
     
     /* Grid Móvil Mejorado */
     .mobile-grid-item {
-        @apply flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-200 hover:border-primary/30 active:scale-95 transition-all duration-150 ease-out hover:shadow-sm cursor-pointer;
+        @apply flex flex-col items-center justify-center p-3 rounded-xl bg-card border border-border hover:border-primary/30 active:scale-95 transition-all duration-fast ease-smooth hover:shadow-sm cursor-pointer;
     }
     
     .mobile-icon-box {
-        @apply w-12 h-12 rounded-full flex items-center justify-center mb-2 shadow-sm border transition-transform duration-150 group-hover:scale-110;
+        @apply w-12 h-12 rounded-full flex items-center justify-center mb-2 shadow-sm border transition-transform duration-fast group-hover:scale-110;
     }
     
     .mobile-label {
-        @apply text-xs font-semibold text-center text-gray-800 leading-tight line-clamp-1;
+        @apply text-xs font-semibold text-center text-foreground leading-tight line-clamp-1;
     }
     
     /* Bottom Navigation Items */
     .mobile-nav-item {
-        @apply flex flex-col items-center justify-center gap-0.5 p-1.5 rounded-lg transition-all duration-150 ease-out active:scale-95 cursor-pointer flex-1 h-full min-w-0;
+        @apply flex flex-col items-center justify-center gap-0.5 p-1.5 rounded-lg transition-all duration-fast ease-smooth active:scale-95 cursor-pointer flex-1 h-full min-w-0 hover:bg-accent/10;
     }
     
     .mobile-nav-item.active {
-        @apply text-primary bg-blue-50;
-    }
-    
-    /* Scrollbar Personalizado */
-    .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-    
-    .scrollbar-hide::-webkit-scrollbar {
-        display: none;
+        @apply text-primary bg-primary/5;
     }
     </style>

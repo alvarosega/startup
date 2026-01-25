@@ -6,28 +6,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             
-            // Polimorfismo: permite calificar Bundles hoy, y Productos mañana
-            $table->morphs('reviewable'); // Crea reviewable_id y reviewable_type
+            // Usuario es UUID
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
             
-            $table->unsignedTinyInteger('rating'); // 1 a 5
+            // CORRECCIÓN CRÍTICA:
+            // Como Products y Bundles ahora son UUIDs, 
+            // no podemos usar 'morphs()' (que crea BIGINT).
+            // Debemos usar 'uuidMorphs()' (que crea CHAR 36).
+            $table->uuidMorphs('reviewable'); 
+            
+            $table->unsignedTinyInteger('rating'); 
             $table->text('comment')->nullable();
             $table->boolean('is_verified_purchase')->default(false);
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('reviews');

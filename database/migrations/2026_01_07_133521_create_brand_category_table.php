@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('brand_category', function (Blueprint $table) {
             $table->foreignId('brand_id')->constrained('brands')->onDelete('cascade');
-            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
+            $table->foreignUuid('category_id')->constrained('categories')->onDelete('cascade');
             
             // Llave primaria compuesta para evitar duplicados y mejorar performance
             $table->primary(['brand_id', 'category_id']); 

@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Http\Requests\Admin\User\StoreUserRequest;  // <--- NUEVO
+use App\DTOs\User\UserData;
+use App\Actions\User\CreateUser; // <--- ESTA FALTA
+use App\Actions\User\UpdateUser;
+use App\Http\Requests\Admin\User\UpdateUserRequest;
+
 
 class UserController extends Controller
 {
@@ -93,43 +99,16 @@ class UserController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreUserRequest $request, CreateUser $action)
     {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'phone' => 'required|string|unique:users,phone',
-            'email' => 'nullable|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'role_id' => 'required|exists:roles,id',
-            'branch_id' => 'nullable|exists:branches,id', // Nullable permitido
-        ]);
+        // 1. DTO (Se llena con datos ya validados)
+        $data = UserData::fromRequest($request);
 
-        DB::transaction(function () use ($validated) {
-            $phone = str_replace(' ', '', $validated['phone']);
-            if (!str_starts_with($phone, '+')) $phone = '+591' . $phone;
+        // 2. Acción
+        $action->execute($data);
 
-            $user = User::create([
-                'phone' => $phone,
-                'email' => $validated['email'] ?? null,
-                'password' => Hash::make($validated['password']),
-                'branch_id' => $validated['branch_id'],
-                'is_active' => true,
-                'avatar_type' => 'icon',
-                'avatar_source' => 'avatar_1.svg'
-            ]);
-
-            UserProfile::create([
-                'user_id' => $user->id,
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'is_identity_verified' => true
-            ]);
-
-            $user->roles()->attach($validated['role_id']);
-        });
-
-        return redirect()->route('admin.users.index')->with('message', 'Usuario creado exitosamente.');
+        return redirect()->route('admin.users.index')
+            ->with('message', 'Usuario creado exitosamente.');
     }
 
     // --- AQUÍ ESTABA EL ERROR DEL 500 ---
@@ -159,52 +138,22 @@ class UserController extends Controller
         ]);
     }
 
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user, UpdateUser $action)
     {
+        // Seguridad: Branch Admin no toca otros branches
         if (auth()->user()->hasRole('branch_admin') && $user->branch_id !== auth()->user()->branch_id) {
             abort(403);
         }
 
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'phone' => ['required', 'string', Rule::unique('users')->ignore($user->id)],
-            'email' => ['nullable', 'email'],
-            'password' => 'nullable|string|min:6',
-            'role_id' => 'required|exists:roles,id',
-            'branch_id' => 'nullable|exists:branches,id', // Nullable
-            'is_active' => 'boolean'
-        ]);
+        // 1. DTO
+        $data = UserData::fromRequest($request);
 
-        DB::transaction(function () use ($validated, $user) {
-            $userData = [
-                'branch_id' => $validated['branch_id'], // Puede ser null
-                'is_active' => $validated['is_active'],
-                'phone' => $validated['phone'],
-                'email' => $validated['email'] ?? null,
-            ];
+        // 2. Acción
+        $action->execute($user, $data);
 
-            if (!empty($validated['password'])) {
-                $userData['password'] = Hash::make($validated['password']);
-            }
-
-            $user->update($userData);
-
-            $user->profile()->updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'first_name' => $validated['first_name'],
-                    'last_name' => $validated['last_name']
-                ]
-            );
-
-            // Actualizar Rol (Sincronizar tabla intermedia)
-            $user->roles()->sync([$validated['role_id']]);
-        });
-
-        return redirect()->route('admin.users.index')->with('message', 'Usuario actualizado correctamente.');
+        return redirect()->route('admin.users.index')
+            ->with('message', 'Usuario actualizado correctamente.');
     }
-
     public function destroy(User $user)
     {
         if (auth()->user()->hasRole('branch_admin') && $user->branch_id !== auth()->user()->branch_id) {

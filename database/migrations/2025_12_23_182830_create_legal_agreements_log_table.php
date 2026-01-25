@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('legal_agreements_log', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignUuid('user_id')->constrained()->onDelete('cascade'); // CORREGIDO
             $table->string('document_version')->default('1.0');
             $table->string('ip_address', 45);
             $table->text('user_agent');

@@ -5,7 +5,6 @@
     
     const { isDark, toggleTheme, initTheme } = useTheme();
     
-    // Aseguramos que el tema correcto se cargue al montar este componente
     onMounted(() => {
         initTheme();
     });
@@ -14,14 +13,23 @@
     <template>
         <button 
             @click="toggleTheme"
-            class="fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg border border-skin-border transition-all duration-300 transform hover:scale-110 active:scale-95"
-            :class="isDark 
-                ? 'bg-skin-fill-card text-yellow-400 shadow-yellow-900/20' 
-                : 'bg-skin-fill text-skin-primary shadow-indigo-500/20'"
-            title="Cambiar Tema"
+            class="btn btn-outline p-3 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all duration-base ease-smooth"
+            :class="[
+                isDark 
+                    ? 'border-border/50 text-yellow-400 hover:bg-yellow-400/10' 
+                    : 'border-border/50 text-amber-500 hover:bg-amber-500/10'
+            ]"
+            :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
+            aria-label="Toggle theme"
         >
-            <Sun v-if="!isDark" :size="24" class="animate-in fade-in zoom-in duration-300" />
-            
-            <Moon v-else :size="24" class="animate-in fade-in zoom-in duration-300" />
+            <transition
+                name="theme-toggle"
+                mode="out-in"
+                enter-active-class="animate-scale-in"
+                leave-active-class="animate-scale-out"
+            >
+                <Sun v-if="!isDark" :size="20" key="sun" class="transition-transform duration-fast" />
+                <Moon v-else :size="20" key="moon" class="transition-transform duration-fast" />
+            </transition>
         </button>
     </template>

@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Concerns\HasUuidv7; // <--- Trait UUID
 
 class Category extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuidv7;
 
     protected $fillable = [
         'parent_id', 'name', 'slug', 'external_code',
@@ -25,31 +26,21 @@ class Category extends Model
         'requires_age_check' => 'boolean',
         'sort_order' => 'integer',
     ];
-    
-    // Inyectamos el atributo 'image_url' en el JSON de respuesta
+
     protected $appends = ['image_url'];
 
-    // --- ACCESSORS ---
     public function getImageUrlAttribute()
     {
         return $this->image_path 
             ? Storage::url($this->image_path) 
-            : null; // O retornar una imagen placeholder por defecto
+            : null;
     }
 
-    // --- SCOPES (Filtros Reutilizables) ---
-    public function scopeRoots($query)
-    {
-        return $query->whereNull('parent_id');
-    }
+    // Scopes
+    public function scopeRoots($query) { return $query->whereNull('parent_id'); }
+    public function scopeActive($query) { return $query->where('is_active', true); }
 
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    // --- RELACIONES ---
+    // Relaciones
     public function parent() { return $this->belongsTo(Category::class, 'parent_id'); }
     public function children() { return $this->hasMany(Category::class, 'parent_id'); }
-    // public function products() { return $this->hasMany(Product::class); } // Descomentar cuando tengas Productos
 }

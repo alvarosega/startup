@@ -7,34 +7,33 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Sesiones en DB (Seguridad)
+        // 1. Sesiones
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->foreignUuid('user_id')->nullable()->index(); // CORREGIDO
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
 
-        // 2. Tokens de Reset de Password
+        // 2. Password Reset (Sin cambios, usa email)
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
-        // 3. Notificaciones del Sistema
+        // 3. Notificaciones
         Schema::create('notifications', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('type');
-            $table->morphs('notifiable');
+            $table->uuidMorphs('notifiable'); // CRÍTICO: Cambiar morphs() por uuidMorphs()
             $table->text('data');
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('notifications');

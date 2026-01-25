@@ -11,15 +11,13 @@ return new class extends Migration
         Schema::create('inventory_transformations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('branch_id')->constrained('branches');
-            $table->foreignId('user_id')->constrained('users');
+            $table->foreignUuid('user_id')->constrained('users'); // CORREGIDO
             
-            // Origen (Lo que desaparece)
-            $table->foreignId('source_sku_id')->constrained('skus');
-            $table->decimal('quantity_removed', 10, 2); // Ej: 1 (Caja)
+            $table->foreignUuid('source_sku_id')->constrained('skus');
+            $table->decimal('quantity_removed', 10, 2); 
             
-            // Destino (Lo que nace)
-            $table->foreignId('destination_sku_id')->constrained('skus');
-            $table->decimal('quantity_added', 10, 2); // Ej: 6 (Botellas)
+            $table->foreignUuid('destination_sku_id')->constrained('skus');
+            $table->decimal('quantity_added', 10, 2); 
             
             $table->text('notes')->nullable();
             $table->timestamps();
