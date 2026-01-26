@@ -11,6 +11,8 @@ use App\Models\CartItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Registered;
+use App\Models\Branch;
+
 
 class RegisterUser
 {
@@ -48,22 +50,34 @@ class RegisterUser
                 'is_identity_verified' => false, 
             ]);
 
-            // 5. Guardar Dirección (Solo si es Cliente y envió coordenadas)
+            
+            // 5. Guardar Dirección y Calcular Sucursal Real
             if ($roleToAssign === 'customer' && $data->latitude && $data->longitude) {
+                            
+                // A. Lógica Geo-Espacial (Backend Authority)
+                // Calculamos matemáticamente la sucursal basada en las coordenadas.
+                // Si cae fuera de todos los polígonos, $finalBranchId será null (Cosecha de datos).
+                $coveringBranch = Branch::findCoveringBranch($data->latitude, $data->longitude);
+                $finalBranchId = $coveringBranch?->id;
+
                 UserAddress::create([
                     'user_id' => $user->id,
-                    'alias' => $data->alias ?? 'Casa',
-                    'address' => $data->address ?? 'Ubicación seleccionada',
-                    'reference' => $data->details, // Ojo: en tu modelo se llama 'reference', en el form 'details'
+                    'alias' => $data->alias ?? 'Mi Ubicación',
+                    'address' => $data->address ?? 'Ubicación GPS',
+                    'reference' => $data->details,
                     'latitude' => $data->latitude,
                     'longitude' => $data->longitude,
-                    'branch_id' => $data->branchId,
+                    
+                    // AQUI ESTÁ LA CLAVE: Usamos el ID calculado, no el del input ($data->branchId)
+                    'branch_id' => $finalBranchId, 
+                    
                     'is_default' => true
                 ]);
                 
-                // Si la dirección tiene sucursal, la asignamos al usuario como preferida
-                if ($data->branchId) {
-                    $user->update(['branch_id' => $data->branchId]);
+                // B. Asignar sucursal preferida al usuario (Sticky Context)
+                // Si encontramos cobertura, "pegamos" al usuario a esa sucursal.
+                if ($finalBranchId) {
+                    $user->update(['branch_id' => $finalBranchId]);
                 }
             }
 

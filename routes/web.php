@@ -38,12 +38,14 @@ use App\Http\Controllers\Admin\BundleController;
 use App\Http\Controllers\Client\AddressController;
 use App\Http\Controllers\Driver\DriverController;
 
+use App\Http\Controllers\Shop\ShopController;
+
 
 // =============================================================================
 // 1. ZONA PÚBLICA (LANDING PAGE & CATÁLOGO)
 // =============================================================================
 
-Route::get('/', [CatalogController::class, 'index'])->name('shop.index');
+Route::get('/', [ShopController::class, 'index'])->name('shop.index');
 Route::get('/p/{id}', [CatalogController::class, 'show'])->name('shop.show');
 
 // Rutas Legales

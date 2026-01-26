@@ -134,4 +134,38 @@ class Sku extends Model
             ->orderBy('id', 'desc')
             ->first();
     }
+    /**
+     * Calcula el precio vigente para una sucursal específica.
+     * Prioridad: Precio Sucursal > Precio Nacional (branch_id null)
+     * Usado por el ShopProductResource.
+     */
+    public function getContextPrice(?int $branchId): float
+    {
+        // Buscamos en la colección ya cargada (eager loaded) para evitar N+1 queries
+        $prices = $this->relationLoaded('prices') ? $this->prices : $this->prices()->get();
+
+        $price = $prices->first(function ($p) use ($branchId) {
+            return $p->branch_id == $branchId;
+        }) ?? $prices->first(function ($p) {
+            return $p->branch_id === null;
+        });
+
+        return $price ? (float) $price->final_price : 0.00;
+    }
+
+    /**
+     * Calcula el stock disponible para una sucursal específica.
+     * Usado por el ShopProductResource.
+     */
+    public function getContextStock(?int $branchId): int
+    {
+        if (!$branchId) return 0;
+
+        // Usamos la colección cargada o consultamos si no existe
+        $lots = $this->relationLoaded('inventoryLots') ? $this->inventoryLots : $this->inventoryLots()->where('branch_id', $branchId)->get();
+
+        return (int) $lots
+            ->where('branch_id', $branchId)
+            ->sum(fn($lot) => $lot->quantity - $lot->reserved_quantity);
+    }
 }

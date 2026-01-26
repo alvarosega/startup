@@ -74,11 +74,14 @@
 
     // --- HELPERS ---
     const getUserInitial = () => {
-        if (!user.value) return '';
+    // Si user.value es null, retorna vacío inmediatamente
+        if (!user.value) return ''; 
+        
+        // Acceso seguro con ?.
         const label = user.value.profile?.first_name || user.value.name || user.value.phone || 'U';
         return String(label).charAt(0).toUpperCase();
     };
-    
+        
     const getUserDisplayName = () => {
         if (!user.value) return '';
         return user.value.profile?.first_name || user.value.name || user.value.phone || 'Usuario';

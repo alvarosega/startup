@@ -69,4 +69,15 @@ class Product extends Model
             'id'                  // PK en SKUs
         );
     }
+    public function prices(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Price::class,
+            Sku::class,
+            'product_id', // FK en SKUs
+            'sku_id',     // FK en Prices
+            'id',         // PK en Products
+            'id'          // PK en SKUs
+        );
+    }
 }
