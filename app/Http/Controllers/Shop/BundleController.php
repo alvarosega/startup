@@ -4,67 +4,55 @@ namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bundle;
-use App\Models\Cart;
-use App\Models\CartItem;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
+use App\Models\InventoryLot;
+use App\Services\ShopContextService;
+use Illuminate\Support\Facades\DB;
 
 class BundleController extends Controller
 {
-    /**
-     * Galería de Packs para Clientes
-     */
-    public function index()
-    {
-        // Traemos solo los packs activos
-        $bundles = Bundle::where('is_active', true)
-            ->withCount('reviews')
-            ->withAvg('reviews', 'rating')
-            ->orderBy('fixed_price', 'asc') // O por popularidad si prefieres
-            ->get();
+    protected $contextService;
 
-        return Inertia::render('Shop/Bundles/Index', ['bundles' => $bundles]);
+    public function __construct(ShopContextService $contextService)
+    {
+        $this->contextService = $contextService;
     }
 
-    /**
-     * Acción: Agregar Pack al Carrito ("Explosión de items")
-     */
-    public function addToCart(Request $request, Bundle $bundle)
+    public function show($slug)
     {
-        $user = Auth::user();
-        
-        // 1. Obtener Carrito (Misma lógica que CartController)
-        $cart = Cart::firstOrCreate(
-            [
-                'user_id' => $user ? $user->id : null, 
-                'session_id' => $user ? null : $request->session()->getId()
-            ],
-            ['branch_id' => 1] // Aquí deberías usar la lógica de Geo-localización si la tienes
-        );
+        $branchId = $this->contextService->getActiveBranchId();
 
-        // 2. Iterar sobre el contenido del Pack e insertar items individuales
-        foreach ($bundle->skus as $sku) {
+        $bundle = Bundle::with(['skus.product', 'skus.prices'])
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        // Transformamos los items calculando stock real y precio local
+        $items = $bundle->skus->map(function ($sku) use ($branchId) {
             
-            $quantityToAdd = $sku->pivot->quantity;
+            $currentPrice = $sku->getCurrentPrice($branchId);
 
-            // Buscar si ya existe ese producto en el carrito
-            $cartItem = CartItem::where('cart_id', $cart->id)
+            $realStock = InventoryLot::where('branch_id', $branchId)
                 ->where('sku_id', $sku->id)
-                ->first();
+                ->sum(DB::raw('quantity - reserved_quantity'));
 
-            if ($cartItem) {
-                $cartItem->increment('quantity', $quantityToAdd);
-            } else {
-                CartItem::create([
-                    'cart_id' => $cart->id,
-                    'sku_id' => $sku->id,
-                    'quantity' => $quantityToAdd
-                ]);
-            }
-        }
+            return [
+                'sku_id' => $sku->id,
+                'name' => $sku->product->name . ' ' . $sku->name,
+                // Asegúrate que tu modelo SKU tenga este accessor o columna
+                'image' => $sku->image_url ?? '/images/placeholder.png', 
+                'default_quantity' => $sku->pivot->quantity,
+                'unit_price' => $currentPrice,
+                'max_stock' => $realStock,
+            ];
+        });
 
-        return redirect()->route('cart.index')
-            ->with('success', "¡Pack '{$bundle->name}' agregado! Puedes ajustar las cantidades aquí.");
+        return response()->json([
+            'bundle' => [
+                'id' => $bundle->id,
+                'name' => $bundle->name,
+                'description' => $bundle->description,
+            ],
+            'items' => $items,
+        ]);
     }
 }

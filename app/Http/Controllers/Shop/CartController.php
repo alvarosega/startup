@@ -3,197 +3,208 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\Sku;
-use App\Models\InventoryLot;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+
+// Arquitectura
+use App\Services\ShopContextService;
+use App\Http\Requests\Shop\AddToCartRequest; // Validación
+use App\DTOs\Shop\AddToCartDTO;              // Transferencia
+use App\Actions\Shop\AddItemToCartAction;    // Lógica
+use App\Models\Cart;                         
+use App\Models\InventoryLot;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\Shop\BulkAddToCartRequest;
+use App\DTOs\Shop\BulkAddToCartDTO;
+use App\Actions\Shop\AddBulkItemsToCartAction;
+
+
+
 
 class CartController extends Controller
 {
-    /**
-     * Muestra el carrito actual con precios calculados en tiempo real.
-     */
+    protected $contextService;
+
+    public function __construct(ShopContextService $contextService)
+    {
+        $this->contextService = $contextService;
+    }
+
     public function index(Request $request)
     {
-        $cart = $this->getOrCreateCart($request, false); // false = no crear si no existe
+        $activeBranchId = $this->contextService->getActiveBranchId();
+        $user = Auth::user();
+        $sessionId = $request->session()->getId();
 
-        if (!$cart) {
-            return Inertia::render('Shop/Cart', [
-                'cart' => null,
-                'items' => []
-            ]);
+        // 1. Obtener Carrito (Sin filtrar por branch_id aún para detectar si existe uno viejo)
+        $cart = Cart::where(fn($q) => $user ? $q->where('user_id', $user->id) : $q->where('session_id', $sessionId))
+                    ->latest()
+                    ->with(['items.sku.product', 'items.sku.prices'])
+                    ->first();
+
+        if (!$cart || $cart->items->isEmpty()) {
+            return Inertia::render('Shop/Cart/Index', ['cart' => null, 'items' => []]);
         }
 
-        // Cargar ítems con la información necesaria para mostrar
-        $cart->load(['items.sku.product.brand', 'items.sku.prices']);
-
-        // Transformación para el Frontend (Calculamos precios aquí por seguridad)
-        $items = $cart->items->map(function ($item) use ($cart) {
-            $currentPrice = $item->sku->getCurrentPrice($cart->branch_id);
+        // --- LÓGICA DE AUTO-MIGRACIÓN Y SANACIÓN ---
+        // Si el carrito pertenece a una sucursal distinta a la activa, lo migramos.
+        if ($cart->branch_id !== $activeBranchId) {
             
-            // Validar stock una vez más por si se acabó mientras navegaba
-            $realStock = InventoryLot::where('branch_id', $cart->branch_id)
+            // A. Actualizamos la sucursal del carrito
+            $cart->update(['branch_id' => $activeBranchId]);
+
+            // B. Validamos y Ajustamos Stock en la NUEVA sucursal
+            foreach ($cart->items as $item) {
+                // Stock Real = Físico - Reservado
+                $stockAvailable = InventoryLot::where('branch_id', $activeBranchId)
+                    ->where('sku_id', $item->sku_id)
+                    ->sum(DB::raw('quantity - reserved_quantity'));
+
+                if ($stockAvailable <= 0) {
+                    $item->delete(); // Eliminar si no existe en la nueva zona
+                } elseif ($item->quantity > $stockAvailable) {
+                    $item->update(['quantity' => $stockAvailable]); // Ajustar al máximo disponible
+                }
+            }
+            
+            // C. Refrescamos la instancia y recargamos relaciones
+            $cart->refresh();
+            $cart->load(['items.sku.product', 'items.sku.prices']);
+        }
+        // ---------------------------------------------
+
+        // Si después de la limpieza quedó vacío
+        if ($cart->items->isEmpty()) {
+            return Inertia::render('Shop/Cart/Index', ['cart' => null, 'items' => []]);
+        }
+
+        // Transformación para la vista (ViewModel)
+        $items = $cart->items->map(function ($item) use ($cart, $activeBranchId) {
+            
+            // Usamos precios y stock de la sucursal ACTUAL (ya migrada)
+            $currentPrice = $item->sku->getCurrentPrice($activeBranchId);
+            
+            $realStock = InventoryLot::where('branch_id', $activeBranchId)
                 ->where('sku_id', $item->sku_id)
-                ->sum('quantity');
+                ->sum(DB::raw('quantity - reserved_quantity'));
 
             return [
-                'id' => $item->id, // ID del item del carrito
+                'id' => $item->id,
                 'sku_id' => $item->sku_id,
-                'name' => $item->sku->name,
-                'product_name' => $item->sku->product->name,
-                'image' => $item->sku->image,
+                'name' => $item->sku->product->name . ' - ' . $item->sku->name,
+                'image' => $item->sku->image_url,
                 'quantity' => $item->quantity,
                 'max_stock' => $realStock,
                 'unit_price' => $currentPrice,
                 'subtotal' => $currentPrice * $item->quantity,
-                'stock_warning' => $realStock < $item->quantity // Flag para alerta visual
+                'stock_error' => $realStock < $item->quantity ? "Stock actual: {$realStock}" : null
             ];
         });
 
-        return Inertia::render('Shop/Cart', [
-            'cartId' => $cart->id,
-            'items' => $items,
-            'total' => $items->sum('subtotal'),
-            'branch_id' => $cart->branch_id
+        return Inertia::render('Shop/Cart/Index', [
+            'cart' => [
+                'id' => $cart->id,
+                'total' => $items->sum('subtotal'),
+                'is_conflict' => false, // Ya resuelto automáticamente
+                'branch_id' => $activeBranchId,
+                'branch_name' => $cart->branch->name ?? 'Sucursal Actual'
+            ],
+            'items' => $items
         ]);
     }
 
     /**
-     * Agregar un ítem al carrito.
-     * Valida estrictamente el stock de la sucursal.
+     * Store usando la Arquitectura Correcta (Action + DTO)
      */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'sku_id' => 'required|exists:skus,id',
-            'quantity' => 'required|integer|min:1',
-            'branch_id' => 'required|exists:branches,id', // Contexto obligatorio
-        ]);
-
+    public function store(
+        AddToCartRequest $request, 
+        AddItemToCartAction $action
+    ) {
         try {
-            DB::beginTransaction();
+            $branchId = $this->contextService->getActiveBranchId();
+            $dto = AddToCartDTO::fromRequest($request, $branchId);
+            $action->execute($dto);
 
-            // 1. Validar Stock Físico en la Sucursal
-            $stockAvailable = InventoryLot::where('branch_id', $request->branch_id)
-                ->where('sku_id', $request->sku_id)
-                ->sum('quantity');
-
-            if ($stockAvailable < $request->quantity) {
-                return back()->withErrors(['quantity' => "Solo quedan {$stockAvailable} unidades en esta sucursal."]);
-            }
-
-            // 2. Obtener o Crear el Carrito (Contexto)
-            $cart = $this->getOrCreateCart($request, true, $request->branch_id);
-
-            // 3. Agregar o Actualizar el Ítem
-            $cartItem = CartItem::where('cart_id', $cart->id)
-                ->where('sku_id', $request->sku_id)
-                ->first();
-
-            if ($cartItem) {
-                // Si ya existe, sumamos. Pero validamos que la suma no exceda el stock.
-                $newQty = $cartItem->quantity + $request->quantity;
-                if ($newQty > $stockAvailable) {
-                    return back()->withErrors(['quantity' => "No puedes agregar más. Stock límite alcanzado."]);
-                }
-                $cartItem->update(['quantity' => $newQty]);
-            } else {
-                // Crear nuevo item
-                CartItem::create([
-                    'cart_id' => $cart->id,
-                    'sku_id' => $request->sku_id,
-                    'quantity' => $request->quantity
-                ]);
-            }
-
-            DB::commit();
-            return back()->with('success', 'Producto agregado al carrito.');
+            return back()->with('success', 'Producto agregado correctamente.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Error al actualizar carrito: ' . $e->getMessage()]);
+            return back()->withErrors(['quantity' => $e->getMessage()]);
         }
     }
 
-    /**
-     * Actualizar cantidad (desde la vista del carrito).
-     */
     public function update(Request $request, $id)
     {
         $request->validate(['quantity' => 'required|integer|min:1']);
+        $item = \App\Models\CartItem::with('cart')->findOrFail($id);
         
-        $item = CartItem::with('cart')->findOrFail($id);
-        
-        // Validar Stock nuevamente
         $stockAvailable = InventoryLot::where('branch_id', $item->cart->branch_id)
             ->where('sku_id', $item->sku_id)
-            ->sum('quantity');
+            ->sum(DB::raw('quantity - reserved_quantity'));
 
         if ($request->quantity > $stockAvailable) {
-            return back()->withErrors(['error' => "Stock insuficiente. Máximo disponible: {$stockAvailable}"]);
+            return back()->withErrors(['error' => "Stock máximo: {$stockAvailable}"]);
         }
 
         $item->update(['quantity' => $request->quantity]);
-
-        return back(); // Inertia recargará y recalculará precios en el index()
+        return back();
     }
 
-    /**
-     * Eliminar ítem del carrito.
-     */
     public function destroy($id)
     {
-        CartItem::destroy($id);
+        \App\Models\CartItem::destroy($id);
         return back()->with('success', 'Producto eliminado.');
     }
 
-    // --- HELPER PRIVADO --- //
-
     /**
-     * Busca el carrito activo.
-     * Lógica Híbrida: Guest (Session) vs User (Auth).
-     * Regla Crítica: Si cambia de sucursal, se crea un carrito NUEVO (o se resetea).
+     * Fusión de carritos (Invitado -> Usuario)
      */
-    private function getOrCreateCart(Request $request, $create = false, $targetBranchId = null)
+    public static function mergeGuestCart(string $previousSessionId, $user)
     {
-        $user = Auth::user();
-        $sessionId = $request->session()->getId();
+        $guestCart = Cart::where('session_id', $previousSessionId)->with('items')->first();
 
-        $query = Cart::query();
+        if (!$guestCart) return;
 
-        if ($user) {
-            $query->where('user_id', $user->id);
-        } else {
-            $query->where('session_id', $sessionId);
+        // Priorizamos la sucursal del usuario, si no tiene, la del carrito invitado
+        $targetBranchId = $user->branch_id ?? $guestCart->branch_id;
+
+        $userCart = Cart::firstOrCreate(
+            ['user_id' => $user->id],
+            ['branch_id' => $targetBranchId] 
+        );
+
+        foreach ($guestCart->items as $guestItem) {
+            $existingItem = $userCart->items()->where('sku_id', $guestItem->sku_id)->first();
+
+            if ($existingItem) {
+                $existingItem->increment('quantity', $guestItem->quantity);
+            } else {
+                $guestItem->update(['cart_id' => $userCart->id]);
+            }
         }
 
-        // Si estamos intentando AGREGAR algo, filtramos por la sucursal objetivo
-        if ($targetBranchId) {
-            $query->where('branch_id', $targetBranchId);
+        // Si hubo cambio de sucursal al loguear, alineamos el carrito
+        if ($userCart->branch_id !== $targetBranchId) {
+            $userCart->update(['branch_id' => $targetBranchId]);
         }
 
-        $cart = $query->latest()->first();
+        $guestCart->delete(); 
+    }
+    public function bulkStore(
+        BulkAddToCartRequest $request, 
+        AddBulkItemsToCartAction $action
+    ) {
+        try {
+            $branchId = $this->contextService->getActiveBranchId();
+            
+            $dto = BulkAddToCartDTO::fromRequest($request, $branchId);
+            
+            $action->execute($dto);
 
-        // VALIDACIÓN DE CONTEXTO (Solo al crear/agregar)
-        // Si existe un carrito pero es de OTRA sucursal, tenemos 2 opciones:
-        // A. Bloquear (Error)
-        // B. Crear uno nuevo y abandonar el viejo (Elegimos B para fluidez, o podríamos limpiar el anterior)
-        
-        if (!$cart && $create && $targetBranchId) {
-            // Opcional: Borrar carritos viejos de otras sucursales para este usuario/sesión para no dejar basura
-            // Cart::where('session_id', $sessionId)->delete(); 
+            return back()->with('success', 'Pack agregado al carrito correctamente.');
 
-            $cart = Cart::create([
-                'user_id' => $user ? $user->id : null,
-                'session_id' => $user ? null : $sessionId,
-                'branch_id' => $targetBranchId
-            ]);
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
         }
-
-        return $cart;
     }
 }

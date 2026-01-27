@@ -20,19 +20,10 @@ class ShopContextService
 
         // 2. Si el usuario está logueado, buscar su última dirección usada o default
         $user = auth()->user();
-        if ($user) {
-            // Buscamos una dirección que tenga branch_id asignado
-            $lastAddress = $user->addresses()
-                ->whereNotNull('branch_id')
-                ->orderBy('is_default', 'desc') // Prioridad a la default
-                ->latest()
-                ->first();
-
-            if ($lastAddress) {
-                // Aquí ocurría el error: $lastAddress->id es un UUID (string)
-                $this->setContext($lastAddress->branch_id, $lastAddress->id);
-                return $lastAddress->branch_id;
-            }
+        if ($user && $user->branch_id) {
+            // Auto-reparamos la sesión para la próxima vez
+            $this->setContext($user->branch_id);
+            return $user->branch_id;
         }
 
         // 3. Fallback: Sucursal Matriz (ID 1)

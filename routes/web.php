@@ -41,13 +41,15 @@ use App\Http\Controllers\Driver\DriverController;
 use App\Http\Controllers\Shop\ShopController;
 
 
+
+
 // =============================================================================
 // 1. ZONA PÚBLICA (LANDING PAGE & CATÁLOGO)
 // =============================================================================
 
 Route::get('/', [ShopController::class, 'index'])->name('shop.index');
 Route::get('/p/{id}', [CatalogController::class, 'show'])->name('shop.show');
-
+Route::get('/bundles/{slug}', [App\Http\Controllers\Shop\BundleController::class, 'show'])->name('bundles.show');
 // Rutas Legales
 Route::get('/terms', function () { return Inertia::render('Legal/Terms'); })->name('terms.show');
 Route::get('/privacy', function () { return Inertia::render('Legal/Privacy'); })->name('privacy.show');
@@ -86,11 +88,12 @@ Route::post('logout', [WebAuthController::class, 'logout'])->name('logout');
 Route::prefix('cart')->name('cart.')->group(function () {
     Route::get('/', [CartController::class, 'index'])->name('index'); // Ver carrito
     Route::post('/', [CartController::class, 'store'])->name('store'); // Agregar item
+    Route::post('/bulk', [CartController::class, 'bulkStore'])->name('bulk-store'); 
     Route::put('/{id}', [CartController::class, 'update'])->name('update'); // Cambiar cantidad
     Route::delete('/{id}', [CartController::class, 'destroy'])->name('destroy'); // Quitar item
 });
-Route::get('/bundles', [App\Http\Controllers\Shop\BundleController::class, 'index'])->name('shop.bundles.index');
-Route::post('/bundles/{bundle}/add', [App\Http\Controllers\Shop\BundleController::class, 'addToCart'])->name('shop.bundles.add');
+
+
 
 // =============================================================================
 // 3. ZONA CLIENTE & PERFIL (AUTENTICADOS)
@@ -142,8 +145,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Validar contraseña actual (para cambios sensibles)
     // CORRECCIÓN: Usar WebAuthController, NO AuthController
-Route::post('/user/confirm-password', [WebAuthController::class, 'confirmPassword'])
-->name('user.confirm-password');
+    Route::post('/user/confirm-password', [WebAuthController::class, 'confirmPassword'])
+    ->name('user.confirm-password');
 
     // B. E-COMMERCE (Funciones de Compra)
     // -------------------------------------------------------------
@@ -163,9 +166,11 @@ Route::post('/user/confirm-password', [WebAuthController::class, 'confirmPasswor
     Route::get('/my-orders', [OrderController::class, 'history'])->name('orders.history');
     Route::get('/my-orders/{id}', [OrderController::class, 'show'])->name('orders.show');
 
+    
+    
     // ... dentro de Route::middleware(['auth']) ...
 
-// ZONA CONDUCTORES
+    // ZONA CONDUCTORES
     Route::middleware(['role:driver']) // Asegura que solo entren conductores
         ->prefix('driver')             // La URL será /driver/...
         ->name('driver.')              // Las rutas se llamarán driver....

@@ -15,7 +15,7 @@ class UserAddress extends Model
 
     protected $fillable = [
         'user_id',
-        'branch_id', // CRÍTICO: Vincula la dirección a la sucursal que le da cobertura
+        'branch_id',
         'alias',
         'address',
         'latitude',
@@ -25,7 +25,7 @@ class UserAddress extends Model
     ];
 
     protected $casts = [
-        'latitude' => 'float',  // Importante para que Leaflet lo lea bien en JS
+        'latitude' => 'float',  
         'longitude' => 'float',
         'is_default' => 'boolean',
     ];

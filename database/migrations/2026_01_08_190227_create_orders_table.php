@@ -17,7 +17,7 @@ return new class extends Migration
             
             // CORRECCIÓN: Branch es INT
             $table->foreignId('branch_id')->constrained('branches');
-            
+            $table->enum('delivery_type', ['pickup', 'delivery'])->default('pickup');
             $table->enum('status', ['pending_proof', 'review', 'confirmed', 'dispatched', 'completed', 'cancelled'])->default('pending_proof')->index(); 
             
             $table->timestamp('reservation_expires_at')->nullable()->index(); 

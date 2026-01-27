@@ -2,42 +2,33 @@
 
 namespace App\DTOs\Bundle;
 
-use App\Http\Requests\Bundle\BundleRequest;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class BundleDTO
 {
     public function __construct(
+        public readonly int $branchId, // <--- NUEVO
         public readonly string $name,
         public readonly ?string $description,
-        public readonly ?float $fixed_price,
-        public readonly bool $is_active,
-        public readonly ?string $image_path,
-        public readonly array $items
+        public readonly ?float $fixedPrice,
+        public readonly bool $isActive,
+        public readonly ?UploadedFile $image,
+        public readonly array $items // Array de ['sku_id', 'quantity']
     ) {}
 
-    public static function fromRequest(BundleRequest $request): self
+    public static function fromRequest(Request $request): self
     {
         return new self(
+            // Asumimos que el Admin crea bundles para SU sucursal asignada
+            branchId: $request->validated('branch_id'), 
+            
             name: $request->validated('name'),
             description: $request->validated('description'),
-            fixed_price: $request->validated('fixed_price') ? (float) $request->validated('fixed_price') : null,
-            is_active: $request->boolean('is_active'),
-            image_path: $request->validated('image_path'),
-            items: self::prepareItems($request->validated('items'))
+            fixedPrice: $request->validated('fixed_price'),
+            isActive: $request->boolean('is_active'),
+            image: $request->file('image'),
+            items: $request->validated('items')
         );
-    }
-
-    private static function prepareItems(array $items): array
-    {
-        $prepared = [];
-        foreach ($items as $item) {
-            $id = $item['sku_id'];
-            if (isset($prepared[$id])) {
-                $prepared[$id]['quantity'] += $item['quantity'];
-            } else {
-                $prepared[$id] = ['quantity' => $item['quantity']];
-            }
-        }
-        return $prepared;
     }
 }
