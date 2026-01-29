@@ -40,43 +40,42 @@ class InventorySeeder extends Seeder
             ];
 
             // APLICAMOS LÓGICA SEGÚN EL NOMBRE O CIUDAD DE LA SUCURSAL
-            // Usamos las palabras clave definidas en BranchSeeder
             if (str_contains($branch->name, 'Sopocachi') || str_contains($branch->name, 'Sede Central')) {
                 $config = [
                     'type' => 'SUPERMERCADO',
-                    'brands' => ['*'], // VENDE TODO
-                    'price_factor' => 1.0, // Precio de lista oficial
+                    'brands' => ['*'], 
+                    'price_factor' => 1.0, 
                     'stock_range' => [20, 50]
                 ];
             } 
             elseif (str_contains($branch->name, 'Satélite') || str_contains($branch->name, 'El Alto')) {
                 $config = [
                     'type' => 'AGENCIA_CBN',
-                    'brands' => ['Paceña', 'Huari'], // EXCLUSIVO CERVECERÍA
-                    'price_factor' => 0.92, // 8% Descuento (Mayorista)
-                    'stock_range' => [200, 500] // Stock Masivo
+                    'brands' => ['Paceña', 'Huari'], 
+                    'price_factor' => 0.92, 
+                    'stock_range' => [200, 500] 
                 ];
             } 
             elseif (str_contains($branch->name, 'Equipetrol') || str_contains($branch->name, 'Santa Cruz')) {
                 $config = [
                     'type' => 'AGENCIA_EMBOL',
-                    'brands' => ['Coca-Cola'], // EXCLUSIVO EMBOL
-                    'price_factor' => 1.05, // Un poco más caro por logística
+                    'brands' => ['Coca-Cola'], 
+                    'price_factor' => 1.05, 
                     'stock_range' => [100, 300]
                 ];
             } 
             elseif (str_contains($branch->name, 'Calacoto') || str_contains($branch->name, 'Sur')) {
                 $config = [
                     'type' => 'BOUTIQUE_LICORES',
-                    'brands' => ['Johnnie Walker', 'Fernet Branca', 'Casa Real', 'Corona'], // SOLO ALTA GAMA
-                    'price_factor' => 1.25, // 25% Más caro (Zona Sur)
-                    'stock_range' => [5, 15] // Stock limitado/exclusivo
+                    'brands' => ['Johnnie Walker', 'Fernet Branca', 'Casa Real', 'Corona'], 
+                    'price_factor' => 1.25, 
+                    'stock_range' => [5, 15] 
                 ];
             } 
             elseif (str_contains($branch->city, 'Cochabamba')) {
                 $config = [
                     'type' => 'LICORERIA_POPULAR',
-                    'brands' => ['Fernet Branca', 'Coca-Cola', 'Paceña'], // MIX POPULAR
+                    'brands' => ['Fernet Branca', 'Coca-Cola', 'Paceña'], 
                     'price_factor' => 1.0,
                     'stock_range' => [30, 60]
                 ];
@@ -95,17 +94,13 @@ class InventorySeeder extends Seeder
                 }
 
                 // --- A. CÁLCULO DE PRECIOS ---
-                // Precio base (Nacional) o 10bs por defecto
                 $basePrice = $sku->prices->whereNull('branch_id')->first()?->final_price ?? 10.00;
-                
-                // Aplicamos el factor de la sucursal
-                $finalPrice = round(($basePrice * $config['price_factor']) * 2) / 2; // Redondeo a 0.50
+                $finalPrice = round(($basePrice * $config['price_factor']) * 2) / 2; 
 
-                // Registramos el precio en la tabla prices
                 Price::updateOrCreate(
                     ['sku_id' => $sku->id, 'branch_id' => $branch->id],
                     [
-                        'list_price' => $finalPrice * 1.2, // Precio lista inflado para mostrar oferta si se quiere
+                        'list_price' => $finalPrice * 1.2, 
                         'final_price' => $finalPrice,
                         'min_quantity' => 1,
                         'valid_from' => now(),
@@ -114,29 +109,35 @@ class InventorySeeder extends Seeder
 
                 // --- B. CREACIÓN DE INVENTARIO ---
                 
-                // Cantidad aleatoria según el rango de la sucursal
                 $qty = rand($config['stock_range'][0], $config['stock_range'][1]);
-                
-                // Costo aprox (70% del precio base, no del venta)
                 $cost = $basePrice * 0.70;
 
-                // 1. Compra (Origen de los fondos)
+                // 1. Compra 
                 $purchase = Purchase::create([
                     'branch_id' => $branch->id,
                     'provider_id' => $sku->product->brand->provider_id ?? $allProviders->random()->id,
                     'user_id' => $user->id ?? 1,
-                    'document_number' => 'INI-' . strtoupper(Str::slug($config['type'])) . '-' . rand(100, 999),
+                    // Usamos uniqid para evitar duplicados en numero de documento masivo
+                    'document_number' => 'INI-' . strtoupper(Str::slug($config['type'])) . '-' . uniqid(),
                     'purchase_date' => now()->subDays(rand(1, 15)),
                     'total_amount' => $qty * $cost,
                     'status' => 'COMPLETED'
                 ]);
 
                 // 2. Lote Físico
+                // CORRECCION AQUI: Añadimos branch_id y usamos uniqid() para garantizar unicidad total
+                $lotCode = sprintf(
+                    '%s-%s-%s',
+                    strtoupper(substr($config['type'], 0, 3)), // Ej: LIC
+                    $branch->id,                                 // Ej: 15 (Diferencia sucursales)
+                    uniqid()                                     // Ej: 65b8e... (Aleatorio único basado en tiempo)
+                );
+
                 $lot = InventoryLot::create([
                     'branch_id' => $branch->id,
                     'sku_id' => $sku->id,
                     'purchase_id' => $purchase->id,
-                    'lot_code' => strtoupper(substr($config['type'], 0, 3)) . '-' . $sku->id . '-' . rand(10, 99),
+                    'lot_code' => $lotCode,
                     'quantity' => $qty,
                     'initial_quantity' => $qty,
                     'reserved_quantity' => 0,

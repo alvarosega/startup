@@ -13,9 +13,18 @@ class UpdateCategory
     {
         $attributes = $data->toArray();
 
-        // Auto Slug si cambió el nombre y no se especificó slug
-        if (empty($attributes['slug']) && $category->name !== $attributes['name']) {
-            $attributes['slug'] = Str::slug($attributes['name']);
+        // --- CORRECCIÓN AQUÍ ---
+        // Si el slug viene vacío o nulo...
+        if (empty($attributes['slug'])) {
+            // A. Si el nombre cambió, generamos un slug nuevo automáticamente
+            if ($attributes['name'] !== $category->name) {
+                $attributes['slug'] = Str::slug($attributes['name']);
+            } 
+            // B. Si el nombre es el mismo, ELIMINAMOS la clave 'slug' del array
+            // Esto evita que Laravel intente guardar "NULL" y mantiene el slug que ya existía.
+            else {
+                unset($attributes['slug']);
+            }
         }
 
         // Imagen (Reemplazo)

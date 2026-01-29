@@ -25,6 +25,9 @@ use App\Http\Controllers\Admin\RemovalController;
 use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\LogisticsDashboardController;
 use App\Http\Controllers\Admin\TransformationController;
+use App\Http\Controllers\Admin\MarketZoneController;
+
+
 
 // FRONT-OFFICE (TIENDA)
 use App\Http\Controllers\Shop\CatalogController;
@@ -39,8 +42,6 @@ use App\Http\Controllers\Client\AddressController;
 use App\Http\Controllers\Driver\DriverController;
 
 use App\Http\Controllers\Shop\ShopController;
-
-
 
 
 // =============================================================================
@@ -93,8 +94,9 @@ Route::prefix('cart')->name('cart.')->group(function () {
     Route::delete('/{id}', [CartController::class, 'destroy'])->name('destroy'); // Quitar item
 });
 
-
-
+Route::get('/shop/zone/{zone}', [ShopController::class, 'showZone'])->name('shop.zone');
+Route::get('/shop/zone/{zone:slug}', [ShopController::class, 'showZone'])
+->name('shop.zone');
 // =============================================================================
 // 3. ZONA CLIENTE & PERFIL (AUTENTICADOS)
 // =============================================================================
@@ -131,6 +133,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('avatar.download');
     Route::middleware(['auth'])->group(function () {
         Route::resource('addresses', AddressController::class);
+        Route::patch('/addresses/{address}/default', [AddressController::class, 'makeDefault'])->name('addresses.set-default');
     });
     // ... rutas anteriores ...
 
@@ -217,6 +220,7 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         Route::middleware(['role:super_admin'])->group(function () {
             Route::resource('branches', BranchController::class);
             Route::resource('bundles', BundleController::class);
+            Route::resource('market-zones', MarketZoneController::class);
             Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
             Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
                         // GESTIÓN DE PRECIOS
@@ -256,6 +260,7 @@ Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
         Route::patch('orders/{id}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('orders.status');
         // En routes/web.php, dentro del grupo 'admin.'
         Route::resource('drivers', App\Http\Controllers\Admin\DriverController::class);
+       
     });
 
 // 5. REDIRECCIÓN DEFAULT

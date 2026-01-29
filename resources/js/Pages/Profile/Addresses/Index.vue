@@ -2,8 +2,13 @@
     import { Head, Link } from '@inertiajs/vue3';
     import ShopLayout from '@/Layouts/ShopLayout.vue'; // CAMBIADO
     import UserAddressesMap from '@/Components/Maps/UserAddressesMap.vue';
-    import { MapPin, Plus, Edit2, Trash2 } from 'lucide-vue-next';
-    
+    import { router } from '@inertiajs/vue3';
+    import { MapPin, Plus, Edit2, Trash2, Star } from 'lucide-vue-next'; // <--- Agrega Star
+
+    // Función para la acción
+    const setAsDefault = (id) => {
+        router.patch(route('addresses.set-default', id));
+    };
     const props = defineProps({
         addresses: { type: Array, default: () => [] }
     });
@@ -15,9 +20,18 @@
         
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-xl font-black text-gray-800 tracking-tight">Mis Direcciones</h1>
-            <Link :href="route('addresses.create')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase flex items-center gap-2 hover:bg-blue-500 transition shadow-md">
+            
+            <Link 
+                v-if="addresses.length < 3" 
+                :href="route('addresses.create')" 
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase flex items-center gap-2 hover:bg-blue-500 transition shadow-md"
+            >
                 <Plus :size="16" /> Nueva
             </Link>
+            
+            <span v-else class="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
+                Máximo de direcciones alcanzado (3/3)
+            </span>
         </div>
 
         <div v-if="addresses.length > 0" class="mb-8">
@@ -39,8 +53,22 @@
                     <div class="flex-1">
                         <div class="flex justify-between items-start">
                             <h4 class="font-bold text-gray-800">{{ addr.alias }}</h4>
-                            <div class="flex gap-2">
-                                <Link :href="route('addresses.edit', addr.id)" class="text-gray-400 hover:text-blue-600 transition"><Edit2 :size="16" /></Link>
+                            
+                            <div class="flex gap-2 items-center">
+                                <button 
+                                    v-if="!addr.is_default" 
+                                    @click="setAsDefault(addr.id)"
+                                    title="Marcar como principal"
+                                    class="text-gray-300 hover:text-yellow-500 transition"
+                                >
+                                    <Star :size="18" />
+                                </button>
+                                
+                                <div v-else class="text-yellow-500">
+                                    <Star :size="18" fill="currentColor" />
+                                </div>
+
+                                <div class="w-px h-4 bg-gray-200 mx-1"></div> <Link :href="route('addresses.edit', addr.id)" class="text-gray-400 hover:text-blue-600 transition"><Edit2 :size="16" /></Link>
                                 <Link :href="route('addresses.destroy', addr.id)" method="delete" as="button" class="text-gray-400 hover:text-red-600 transition"><Trash2 :size="16" /></Link>
                             </div>
                         </div>

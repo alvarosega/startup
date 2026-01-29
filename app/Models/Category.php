@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Concerns\HasUuidv7; // <--- Trait UUID
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\HasMany; 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 
 class Category extends Model
 {
@@ -19,6 +23,7 @@ class Category extends Model
         'image_path', 'icon_path', 'bg_color',
         'is_active', 'is_featured', 'sort_order'
     ];
+    protected $appends = ['image_url']; 
 
     protected $casts = [
         'is_active' => 'boolean',
@@ -27,7 +32,7 @@ class Category extends Model
         'sort_order' => 'integer',
     ];
 
-    protected $appends = ['image_url'];
+    
 
     public function getImageUrlAttribute()
     {
@@ -43,4 +48,17 @@ class Category extends Model
     // Relaciones
     public function parent() { return $this->belongsTo(Category::class, 'parent_id'); }
     public function children() { return $this->hasMany(Category::class, 'parent_id'); }
+    public function zone() {
+        return $this->belongsTo(MarketZone::class, 'market_zone_id');
+    }
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
+     * Relación: Una categoría padre tiene muchas subcategorías (hijos).
+     * (Probablemente ya tengas esto, pero lo dejo por referencia)
+     */
+
 }

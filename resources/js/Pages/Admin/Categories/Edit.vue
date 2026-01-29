@@ -4,6 +4,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import StepProgress from '@/Components/StepProgress.vue';
 import CategoryTypeSelector from '@/Components/CategoryTypeSelector.vue';
 import ImageUploader from '@/Components/ImageUploader.vue';
+import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { 
@@ -214,60 +215,49 @@ const handleStepClick = (stepId) => {
                                 </div>
                             </div>
 
-                            <!-- Step 3: Ajustes -->
                             <div v-else key="3" class="space-y-6 animate-in">
-                                <!-- Configuración General -->
-                                <div class="bg-muted/30 p-6 rounded-lg border border-input">
-                                    <h3 class="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+                                <div class="bg-muted/30 p-6 rounded-xl border border-border">
+                                    <h3 class="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                                         <Settings :size="18" class="text-primary" /> 
                                         Configuración General
                                     </h3>
                                     
-                                    <div class="space-y-4">
-                                        <!-- Categoría Activa -->
-                                        <label class="flex items-center justify-between p-3 bg-background border border-input rounded-lg cursor-pointer hover:border-primary transition-colors">
-                                            <div>
-                                                <span class="block text-sm font-medium text-foreground">Categoría Activa</span>
+                                    <div class="space-y-3">
+                                        <BaseCheckbox v-model="form.is_active" 
+                                                      class="w-full p-3 bg-background border border-input rounded-xl hover:border-primary transition-colors">
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-bold text-foreground">Categoría Activa</span>
                                                 <span class="text-xs text-muted-foreground">Visible en catálogo</span>
                                             </div>
-                                            <input v-model="form.is_active" type="checkbox" 
-                                                   class="w-5 h-5 rounded border-input text-primary focus:ring-primary">
-                                        </label>
+                                        </BaseCheckbox>
 
-                                        <!-- Destacada -->
-                                        <label class="flex items-center justify-between p-3 bg-background border border-input rounded-lg cursor-pointer hover:border-primary transition-colors">
-                                            <div>
-                                                <span class="block text-sm font-medium text-foreground">Destacada</span>
+                                        <BaseCheckbox v-model="form.is_featured" 
+                                                      class="w-full p-3 bg-background border border-input rounded-xl hover:border-warning transition-colors">
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-bold text-foreground">Destacada</span>
                                                 <span class="text-xs text-muted-foreground">Mostrar en inicio</span>
                                             </div>
-                                            <input v-model="form.is_featured" type="checkbox" 
-                                                   class="w-5 h-5 rounded border-input text-warning focus:ring-warning">
-                                        </label>
+                                        </BaseCheckbox>
 
-                                        <!-- Restricción de Edad -->
-                                        <label class="flex items-center justify-between p-3 bg-background border border-input rounded-lg cursor-pointer hover:border-error transition-colors">
-                                            <div>
-                                                <span class="block text-sm font-medium text-foreground flex items-center gap-2">
+                                        <BaseCheckbox v-model="form.requires_age_check" 
+                                                      class="w-full p-3 bg-background border border-input rounded-xl hover:border-error transition-colors">
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-bold text-foreground flex items-center gap-2">
                                                     Restricción de Edad 
                                                     <AlertCircle :size="14" class="text-error"/>
                                                 </span>
                                                 <span class="text-xs text-muted-foreground">Requerir +18 años</span>
                                             </div>
-                                            <input v-model="form.requires_age_check" type="checkbox" 
-                                                   class="w-5 h-5 rounded border-input text-error focus:ring-error">
-                                        </label>
+                                        </BaseCheckbox>
                                     </div>
                                 </div>
 
-                                <!-- Clasificación Fiscal -->
                                 <div class="form-group">
                                     <label class="form-label">Clasificación Fiscal (ICE)</label>
                                     <input v-model="form.tax_classification" type="text" 
-                                           class="font-mono text-sm"
+                                           class="form-input font-mono text-sm"
                                            placeholder="Ej: ALCOHOL_ICE_GENERIC">
-                                    <p class="text-xs text-muted-foreground mt-1">
-                                        Código para facturación electrónica.
-                                    </p>
+                                    <p class="form-helper">Código para facturación electrónica.</p>
                                 </div>
                             </div>
                         </Transition>

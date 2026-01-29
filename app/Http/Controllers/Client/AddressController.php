@@ -29,6 +29,13 @@ class AddressController extends Controller
 
     public function create()
     {
+        // --- AÑADIR ESTE BLOQUE AL INICIO ---
+        if (request()->user()->addresses()->count() >= 3) {
+            return redirect()->route('addresses.index')
+                ->with('error', 'Has alcanzado el límite de 3 direcciones.');
+        }
+        // ------------------------------------
+
         $branches = Branch::where('is_active', true)
             ->select('id', 'name', 'coverage_polygon', 'latitude', 'longitude')
             ->get();
@@ -40,6 +47,9 @@ class AddressController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->user()->addresses()->count() >= 3) {
+            return back()->withErrors(['limit' => 'Límite de direcciones alcanzado.']);
+        }
         $validated = $request->validate([
             'alias'     => 'required|string|max:50',
             'address'   => 'required|string|max:255',
@@ -89,6 +99,14 @@ class AddressController extends Controller
     {
         if ($address->user_id !== Auth::id()) abort(403);
 
+        // --- ELIMINAR ESTE BLOQUE QUE TE ESTÁ BLOQUEANDO ---
+        /*
+        if ($request->user()->addresses()->count() >= 3) {
+            return back()->withErrors(['limit' => 'Límite alcanzado: Máximo 3 direcciones activas permitidas.']);
+        }
+        */
+        // ---------------------------------------------------
+
         $validated = $request->validate([
             'alias'     => 'required|string|max:50',
             'address'   => 'required|string|max:255',
@@ -105,16 +123,44 @@ class AddressController extends Controller
 
         // Crear nueva (Inmutable)
         $newAddress = $request->user()->addresses()->create($validated);
+        
+        // Al borrar la anterior aquí, mantienes el conteo en 3
         $address->delete(); 
 
         // 4. ACTUALIZACIÓN INMEDIATA DE CONTEXTO
         if ($newAddress->branch_id) {
             $request->user()->update(['branch_id' => $newAddress->branch_id]);
-            
-            // Forzamos la actualización de la sesión
             $this->shopContext->setContext($newAddress->branch_id, $newAddress->id);
         }
 
         return redirect()->route('addresses.index')->with('success', 'Dirección actualizada.');
     }
+    
+    public function makeDefault(Request $request, UserAddress $address)
+    {
+        if ($address->user_id !== $request->user()->id) abort(403);
+
+        // El modelo UserAddress ya tiene un evento 'saving' que pone false a las demás
+        $address->update(['is_default' => true]);
+
+        // Actualizamos contexto de la tienda y perfil
+        if ($address->branch_id) {
+            $request->user()->update(['branch_id' => $address->branch_id]);
+            $this->shopContext->setContext($address->branch_id, $address->id);
+        }
+
+        return back()->with('success', 'Ubicación principal actualizada.');
+    }
+    // Para solucionar el Error 500
+    public function destroy(UserAddress $address)
+    {
+        if ($address->user_id !== Auth::id()) abort(403);
+
+        $address->delete();
+
+        return back()->with('success', 'Dirección eliminada.');
+    }
+
+    // Para marcar como principal
+
 }

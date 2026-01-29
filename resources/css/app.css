@@ -277,7 +277,7 @@
   }
 
   .spinner-lg {
-    @apply h-8 w-8 border-3;
+    @apply h-8 w-8 border-[3px]; /* Usa corchetes para forzar 3px */
   }
 
   /* Skeleton loading */
