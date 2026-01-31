@@ -3,56 +3,85 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Category; // Modelo Actualizado
+use App\Models\Category;
 use Illuminate\Support\Str;
 
 class CategorySeeder extends Seeder
 {
     public function run(): void
     {
-        // A. CERVEZAS
-        $cervezas = Category::create([
-            'name' => 'Cervezas', 
-            'slug' => 'cervezas', 
-            'is_active' => true,
-            'requires_age_check' => true
-        ]);
-        $this->createChildren($cervezas, ['Rubias / Lager', 'Trigo', 'Artesanales', 'Importadas']);
+        $categories = [
+            [
+                'name' => 'Cervezas',
+                'adult' => true,
+                'subs' => ['Lager Industrial', 'Cerveza de Trigo', 'Cerveza Negra / Stout', 'Cerveza Artesanal IPA', 'Cerveza Importada']
+            ],
+            [
+                'name' => 'Destilados',
+                'adult' => true,
+                'subs' => ['Singani', 'Whisky Escocés', 'Ron Añejo', 'Vodka Premium', 'Gin & Botánicos']
+            ],
+            [
+                'name' => 'Vinos',
+                'adult' => true,
+                'subs' => ['Vino Tinto Varietal', 'Vino Blanco', 'Vino Rosado', 'Vino Espumoso', 'Vino de Postre']
+            ],
+            [
+                'name' => 'Gaseosas',
+                'adult' => false,
+                'subs' => ['Colas Negras', 'Sabores Frutales', 'Gaseosa Zero Azúcar', 'Ginger Ale & Tónicas', 'Sodas Saborizadas']
+            ],
+            [
+                'name' => 'Aguas & Hidratantes',
+                'adult' => false,
+                'subs' => ['Agua Sin Gas', 'Agua Con Gas', 'Bebidas Isotónicas', 'Agua Saborizada', 'Agua Tónica Premium']
+            ],
+            [
+                'name' => 'Energizantes',
+                'adult' => false,
+                'subs' => ['Energizante Regular', 'Energizante Sin Azúcar', 'Bebidas de Café', 'Shots Energéticos', 'Energizante Natural']
+            ],
+            [
+                'name' => 'Jugos & Néctares',
+                'adult' => false,
+                'subs' => ['Jugo de Naranja', 'Néctar de Durazno', 'Jugo de Manzana', 'Multifruta', 'Jugos Detox']
+            ],
+            [
+                'name' => 'Licores & Cremas',
+                'adult' => true,
+                'subs' => ['Crema de Leche/Café', 'Licores de Hierbas', 'Vermouth', 'Triple Sec & Mixers', 'Aperitivos']
+            ],
+            [
+                'name' => 'Snacks Salados',
+                'adult' => false,
+                'subs' => ['Papas Fritas', 'Nachos & Tortillas', 'Frutos Secos', 'Galletas Saladas', 'Palitos & Pretzels']
+            ],
+            [
+                'name' => 'Cigarros & Tabaco',
+                'adult' => true,
+                'subs' => ['Cigarros Rubios', 'Cigarros Mentolados', 'Tabaco para Armar', 'Puros', 'Accesorios de Fumar']
+            ]
+        ];
 
-        // B. DESTILADOS
-        $destilados = Category::create([
-            'name' => 'Destilados', 
-            'slug' => 'destilados', 
-            'requires_age_check' => true
-        ]);
-        $this->createChildren($destilados, ['Singani', 'Whisky', 'Ron', 'Vodka', 'Gin', 'Fernet']);
-
-        // C. BEBIDAS & MIXERS
-        $sinAlcohol = Category::create([
-            'name' => 'Bebidas & Mixers', 
-            'slug' => 'bebidas-mixers', 
-            'requires_age_check' => false
-        ]);
-        $this->createChildren($sinAlcohol, ['Gaseosas', 'Energizantes', 'Aguas', 'Jugos']);
-
-        // D. VINOS
-        $vinos = Category::create([
-            'name' => 'Vinos', 
-            'slug' => 'vinos', 
-            'requires_age_check' => true
-        ]);
-        $this->createChildren($vinos, ['Tintos', 'Blancos', 'Rosados']);
-    }
-
-    private function createChildren(Category $padre, array $hijos)
-    {
-        foreach ($hijos as $nombreHijo) {
-            Category::firstOrCreate([
-                'name' => $nombreHijo,
-                'slug' => Str::slug($nombreHijo),
-                'parent_id' => $padre->id,
-                'requires_age_check' => $padre->requires_age_check ?? false 
+        foreach ($categories as $catData) {
+            $parent = Category::firstOrCreate([
+                'name' => $catData['name'],
+                'slug' => Str::slug($catData['name']),
+            ], [
+                'is_active' => true,
+                'requires_age_check' => $catData['adult']
             ]);
+
+            foreach ($catData['subs'] as $subName) {
+                Category::firstOrCreate([
+                    'name' => $subName,
+                    'slug' => Str::slug($subName),
+                    'parent_id' => $parent->id
+                ], [
+                    'is_active' => true,
+                    'requires_age_check' => $catData['adult']
+                ]);
+            }
         }
     }
 }

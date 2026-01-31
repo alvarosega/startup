@@ -15,7 +15,7 @@ return new class extends Migration
             
             $table->string('code')->nullable()->unique(); // Código de Barras / EAN
             $table->string('name'); // Ej: "Botella 750ml"
-            
+            $table->decimal('base_price', 10, 2)->default(0);
             // Logística
             $table->decimal('weight', 8, 3)->default(0); // Kg
             $table->decimal('conversion_factor', 8, 2)->default(1); // Unidades

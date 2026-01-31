@@ -19,6 +19,12 @@ use App\Actions\Auth\RegisterDriver;
 use App\DTOs\Auth\RegisterDriverData;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Shop\CartController;
+use App\Actions\Auth\SendRecoveryCode;
+use App\DTOs\Auth\ForgotPasswordData;
+use App\Actions\Auth\ResetPasswordWithCode;
+use App\DTOs\Auth\ResetPasswordData;
+
+
 
 class WebAuthController extends Controller
 {
@@ -160,5 +166,34 @@ class WebAuthController extends Controller
         $request->session()->passwordConfirmed();
 
         return back();
+    }
+    public function sendRecoveryCode(Request $request, SendRecoveryCode $action)
+    {
+        // 1. Validar y Crear DTO
+        $data = ForgotPasswordData::fromRequest($request);
+        
+        // 2. Ejecutar Acción (Generar código y Enviar Mail)
+        $action->execute($data);
+
+        // 3. Retornar respuesta para que Inertia active 'onSuccess'
+        // Es vital retornar back() o redirect()
+        return back()->with('success', 'Código enviado correctamente');
+    }
+
+    /**
+     * Resetear contraseña con código (Ruta: password.update)
+     */
+/**
+     * Resetear contraseña con código (Ruta: password.update)
+     */
+    public function resetPassword(Request $request, ResetPasswordWithCode $action)
+    {
+        $data = ResetPasswordData::fromRequest($request);
+
+        $action->execute($data);
+
+        // CAMBIO CLAVE: Usamos back() en lugar de redirect()->route('login')
+        // Esto mantiene al usuario en la misma URL (Home con modal abierto)
+        return back()->with('status', 'Contraseña restablecida. Inicia sesión.');
     }
 }

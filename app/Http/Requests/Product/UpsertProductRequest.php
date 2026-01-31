@@ -80,7 +80,7 @@ class UpsertProductRequest extends FormRequest
                 'regex:/^\d+(\.\d{1,3})?$/' // Limitar a 3 decimales
             ],
             'skus.*.weight' => 'nullable|numeric|min:0',
-            
+            'skus.*.price' => ['required', 'numeric', 'min:0'],
             // Imagen por SKU (Opcional)
             'skus.*.image' => 'nullable|image|max:2048',
         ];

@@ -24,9 +24,7 @@ class ProductController extends Controller
             'brand', 
             'category',
             // CRÍTICO: Cargar SKUs con TODOS los campos necesarios, incluyendo image_path
-            'skus' => function ($query) {
-                $query->with(['prices' => fn($q) => $q->whereNull('branch_id')->latest()]);
-            }
+            'skus'
         ])->withCount('skus');
     
         // Filtro de búsqueda (Buscamos por Producto, Marca o Código de SKU)
@@ -39,7 +37,7 @@ class ProductController extends Controller
                   ->orWhereHas('skus', fn($q3) => $q3->where('code', 'like', "%{$term}%"));
             });
         }
-    
+
         $products = $query->latest()->paginate(15)->withQueryString();
     
         return Inertia::render('Admin/Products/Index', [
@@ -66,11 +64,10 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        // Carga simple pero efectiva
-        $product->load(['brand:id,name', 'category:id,name', 'skus.prices' => function($q) {
-            $q->whereNull('branch_id')->latest();
-        }]);
-    
+        
+        // Carga simple (Ya no necesitamos cargar prices para el SKU)
+        $product->load(['brand:id,name', 'category:id,name', 'skus']);
+        
         // DEBUG: Ver qué estamos cargando
         \Log::info('Product loaded for edit:', [
             'id' => $product->id,
@@ -84,7 +81,8 @@ class ProductController extends Controller
                     'id' => $sku->id,
                     'name' => $sku->name,
                     'code' => $sku->code,
-                    'price' => $sku->prices->first() ? $sku->prices->first()->final_price : 0,
+                    // LEEMOS DIRECTO DE LA COLUMNA NUEVA
+                    'price' => (float) $sku->base_price,
                 ];
             })->toArray(),
         ]);
@@ -106,7 +104,8 @@ class ProductController extends Controller
                     'id' => $sku->id,
                     'name' => $sku->name,
                     'code' => $sku->code,
-                    'price' => $sku->prices->first() ? (float) $sku->prices->first()->final_price : 0,
+                    // CORRECCIÓN: Leemos directo de la nueva columna base_price
+                    'price' => (float) $sku->base_price,
                     'conversion_factor' => (float) $sku->conversion_factor,
                     'weight' => (float) $sku->weight,
                     'image_url' => $sku->image_path ? Storage::url($sku->image_path) : null,

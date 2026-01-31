@@ -1,151 +1,124 @@
 <script setup>
-import { computed } from 'vue';
-import { router } from '@inertiajs/vue3'; // Importamos el router
+import { computed, ref } from 'vue';
 
-const props = defineProps({
-    zones: Object 
-});
-
-// --- CONFIGURACIÓN VISUAL ---
-const SCREEN_W = 390; 
-const CENTER_X = SCREEN_W / 2;
-
-// GEOMETRÍA RECTANGULAR (Tu configuración original)
-const BLOCK_W = 110;     
-const BLOCK_SKEW = 25;   
-const SLICE_H = 30;      
-const GAP = 10;          
-const GROUP_MARGIN = 40; 
-
+const props = defineProps({ zones: Object });
+const emit = defineEmits(['select-zone']);
 const dynamicZones = computed(() => props.zones ? Object.values(props.zones) : []);
 
-const mapItems = computed(() => {
-    let currentY = 60;
+// Configuración del Cilindro
+const RADIUS = 300; // Qué tan ancho es el cilindro
 
-    return dynamicZones.value.map((zone, index) => {
-        const side = index === 0 ? 'center' : (index % 2 !== 0 ? 'left' : 'right');
-        const dir = side === 'left' ? 1 : -1;
+// Estado de rotación táctil
+const currentRotation = ref(0);
+const startX = ref(0);
+const isDragging = ref(false);
+const lastRotation = ref(0);
 
-        const aisles = zone.aisles && zone.aisles.length > 0 
-            ? zone.aisles 
-            : [{ id: `gen-${zone.id}`, name: 'General', image_url: null }];
-            
-        const totalHeight = aisles.length * (SLICE_H + GAP);
+const handleTouchStart = (e) => {
+    isDragging.value = true;
+    startX.value = e.touches[0].clientX;
+    lastRotation.value = currentRotation.value;
+};
 
-        let x = CENTER_X;
-        if (side === 'left') x = CENTER_X - 140; 
-        if (side === 'right') x = CENTER_X + 140;
+const handleTouchMove = (e) => {
+    if (!isDragging.value) return;
+    const deltaX = e.touches[0].clientX - startX.value;
+    // Velocidad de rotación: 0.5 grados por pixel movido
+    currentRotation.value = lastRotation.value + (deltaX * 0.5);
+};
 
-        const y = currentY;
-        currentY += totalHeight + GROUP_MARGIN; 
+const handleTouchEnd = () => {
+    isDragging.value = false;
+};
 
-        return {
-            ...zone,
-            x, y, side, dir, aisles, totalHeight,
-            baseColor: zone.color || '#64748b'
-        };
-    });
-});
-
-const svgHeight = computed(() => {
-    if (!mapItems.value.length) return 800;
-    const last = mapItems.value[mapItems.value.length - 1];
-    return last.y + last.totalHeight + 150;
-});
-
-// --- ACCIÓN DE NAVEGACIÓN ---
-const goToZone = (zone) => {
-    // Navegamos a la vista de productos de esa zona
-    // Asumiendo que tienes una ruta llamada 'shop.zone'
-    router.get(route('shop.zone', zone.slug));
+// Calcula la posición 3D de cada tarjeta en el círculo
+const getCardTransform = (index) => {
+    const total = dynamicZones.value.length;
+    const anglePerCard = 360 / total;
+    const angle = anglePerCard * index;
+    // Girar sobre su eje Y, y luego empujar hacia afuera (radio)
+    return `rotateY(${angle}deg) translateZ(${RADIUS}px)`;
 };
 </script>
 
 <template>
-    <div class="w-full h-full bg-slate-50 overflow-y-auto overflow-x-hidden touch-pan-y scroll-smooth pb-24">
+    <div class="w-full h-screen bg-[#050505] overflow-hidden relative touch-none flex flex-col items-center justify-center"
+         @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
         
-        <div class="pt-6 px-6 text-center">
-            <h2 class="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">TIENDA</h2>
+        <div class="absolute top-10 text-center z-10 pointer-events-none">
+            <h1 class="text-2xl font-black text-white uppercase tracking-[0.5em] mb-2 text-glow">HOLODECK</h1>
+            <p class="text-[10px] text-cyan-400 uppercase tracking-widest animate-pulse">← Desliza para girar →</p>
         </div>
 
-        <svg :viewBox="`0 0 ${SCREEN_W} ${svgHeight}`" class="w-full h-auto block select-none">
-            
-            <defs>
-                <filter id="wideShadow">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
-                    <feOffset dx="0" dy="4" result="offsetblur"/>
-                    <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
-                    <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-            </defs>
-
-            <path :d="`M${CENTER_X} 40 V${svgHeight - 40}`" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="6, 6" />
-
-            <g v-for="item in mapItems" :key="item.slug" 
-               @click="goToZone(item)" 
-               class="cursor-pointer active:opacity-80 transition-opacity"
-            >
-                <ellipse :cx="item.x + (BLOCK_W/2 * item.dir)" :cy="item.y + item.totalHeight + 10" :rx="BLOCK_W * 0.8" ry="25" fill="black" opacity="0.1" class="blur-sm"/>
-
-                <g :transform="`translate(${item.x + (BLOCK_W/2 * item.dir)}, ${item.y - 25})`">
-                    <text text-anchor="middle" font-size="10" font-weight="900" fill="#1E293B" class="uppercase tracking-widest">{{ item.name }}</text>
-                    <line x1="-30" y1="5" x2="30" y2="5" :stroke="item.baseColor" stroke-width="2" />
-                </g>
-
-                <g v-for="(aisle, i) in [...item.aisles].reverse()" :key="aisle.id">
-                    <g :transform="`translate(${item.x}, ${item.y + item.totalHeight - ((i + 1) * (SLICE_H + GAP))})`">
+        <div class="scene">
+            <div class="cylinder" :style="{ transform: `rotateY(${currentRotation}deg)` }">
+                
+                <div v-for="(zone, index) in dynamicZones" :key="zone.id"
+                     class="card-container absolute cursor-pointer"
+                     @click="emit('select-zone', zone)"
+                     :style="{ transform: getCardTransform(index) }">
+                    
+                    <div class="holo-card w-[180px] h-[280px] relative rounded-xl overflow-hidden border border-cyan-500/30 transition-all duration-300 group hover:border-cyan-400/80 hover:scale-105">
                         
-                        <g filter="url(#wideShadow)">
-                            <path :d="`M0 ${SLICE_H} L${BLOCK_W * item.dir} ${SLICE_H - BLOCK_SKEW} V-${BLOCK_SKEW} L0 0 Z`" 
-                                  :fill="item.baseColor" />
+                        <div class="absolute inset-0 bg-cyan-950/40 backdrop-blur-sm"></div>
+                        <div class="absolute inset-0 bg-[url('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')] opacity-10 mix-blend-overlay pointer-events-none"></div>
 
-                            <foreignObject 
-                                v-if="aisle.image_url"
-                                :x="item.dir === 1 ? 0 : -BLOCK_W" 
-                                :y="-BLOCK_SKEW" 
-                                :width="BLOCK_W" 
-                                :height="SLICE_H + BLOCK_SKEW"
-                            >
-                                <div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full relative">
-                                    <img 
-                                        :src="aisle.image_url" 
-                                        class="w-full h-full object-cover block"
-                                        :style="{
-                                            clipPath: item.dir === 1 
-                                                ? 'polygon(0% 45%, 100% 0%, 100% 55%, 0% 100%)' 
-                                                : 'polygon(0% 0%, 100% 45%, 100% 100%, 0% 55%)',
-                                            transform: 'scale(1.02)'
-                                        }" 
-                                    />
-                                    <div class="absolute inset-0 bg-white/10 pointer-events-none" 
-                                         :style="{
-                                            clipPath: item.dir === 1 
-                                                ? 'polygon(0% 45%, 100% 0%, 100% 55%, 0% 100%)' 
-                                                : 'polygon(0% 0%, 100% 45%, 100% 100%, 0% 55%)'
-                                         }"></div>
+                        <div class="relative z-10 h-full flex flex-col p-4">
+                            <div class="w-full aspect-square rounded-full border-2 border-cyan-500/50 p-1 mb-4 relative overflow-hidden group-hover:rotate-[360deg] transition-transform duration-[5s] linear">
+                                <div class="w-full h-full rounded-full overflow-hidden relative">
+                                    <img v-if="zone.aisles?.[0]?.image_url" :src="zone.aisles[0].image_url" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
+                                    <div class="absolute inset-0 bg-cyan-500/20 mix-blend-overlay"></div>
                                 </div>
-                            </foreignObject>
-                            
-                            <path v-else :d="`M0 ${SLICE_H} L${BLOCK_W * item.dir} ${SLICE_H - BLOCK_SKEW} V-${BLOCK_SKEW} L0 0 Z`" fill="white" fill-opacity="0.1" />
+                            </div>
 
-                            <path :d="`M0 ${SLICE_H} L${(BLOCK_W * 0.4) * (item.dir * -1)} ${SLICE_H - BLOCK_SKEW} V-${BLOCK_SKEW} L0 0 Z`" :fill="item.baseColor" />
-                            <path :d="`M0 ${SLICE_H} L${(BLOCK_W * 0.4) * (item.dir * -1)} ${SLICE_H - BLOCK_SKEW} V-${BLOCK_SKEW} L0 0 Z`" fill="black" fill-opacity="0.3" />
-                            <path :d="`M0 0 L${BLOCK_W * item.dir} -${BLOCK_SKEW} L${(BLOCK_W * 0.6) * item.dir} -${BLOCK_SKEW * 2} L${(BLOCK_W * 0.4) * (item.dir * -1)} -${BLOCK_SKEW} Z`" 
-                                  :fill="item.baseColor" class="brightness-125" stroke="white" stroke-width="0.5" stroke-opacity="0.4" />
-                        </g>
+                            <div class="mt-auto text-center">
+                                <h3 class="text-white font-bold uppercase text-sm mb-1 group-hover:text-cyan-300 transition-colors">{{ zone.name }}</h3>
+                                <div class="h-[1px] w-full bg-gradient-to-r from-transparent via-cyan-500 to-transparent"></div>
+                                <p class="text-[9px] text-cyan-400 mt-1">{{ zone.aisles?.length || 0 }} SECCIONES</p>
+                            </div>
+                        </div>
 
-                        <g v-if="item.dir === 1" :transform="`translate(${BLOCK_W + 10}, 0)`">
-                            <line x1="-10" y1="0" x2="0" y2="0" stroke="#94A3B8" stroke-width="1" />
-                            <text x="5" y="3" text-anchor="start" font-size="9" font-weight="700" fill="#475569" class="uppercase tracking-tight">{{ aisle.name.substring(0, 18) }}</text>
-                        </g>
-                        <g v-else :transform="`translate(-${BLOCK_W + 10}, 0)`">
-                            <line x1="0" y1="0" x2="10" y2="0" stroke="#94A3B8" stroke-width="1" />
-                            <text x="-5" y="3" text-anchor="end" font-size="9" font-weight="700" fill="#475569" class="uppercase tracking-tight">{{ aisle.name.substring(0, 18) }}</text>
-                        </g>
+                    </div>
 
-                    </g>
-                </g>
-            </g>
-        </svg>
+                    <div class="reflection absolute top-full left-0 w-full h-full scale-y-[-1] opacity-20 blur-sm pointer-events-none">
+                        <div class="w-[180px] h-[280px] bg-gradient-to-b from-cyan-500/50 to-transparent rounded-xl"></div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+        
+        <div class="absolute bottom-[-200px] w-[800px] h-[800px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none transform rotateX(70deg)"></div>
+
     </div>
 </template>
+
+<style scoped>
+.text-glow { text-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(6,182,212,0.5); }
+
+.scene {
+    perspective: 1200px;
+    width: 200px; height: 300px;
+    position: relative;
+    transform: translateY(-50px); /* Ajuste de altura visual */
+}
+
+.cylinder {
+    width: 100%; height: 100%;
+    position: absolute;
+    transform-style: preserve-3d;
+    /* Inercia suave cuando se suelta */
+    transition: transform 0.1s linear;
+}
+/* Si no estamos arrastrando, usamos una transición más larga para inercia */
+.cylinder:not(:active) {
+     transition: transform 0.8s cubic-bezier(0.1, 0.6, 0.2, 1);
+}
+
+.card-container {
+    /* Centramos el punto de origen para que giren sobre el centro del cilindro */
+    top: 0; left: 0;
+    /* backface-visibility: hidden; /* Opcional: ocultar las de atrás para rendimiento */
+}
+</style>

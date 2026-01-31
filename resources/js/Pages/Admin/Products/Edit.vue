@@ -80,7 +80,7 @@ onMounted(() => {
         id: null,
         name: props.product.name ? `${props.product.name} (Unidad)` : '',
         code: '',
-        price: '',
+        price: 0,
         conversion_factor: 1,
         weight: 0,
         existing_image: null,
@@ -152,7 +152,7 @@ const addSku = () => {
     id: null,
     name: '', 
     code: '', 
-    price: '', 
+    price: 0,
     conversion_factor: 1, 
     weight: 0,
     existing_image: null,
@@ -679,7 +679,7 @@ const submit = () => {
                         <!-- Precio -->
                         <div class="col-span-12 md:col-span-3">
                           <label class="form-label text-xs text-right text-success">
-                            Precio *
+                            Precio Base *
                           </label>
                           <input 
                             v-model.number="sku.price" 

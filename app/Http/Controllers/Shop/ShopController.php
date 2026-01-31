@@ -31,7 +31,6 @@ class ShopController extends Controller
 
         // --- MODO BÚSQUEDA ---
         if ($request->filled('search') || $request->filled('category_id') || $request->input('type') === 'bundles') {
-             // ... tu lógica de filtros (sin cambios) ...
              $dto = CatalogQueryDTO::fromRequest($request, $branchId);
              $paginator = $action->execute($dto);
              $productsResource = ShopProductResource::collection($paginator);
@@ -41,42 +40,27 @@ class ShopController extends Controller
              });
         } 
         
-        // --- MODO MAPA (SOLUCIÓN AQUÍ) ---
+        // --- MODO MAPA (CORREGIDO) ---
         else {
             $zones = MarketZone::orderBy('name')->get();
 
-            $zonesData = $zones->map(function($zone) use ($branchId) {
+            $zonesData = $zones->map(function($zone) {
                 
-                // 1. Obtenemos Árbol de Categorías
+                // 1. Obtenemos SOLO Categorías Raíz
+                // Usamos 'roots()' y filtramos por zona y actividad
                 $rootCategories = Category::roots()
                     ->where('market_zone_id', $zone->id)
                     ->where('is_active', true)
-                    ->with(['children' => function($q) {
-                        $q->where('is_active', true)->orderBy('sort_order');
-                    }])
                     ->orderBy('sort_order')
                     ->get();
 
                 if ($rootCategories->isEmpty()) return null;
 
-                // 2. Aplanamos (Raíz -> Subcategorías)
-                $aislesRaw = $rootCategories->flatMap(function($root) {
-                    return $root->children->isNotEmpty() ? $root->children : collect([$root]);
-                });
-
-                // 3. TRANSFORMACIÓN CON RESOURCE (Aquí es donde se arregla la imagen)
-                // Usamos el Resource para serializar correctamente los modelos
-                $aisles = ShopCategoryResource::collection($aislesRaw)->resolve();
-
-                // 4. (Opcional) Filtrar categorías vacías de stock
-                /*
-                $aisles = collect($aisles)->filter(function($aisle) use ($branchId) {
-                     return Product::where('category_id', $aisle['id'])
-                        ->where('is_active', true)
-                        ->whereHas('inventoryLots', fn($q) => $q->where('branch_id', $branchId)->where('quantity', '>', 0))
-                        ->exists();
-                })->values();
-                */
+                // 2. SIN APLANAR (Aquí está el cambio clave)
+                // Al pasar $rootCategories directo, el Resource recibe la categoría PADRE.
+                // Por lo tanto, mostrará el 'name' y el 'image_path' de la categoría padre.
+                
+                $aisles = ShopCategoryResource::collection($rootCategories)->resolve();
 
                 if (empty($aisles)) return null;
 
@@ -85,7 +69,7 @@ class ShopController extends Controller
                     'svg_id' => $zone->svg_id,
                     'name' => $zone->name,
                     'color' => $zone->hex_color,
-                    'aisles' => $aisles
+                    'aisles' => $aisles // Ahora contiene: [ { name: "Licores", image: "img_licores.jpg" }, ... ]
                 ];
             })->filter()->keyBy('slug');
         }
@@ -104,49 +88,53 @@ class ShopController extends Controller
     {
         $branchId = $contextService->getActiveBranchId();
 
-        // 1. Obtener todas las categorías de esta zona (Padres e Hijas)
+        // 1. Obtener categorías (Igual que antes)
         $rootCategories = Category::where('market_zone_id', $zone->id)->get();
-        // Buscamos también las subcategorías de esas raíces
         $childCategories = Category::whereIn('parent_id', $rootCategories->pluck('id'))->get();
-        
-        // Unimos todas para procesarlas
         $allCategories = $rootCategories->merge($childCategories)->unique('id');
 
-        // 2. Construir la estructura "Netflix" (Fila por Categoría)
+        // 2. Agrupar Productos
         $groupedData = $allCategories->map(function ($category) use ($branchId) {
-            
-            // Consulta DIRECTA a productos (Evita el error de relación en Category)
+                    
             $products = Product::query()
-                ->select('products.*') // Seleccionamos solo datos del producto para evitar colisiones
-                ->join('skus', 'products.id', '=', 'skus.product_id')
-                ->join('inventory_lots', 'skus.id', '=', 'inventory_lots.sku_id')
-                ->where('products.category_id', $category->id)
-                ->where('products.is_active', true)
-                ->where('inventory_lots.branch_id', $branchId)
-                ->where('inventory_lots.quantity', '>', 0)
-                ->with(['brand']) // Eager Loading
-                ->distinct() // Evitar duplicados si un producto tiene varios lotes
-                ->take(15)
+                ->where('category_id', $category->id)
+                ->where('is_active', true)
+                // CARGA CORRECTA DE RELACIONES
+                ->with([
+                    'brand', // <--- IMPORTANTE: Cargar la marca para que no salga "Genérico"
+                    'skus' => function($q) use ($branchId) { 
+                        $q->where('is_active', true)
+                        ->with([
+                                'inventoryLots' => fn($qLot) => $qLot->where('branch_id', $branchId)
+                        ]);
+                    }
+                ])
+                ->take(15) // Traer máximo 15 por carrusel
                 ->get();
 
+            // Si la categoría no tiene productos, la saltamos
             if ($products->isEmpty()) return null;
 
-            // Transformamos los productos para que tengan precio e imagen correctos
-            $productsResource = ShopProductResource::collection($products);
-            $productsResource->collection->each(function ($r) use ($branchId) {
+            // --- CORRECCIÓN CRÍTICA AQUÍ ---
+            $resourceCollection = ShopProductResource::collection($products);
+            
+            // Inyectar la sucursal
+            $resourceCollection->collection->each(function ($r) use ($branchId) {
                 $r->setContextBranch($branchId);
             });
 
             return [
                 'id' => $category->id,
                 'name' => $category->name,
-                'products' => $productsResource
+                // USAMOS ->resolve() PARA ENVIAR UN ARRAY PURO A VUE, NO UN OBJETO {data:...}
+                'products' => $resourceCollection->resolve() 
             ];
-        })->filter()->values(); // Eliminamos las categorías vacías
+
+        })->filter()->values();
 
         return Inertia::render('Shop/ZoneProducts', [
             'zone' => $zone,
-            'groupedCategories' => $groupedData, // Enviamos los datos listos
+            'groupedCategories' => $groupedData,
         ]);
     }
 }

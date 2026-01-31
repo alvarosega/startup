@@ -19,58 +19,59 @@ class ShopProductResource extends JsonResource
     {
         $targetBranchId = $this->contextBranchId;
 
-        // Mapeamos los SKUs (Variantes)
+        // Iteramos sobre los SKUs del producto
         $variants = $this->skus->map(function ($sku) use ($targetBranchId) {
             
-            // 1. PRECIO: Buscamos el precio específico de esta sucursal
-            $priceObj = $sku->prices->firstWhere('branch_id', $targetBranchId);
+            // --- 1. LÓGICA DE PRECIOS (JERARQUÍA) ---
             
-            // Si no hay precio para esta sucursal, intentamos el global (null)
-            // PERO: Si tu negocio es "Exclusivo", quizás no deberías hacer fallback.
-            // Lo dejamos con fallback por seguridad, pero el precio vendrá del Seeder.
-            if (!$priceObj) {
-                $priceObj = $sku->prices->firstWhere('branch_id', null);
+            // A. Buscamos si existe un precio configurado en la tabla 'prices' para esta sucursal
+            $branchPriceObj = $sku->prices->firstWhere('branch_id', $targetBranchId);
+            
+            if ($branchPriceObj) {
+                // PRIORIDAD 1: Precio específico de sucursal (u oferta)
+                $finalPrice = (float) $branchPriceObj->final_price;
+                $listPrice  = (float) $branchPriceObj->list_price;
+            } else {
+                // PRIORIDAD 2 (FALLBACK): Precio Base del SKU
+                // Si no hay registro en 'prices', leemos la columna 'base_price' de la tabla 'skus'
+                $finalPrice = (float) $sku->base_price;
+                $listPrice  = 0.00; 
             }
 
-            $price = $priceObj ? (float)$priceObj->final_price : 0.00;
-            $listPrice = $priceObj ? (float)$priceObj->list_price : 0.00;
-
-            // 2. STOCK: Sumamos solo los lotes de esta sucursal
-            // La relación 'inventoryLots' ya debería venir filtrada por el Action,
-            // pero filtramos aquí de nuevo en memoria para asegurar.
+            // --- 2. LÓGICA DE STOCK ---
+            // Sumamos el inventario de esta sucursal
             $stock = $sku->inventoryLots
                 ->where('branch_id', $targetBranchId)
                 ->sum(fn($lot) => $lot->quantity - $lot->reserved_quantity);
 
             return [
                 'id' => $sku->id,
-                'name' => $sku->name, // Ej: "Botella 620ml"
+                'name' => $sku->name, // Ej: "Lata 350ml"
                 'code' => $sku->code,
-                'price' => $price,
-                'list_price' => $listPrice > $price ? $listPrice : null, // Oferta
+                'price' => $finalPrice,
+                'list_price' => $listPrice > $finalPrice ? $listPrice : null,
                 'stock' => (int)$stock,
                 'has_stock' => $stock > 0,
             ];
         });
 
-        // Filtrar variantes que no tienen precio (no se venden en esta sucursal)
-        // Esto es clave para la "Exclusividad". Si precio es 0, lo quitamos.
+        // --- FILTRO DE SEGURIDAD ---
+        // Solo mostramos variantes que tengan un precio mayor a 0.
+        // SI TUS PRODUCTOS TIENEN base_price = 0 EN LA BD, DESAPARECERÁN AQUÍ.
         $activeVariants = $variants->filter(fn($v) => $v['price'] > 0);
 
-        // Si no queda ninguna variante activa, el producto está "No disponible"
+        // Cálculos para la tarjeta principal (Header del producto)
         if ($activeVariants->isEmpty()) {
-            $minPrice = 0;
-            $maxPrice = 0;
-            $totalStock = 0;
+            $minPrice = 0; $maxPrice = 0; $totalStock = 0;
         } else {
             $minPrice = $activeVariants->min('price');
             $maxPrice = $activeVariants->max('price');
             $totalStock = $activeVariants->sum('stock');
         }
 
-        // Formato de precio visual
-        if ($minPrice === 0 && $maxPrice === 0) {
-            $priceDisplay = 'No disponible';
+        // Formato visual del precio ("Bs 10.00")
+        if ($minPrice == 0) {
+            $priceDisplay = 'Consultar';
         } elseif ($minPrice === $maxPrice) {
             $priceDisplay = number_format($minPrice, 2);
         } else {
@@ -80,19 +81,16 @@ class ShopProductResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'slug' => $this->slug,
-            'brand' => $this->brand->name ?? '',
-            'category' => $this->category->name ?? '',
-            'image_url' => $this->image_path ? Storage::url($this->image_path) : '/images/placeholder.png',
+            'brand' => $this->brand ? $this->brand->name : null,
+            'image_url' => $this->image_url,
             
-            // Datos Consolidados
+            // Datos para la vista
             'price_display' => $priceDisplay,
-            'price_raw' => $minPrice, // Útil para ordenar en frontend
-            'total_stock' => $totalStock,
             'has_stock' => $totalStock > 0,
-            'is_available' => $activeVariants->isNotEmpty(), // Si vende al menos una variante
-            'stock_source_id' => $this->contextBranchId,
-            // Detalle
+            'stock_quantity' => (int) $totalStock,
+            
+            // --- ESTO ES LO QUE LLENA EL MODAL ---
+            // Enviamos .values() para re-indexar el array y que JSON no lo convierta en objeto
             'variants' => $activeVariants->values(),
         ];
     }

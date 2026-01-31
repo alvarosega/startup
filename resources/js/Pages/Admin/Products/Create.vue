@@ -41,7 +41,7 @@ const form = useForm({
         { 
             name: '', 
             code: '', 
-            price: '', 
+            price: 0,
             conversion_factor: 1, 
             weight: 0,
             image: null 
@@ -109,7 +109,7 @@ const addSku = () => {
     const newSku = { 
         name: form.name ? `${form.name} ` : '', 
         code: '', 
-        price: '', 
+        price: 0,
         conversion_factor: 1, 
         weight: 0,
         image: null
@@ -608,7 +608,7 @@ const submit = () => {
                                                 <!-- Precio -->
                                                 <div class="col-span-12 md:col-span-3">
                                                     <label class="form-label text-xs text-right text-success">
-                                                        Precio *
+                                                        Precio Base *
                                                     </label>
                                                     <input 
                                                         v-model.number="sku.price" 

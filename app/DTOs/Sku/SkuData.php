@@ -35,6 +35,7 @@ class SkuData
             'weight' => $this->weight,
             'conversion_factor' => $this->conversionFactor,
             'is_active' => $this->isActive,
+            'base_price' => $this->price,
         ];
     }
 }

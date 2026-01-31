@@ -10,24 +10,31 @@ return new class extends Migration
         Schema::create('prices', function (Blueprint $table) {
             $table->id();
             
-            // RELACIONES
-            
-            // 1. SKU usa UUID (Correcto)
+            // Relaciones
             $table->foreignUuid('sku_id')->constrained('skus')->onDelete('cascade');
+            $table->foreignId('branch_id')->nullable()->constrained('branches'); // Null = Nacional
             
-            // 2. CORRECCIÓN: Branches usa ID Numérico, así que usamos foreignId
-            $table->foreignId('branch_id')->nullable()->constrained('branches'); // Null = Precio Nacional
+            // Clasificación
+            // Ej: 'regular', 'offer', 'clearance'
+            $table->string('type')->default('regular')->index(); 
             
             // Datos Económicos
-            $table->decimal('list_price', 10, 2); 
-            $table->decimal('final_price', 10, 2); 
-            $table->integer('min_quantity')->default(1); 
+            $table->decimal('list_price', 10, 2); // Precio "tachado" (Precio de lista original)
+            $table->decimal('final_price', 10, 2); // Precio real de venta
+            
+            // Reglas de aplicación
+            $table->integer('min_quantity')->default(1); // Para precios mayoristas
+            $table->integer('priority')->default(0); // Si hay 2 ofertas, gana la de mayor prioridad
             
             // Vigencia
             $table->timestamp('valid_from')->useCurrent();
+            $table->timestamp('valid_to')->nullable(); // CRÍTICO: Para ofertas temporales
             
             $table->timestamps();
             $table->softDeletes();
+
+            // Índices para velocidad (Búsqueda de precio actual es pesada)
+            $table->index(['sku_id', 'branch_id', 'valid_from', 'valid_to']);
         });
     }
 

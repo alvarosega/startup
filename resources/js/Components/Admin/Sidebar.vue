@@ -65,25 +65,61 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
 <template>
     <aside 
         class="hidden md:flex flex-col fixed h-full z-30 bg-card border-r border-border/60 shadow-xl transition-[width] duration-300 ease-smooth will-change-[width]"
-        :class="isCollapsed ? 'w-[88px]' : 'w-[280px]'"
+        :class="isCollapsed ? 'w-[72px]' : 'w-[260px]'"
     >
-        <div class="h-20 flex items-center justify-between px-6 border-b border-border/40 shrink-0 relative overflow-hidden">
-            <div class="transition-all duration-300 absolute left-6" :class="isCollapsed ? 'opacity-0 translate-x-[-20px]' : 'opacity-100 translate-x-0'">
-                <span class="font-display font-black text-2xl tracking-tighter italic text-gradient-primary">BOLIVIA<span class="text-foreground">LOGISTICS</span></span>
+        <div class="h-16 flex items-center px-4 border-b border-border/40 shrink-0 relative overflow-hidden bg-card/50 backdrop-blur-sm">
+            
+            <div 
+                class="flex items-center gap-3 transition-all duration-300 absolute left-5"
+                :class="isCollapsed ? 'opacity-0 translate-x-[-10px] pointer-events-none' : 'opacity-100 translate-x-0 delay-100'"
+            >
+                <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                    <Factory :size="16" /> </div>
+                <div class="flex flex-col justify-center">
+                    <span class="font-display font-black text-sm tracking-wide text-foreground leading-none">
+                        BOLIVIA<span class="text-primary">LOGISTICS</span>
+                    </span>
+                    <span class="text-[9px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-0.5">
+                        Enterprise v2.0
+                    </span>
+                </div>
             </div>
-            <div class="absolute left-0 right-0 flex justify-center transition-all duration-300" :class="isCollapsed ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-black italic text-lg shadow-lg">BL</div>
+
+            <div 
+                class="absolute inset-0 flex items-center justify-center transition-all duration-300 z-20 pointer-events-none"
+                :class="isCollapsed ? 'opacity-100 scale-100 delay-100' : 'opacity-0 scale-50'"
+            >
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-primary-foreground font-black text-xs shadow-lg ring-1 ring-white/20">
+                    BL
+                </div>
             </div>
-            <button @click="toggleSidebar" class="btn btn-ghost btn-sm p-2 rounded-full hover:bg-muted ml-auto z-10">
-                <ChevronRight v-if="isCollapsed" :size="18" /><ChevronLeft v-else :size="18" />
+
+            <button 
+                @click="toggleSidebar" 
+                class="btn btn-ghost btn-sm p-1.5 rounded-lg hover:bg-muted ml-auto z-30 transition-transform duration-300"
+                :class="isCollapsed ? 'translate-x-[40px] opacity-0' : 'opacity-100'"
+            >
+                <ChevronLeft :size="16" class="text-muted-foreground hover:text-foreground" />
             </button>
+
+            <button 
+                v-if="isCollapsed"
+                @click="toggleSidebar" 
+                class="absolute inset-0 z-40 w-full h-full cursor-pointer opacity-0"
+                title="Expandir menú"
+            ></button>
         </div>
 
         <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
-            <SidebarLink :href="route('admin.dashboard')" :active="$page.url.startsWith('/admin/dashboard')" :collapsed="isCollapsed"><template #icon><LayoutDashboard :size="20" /></template>Dashboard</SidebarLink>
+            <SidebarLink :href="route('admin.dashboard')" :active="$page.url.startsWith('/admin/dashboard')" :collapsed="isCollapsed">
+                <template #icon><LayoutDashboard :size="20" /></template>
+                Dashboard
+            </SidebarLink>
             
             <template v-if="canManageStock">
-                <div v-if="!isCollapsed" class="section-header">Operaciones</div><div v-else class="section-divider"></div>
+                <div v-if="!isCollapsed" class="section-header">Operaciones</div>
+                <div v-else class="my-4 border-t border-border/40 mx-2"></div>
+                
                 <SidebarLink :href="route('admin.purchases.index')" :active="$page.url.startsWith('/admin/purchases')" :collapsed="isCollapsed"><template #icon><ShoppingCart :size="20" /></template>Ingresos</SidebarLink>
                 <SidebarLink :href="route('admin.inventory.index')" :active="$page.url.startsWith('/admin/inventory')" :collapsed="isCollapsed"><template #icon><Package :size="20" /></template>Kardex</SidebarLink>
                 <SidebarLink :href="route('admin.transfers.index')" :active="$page.url.startsWith('/admin/transfers')" :collapsed="isCollapsed"><template #icon><Truck :size="20" /></template>Transferencias</SidebarLink>
@@ -93,7 +129,9 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
             </template>
 
             <template v-if="showCatalogSection">
-                <div v-if="!isCollapsed" class="section-header">Catálogo</div><div v-else class="section-divider"></div>
+                <div v-if="!isCollapsed" class="section-header">Catálogo</div>
+                <div v-else class="my-4 border-t border-border/40 mx-2"></div>
+                
                 <SidebarLink v-if="canViewProducts" :href="route('admin.products.index')" :active="$page.url.startsWith('/admin/products')" :collapsed="isCollapsed"><template #icon><Tag :size="20" /></template>Productos</SidebarLink>
                 <SidebarLink v-if="isSuperAdmin" :href="route('admin.market-zones.index')" :active="$page.url.startsWith('/admin/market-zones')" :collapsed="isCollapsed"><template #icon><Map :size="20" /></template>Zonas</SidebarLink>
                 <SidebarLink v-if="isSuperAdmin" :href="route('admin.bundles.index')" :active="$page.url.startsWith('/admin/bundles')" :collapsed="isCollapsed"><template #icon><Gift :size="20" /></template>Packs</SidebarLink>
@@ -104,7 +142,9 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
             </template>
 
             <template v-if="canManageUsers">
-                <div v-if="!isCollapsed" class="section-header">Gestión</div><div v-else class="section-divider"></div>
+                <div v-if="!isCollapsed" class="section-header">Gestión</div>
+                <div v-else class="my-4 border-t border-border/40 mx-2"></div>
+                
                 <SidebarLink v-if="isSuperAdmin" :href="route('admin.branches.index')" :active="$page.url.startsWith('/admin/branches')" :collapsed="isCollapsed"><template #icon><Building2 :size="20" /></template>Sucursales</SidebarLink>
                 <SidebarLink v-if="isSuperAdmin || isBranchAdmin" :href="route('admin.drivers.index')" :active="$page.url.startsWith('/admin/drivers')" :collapsed="isCollapsed"><template #icon><Truck :size="20" /></template>Conductores</SidebarLink>
                 <SidebarLink :href="route('admin.users.index')" :active="$page.url.startsWith('/admin/users')" :collapsed="isCollapsed"><template #icon><UserCog :size="20" /></template>Equipo</SidebarLink>
@@ -112,7 +152,9 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
         </nav>
 
         <div class="p-4 border-t border-border/40 bg-muted/20 shrink-0">
-            <Link :href="route('logout')" method="post" as="button" class="group flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background p-2 text-sm font-medium transition-all hover:bg-error/5 hover:border-error/20 hover:text-error" :class="isCollapsed ? 'aspect-square p-0' : ''">
+            <Link :href="route('logout')" method="post" as="button" 
+                  class="group flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background p-2 text-sm font-medium transition-all hover:bg-error/5 hover:border-error/20 hover:text-error"
+                  :class="isCollapsed ? 'aspect-square p-0' : ''">
                 <LogOut :size="16" class="transition-transform group-hover:-translate-x-0.5" />
                 <span v-if="!isCollapsed">Cerrar Sesión</span>
             </Link>
@@ -178,17 +220,14 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
     </div>
 
     <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[80px] glass border-t border-white/20 grid grid-cols-5 px-2 z-40 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-        
         <button @click="toggleMobileMenu('ges')" v-if="canManageUsers" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'ges'}">
             <div class="icon-wrapper"><Settings :size="22" /></div>
             <span class="label">Gestión</span>
         </button>
-        
         <button @click="toggleMobileMenu('inv')" v-if="canViewInventory" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'inv'}">
             <div class="icon-wrapper"><Package :size="22" /></div>
             <span class="label">Stock</span>
         </button>
-
         <div class="flex items-start justify-center -mt-8 relative z-50">
             <Link :href="route('admin.dashboard')" @click="closeMobileMenu"
                     class="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-primary via-primary to-secondary text-primary-foreground transition-all duration-300 active:scale-90 border-[3px] border-background ring-[3px] ring-primary/20 shadow-[0_8px_20px_rgba(var(--primary),0.4)] hover:shadow-[0_12px_25px_rgba(var(--primary),0.5)] hover:-translate-y-1"
@@ -197,30 +236,24 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
                 <span v-if="$page.url.startsWith('/admin/dashboard')" class="absolute -bottom-1 w-1.5 h-1.5 bg-primary-foreground rounded-full"></span>
             </Link>
         </div>
-
         <button @click="toggleMobileMenu('mov')" v-if="canViewMovements" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'mov'}">
             <div class="icon-wrapper"><ArrowLeftRight :size="22" /></div>
             <span class="label">Flujos</span>
         </button>
-
         <button @click="toggleMobileMenu('com')" v-if="canViewCommercial" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'com'}">
             <div class="icon-wrapper"><Store :size="22" /></div>
             <span class="label">Ventas</span>
         </button>
-
     </nav>
 </template>
 
 <style scoped>
-/* Utilidades de diseño */
 .section-header {
     @apply mt-8 mb-2 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-80;
 }
 .section-divider {
     @apply my-4 border-t border-border/40 mx-2;
 }
-
-/* Estilos del Menú Móvil */
 .mobile-item {
     @apply flex flex-col items-center justify-center gap-3 p-3 rounded-2xl transition-all duration-200 active:scale-95 hover:bg-muted/40 cursor-pointer;
 }
@@ -233,8 +266,6 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
 .mobile-item span {
     @apply text-xs text-foreground/90 font-medium tracking-tight text-center leading-tight;
 }
-
-/* Estilos del Dock de Navegación */
 .mobile-nav-btn {
     @apply flex flex-col items-center justify-center gap-1 h-full text-muted-foreground transition-all duration-300 relative;
 }
@@ -253,8 +284,6 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
 .mobile-nav-btn.active .label {
     @apply font-bold;
 }
-
-/* Ajustes seguros */
 .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 20px);
 }

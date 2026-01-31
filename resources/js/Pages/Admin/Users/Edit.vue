@@ -1,249 +1,257 @@
 <script setup>
-    import AdminLayout from '@/Layouts/AdminLayout.vue';
-    import { useForm, Link } from '@inertiajs/vue3';
-    import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
-    import { ref } from 'vue';
-    import { Save, UserCheck, KeyRound, Building, History, X, ArrowLeft } from 'lucide-vue-next';
-    import BaseInput from '@/Components/Base/BaseInput.vue';
-    import RoleSelector from '@/Components/Base/RoleSelector.vue';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useForm, Link } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { 
+    User, Shield, ArrowRight, ArrowLeft, Save, Building, Lock, 
+    RefreshCw, X, Mail, Phone, AlertTriangle, CheckCircle 
+} from 'lucide-vue-next';
+import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+
+const props = defineProps({ 
+    user: Object, 
+    roles: Array, 
+    branches: Array 
+});
+
+const steps = [
+    { id: 1, title: 'Identidad', icon: User },
+    { id: 2, title: 'Permisos', icon: Shield },
+];
+
+const currentStep = ref(1);
+const isChangingPassword = ref(false);
+
+const form = useForm({
+    first_name: props.user.first_name,
+    last_name: props.user.last_name,
+    email: props.user.email,
+    phone: props.user.phone,
+    password: '', // Vacío por defecto
+    role_id: props.user.role_id,
+    branch_id: props.user.branch_id,
+    is_active: !!props.user.is_active
+});
+
+// --- Validación Cliente para Editar ---
+const validateStep1 = () => {
+    form.clearErrors();
+    let isValid = true;
+
+    if (!form.first_name) { form.setError('first_name', 'El nombre es obligatorio'); isValid = false; }
+    if (!form.last_name) { form.setError('last_name', 'El apellido es obligatorio'); isValid = false; }
+    if (!form.phone) { form.setError('phone', 'El teléfono es obligatorio'); isValid = false; }
     
-    const props = defineProps({ 
-        user: Object, 
-        roles: Array, 
-        branches: Array 
-        // NOTA: No hay prop 'filters' aquí - eliminado
+    // Solo validamos password si el usuario decidió cambiarla
+    if (isChangingPassword.value && (!form.password || form.password.length < 6)) {
+        form.setError('password', 'La nueva contraseña debe tener mín. 6 caracteres');
+        isValid = false;
+    }
+
+    return isValid;
+};
+
+const nextStep = () => {
+    if (currentStep.value === 1) {
+        if (validateStep1()) {
+            currentStep.value = 2;
+        } else {
+            const card = document.querySelector('.card-content');
+            card?.classList.add('animate-shake');
+            setTimeout(() => card?.classList.remove('animate-shake'), 400);
+        }
+    }
+};
+
+const submit = () => {
+    form.put(route('admin.users.update', props.user.id), {
+        preserveScroll: true,
+        onError: (errors) => {
+            // Si hay errores de validación del backend en el paso 1, volvemos
+            if (errors.first_name || errors.last_name || errors.email || errors.phone || errors.password) {
+                currentStep.value = 1;
+            }
+        },
+        onSuccess: () => {
+            isChangingPassword.value = false;
+            form.password = '';
+        }
     });
-    
-    // Toggle de Seguridad
-    const isChangingPassword = ref(false);
-    
-    const form = useForm({
-        first_name: props.user.first_name,
-        last_name: props.user.last_name,
-        email: props.user.email,
-        phone: props.user.phone,
-        password: '',
-        role_id: props.user.role_id,
-        branch_id: props.user.branch_id,
-        is_active: !!props.user.is_active
-    });
-    
-    const submit = () => form.put(route('admin.users.update', props.user.id));
-    </script>
-    
-    <template>
-        <AdminLayout>
-            <!-- HEADER -->
-            <template #header>
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <div class="flex items-center gap-3 mb-2">
-                            <Link :href="route('admin.users.index')" 
-                                  class="btn btn-ghost btn-sm">
-                                <ArrowLeft :size="16" />
-                            </Link>
-                            <h1 class="text-3xl font-display font-black text-foreground">
-                                Editar Perfil
-                            </h1>
+};
+</script>
+
+<template>
+    <AdminLayout>
+        <template #header>
+            <div class="animate-slide-up">
+                <div class="flex items-center gap-2 mb-2">
+                    <Link :href="route('admin.users.index')" class="btn btn-ghost btn-sm px-2 text-muted-foreground hover:text-primary">
+                        <ArrowLeft :size="16" /> Volver
+                    </Link>
+                </div>
+                <h1 class="text-3xl font-display font-black text-gradient-primary">Editar Perfil</h1>
+                <p class="text-muted-foreground text-sm">
+                    Modificando a: <span class="font-bold text-foreground">{{ props.user.first_name }} {{ props.user.last_name }}</span>
+                </p>
+            </div>
+        </template>
+
+        <div class="max-w-3xl mx-auto pb-24 px-4 md:px-0">
+            
+            <div class="mb-8 md:mb-12 relative">
+                <div class="flex justify-between items-center relative z-10 px-8">
+                    <div v-for="step in steps" :key="step.id" class="flex flex-col items-center gap-2">
+                        <div :class="[
+                            'w-10 h-10 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border-4 border-background shadow-sm',
+                            currentStep >= step.id ? 'bg-primary text-primary-foreground scale-110 shadow-primary/20' : 'bg-muted text-muted-foreground'
+                        ]">
+                            <component :is="step.icon" :size="20" />
                         </div>
-                        <p class="text-muted-foreground font-medium text-sm">
-                            Actualizando datos de <span class="text-primary font-bold">{{ user.first_name }} {{ user.last_name }}</span>
-                        </p>
+                        <span class="text-[10px] font-black uppercase tracking-widest hidden md:block" 
+                              :class="currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'">
+                            {{ step.title }}
+                        </span>
                     </div>
                 </div>
-            </template>
-    
-            <div class="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="absolute top-5 md:top-7 left-0 w-full h-1 bg-muted rounded-full -z-0 px-10">
+                    <div class="h-full bg-primary transition-all duration-500 rounded-full" 
+                         :style="{ width: currentStep === 2 ? '100%' : '0%' }"></div>
+                </div>
+            </div>
+
+            <div class="card glass shadow-xl min-h-[500px] flex flex-col">
+                <div class="card-content p-5 md:p-8 flex-1">
                     
-                    <div class="lg:col-span-2 space-y-8">
+                    <div v-show="currentStep === 1" class="space-y-6 animate-in fade-in">
+    
+                        <div class="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border/50 mb-6">
+                            <div class="flex items-center gap-3">
+                                <div :class="`w-2 h-2 rounded-full ${form.is_active ? 'bg-success' : 'bg-error'} animate-pulse`"></div>
+                                <span class="text-sm font-bold">{{ form.is_active ? 'Cuenta Activa' : 'Cuenta Suspendida' }}</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="form.is_active" class="sr-only peer">
+                                <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                            <BaseInput v-model="form.first_name" label="Nombre" :icon="User" required :error="form.errors.first_name" />
+                            <BaseInput v-model="form.last_name" label="Apellido" required :error="form.errors.last_name" />
+                        </div>
                         
-                        <!-- INFORMACIÓN PERSONAL -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="flex items-center gap-2">
-                                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
-                                        <UserCheck :size="20" />
+                        <BaseInput v-model="form.email" label="Email Corporativo" type="email" :icon="Mail" :error="form.errors.email" />
+                        
+                        <BaseInput v-model="form.phone" label="Celular (Login ID)" :icon="Phone" required :error="form.errors.phone" />
+
+                        <div class="p-5 rounded-2xl bg-muted/30 border border-border transition-all duration-300">
+                            <div v-if="!isChangingPassword" class="flex items-center justify-between">
+                                <div class="flex items-center gap-3 text-muted-foreground">
+                                    <div class="p-2 bg-background rounded-lg"><Lock :size="18"/></div> 
+                                    <div>
+                                        <p class="text-sm font-bold text-foreground">Contraseña</p>
+                                        <p class="text-[10px] uppercase tracking-wider">●●●●●●●● (Encriptada)</p>
                                     </div>
-                                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wider">
-                                        Información Personal
-                                    </h2>
                                 </div>
+                                <button @click="isChangingPassword = true" type="button" class="btn btn-outline btn-sm gap-2 hover:border-primary hover:text-primary">
+                                    <RefreshCw :size="14"/> Cambiar
+                                </button>
                             </div>
                             
-                            <div class="card-content">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    <BaseInput v-model="form.first_name" 
-                                             label="Nombre" 
-                                             :error="form.errors.first_name" 
-                                             required />
-                                    <BaseInput v-model="form.last_name" 
-                                             label="Apellido" 
-                                             :error="form.errors.last_name" 
-                                             required />
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <BaseInput v-model="form.email" 
-                                             type="email"
-                                             label="Email Corporativo" 
-                                             :error="form.errors.email" />
-                                    <BaseInput v-model="form.phone" 
-                                             label="Celular (ID Login)" 
-                                             :error="form.errors.phone" 
-                                             required />
-                                </div>
-                            </div>
-                        </div>
-    
-                        <!-- CREDENCIALES -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="flex items-center gap-2">
-                                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
-                                        <KeyRound :size="20" />
-                                    </div>
-                                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wider">
-                                        Credenciales
-                                    </h2>
-                                </div>
-                            </div>
-    
-                            <div class="card-content">
-                                <div v-if="!isChangingPassword" class="flex items-center justify-between p-5 bg-muted/20 rounded-xl border border-border">
-                                    <div>
-                                        <span class="block font-bold text-foreground text-sm mb-1">
-                                            Contraseña Encriptada
-                                        </span>
-                                        <p class="text-xs text-muted-foreground">
-                                            La contraseña actual es segura y no es visible.
-                                        </p>
-                                    </div>
-                                    <button @click="isChangingPassword = true" type="button" 
-                                            class="btn btn-outline btn-sm">
-                                        Restablecer
+                            <div v-else class="space-y-4 animate-in scale-in origin-top">
+                                <div class="flex justify-between items-center">
+                                    <label class="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                                        <Lock :size="14"/> Nueva Contraseña
+                                    </label>
+                                    <button @click="isChangingPassword = false; form.password = ''; form.clearErrors('password')" type="button" class="text-muted-foreground hover:text-error transition-colors">
+                                        <X :size="18"/>
                                     </button>
                                 </div>
-    
-                                <div v-else class="bg-muted/10 p-5 rounded-xl border border-border animate-in">
-                                    <div class="flex items-center justify-between mb-4">
-                                        <label class="text-xs font-bold text-foreground uppercase tracking-wider">
-                                            Nueva Contraseña
-                                        </label>
-                                        <button @click="isChangingPassword = false; form.password = ''" type="button" 
-                                                class="btn btn-ghost btn-sm text-error">
-                                            <X :size="12" /> Cancelar
-                                        </button>
-                                    </div>
-                                    <BaseInput v-model="form.password" 
-                                             type="password" 
-                                             placeholder="Escribe la nueva contraseña..." 
-                                             :error="form.errors.password" 
-                                             autofocus />
-                                    <p class="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                                        <History :size="12" />
-                                        Si dejas este campo vacío o cancelas, se mantendrá la contraseña anterior.
-                                    </p>
-                                </div>
+                                <BaseInput 
+                                    v-model="form.password" 
+                                    type="password" 
+                                    placeholder="Ingresa la nueva contraseña..." 
+                                    :error="form.errors.password"
+                                    autofocus 
+                                />
+                                <p class="text-xs text-muted-foreground">Mínimo 6 caracteres. Si cancelas, se mantiene la actual.</p>
                             </div>
                         </div>
                     </div>
-    
-                    <!-- PANEL LATERAL: ACCESO Y ROL -->
-                    <div class="space-y-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="flex items-center gap-2">
-                                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
-                                        <Building :size="20" />
-                                    </div>
-                                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wider">
-                                        Acceso & Rol
-                                    </h2>
-                                </div>
-                            </div>
-    
-                            <div class="card-content space-y-6">
-                                <!-- ESTADO DE CUENTA -->
-                                <BaseCheckbox 
-                                    v-model="form.is_active" 
-                                    label="Estado de Cuenta"
-                                    :true-value="1" 
-                                    :false-value="0"
-                                    class="p-4 bg-muted/10 rounded-xl border border-border"
-                                >
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-bold text-foreground">Estado de Cuenta</span>
-                                        <span class="text-xs font-medium" :class="form.is_active ? 'text-success' : 'text-error'">
-                                            {{ form.is_active ? '● Activo' : '● Acceso Revocado' }}
-                                        </span>
-                                    </div>
-                                </BaseCheckbox>
-    
-                                <!-- SELECTOR DE ROL -->
-                                <div>
-                                    <RoleSelector v-model="form.role_id" 
-                                                :roles="roles" 
-                                                :error="form.errors.role_id" 
-                                                required />
-                                </div>
-    
-                                <!-- SELECTOR DE SUCURSAL -->
-                                <div v-if="branches && branches.length > 0">
-                                    <label class="form-label">
-                                        Sucursal Base
-                                    </label>
-                                    <select v-model="form.branch_id" 
-                                            class="form-input">
-                                        <option :value="null">Sin sucursal</option>
-                                        <option v-for="b in branches" 
-                                                :key="b.id" 
-                                                :value="b.id">
-                                            {{ b.name }}
-                                        </option>
-                                    </select>
-                                    <p v-if="form.errors.branch_id" class="form-error">
-                                        {{ form.errors.branch_id }}
-                                    </p>
-                                </div>
-    
-                                <!-- BOTONES DE ACCIÓN -->
-                                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/50">
-                                    <Link :href="route('admin.users.index')" 
-                                          class="btn btn-outline btn-md flex-1">
-                                        Cancelar
-                                    </Link>
-                                    <button @click="submit" 
-                                            :disabled="form.processing" 
-                                            class="btn btn-primary btn-md flex-1 flex items-center justify-center gap-2">
-                                        <Save :size="18" /> 
-                                        <span>Guardar Cambios</span>
-                                    </button>
-                                </div>
-                            </div>
+
+                    <div v-show="currentStep === 2" class="space-y-6 animate-in slide-in-from-right-4">
+                        
+                        <div v-if="form.hasErrors && (form.errors.first_name || form.errors.phone || form.errors.email)" 
+                             class="alert alert-error mb-4 cursor-pointer hover:bg-error/20 transition-colors" @click="currentStep = 1">
+                            <AlertTriangle :size="18"/>
+                            <span class="text-xs font-bold">Error en datos personales. Click para corregir.</span>
                         </div>
-    
-                        <!-- INFORMACIÓN ADICIONAL -->
-                        <div class="card">
-                            <div class="card-content">
-                                <h3 class="text-sm font-bold text-foreground mb-3">Información Adicional</h3>
-                                <div class="space-y-2 text-sm">
-                                    <div class="flex justify-between">
-                                        <span class="text-muted-foreground">ID:</span>
-                                        <span class="font-mono text-foreground">{{ user.id }}</span>
+
+                        <div>
+                            <label class="form-label mb-3">Rol de Acceso <span class="text-error">*</span></label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div v-for="role in roles" :key="role.id" 
+                                     @click="form.role_id = role.id"
+                                     :class="['cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center gap-3', 
+                                              form.role_id === role.id ? 'border-primary bg-primary/5 ring-2 ring-primary/10' : 'border-border hover:border-primary/40']">
+                                    <div :class="['w-8 h-8 rounded-lg flex items-center justify-center transition-colors', form.role_id === role.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground']">
+                                        <Shield :size="16" />
                                     </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-muted-foreground">Creado:</span>
-                                        <span class="text-foreground">{{ new Date(user.created_at).toLocaleDateString() }}</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-muted-foreground">Última actualización:</span>
-                                        <span class="text-foreground">{{ new Date(user.updated_at).toLocaleDateString() }}</span>
-                                    </div>
+                                    <span class="font-bold text-sm" :class="form.role_id === role.id ? 'text-primary' : 'text-foreground'">{{ role.name }}</span>
                                 </div>
                             </div>
+                            <p v-if="form.errors.role_id" class="form-error mt-2">{{ form.errors.role_id }}</p>
                         </div>
+                        
+                        <div class="animate-scale-in">
+                            <BaseSelect 
+                                v-model="form.branch_id"
+                                label="Sucursal Operativa"
+                                :options="branches"
+                                placeholder="Acceso Global (Sin Sucursal Específica)"
+                                :icon="Building"
+                                :error="form.errors.branch_id"
+                            />
+                            <p class="text-xs text-muted-foreground mt-2 ml-1 flex items-center gap-1">
+                                <CheckCircle :size="12" class="text-success"/>
+                                Los permisos se actualizan inmediatamente al guardar.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-muted/20 border-t border-border/50 p-6 flex justify-between items-center sticky bottom-0 md:static backdrop-blur-md md:backdrop-blur-none z-20">
+                    <button @click="currentStep = 1" v-show="currentStep === 2" class="btn btn-ghost hover:bg-background gap-2 text-muted-foreground">
+                        <ArrowLeft :size="18"/> <span class="hidden md:inline">Volver</span>
+                    </button>
+                    
+                    <div class="flex-1 md:flex-none flex justify-end">
+                        <button @click="nextStep" v-if="currentStep === 1" class="btn btn-primary w-full md:w-auto gap-2">
+                            Siguiente <ArrowRight :size="18"/>
+                        </button>
+                        
+                        <button @click="submit" v-else 
+                                class="btn btn-primary w-full md:w-auto gap-2 shadow-lg shadow-primary/20" 
+                                :disabled="form.processing">
+                            <span v-if="form.processing" class="spinner spinner-sm"></span>
+                            <Save v-else :size="18"/> 
+                            {{ form.processing ? 'Guardando...' : 'Guardar Cambios' }}
+                        </button>
                     </div>
                 </div>
             </div>
-        </AdminLayout>
-    </template>
+        </div>
+    </AdminLayout>
+</template>
+
+<style scoped>
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+</style>

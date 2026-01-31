@@ -44,6 +44,7 @@ use App\Http\Controllers\Driver\DriverController;
 use App\Http\Controllers\Shop\ShopController;
 
 
+
 // =============================================================================
 // 1. ZONA PÚBLICA (LANDING PAGE & CATÁLOGO)
 // =============================================================================
@@ -76,22 +77,35 @@ Route::middleware('guest')->group(function () {
     Route::post('register/driver', [WebAuthController::class, 'registerDriver'])->name('register.driver.store');
     // Recuperación de Contraseña
     // Paso 1: Solicitar
-    Route::get('forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])->name('password.request');
-    Route::post('forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])->name('password.email');
+    Route::post('/forgot-password', [WebAuthController::class, 'sendRecoveryCode'])
+    ->name('password.email');
 
-    // Paso 2: Resetear (Notar que ya no usamos token en la URL, es un formulario POST limpio)
-    Route::get('reset-password', [PasswordResetController::class, 'showResetForm'])->name('password.reset'); // Cambié la ruta para no pedir token en URL
-    Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
+    // 2. Validar código y cambiar password (POST desde el form de "Nueva Contraseña")
+    Route::post('/reset-password', [WebAuthController::class, 'resetPassword'])
+        ->name('password.update');
 });
  
 Route::post('logout', [WebAuthController::class, 'logout'])->name('logout');
 
-Route::prefix('cart')->name('cart.')->group(function () {
-    Route::get('/', [CartController::class, 'index'])->name('index'); // Ver carrito
-    Route::post('/', [CartController::class, 'store'])->name('store'); // Agregar item
-    Route::post('/bulk', [CartController::class, 'bulkStore'])->name('bulk-store'); 
-    Route::put('/{id}', [CartController::class, 'update'])->name('update'); // Cambiar cantidad
-    Route::delete('/{id}', [CartController::class, 'destroy'])->name('destroy'); // Quitar item
+
+
+// Grupo de rutas para la tienda (con middleware de sesión/auth según necesites)
+Route::prefix('shop')->name('cart.')->group(function () {
+    
+    // Ver Carrito
+    Route::get('/cart', [CartController::class, 'index'])->name('index');
+    
+    // Agregar Item (POST)
+    Route::post('/cart/add', [CartController::class, 'store'])->name('add');
+    
+    // Actualizar Cantidad (PATCH)
+    Route::patch('/cart/{id}', [CartController::class, 'update'])->name('update');
+    
+    // Eliminar Item (DELETE)
+    Route::delete('/cart/{id}', [CartController::class, 'destroy'])->name('remove');
+    
+    // Vaciar / Bulk (Opcional)
+    Route::post('/cart/bulk', [CartController::class, 'bulkStore'])->name('bulk');
 });
 
 Route::get('/shop/zone/{zone}', [ShopController::class, 'showZone'])->name('shop.zone');

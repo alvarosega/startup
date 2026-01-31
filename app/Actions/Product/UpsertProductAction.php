@@ -64,6 +64,7 @@ class UpsertProductAction
             $skuData = [
                 'name' => $skuDto->name,
                 'code' => $skuDto->code,
+                'base_price' => $skuDto->price,
                 'conversion_factor' => $skuDto->conversion_factor,
                 'weight' => $skuDto->weight,
                 'is_active' => true,

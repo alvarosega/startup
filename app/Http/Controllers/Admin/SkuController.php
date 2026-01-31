@@ -33,6 +33,7 @@ class SkuController extends Controller
                     'product_id' => $validated['product_id'],
                     'name' => $validated['name'],
                     'code' => $validated['code'] ?? null,
+                    'base_price' => $validated['price'],
                     'conversion_factor' => $validated['conversion_factor'],
                     'weight' => $validated['weight'] ?? 0,
                     'image_path' => $request->hasFile('image') 
@@ -91,6 +92,7 @@ class SkuController extends Controller
                 $sku->update([
                     'name' => $validated['name'],
                     'code' => $validated['code'] ?? null,
+                    'base_price' => $validated['price'],
                     'conversion_factor' => $validated['conversion_factor'],
                     'weight' => $validated['weight'] ?? 0,
                     'image_path' => $imagePath,
@@ -186,6 +188,7 @@ class SkuController extends Controller
             DB::transaction(function () use ($sku) {
                 $newSku = $sku->replicate();
                 $newSku->code = $sku->code . '-COPY';
+                $newSku->base_price = $sku->base_price;
                 $newSku->save();
 
                 // Clonar precio si existe

@@ -280,7 +280,9 @@ const getImageUrl = (imagePath) => {
                                                                 <td class="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                                     {{ sku.code || '---' }}
                                                                 </td>
-                                                                
+                                                                <td class="px-4 py-3 text-right font-mono font-bold text-success">
+                                                                    Bs {{ parseFloat(sku.price).toFixed(2) }}
+                                                                </td>
                                                                 <!-- Unidad de medida -->
                                                                 <td class="px-4 py-3 text-center">
                                                                     <span 

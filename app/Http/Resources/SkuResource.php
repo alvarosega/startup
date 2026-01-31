@@ -19,7 +19,11 @@ class SkuResource extends JsonResource
             }, 0),
             'conversion_factor' => (float) $this->conversion_factor,
             'weight' => (float) $this->weight,
-            'image_path' => $this->image_path,
+           // MODIFICAR ESTA LÍNEA: Leemos directo de la nueva columna
+           'price' => (float) $this->base_price, 
+            
+           'image_path' => $this->image_path,
+           'image_url' => $this->image_path ? Storage::url($this->image_path) : null,
         ]);
         // La relación 'prices' ya viene filtrada desde el controller (solo nacionales)
         // Tomamos el primero (el más reciente gracias a latest())

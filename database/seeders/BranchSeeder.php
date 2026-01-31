@@ -4,20 +4,20 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Branch;
-use Faker\Factory as Faker;
 
 class BranchSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Faker::create('es_BO');
+        // Limpiamos la tabla para evitar duplicados si se corre varias veces
+        // Branch::truncate(); // Descomentar si es necesario limpiar
 
-        // 1. SUCURSALES REALES (Golden Data)
         $branches = [
+            // 1. LA PAZ (Sopocachi)
             [
-                'name' => 'Sede Central - La Paz (Sopocachi)',
+                'name' => 'Sede Central - La Paz',
                 'city' => 'La Paz',
-                'address' => 'Av. 6 de Agosto #2020',
+                'address' => 'Av. 6 de Agosto #2020, Sopocachi',
                 'phone' => '22445566',
                 'latitude' => -16.508356,
                 'longitude' => -68.126282,
@@ -28,48 +28,37 @@ class BranchSeeder extends Seeder
                     ['lat' => -16.520000, 'lng' => -68.135000],
                 ],
             ],
-            // ... (Mantén aquí el resto de tus sucursales manuales originales) ...
+            // 2. SANTA CRUZ (Equipetrol)
+            [
+                'name' => 'Sede Santa Cruz - Equipetrol',
+                'city' => 'Santa Cruz',
+                'address' => 'Av. San Martín, Calle 5 Este',
+                'phone' => '33445566',
+                'latitude' => -17.769000,
+                'longitude' => -63.195000,
+                'coverage_polygon' => [
+                    ['lat' => -17.760000, 'lng' => -63.200000],
+                    ['lat' => -17.760000, 'lng' => -63.190000],
+                    ['lat' => -17.780000, 'lng' => -63.190000],
+                    ['lat' => -17.780000, 'lng' => -63.200000],
+                ],
+            ],
+            // 3. COCHABAMBA (Cala Cala)
+            [
+                'name' => 'Sede Cochabamba - Cala Cala',
+                'city' => 'Cochabamba',
+                'address' => 'Av. Libertador Bolívar #100',
+                'phone' => '44445566',
+                'latitude' => -17.370000,
+                'longitude' => -66.160000,
+                'coverage_polygon' => [
+                    ['lat' => -17.360000, 'lng' => -66.170000],
+                    ['lat' => -17.360000, 'lng' => -66.150000],
+                    ['lat' => -17.380000, 'lng' => -66.150000],
+                    ['lat' => -17.380000, 'lng' => -66.170000],
+                ],
+            ],
         ];
-
-        // 2. SUCURSALES GENERADAS (Masivas)
-        // Definimos centros de ciudades para generar coordenadas cercanas
-        $cityCenters = [
-            'La Paz' => ['lat' => -16.4897, 'lng' => -68.1193],
-            'Santa Cruz' => ['lat' => -17.7833, 'lng' => -63.1821],
-            'Cochabamba' => ['lat' => -17.3935, 'lng' => -66.1570],
-            'El Alto' => ['lat' => -16.5000, 'lng' => -68.1500],
-            'Tarija' => ['lat' => -21.5355, 'lng' => -64.7296],
-            'Sucre' => ['lat' => -19.0353, 'lng' => -65.2592],
-            'Oruro' => ['lat' => -17.9666, 'lng' => -67.1166],
-        ];
-
-        for ($i = 0; $i < 45; $i++) {
-            $city = $faker->randomElement(array_keys($cityCenters));
-            $center = $cityCenters[$city];
-
-            // Generar lat/lng aleatoria cerca del centro (aprox +/- 2km)
-            $lat = $center['lat'] + $faker->randomFloat(6, -0.02, 0.02);
-            $lng = $center['lng'] + $faker->randomFloat(6, -0.02, 0.02);
-
-            // Generar un polígono simple (cuadrado) alrededor del punto
-            $offset = 0.005; // Aprox 500m
-            $polygon = [
-                ['lat' => $lat + $offset, 'lng' => $lng - $offset], // NW
-                ['lat' => $lat + $offset, 'lng' => $lng + $offset], // NE
-                ['lat' => $lat - $offset, 'lng' => $lng + $offset], // SE
-                ['lat' => $lat - $offset, 'lng' => $lng - $offset], // SW
-            ];
-
-            $branches[] = [
-                'name' => "Sucursal $city - " . $faker->streetName,
-                'city' => $city,
-                'address' => $faker->address,
-                'phone' => '4' . $faker->numerify('#######'), // Fijos BO
-                'latitude' => $lat,
-                'longitude' => $lng,
-                'coverage_polygon' => $polygon,
-            ];
-        }
 
         foreach ($branches as $branch) {
             Branch::updateOrCreate(

@@ -19,6 +19,7 @@ class Sku extends Model
         'product_id',
         'name',
         'code',
+        'base_price',
         'conversion_factor',
         'weight',
         'image_path',
@@ -27,6 +28,7 @@ class Sku extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'base_price' => 'decimal:2',
         'conversion_factor' => 'decimal:3', // Cambiado a 3 decimales
         'weight' => 'decimal:3'
     ];
@@ -38,6 +40,7 @@ class Sku extends Model
     {
         return $this->belongsTo(Product::class, 'product_id', 'id');
     }
+    
 
     // Relación con Prices
     public function prices(): HasMany
@@ -167,5 +170,6 @@ class Sku extends Model
         return (int) $lots
             ->where('branch_id', $branchId)
             ->sum(fn($lot) => $lot->quantity - $lot->reserved_quantity);
-    }
+    }   
+
 }

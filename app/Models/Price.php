@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Price extends Model
 {
@@ -13,28 +14,33 @@ class Price extends Model
     protected $fillable = [
         'sku_id', 
         'branch_id', 
+        'type',
         'list_price', 
         'final_price', 
         'min_quantity', 
-        'valid_from'
+        'priority',
+        'valid_from',
+        'valid_to'
     ];
 
     protected $casts = [
         'list_price' => 'decimal:2',
         'final_price' => 'decimal:2',
         'valid_from' => 'datetime',
+        'valid_to' => 'datetime',
     ];
 
-    // Relación con SKU
-    public function sku()
+    // Scope para obtener precios vigentes
+    public function scopeActive(Builder $query)
     {
-        return $this->belongsTo(Sku::class, 'sku_id', 'id');
+        $now = now();
+        return $query->where('valid_from', '<=', $now)
+                     ->where(function($q) use ($now) {
+                         $q->whereNull('valid_to')
+                           ->orWhere('valid_to', '>=', $now);
+                     });
     }
 
-    // Relación con Branch (si existe el modelo Branch)
-    public function branch()
-    {
-        // Si tienes modelo Branch
-        return $this->belongsTo(Branch::class, 'branch_id', 'id');
-    }
+    public function sku() { return $this->belongsTo(Sku::class); }
+    public function branch() { return $this->belongsTo(Branch::class); }
 }
