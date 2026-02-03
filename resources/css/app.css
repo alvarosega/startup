@@ -31,13 +31,13 @@
     overflow-x: hidden;
   }
 
-  /* Selection styling */
+  /* Selection styling: Neon Contrast */
   ::selection {
-    @apply bg-primary/20 text-primary-foreground;
+    @apply bg-primary text-primary-foreground;
   }
 
   ::-moz-selection {
-    @apply bg-primary/20 text-primary-foreground;
+    @apply bg-primary text-primary-foreground;
   }
 
   /* Focus visible */
@@ -69,25 +69,26 @@
     scrollbar-color: hsl(var(--muted)) transparent;
   }
 
-  /* Typography system */
+  /* Typography system - ROBUSTEZ BANCARIA */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight font-semibold text-balance;
+    /* Cambiado a font-bold/black para solidez visual */
+    @apply font-display tracking-tight font-bold text-balance;
   }
 
   h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl leading-[1.1] tracking-tighter;
+    @apply text-4xl md:text-5xl lg:text-6xl leading-[1.1] tracking-tighter font-black;
   }
 
   h2 {
-    @apply text-3xl md:text-4xl leading-[1.2] tracking-tight;
+    @apply text-3xl md:text-4xl leading-[1.2] tracking-tight font-black;
   }
 
   h3 {
-    @apply text-2xl md:text-3xl leading-[1.3];
+    @apply text-2xl md:text-3xl leading-[1.3] font-bold;
   }
 
   h4 {
-    @apply text-xl md:text-2xl leading-[1.4];
+    @apply text-xl md:text-2xl leading-[1.4] font-bold;
   }
 
   p {
@@ -236,7 +237,8 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary;
+    /* Texto Navy sobre fondo Neón para máximo contraste */
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary font-bold;
   }
 
   .btn-secondary {
@@ -277,7 +279,7 @@
   }
 
   .spinner-lg {
-    @apply h-8 w-8 border-[3px]; /* Usa corchetes para forzar 3px */
+    @apply h-8 w-8 border-[3px];
   }
 
   /* Skeleton loading */
@@ -285,12 +287,30 @@
     @apply animate-pulse rounded-lg bg-muted;
   }
 
-  /* Glass effect */
+  /* Glass effect (Light/Base) */
   .glass {
     @apply backdrop-blur-md bg-background/80 border border-border/50;
     box-shadow: 
       0 8px 32px hsl(var(--background) / 0.1),
       inset 0 1px 0 hsl(var(--background) / 0.1);
+  }
+
+  /* === NEW: Dark Mode Premium Glass === */
+  .dark .glass-premium {
+      @apply backdrop-blur-xl bg-card/60 border-border/40;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
+  
+  /* === NEW: Aura de Predicción === */
+  .predictive-aura {
+    @apply relative overflow-visible z-10;
+  }
+  
+  .predictive-aura::after {
+    content: '';
+    @apply absolute -inset-1 rounded-xl opacity-60 blur-lg animate-aura-pulse pointer-events-none;
+    background: radial-gradient(circle, hsl(var(--primary) / 0.5) 0%, transparent 70%);
+    z-index: -1;
   }
 
   /* Divider */

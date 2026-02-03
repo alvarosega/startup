@@ -21,7 +21,12 @@ module.exports = {
     },
     extend: {
       colors: {
-        // ===== COLORES DE MARCA (white-labeling) =====
+        // Solidez Bancaria vinculada a variables CSS
+        navy: {
+            DEFAULT: 'hsl(var(--navy-hue) var(--navy-saturation) var(--navy-lightness) / <alpha-value>)',
+        },
+        
+        // ===== COLORES DE MARCA =====
         primary: {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
@@ -37,7 +42,7 @@ module.exports = {
           foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
         },
         
-        // ===== COLORES SEMÁNTICOS (relativos a marca) =====
+        // ===== COLORES SEMÁNTICOS =====
         success: {
           DEFAULT: 'hsl(var(--success) / <alpha-value>)',
           foreground: 'hsl(var(--success-foreground) / <alpha-value>)',
@@ -106,6 +111,9 @@ module.exports = {
         'shimmer': 'shimmer 2s linear infinite',
         'bounce-subtle': 'bounceSubte 1s infinite',
         'ping-subtle': 'pingSubte 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+        // NUEVAS ANIMACIONES PARA ESTRATEGIA NEÓN
+        'aura-pulse': 'auraPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'neon-float': 'neonFloat 3s ease-in-out infinite',
       },
       
       transitionTimingFunction: {
@@ -150,7 +158,7 @@ module.exports = {
         'brand-radial': 'radial-gradient(circle, hsl(var(--primary)), hsl(var(--secondary)))',
       },
       
-      // ===== KEYFRAMES PARA ANIMACIONES =====
+      // ===== KEYFRAMES =====
       keyframes: {
         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
         fadeOut: { '0%': { opacity: '1' }, '100%': { opacity: '0' } },
@@ -166,6 +174,21 @@ module.exports = {
         pingSubte: {
           '75%, 100%': { transform: 'scale(1.5)', opacity: '0' },
         },
+        // KEYFRAMES ESPECÍFICOS PARA EL DISEÑO DEFINIDO
+        auraPulse: {
+          '0%, 100%': { 
+            'box-shadow': '0 0 20px rgba(0, 240, 255, 0.3)',
+            'transform': 'scale(1)' 
+          },
+          '50%': { 
+            'box-shadow': '0 0 40px rgba(0, 240, 255, 0.6)',
+            'transform': 'scale(1.02)' 
+          },
+        },
+        neonFloat: {
+            '0%, 100%': { transform: 'translateY(0)' },
+            '50%': { transform: 'translateY(-5px)' },
+        }
       },
       
       // ===== UTILIDADES EXTRA =====
@@ -187,7 +210,6 @@ module.exports = {
   },
   plugins: [],
   safelist: [
-    // Clases que Tailwind no puede detectar pero necesitas
     'brand-bolivia',
     'brand-peru',
     'brand-chile',
@@ -196,7 +218,6 @@ module.exports = {
     'brand-subtle',
     'brand-light',
     'brand-dark',
-    // Gradientes de marca
     'bg-brand-gradient',
     'bg-brand-gradient-diagonal',
     'bg-brand-gradient-vertical',

@@ -51,7 +51,7 @@ use App\Http\Controllers\Shop\ShopController;
 
 Route::get('/', [ShopController::class, 'index'])->name('shop.index');
 Route::get('/p/{id}', [CatalogController::class, 'show'])->name('shop.show');
-Route::get('/bundles/{slug}', [App\Http\Controllers\Shop\BundleController::class, 'show'])->name('bundles.show');
+Route::get('/shop/bundle/{slug}', [App\Http\Controllers\Shop\BundleController::class, 'show'])->name('shop.bundle.show');
 // Rutas Legales
 Route::get('/terms', function () { return Inertia::render('Legal/Terms'); })->name('terms.show');
 Route::get('/privacy', function () { return Inertia::render('Legal/Privacy'); })->name('privacy.show');

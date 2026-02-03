@@ -1,53 +1,66 @@
 /* resources/css/root.css - EL CORAZÓN DEL SISTEMA */
 :root {
-  /* ===== VARIABLES DE MARCA (CAMBIAN POR CLIENTE) ===== */
-  --brand-hue: 172;            /* Tono base - CAMBIAR POR MARCA */
-  --brand-saturation: 66%;     /* Saturación - CAMBIAR POR MARCA */
-  --brand-lightness: 50%;      /* Luminosidad - CAMBIAR POR MARCA */
+  /* ===== VARIABLES DE MARCA: ELECTRIC LUXURY ===== */
+  /* Azul Eléctrico (#00F0FF) para innovación */
+  --brand-hue: 184;
+  --brand-saturation: 100%;
+  --brand-lightness: 50%;
   
-  /* Paleta derivada AUTOMÁTICAMENTE desde variables de marca */
+  /* Navy Bancario (#0A192F) para solidez y texto sobre neón */
+  --navy-hue: 216;
+  --navy-saturation: 65%;
+  --navy-lightness: 11%;
+  
+  /* Paleta derivada AUTOMÁTICAMENTE */
   --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
-  --primary-foreground: 0 0% 98%;
-  --primary-light: var(--brand-hue) calc(var(--brand-saturation) * 0.5) calc(var(--brand-lightness) * 1.2);
-  --primary-dark: var(--brand-hue) calc(var(--brand-saturation) * 1.2) calc(var(--brand-lightness) * 0.8);
+  /* IMPORTANTE: El texto sobre el botón Neón debe ser oscuro (Navy) para legibilidad */
+  --primary-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
   
-  --secondary: calc(var(--brand-hue) + 50) var(--brand-saturation) calc(var(--brand-lightness) * 0.9);
+  --primary-light: var(--brand-hue) calc(var(--brand-saturation) * 0.8) calc(var(--brand-lightness) * 1.3);
+  --primary-dark: var(--brand-hue) calc(var(--brand-saturation) * 1.2) calc(var(--brand-lightness) * 0.4);
+  
+  --secondary: var(--navy-hue) var(--navy-saturation) calc(var(--navy-lightness) * 1.5);
   --secondary-foreground: 0 0% 98%;
   
-  --accent: calc(var(--brand-hue) - 50) calc(var(--brand-saturation) * 1.2) var(--brand-lightness);
+  --accent: 300 100% 50%; /* Magenta Neón para competencia/detalles */
   --accent-foreground: 0 0% 98%;
   
-  /* Colores semánticos (relativos a la marca) */
-  --success: calc(var(--brand-hue) + 120) var(--brand-saturation) var(--brand-lightness);
-  --success-foreground: 0 0% 98%;
+  /* Colores semánticos competitivos */
+  --success: 150 100% 50%; /* Verde Neón */
+  --success-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
   
-  --warning: calc(var(--brand-hue) + 30) var(--brand-saturation) var(--brand-lightness);
-  --warning-foreground: 0 0% 13%;
+  --warning: 45 100% 50%;
+  --warning-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
   
-  --error: calc(var(--brand-hue) - 30) var(--brand-saturation) var(--brand-lightness);
+  --error: 331 100% 50%; /* Hyper Magenta para errores */
   --error-foreground: 0 0% 98%;
   
-  --info: calc(var(--brand-hue) + 180) var(--brand-saturation) var(--brand-lightness);
-  --info-foreground: 0 0% 98%;
+  --info: 190 100% 50%;
+  --info-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
   
-  /* ===== TEMA CLARO (valores por defecto) ===== */
+  /* ===== TEMA CLARO: PURE WHITE + NEON GLOW ===== */
   --background: 0 0% 100%;
-  --foreground: 0 0% 3.9%;
+  /* Texto principal en Navy oscuro para "Solidez Bancaria" */
+  --foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
+  
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.9%;
+  --card-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
+  
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 3.9%;
+  --popover-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
+  
   --muted: 220 14% 96%;
-  --muted-foreground: 220 8.9% 46.1%;
+  --muted-foreground: 216 20% 45%;
+  
   --border: 220 13% 91%;
   --input: 220 13% 91%;
   --ring: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   
-  /* ===== SISTEMA DE SOMBRAS (consistentes) ===== */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.12);
+  /* ===== SISTEMA DE SOMBRAS (CON TOQUE NEÓN) ===== */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 240, 255, 0.1);
+  --shadow-md: 0 4px 12px rgba(10, 25, 47, 0.08), 0 0 15px rgba(0, 240, 255, 0.15); /* Glow sutil */
+  --shadow-lg: 0 12px 32px rgba(10, 25, 47, 0.12), 0 0 30px rgba(0, 240, 255, 0.2);
+  --shadow-xl: 0 20px 40px rgba(10, 25, 47, 0.15), 0 0 50px rgba(0, 240, 255, 0.25);
   --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.04);
   
   /* ===== SISTEMA DE ANIMACIONES ===== */
@@ -70,7 +83,7 @@
   --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
-  /* ===== ESPACIADO (sistema 4px) ===== */
+  /* ===== ESPACIADO ===== */
   --space-unit: 0.25rem;
   --space-0: 0;
   --space-1: calc(1 * var(--space-unit));
@@ -85,63 +98,40 @@
   --space-24: calc(24 * var(--space-unit));
 }
 
-/* ===== TEMA OSCURO ===== */
+/* ===== TEMA OSCURO: OBSIDIAN INK ===== */
 .dark {
-  --background: 0 0% 3.9%;
+  /* Fondo Obsidian Ink (Negro azulado profundo) */
+  --background: 220 40% 2%; 
   --foreground: 0 0% 98%;
-  --card: 0 0% 7%;
+  
+  /* Tarjetas un poco más claras para profundidad */
+  --card: 216 65% 6%;
   --card-foreground: 0 0% 98%;
-  --popover: 0 0% 7%;
+  
+  --popover: 216 65% 6%;
   --popover-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --border: 0 0% 20%;
-  --input: 0 0% 20%;
+  
+  --muted: 216 30% 12%;
+  --muted-foreground: 216 20% 70%;
+  
+  --border: 216 40% 15%;
+  --input: 216 40% 15%;
   --ring: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   
-  /* Sombras más pronunciadas en dark mode */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.6);
+  /* Sombras Neón para Dark Mode */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 5px rgba(0, 240, 255, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 240, 255, 0.15);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 240, 255, 0.2);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 60px rgba(0, 240, 255, 0.25);
 }
 
 /* ===== CLASES DE MARCA (white-labeling) ===== */
-/* Ejemplos prácticos de diferentes marcas */
-.brand-bolivia {
-  --brand-hue: 172;  /* Verde esmeralda */
-}
+.brand-bolivia { --brand-hue: 172; }
+.brand-peru { --brand-hue: 30; --brand-saturation: 80%; }
+.brand-chile { --brand-hue: 210; --brand-saturation: 75%; --brand-lightness: 45%; }
+.brand-argentina { --brand-hue: 210; --brand-saturation: 90%; --brand-lightness: 60%; }
 
-.brand-peru {
-  --brand-hue: 30;   /* Naranja */
-  --brand-saturation: 80%;
-}
-
-.brand-chile {
-  --brand-hue: 210;  /* Azul */
-  --brand-saturation: 75%;
-  --brand-lightness: 45%;
-}
-
-.brand-argentina {
-  --brand-hue: 210;  /* Celeste */
-  --brand-saturation: 90%;
-  --brand-lightness: 60%;
-}
-
-/* Variantes de intensidad de marca */
-.brand-vibrant {
-  --brand-saturation: 85%;
-}
-
-.brand-subtle {
-  --brand-saturation: 45%;
-}
-
-.brand-light {
-  --brand-lightness: 65%;
-}
-
-.brand-dark {
-  --brand-lightness: 35%;
-}
+.brand-vibrant { --brand-saturation: 85%; }
+.brand-subtle { --brand-saturation: 45%; }
+.brand-light { --brand-lightness: 65%; }
+.brand-dark { --brand-lightness: 35%; }

@@ -73,68 +73,100 @@ class ShopController extends Controller
                 ];
             })->filter()->keyBy('slug');
         }
+        $bundles = \App\Models\Bundle::where('branch_id', $branchId)
+            ->where('is_active', true)
+            ->latest()
+            ->get()
+            ->map(function($bundle) {
+                return [
+                    'id' => $bundle->id,
+                    'name' => $bundle->name,
+                    'image_url' => $bundle->image_path ? asset('storage/' . $bundle->image_path) : null,
+                    'slug' => $bundle->slug,
+                    'type' => 'bundle', // <--- MARCADOR CLAVE
+                    'price_display' => $bundle->fixed_price ? 'Bs '.$bundle->fixed_price : 'Ver Precio'
+                ];
+            });
 
         return Inertia::render('Shop/Index', [
             'products' => $productsResource,
             'zonesData' => $zonesData,
             'filters' => $request->only(['search', 'category_id', 'in_stock', 'type']),
+            'bundlesData' => $bundles,
             'context' => [
                 'branch_id' => $branchId,
                 'branch_name' => $branchName,
+                
             ]
+            
         ]);
     }
     public function showZone(Request $request, MarketZone $zone, ShopContextService $contextService)
     {
         $branchId = $contextService->getActiveBranchId();
 
-        // 1. Obtener categorías (Igual que antes)
-        $rootCategories = Category::where('market_zone_id', $zone->id)->get();
-        $childCategories = Category::whereIn('parent_id', $rootCategories->pluck('id'))->get();
-        $allCategories = $rootCategories->merge($childCategories)->unique('id');
+        // 1. Obtener SOLO Categorías Padre (Raíces)
+        $rootCategories = Category::where('market_zone_id', $zone->id)
+            ->whereNull('parent_id')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
 
-        // 2. Agrupar Productos
-        $groupedData = $allCategories->map(function ($category) use ($branchId) {
-                    
-            $products = Product::query()
-                ->where('category_id', $category->id)
+        // 2. Construir Jerarquía: Padre -> Subcategorías -> Productos
+        $hierarchicalData = $rootCategories->map(function ($parent) use ($branchId) {
+            
+            // Buscar hijos activos
+            $children = Category::where('parent_id', $parent->id)
                 ->where('is_active', true)
-                // CARGA CORRECTA DE RELACIONES
-                ->with([
-                    'brand', // <--- IMPORTANTE: Cargar la marca para que no salga "Genérico"
-                    'skus' => function($q) use ($branchId) { 
-                        $q->where('is_active', true)
-                        ->with([
-                                'inventoryLots' => fn($qLot) => $qLot->where('branch_id', $branchId)
-                        ]);
-                    }
-                ])
-                ->take(15) // Traer máximo 15 por carrusel
+                ->orderBy('sort_order')
                 ->get();
 
-            // Si la categoría no tiene productos, la saltamos
-            if ($products->isEmpty()) return null;
-
-            // --- CORRECCIÓN CRÍTICA AQUÍ ---
-            $resourceCollection = ShopProductResource::collection($products);
+            // Si no tiene hijos, quizás el padre tiene productos directos (opcional, pero seguro)
+            // Para este caso, asumimos que los productos están en las subcategorías.
             
-            // Inyectar la sucursal
-            $resourceCollection->collection->each(function ($r) use ($branchId) {
-                $r->setContextBranch($branchId);
-            });
+            $subcategoriesData = $children->map(function ($child) use ($branchId) {
+                
+                $products = Product::query()
+                    ->where('category_id', $child->id)
+                    ->where('is_active', true)
+                    ->with([
+                        'brand',
+                        'skus' => function($q) use ($branchId) { 
+                            $q->where('is_active', true)
+                            ->with(['inventoryLots' => fn($qLot) => $qLot->where('branch_id', $branchId)]);
+                        }
+                    ])
+                    ->take(15)
+                    ->get();
+
+                if ($products->isEmpty()) return null;
+
+                $resourceCollection = ShopProductResource::collection($products);
+                $resourceCollection->collection->each(function ($r) use ($branchId) {
+                    $r->setContextBranch($branchId);
+                });
+
+                return [
+                    'id' => $child->id,
+                    'name' => $child->name,
+                    'products' => $resourceCollection->resolve()
+                ];
+            })->filter()->values();
+
+            if ($subcategoriesData->isEmpty()) return null;
 
             return [
-                'id' => $category->id,
-                'name' => $category->name,
-                // USAMOS ->resolve() PARA ENVIAR UN ARRAY PURO A VUE, NO UN OBJETO {data:...}
-                'products' => $resourceCollection->resolve() 
+                'id' => $parent->id,
+                'name' => $parent->name,
+                'subcategories' => $subcategoriesData
             ];
 
         })->filter()->values();
 
         return Inertia::render('Shop/ZoneProducts', [
             'zone' => $zone,
-            'groupedCategories' => $groupedData,
+            'groupedCategories' => $hierarchicalData,
+            'targetCategory' => $request->input('category'), // Pasamos el ID para el scroll
         ]);
     }
 }
