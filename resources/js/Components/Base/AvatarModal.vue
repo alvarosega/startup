@@ -1,85 +1,118 @@
 <script setup>
-    import { ref } from 'vue';
-    import { useForm, usePage } from '@inertiajs/vue3';
-    import BaseButton from '@/Components/Base/BaseButton.vue';
-    import { Camera, Image as ImageIcon, Upload, X, Check } from 'lucide-vue-next';
-    
-    const props = defineProps({ show: Boolean });
-    const emit = defineEmits(['close']);
-    
-    const activeTab = ref('gallery'); // 'gallery' | 'upload'
-    const selectedIcon = ref(null);
-    const customPreview = ref(null);
-    
-    const form = useForm({
-        avatar_type: 'icon',
-        avatar_source: '',
-        avatar_file: null
-    });
-    
-    const selectIcon = (iconName) => {
-        selectedIcon.value = iconName;
-        form.avatar_type = 'icon';
-        form.avatar_source = iconName;
-        form.avatar_file = null;
-        customPreview.value = null;
-    };
-    
-    const handleFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            form.avatar_type = 'custom';
-            form.avatar_file = file;
-            customPreview.value = URL.createObjectURL(file);
+import { ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
+import { X, UploadCloud, Save, AlertCircle } from 'lucide-vue-next';
+
+const props = defineProps({
+    show: Boolean
+});
+
+const emit = defineEmits(['close']);
+
+// 1. EL FORMULARIO DEBE LLAMARSE 'avatar' PARA COINCIDIR CON EL BACKEND
+const form = useForm({
+    avatar: null,
+});
+
+const previewUrl = ref(null);
+const fileInput = ref(null);
+
+const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Guardamos el archivo en el form
+    form.avatar = file;
+
+    // Creamos preview local
+    previewUrl.value = URL.createObjectURL(file);
+};
+
+const submit = () => {
+    if (!form.avatar) return;
+
+    // 2. USAMOS LA RUTA CORRECTA
+    form.post(route('profile.avatar.update'), {
+        forceFormData: true, // Importante para subir archivos
+        preserveScroll: true,
+        onSuccess: () => {
+            close();
+            // Opcional: Recargar la página si Inertia no actualiza el prop user automáticamente
+            // router.reload(); 
+        },
+        onFinish: () => {
+            // Limpiar preview si falla o termina
+            if (form.hasErrors) previewUrl.value = null; 
         }
-    };
-    
-    const submit = () => {
-        form.post(route('profile.avatar.update'), {
-            forceFormData: true,
-            preserveScroll: true,
-            onSuccess: () => {
-                emit('close');
-                form.reset();
-                customPreview.value = null;
-            }
-        });
-    };
-    </script>
-    
-    <template>
-        <div v-if="show" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-all">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 class="font-black text-gray-800 text-lg">Cambiar Foto</h3>
-                    <button @click="$emit('close')" class="p-1 rounded-full hover:bg-gray-200 transition"><X :size="20" class="text-gray-500"/></button>
-                </div>
-                <div class="flex border-b border-gray-100">
-                    <button @click="activeTab = 'gallery'" class="flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2" :class="activeTab === 'gallery' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600'"><ImageIcon :size="16" /> Galería</button>
-                    <button @click="activeTab = 'upload'" class="flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2" :class="activeTab === 'upload' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-600'"><Upload :size="16" /> Subir Foto</button>
-                </div>
-                <div class="p-6 overflow-y-auto">
-                    <div v-if="activeTab === 'gallery'">
-                        <div class="grid grid-cols-3 gap-4">
-                            <div v-for="i in 6" :key="i" @click="selectIcon(`avatar_${i}.svg`)" class="aspect-square rounded-full border-2 cursor-pointer flex items-center justify-center transition-all relative overflow-hidden" :class="selectedIcon === `avatar_${i}.svg` ? 'border-blue-500 bg-blue-50 scale-105' : 'border-gray-100 hover:border-gray-300'">
-                                <img :src="`/assets/avatars/avatar_${i}.svg`" class="w-2/3 h-2/3" />
-                                <div v-if="selectedIcon === `avatar_${i}.svg`" class="absolute inset-0 bg-blue-500/10 flex items-center justify-center"><div class="bg-blue-500 text-white rounded-full p-1"><Check :size="16" /></div></div>
-                            </div>
-                        </div>
+    });
+};
+
+const close = () => {
+    form.reset();
+    previewUrl.value = null;
+    emit('close');
+};
+</script>
+
+<template>
+    <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" @click="close"></div>
+
+        <div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-black text-gray-800">Cambiar Foto de Perfil</h3>
+                <button @click="close" class="text-gray-400 hover:text-red-500 transition">
+                    <X :size="20" />
+                </button>
+            </div>
+
+            <div class="p-6 flex flex-col items-center">
+                
+                <div class="relative w-40 h-40 rounded-full bg-gray-100 border-4 border-white shadow-lg overflow-hidden mb-6 group cursor-pointer"
+                     @click="fileInput.click()">
+                    
+                    <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-cover">
+                    
+                    <div v-else class="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                        <UploadCloud :size="32" class="mb-2"/>
+                        <span class="text-[10px] font-bold uppercase">Subir Foto</span>
                     </div>
-                    <div v-if="activeTab === 'upload'" class="text-center">
-                        <div class="relative w-40 h-40 mx-auto mb-4 group cursor-pointer">
-                            <div class="w-full h-full rounded-full border-4 border-dashed border-gray-300 flex flex-col items-center justify-center overflow-hidden hover:border-blue-500 transition">
-                                <img v-if="customPreview" :src="customPreview" class="w-full h-full object-cover" />
-                                <div v-else class="text-gray-400 flex flex-col items-center"><Camera :size="32" class="mb-2" /><span class="text-[10px] font-bold uppercase">Subir</span></div>
-                            </div>
-                            <input type="file" accept="image/*" @change="handleFileUpload" class="absolute inset-0 opacity-0 cursor-pointer" />
-                        </div>
+
+                    <div class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="text-white text-xs font-bold">Cambiar</span>
                     </div>
                 </div>
-                <div class="p-6 pt-0">
-                    <BaseButton @click="submit" :isLoading="form.processing" class="w-full" :disabled="!form.avatar_source && !form.avatar_file">Guardar Avatar</BaseButton>
+
+                <input 
+                    ref="fileInput"
+                    type="file" 
+                    accept="image/jpeg, image/png, image/jpg" 
+                    class="hidden" 
+                    @change="handleFileChange"
+                >
+
+                <div v-if="form.errors.avatar" class="mb-4 flex items-center gap-2 text-red-600 bg-red-50 px-3 py-2 rounded-lg text-xs font-bold w-full">
+                    <AlertCircle :size="16" />
+                    {{ form.errors.avatar }}
                 </div>
+
+                <div class="w-full flex gap-3">
+                    <button @click="close" class="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition">
+                        Cancelar
+                    </button>
+                    <button 
+                        @click="submit" 
+                        :disabled="!form.avatar || form.processing"
+                        class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Save v-if="!form.processing" :size="18" />
+                        <span v-else class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                        {{ form.processing ? 'Guardando...' : 'Guardar' }}
+                    </button>
+                </div>
+
             </div>
         </div>
-    </template>
+    </div>
+</template>

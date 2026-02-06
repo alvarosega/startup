@@ -7,7 +7,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\Web\Auth\WebAuthController; 
 use App\Modules\Identity\Controllers\PasswordResetController;
-use App\Modules\Identity\Controllers\ProfileController;
+use App\Http\Controllers\Client\ProfileController;
 use App\Modules\Identity\Controllers\VerificationController;
 use App\Modules\Identity\Controllers\DashboardController;
 
@@ -203,15 +203,9 @@ Route::middleware(['auth'])->group(function () {
             // --- AQUÍ ESTÁN LAS RUTAS DEL PERFIL ---
             
             // 1. Mostrar el formulario (Esta es la que usa el botón del menú)
-            // URL: /driver/profile | Nombre: driver.profile.edit
-            Route::get('/profile', [App\Http\Controllers\Driver\DriverController::class, 'editProfile'])->name('profile.edit');
-            
-            // 2. Guardar los cambios
-            // URL: /driver/profile | Nombre: driver.profile.update
-            Route::patch('/profile', [App\Http\Controllers\Driver\DriverController::class, 'updateProfile'])->name('profile.update');
-            // ... dentro del grupo driver ...
-            Route::get('/profile', [DriverController::class, 'indexProfile'])->name('profile.index'); // NUEVA
-            Route::get('/profile/edit', [DriverController::class, 'editProfile'])->name('profile.edit'); // MODIFICADA (antes era /profile)
+           // GESTIÓN DE PERFIL CONDUCTOR
+            Route::get('/profile', [DriverController::class, 'indexProfile'])->name('profile.index'); 
+            Route::get('/profile/edit', [DriverController::class, 'editProfile'])->name('profile.edit'); 
             Route::patch('/profile', [DriverController::class, 'updateProfile'])->name('profile.update');
         });
     // AGREGAR ESTAS 2 LÍNEAS PARA QUE ZIGGY RECONOZCA LAS RUTAS

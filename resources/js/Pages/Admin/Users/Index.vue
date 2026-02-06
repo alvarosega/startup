@@ -1,13 +1,13 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import UserFilters from '@/Components/Admin/Users/UserFilters.vue';
-import UserGroup from '@/Components/Admin/Users/UserGroup.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { debounce } from 'lodash';
 import { 
-    UserPlus, SearchX, Users, Shield, Building2, UserCog, 
-    Briefcase, Truck, Filter, RefreshCw, ChevronRight, X 
+    UserPlus, Search, Users, Shield, Building2, 
+    Briefcase, Truck, Filter, X, SlidersHorizontal, 
+    MessageCircle, MoreVertical, Phone, Edit, Trash2 
 } from 'lucide-vue-next';
 
 const props = defineProps({ 
@@ -23,47 +23,55 @@ const params = ref({
     branch_id: props.filters.branch_id || '',
 });
 
-// Estado de UI
 const showMobileFilters = ref(false);
+const activeMenuUserId = ref(null);
 
-// --- LÓGICA DE AGRUPACIÓN SEMÁNTICA ---
+// --- ESTILOS SEMÁNTICOS POR ROL ---
+const getRoleStyle = (roleKey) => {
+    const key = roleKey || 'unknown';
+    switch (key) {
+        case 'super_admin': return { bg: 'bg-violet-600', text: 'text-violet-600', border: 'border-violet-200', label: 'Global Admin' };
+        case 'branch_admin': return { bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-200', label: 'Gerente Sucursal' };
+        case 'driver': return { bg: 'bg-amber-500', text: 'text-amber-600', border: 'border-amber-200', label: 'Conductor' };
+        default: return { bg: 'bg-slate-600', text: 'text-slate-600', border: 'border-slate-200', label: 'Operativo' };
+    }
+};
+
+// --- HELPER WHATSAPP ---
+const getWhatsappLink = (phone) => {
+    if (!phone) return '#';
+    const cleanPhone = phone.replace(/\D/g, '');
+    return `https://wa.me/${cleanPhone}`; 
+};
+
+// --- AGRUPACIÓN INTELIGENTE ---
 const groupedUsers = computed(() => {
     if (!props.users.data) return {};
-
     return props.users.data.reduce((acc, user) => {
-        let groupName = '';
-        let groupIcon = Users;
-        let colorVariant = 'primary'; // Mapeo a tus variables CSS
-
-        if (user.role_key === 'super_admin') {
-            groupName = 'Administración Global';
-            groupIcon = Shield;
-            colorVariant = 'accent';
-        } else if (user.role_key === 'branch_admin') {
-            groupName = `Gestión - ${user.branch || 'Sin Sucursal'}`;
-            groupIcon = Building2;
-            colorVariant = 'primary';
-        } else if (['logistics_manager', 'inventory_manager', 'finance_manager'].includes(user.role_key)) {
-            groupName = `Operaciones - ${user.branch || 'General'}`;
-            groupIcon = Briefcase;
-            colorVariant = 'success';
-        } else if (user.role_key === 'driver') {
-            groupName = 'Flota de Conductores';
-            groupIcon = Truck;
-            colorVariant = 'warning';
-        } else {
-            groupName = user.branch || 'Sin Asignar';
-            groupIcon = Users;
-            colorVariant = 'muted';
-        }
-
-        if (!acc[groupName]) {
-            acc[groupName] = { users: [], icon: groupIcon, variant: colorVariant };
-        }
-        acc[groupName].users.push(user);
+        let groupName = user.role_key === 'super_admin' ? 'Administración Global' : (user.branch || 'Sin Asignar');
+        if (!acc[groupName]) acc[groupName] = [];
+        acc[groupName].push(user);
         return acc;
     }, {});
 });
+
+// --- ACCIONES DE MENÚ ---
+const toggleMenu = (userId) => {
+    activeMenuUserId.value = activeMenuUserId.value === userId ? null : userId;
+};
+
+const closeMenu = () => {
+    activeMenuUserId.value = null;
+};
+
+const deleteUser = (user) => {
+    if (confirm(`¿Estás seguro de eliminar a ${user.name}?`)) {
+        router.delete(route('admin.users.destroy', user.id), {
+            preserveScroll: true,
+            onSuccess: () => closeMenu()
+        });
+    }
+};
 
 watch(params, debounce((val) => {
     router.get(route('admin.users.index'), val, { 
@@ -78,98 +86,165 @@ const clearFilters = () => {
 
 <template>
     <AdminLayout>
+        
         <template #header>
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div class="animate-slide-up">
-                    <div class="flex items-center gap-4">
-                        <div class="avatar avatar-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-lg shadow-primary/20">
-                            <Users :size="24" />
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-display font-black tracking-tight text-gradient-primary">
-                                Gestión de Equipo
-                            </h1>
-                            <p class="text-muted-foreground font-medium text-sm">Control centralizado de identidades y permisos</p>
-                        </div>
-                    </div>
+            <div class="flex items-center justify-between pt-1 pb-1">
+                <div>
+                    <h1 class="text-2xl font-display font-black tracking-tight text-foreground leading-none">
+                        Equipo
+                    </h1>
+                    <p class="text-[10px] text-muted-foreground font-medium mt-0.5">
+                        {{ users.total }} miembros activos
+                    </p>
                 </div>
-                
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <button @click="showMobileFilters = true" class="md:hidden btn btn-outline btn-md flex-1 gap-2 glass">
-                        <Filter :size="18" /> Filtros
-                    </button>
-                    <Link :href="route('admin.users.create')" class="btn btn-primary btn-md flex-1 md:flex-none gap-2 shadow-lg shadow-primary/25">
-                        <UserPlus :size="18" /> <span>Nuevo Usuario</span>
-                    </Link>
-                </div>
+                <Link :href="route('admin.users.create')" class="hidden md:flex btn btn-primary btn-sm gap-2 shadow-lg shadow-primary/20">
+                    <UserPlus :size="16" /> <span>Nuevo Usuario</span>
+                </Link>
             </div>
         </template>
 
-        <div class="space-y-8 pb-20">
-            <div class="flex overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-4 scrollbar-hide snap-x">
-                <div v-for="(stat, idx) in [
-                    { label: 'Total', value: users.total, icon: Users, color: 'primary' },
-                    { label: 'Admins', value: users.data.filter(u => u.role_key === 'super_admin').length, icon: Shield, color: 'accent' },
-                    { label: 'Operativos', value: users.data.filter(u => ['logistics_manager', 'inventory_manager'].includes(u.role_key)).length, icon: Briefcase, color: 'success' },
-                    { label: 'Sedes', value: new Set(users.data.map(u => u.branch)).size, icon: Building2, color: 'info' }
-                ]" :key="idx" class="min-w-[240px] md:min-w-0 snap-center card p-5 border-l-4 transition-all hover:shadow-md" :class="`border-${stat.color}`">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-muted-foreground uppercase tracking-wider">{{ stat.label }}</p>
-                            <p class="text-2xl font-black mt-1">{{ stat.value }}</p>
-                        </div>
-                        <div :class="`w-10 h-10 rounded-xl bg-${stat.color}/10 text-${stat.color} flex items-center justify-center`">
-                            <component :is="stat.icon" :size="20" />
+        <div class="space-y-5 pb-32 md:pb-12 relative">
+            
+            <div class="sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/80 backdrop-blur-xl border-b border-border/40 transition-all">
+                <div class="flex gap-2">
+                    <div class="relative flex-1 group">
+                        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" :size="16" />
+                        <input 
+                            v-model="params.search" 
+                            type="text" 
+                            placeholder="Buscar por nombre, cargo..." 
+                            class="w-full pl-9 pr-4 py-2.5 bg-card/50 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm placeholder:text-muted-foreground/50"
+                        >
+                    </div>
+                    <button @click="showMobileFilters = true" 
+                            class="flex items-center justify-center w-10 h-10 bg-card border border-border rounded-xl text-muted-foreground hover:text-primary hover:border-primary active:scale-95 transition-all shadow-sm relative">
+                        <SlidersHorizontal :size="18" />
+                        <span v-if="params.role_id || params.branch_id" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="users.data.length > 0" class="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                
+                <div v-for="(groupUsers, groupName) in groupedUsers" :key="groupName">
+                    
+                    <div class="flex items-center gap-2 mb-3 px-1 opacity-80">
+                        <Building2 :size="14" class="text-muted-foreground" />
+                        <h3 class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{{ groupName }}</h3>
+                        <div class="h-px bg-border flex-1"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div v-for="user in groupUsers" :key="user.id" 
+                             class="group relative bg-card rounded-2xl p-3 border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all flex items-center gap-3">
+                            
+                            <div class="relative shrink-0">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md"
+                                     :class="getRoleStyle(user.role_key).bg">
+                                    {{ (user.name || '?').charAt(0).toUpperCase() }}
+                                </div>
+                                <div class="absolute -bottom-1 -right-1 bg-card rounded-full p-0.5 ring-2 ring-card text-[10px]" :class="getRoleStyle(user.role_key).text">
+                                    <Shield v-if="user.role_key ==='super_admin'" :size="12" fill="currentColor" class="opacity-20"/>
+                                    <Shield v-else :size="12" />
+                                </div>
+                            </div>
+
+                            <div class="flex-1 min-w-0 relative">
+                                <div class="flex justify-between items-start">
+                                    <h4 class="font-bold text-foreground text-sm truncate leading-tight pr-6">
+                                        {{ user.name || 'Sin Nombre' }}
+                                    </h4>
+                                    
+                                    <div class="absolute -right-2 -top-2">
+                                        <button @click.stop="toggleMenu(user.id)" 
+                                                class="p-1.5 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors relative z-10">
+                                            <MoreVertical :size="16" />
+                                        </button>
+
+                                        <div v-if="activeMenuUserId === user.id" 
+                                             class="absolute right-0 top-8 z-50 w-32 bg-popover/95 backdrop-blur-xl border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 origin-top-right ring-1 ring-white/10">
+                                            <Link :href="route('admin.users.edit', user.id)" 
+                                                  class="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                                <Edit :size="13" /> Editar
+                                            </Link>
+                                            <div class="h-px bg-border/50 mx-2"></div>
+                                            <button @click="deleteUser(user)" 
+                                                    class="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors text-left">
+                                                <Trash2 :size="13" /> Eliminar
+                                            </button>
+                                        </div>
+                                        
+                                        <div v-if="activeMenuUserId === user.id" @click="closeMenu" class="fixed inset-0 z-0 cursor-default"></div>
+                                    </div>
+                                </div>
+                                
+                                <p class="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{{ user.email }}</p>
+                                
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-muted/50 text-muted-foreground border border-border">
+                                        {{ getRoleStyle(user.role_key).label }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-if="user.phone" class="shrink-0 pl-2 border-l border-border/50">
+                                <a :href="getWhatsappLink(user.phone)" target="_blank"
+                                   class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center transition-all active:scale-90 hover:bg-emerald-500 hover:text-white shadow-sm"
+                                   title="Chat en WhatsApp">
+                                    <MessageCircle :size="18" stroke-width="2.5" />
+                                </a>
+                            </div>
+
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="hidden md:block card glass p-2 border-border/40">
-                <UserFilters v-model="params" :roles="roles" :branches="branches" @clear="clearFilters" />
-            </div>
-
-            <div v-if="users.data.length > 0" class="space-y-6 animate-in fade-in duration-500">
-                <UserGroup 
-                    v-for="(groupData, groupName) in groupedUsers" 
-                    :key="groupName" 
-                    :title="groupName" 
-                    :data="groupData"
-                />
-            </div>
-
-            <div v-else class="py-24 text-center glass rounded-3xl border-dashed border-2 border-border/60">
-                <div class="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <SearchX :size="32" class="text-muted-foreground" />
-                </div>
-                <h3 class="text-xl font-display font-bold">Sin coincidencias</h3>
-                <p class="text-muted-foreground max-w-xs mx-auto mt-2">Ajusta los filtros para encontrar al equipo que buscas.</p>
-                <button @click="clearFilters" class="btn btn-outline btn-sm mt-6">Limpiar todos los filtros</button>
+            <div v-else class="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                <Search :size="48" class="text-muted-foreground/30 mb-4" />
+                <h3 class="text-lg font-bold text-foreground">Sin resultados</h3>
+                <p class="text-xs text-muted-foreground">Intenta ajustar los filtros.</p>
+                <button @click="clearFilters" class="mt-4 text-xs font-bold text-primary hover:underline">
+                    Limpiar todo
+                </button>
             </div>
         </div>
 
-        <Transition name="slide-right">
-            <div v-if="showMobileFilters" class="fixed inset-0 z-[100] md:hidden">
-                <div class="absolute inset-0 bg-background/80 backdrop-blur-sm" @click="showMobileFilters = false"></div>
-                <div class="absolute inset-y-0 right-0 w-[85%] max-w-sm bg-card shadow-2xl border-l border-border p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-8">
-                        <h2 class="text-lg font-display font-bold">Filtros de Equipo</h2>
-                        <button @click="showMobileFilters = false" class="btn btn-ghost btn-sm btn-circle"><X :size="20"/></button>
-                    </div>
-                    <div class="flex-1 space-y-6">
-                        <UserFilters v-model="params" :roles="roles" :branches="branches" layout="vertical" />
-                    </div>
-                    <div class="pt-6 border-t border-border mt-auto">
-                        <button @click="showMobileFilters = false" class="btn btn-primary w-full">Aplicar Filtros</button>
-                        <button @click="clearFilters(); showMobileFilters = false" class="btn btn-ghost w-full mt-2 text-muted-foreground text-xs">Restablecer todo</button>
-                    </div>
+        <Link :href="route('admin.users.create')" 
+              class="md:hidden fixed bottom-[100px] right-4 z-40 w-14 h-14 bg-primary text-primary-foreground rounded-2xl shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 border border-white/20 ring-1 ring-black/5">
+            <UserPlus :size="26" stroke-width="2.5" />
+        </Link>
+
+        <div v-if="showMobileFilters" class="fixed inset-0 z-[100] md:hidden flex items-end">
+            <div class="absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity" @click="showMobileFilters = false"></div>
+            
+            <div class="relative w-full bg-card rounded-t-[32px] shadow-2xl border-t border-border flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-full duration-300">
+                <div class="w-12 h-1.5 rounded-full bg-muted mx-auto mt-3 mb-5 shrink-0"></div>
+
+                <div class="px-6 pb-4 flex items-center justify-between border-b border-border/50">
+                    <h2 class="text-lg font-black text-foreground">Filtros Avanzados</h2>
+                    <button @click="clearFilters" class="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
+                        Limpiar
+                    </button>
+                </div>
+
+                <div class="p-6 overflow-y-auto">
+                    <UserFilters v-model="params" :roles="roles" :branches="branches" layout="vertical" />
+                </div>
+
+                <div class="p-6 border-t border-border bg-muted/10 pb-safe">
+                    <button @click="showMobileFilters = false" class="w-full btn btn-primary py-3.5 rounded-xl shadow-lg font-bold text-sm">
+                        Ver {{ users.total }} Resultados
+                    </button>
                 </div>
             </div>
-        </Transition>
+        </div>
+
     </AdminLayout>
 </template>
 
 <style scoped>
-.slide-right-enter-active, .slide-right-leave-active { transition: transform 0.3s var(--ease-smooth); }
-.slide-right-enter-from, .slide-right-leave-to { transform: translateX(100%); }
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+}
 </style>

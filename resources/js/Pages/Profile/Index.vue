@@ -1,164 +1,44 @@
 <script setup>
-    import { computed, ref } from 'vue';
-    import { Head, Link, router } from '@inertiajs/vue3';
-    // CAMBIO 1: Importar ShopLayout en lugar de ProfileLayout
-    import ShopLayout from '@/Layouts/ShopLayout.vue';
-    import AvatarModal from '@/Components/Base/AvatarModal.vue';
-    import { User, MapPin, Shield, AlertCircle, Camera, Edit2, Mail, Phone, Calendar, Smile, Car } from 'lucide-vue-next';
-    
-    const props = defineProps({
-        user: { type: Object, default: () => ({}) },
-        addresses_count: { type: Number, default: 0 }
-    });
+import { computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
+import ShopLayout from '@/Layouts/ShopLayout.vue';
 
-    const avatarUrl = computed(() => props.user?.avatar?.url || '/assets/avatars/avatar_1.svg');
-    const personalInfo = computed(() => props.user?.personal_info || {});
-    const driverInfo = computed(() => props.user?.driver_info || null);
-    
-    const isProfileIncomplete = computed(() => !personalInfo.value.first_name);
-    const isVerified = computed(() => personalInfo.value.is_verified);
-    
-    const displayName = computed(() => {
-        if (isProfileIncomplete.value) return '¡Bienvenido!';
-        return personalInfo.value.full_name || 'Usuario';
-    });
+// CORRECCIÓN: Cambiamos 'profile' por 'Profile' (P mayúscula)
+// Vite requiere que coincida exactamente con el nombre de la carpeta en tu disco.
+import PersonalInfoSection from '@/Components/Profile/PersonalInfoSection.vue';
+import AddressesSection from '@/Components/Profile/AddressesSection.vue';
+import SecuritySection from '@/Components/Profile/SecuritySection.vue';
 
-    const showAvatarModal = ref(false);
-    
-    const formatDate = (dateString) => {
-        if (!dateString) return 'No registrado';
-        const date = new Date(dateString + 'T00:00:00'); 
-        return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-    };
+const props = defineProps({
+    user: { type: Object, default: () => ({}) },
+    activeBranches: { type: Array, default: () => [] }, 
+});
+
+const safeUser = computed(() => {
+    return props.user || { addresses: [], profile: {} };
+});
 </script>
-    
+
 <template>
     <Head title="Mi Perfil" />
 
     <ShopLayout :is-profile-section="true">
-        
-        <div class="space-y-6">
-
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col sm:flex-row items-center gap-6 relative">
-                <div class="relative group shrink-0">
-                    <div class="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-lg overflow-hidden relative">
-                        <img :src="avatarUrl" class="w-full h-full object-cover" alt="Perfil" />
-                    </div>
-                    <button @click="showAvatarModal = true" class="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full shadow-md hover:bg-blue-500 transition transform hover:scale-110 z-20">
-                        <Camera :size="14" />
-                    </button>
-                </div>
-                
-                <div class="text-center sm:text-left flex-1">
-                    <h2 class="text-2xl font-black text-gray-900">{{ displayName }}</h2>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">{{ props.user?.role || 'Cliente' }}</p>
-
-                    <div class="flex flex-wrap justify-center sm:justify-start gap-2">
-                        <span v-if="isVerified" class="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold uppercase rounded border border-green-100 flex items-center gap-1">
-                            <Shield :size="10" /> Identidad Verificada
-                        </span>
-                        <span v-else class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded border border-gray-200 flex items-center gap-1">
-                            <AlertCircle :size="10" /> Identidad Pendiente
-                        </span>
-                    </div>
-                </div>
-
-                <Link :href="route('profile.edit')" 
-                    class="px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-lg"
-                    :class="isProfileIncomplete ? 'bg-blue-600 hover:bg-blue-500 text-white ring-4 ring-blue-50' : 'bg-gray-900 hover:bg-gray-800 text-white'"
-                >
-                    <Edit2 :size="14" /> 
-                    {{ isProfileIncomplete ? 'Completar Perfil' : 'Editar Datos' }}
-                </Link>
+        <div class="space-y-6 max-w-4xl mx-auto pb-20">
+            
+            <div class="mb-4 px-2">
+                <h1 class="text-2xl font-black text-gray-900 tracking-tight">Mi Cuenta</h1>
+                <p class="text-sm text-gray-500">Gestiona tus datos personales y ubicaciones.</p>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <h3 class="font-bold text-gray-800 text-sm">Información Personal</h3>
-                </div>
-                
-                <div v-if="isProfileIncomplete" class="p-8 text-center">
-                    <div class="inline-flex bg-blue-50 p-3 rounded-full mb-3 text-blue-600">
-                        <User :size="24" />
-                    </div>
-                    <h4 class="font-bold text-gray-800">Tu perfil está vacío</h4>
-                    <p class="text-sm text-gray-500 mb-4">Completa tu información para desbloquear todas las funciones.</p>
-                </div>
+            <PersonalInfoSection :user="safeUser" />
 
-                <div v-else class="p-6 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><User :size="18" /></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase">Nombre Completo</p>
-                            <p class="text-sm font-medium text-gray-900">{{ personalInfo.full_name }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-purple-50 text-purple-600 rounded-lg"><Mail :size="18" /></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase">Email</p>
-                            <p class="text-sm font-medium text-gray-900">{{ props.user?.email }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-green-50 text-green-600 rounded-lg"><Phone :size="18" /></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase">Teléfono</p>
-                            <p class="text-sm font-medium text-gray-900">{{ props.user?.phone }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-orange-50 text-orange-600 rounded-lg"><Calendar :size="18" /></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase">Nacimiento</p>
-                            <p class="text-sm font-medium text-gray-900">{{ formatDate(personalInfo.birth_date) }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="p-2 bg-pink-50 text-pink-600 rounded-lg"><Smile :size="18" /></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase">Género</p>
-                            <p class="text-sm font-medium text-gray-900 capitalize">{{ personalInfo.gender || 'No especificado' }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <AddressesSection 
+                :addresses="safeUser.addresses || []" 
+                :activeBranches="activeBranches" 
+            />
 
-            <div v-if="driverInfo" class="bg-orange-50 rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
-                <div class="px-6 py-4 border-b border-orange-100 bg-orange-100/50 flex justify-between items-center">
-                    <h3 class="font-bold text-orange-900 text-sm flex items-center gap-2">
-                        <Car :size="16"/> Datos de Conductor
-                    </h3>
-                    <span class="text-[10px] font-black bg-white text-orange-600 px-2 py-1 rounded uppercase tracking-wider">{{ driverInfo.status }}</span>
-                </div>
-                <div class="p-6 grid grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-[10px] font-bold text-orange-400 uppercase">Vehículo</p>
-                        <p class="text-sm font-bold text-orange-900 capitalize">{{ driverInfo.vehicle_type }}</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-orange-400 uppercase">Placa</p>
-                        <p class="text-sm font-bold text-orange-900">{{ driverInfo.license_plate }}</p>
-                    </div>
-                </div>
-            </div>
+            <SecuritySection />
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link :href="route('addresses.index')" class="bg-white p-5 rounded-2xl border border-gray-200 hover:border-blue-400 transition group flex justify-between items-center">
-                    <div>
-                        <h3 class="font-bold text-gray-800 text-sm">Mis Direcciones</h3>
-                        <p class="text-xs text-gray-500">{{ props.addresses_count }} guardadas</p>
-                    </div>
-                    <MapPin class="text-gray-300 group-hover:text-blue-500 transition" :size="24" />
-                </Link>
-                <Link :href="route('profile.security')" class="bg-white p-5 rounded-2xl border border-gray-200 hover:border-blue-400 transition group flex justify-between items-center">
-                    <div><h3 class="font-bold text-gray-800 text-sm">Seguridad</h3><p class="text-xs text-gray-500">Contraseña</p></div>
-                    <Shield class="text-gray-300 group-hover:text-blue-500 transition" :size="24" />
-                </Link>
-            </div>
         </div>
-
-        <AvatarModal :show="showAvatarModal" @close="showAvatarModal = false" />
     </ShopLayout>
 </template>

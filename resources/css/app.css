@@ -622,3 +622,94 @@
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
   }
 }
+/* app.css */
+
+/* Fijar el color base para evitar parpadeos durante transiciones */
+html, body {
+  background-color: #0B1221; /* Tu color Navy oscuro por defecto */
+  overscroll-behavior-y: none; /* Evita el rebote elástico en móviles */
+}
+
+/* Si tienes modo claro/oscuro via clase .dark, asegura la transición */
+html.dark body {
+  background-color: #0B1221;
+}
+
+html:not(.dark) body {
+  background-color: #ffffff; /* O tu color de fondo claro */
+}
+
+/* Ocultar scrollbars nativos cuando está en fullscreen para mayor inmersión */
+:fullscreen {
+  overflow-y: auto;
+}
+:fullscreen::-webkit-scrollbar {
+  display: none;
+}
+/* FIX SCROLL PANTALLA COMPLETA */
+
+/* 1. Forzar scroll vertical en el elemento que está en fullscreen */
+:fullscreen {
+  overflow-y: auto !important; /* OBLIGATORIO: Habilita el scroll */
+  background-color: #0B1221; /* Evita fondo blanco/negro por defecto */
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Soporte para navegadores basados en Webkit (Chrome, Safari, Edge) */
+::-webkit-full-screen {
+  overflow-y: auto !important;
+  background-color: #0B1221;
+}
+
+/* Soporte para Firefox */
+::-moz-full-screen {
+  overflow-y: auto !important;
+  background-color: #0B1221;
+}
+
+/* resources/css/app.css */
+
+/* ... (resto del archivo igual) ... */
+
+/* ===== FIX SCROLL PANTALLA COMPLETA (MODIFICADO) ===== */
+
+/* 1. Configuración del elemento raíz (HTML) en fullscreen */
+:fullscreen {
+  overflow-y: scroll !important; /* 'scroll' fuerza el comportamiento mejor que 'auto' en móviles */
+  background-color: #0B1221;     /* Color de fondo Navy */
+  width: 100vw;
+  height: 100vh;
+  overscroll-behavior-y: contain; /* Evita que el gesto de "bajar" cierre la pantalla completa accidentalmente */
+}
+
+/* Soporte Webkit (Chrome/Safari/Edge) */
+::-webkit-full-screen {
+  overflow-y: scroll !important;
+  background-color: #0B1221;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Soporte Firefox */
+::-moz-full-screen {
+  overflow-y: scroll !important;
+  background-color: #0B1221;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* 2. CRUCIAL: El body NO debe intentar hacer scroll por su cuenta */
+:fullscreen body {
+  position: static !important;   /* Evita bloqueos por posición */
+  width: 100% !important;
+  height: auto !important;       /* Deja que el contenido crezca */
+  min-height: 100% !important;
+  overflow: visible !important;  /* IMPORTANTE: Deja que el scroll suba al HTML */
+}
+
+/* 3. Asegurar que el contenedor principal de Vue no se bloquee */
+:fullscreen #app {
+    min-height: 100vh;
+    overflow: visible !important;
+}

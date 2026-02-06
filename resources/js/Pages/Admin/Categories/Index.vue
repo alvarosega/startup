@@ -1,16 +1,12 @@
-<!-- resources/js/Pages/Admin/Categories/Index.vue -->
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import SearchInput from '@/Components/SearchInput.vue';
-import CategoryCard from '@/Components/CategoryCard.vue';
 import { Link, router } from '@inertiajs/vue3';
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import debounce from 'lodash/debounce';
 import { 
-    Search, Plus, FolderOpen, ChevronRight, 
-    Folder, Layers, BarChart3, Filter, Grid, 
-    List, TrendingUp, AlertCircle, Hash, Users,
-    Download, Eye, EyeOff, Settings, Shield
+    Search, Plus, FolderOpen, ChevronDown, 
+    Folder, Layers, Eye, EyeOff, Settings, Trash2, 
+    TrendingUp, AlertCircle, Hash, Globe, MoreVertical
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -19,42 +15,42 @@ const props = defineProps({
     can_manage: Boolean
 });
 
+// --- ESTADO ---
 const search = ref(props.filters.search || '');
-const selectedParentId = ref(null);
-const viewMode = ref('grid'); // 'grid' o 'list'
+const expandedCategories = ref([]); // Almacena IDs de categorías desplegadas
 const showInactive = ref(true);
 
-// --- TRANSFORMACIÓN DE DATOS (Flat -> Tree) ---
+// --- LÓGICA DE DATOS (Árbol Jerárquico) ---
 const treeData = computed(() => {
+    // Separa padres (sin parent_id) de hijos
     const parents = props.categories.filter(c => !c.parent_id);
-    
     return parents.map(parent => ({
         ...parent,
+        // Asigna hijos correspondientes
         children: props.categories.filter(c => c.parent_id === parent.id)
     }));
 });
 
-// --- BÚSQUEDA MEJORADA ---
+// --- FILTRADO Y BÚSQUEDA ---
 const filteredTree = computed(() => {
     let result = treeData.value;
     
-    // Filtro de búsqueda
+    // 1. Filtro por texto
     if (search.value) {
         const term = search.value.toLowerCase();
         result = result.filter(parent => {
-            const matchParent = parent.name.toLowerCase().includes(term) || 
-                               (parent.external_code && parent.external_code.toLowerCase().includes(term));
+            const matchParent = parent.name.toLowerCase().includes(term);
+            const matchChild = parent.children.some(child => child.name.toLowerCase().includes(term));
             
-            const matchChild = parent.children.some(child => 
-                child.name.toLowerCase().includes(term) || 
-                (child.external_code && child.external_code.toLowerCase().includes(term))
-            );
-
+            // Auto-expandir si un hijo coincide con la búsqueda
+            if (matchChild && !expandedCategories.value.includes(parent.id)) {
+                expandedCategories.value.push(parent.id);
+            }
             return matchParent || matchChild;
         });
     }
     
-    // Filtro de inactivos
+    // 2. Filtro de inactivos
     if (!showInactive.value) {
         result = result.filter(parent => parent.is_active);
     }
@@ -62,585 +58,205 @@ const filteredTree = computed(() => {
     return result;
 });
 
-// --- LÓGICA DE SELECCIÓN ---
-const activeParent = computed(() => {
-    return filteredTree.value.find(p => p.id === selectedParentId.value) || null;
+// --- KPIs PARA EL CARRUSEL ---
+const statsList = computed(() => {
+    const total = props.categories.length;
+    const active = props.categories.filter(c => c.is_active).length;
+    const subcats = props.categories.filter(c => c.parent_id).length;
+    const featured = props.categories.filter(c => c.is_featured).length;
+    
+    return [
+        { label: 'Total', value: total, icon: Layers, color: 'text-primary', bg: 'bg-primary/10' },
+        { label: 'Activas', value: active, icon: Eye, color: 'text-success', bg: 'bg-success/10' },
+        { label: 'Subcategorías', value: subcats, icon: FolderOpen, color: 'text-info', bg: 'bg-info/10' },
+        { label: 'Destacadas', value: featured, icon: TrendingUp, color: 'text-warning', bg: 'bg-warning/10' },
+    ];
 });
 
-const selectParent = (id) => {
-    selectedParentId.value = id;
+// --- ACCIONES ---
+const toggleExpand = (id) => {
+    const index = expandedCategories.value.indexOf(id);
+    if (index === -1) expandedCategories.value.push(id);
+    else expandedCategories.value.splice(index, 1);
 };
 
-// --- ESTADÍSTICAS MEJORADAS ---
-const stats = computed(() => {
-    const total = props.categories.length;
-    const parents = props.categories.filter(c => !c.parent_id).length;
-    const children = total - parents;
-    const active = props.categories.filter(c => c.is_active).length;
-    const featured = props.categories.filter(c => c.is_featured).length;
-    const withAgeRestriction = props.categories.filter(c => c.requires_age_check).length;
-    const withImages = props.categories.filter(c => c.image_url).length;
-    
-    return { 
-        total, parents, children, active, 
-        featured, withAgeRestriction, withImages,
-        inactive: total - active
-    };
-});
-
-// --- FUNCIONES ---
 const deleteCategory = (category) => {
-    if (confirm(`¿Eliminar "${category.name}" y ${category.children?.length || 0} subcategorías?`)) {
-        router.delete(route('admin.categories.destroy', category.id), {
-            onSuccess: () => {
-                if (selectedParentId.value === category.id) {
-                    selectedParentId.value = filteredTree.value.length > 0 ? filteredTree.value[0].id : null;
-                }
-            }
-        });
+    if (confirm(`¿Estás seguro de eliminar "${category.name}"? Esta acción borrará también sus subcategorías.`)) {
+        router.delete(route('admin.categories.destroy', category.id));
     }
 };
 
-// Watcher para búsqueda
+// Búsqueda con debounce para no saturar el servidor
 watch(search, debounce((val) => {
     router.get(route('admin.categories.index'), { 
-        search: val,
-        show_inactive: showInactive.value
-    }, { 
-        preserveState: true, 
-        replace: true,
-        preserveScroll: true
-    });
+        search: val, 
+        show_inactive: showInactive.value 
+    }, { preserveState: true, replace: true, preserveScroll: true });
 }, 300));
-
-// Seleccionar automáticamente el primero
-onMounted(() => {
-    if (filteredTree.value.length > 0 && !selectedParentId.value) {
-        selectedParentId.value = filteredTree.value[0].id;
-    }
-});
 </script>
 
 <template>
     <AdminLayout>
-        <!-- Header con estadísticas -->
-        <div class="mb-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-display font-semibold text-foreground tracking-tight">
-                        Gestión de Categorías
-                    </h1>
-                    <p class="text-muted-foreground text-sm mt-1">
-                        Organiza jerárquicamente tu catálogo de productos
-                    </p>
-                </div>
-                
-                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    <div class="w-full md:w-64">
-                        <SearchInput v-model="search" placeholder="Buscar por nombre o código..." />
+        <div class="pb-24"> <div class="flex flex-col gap-4 mb-6">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h1 class="text-2xl font-display font-black text-foreground tracking-tight">Categorías</h1>
+                        <p class="text-xs text-muted-foreground">Gestión del catálogo</p>
                     </div>
+                    <button @click="showInactive = !showInactive" 
+                            class="btn btn-ghost btn-sm text-xs gap-2 border border-border/50 h-8">
+                        <component :is="showInactive ? Eye : EyeOff" :size="14"/>
+                        <span class="hidden sm:inline">{{ showInactive ? 'Ocultar Inactivas' : 'Ver Inactivas' }}</span>
+                    </button>
+                </div>
 
-                    <Link v-if="can_manage" :href="route('admin.categories.create')" 
-                          class="btn btn-primary shadow-md hover:shadow-lg">
-                        <Plus :size="18" />
-                        <span>Nueva Categoría</span>
-                    </Link>
+                <div class="relative">
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
+                    <input v-model="search" 
+                           type="text" 
+                           placeholder="Buscar categorías..." 
+                           class="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm shadow-sm">
                 </div>
             </div>
 
-            <!-- Panel de estadísticas -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-                <div class="card !p-4 bg-gradient-to-br from-primary/5 to-primary/10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-primary uppercase tracking-wide">Total</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.total }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-primary/20 text-primary">
-                            <Layers :size="20" />
+            <div class="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-4 mb-2 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar touch-pan-x">
+                <div v-for="(stat, index) in statsList" :key="index" 
+                     class="snap-start shrink-0 w-[140px] card !p-3 flex flex-col justify-between h-24 border border-border/60 shadow-sm bg-card">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{{ stat.label }}</span>
+                        <div :class="`p-1.5 rounded-full ${stat.bg} ${stat.color}`">
+                            <component :is="stat.icon" :size="14" />
                         </div>
                     </div>
-                </div>
-
-                <div class="card !p-4 bg-gradient-to-br from-success/5 to-success/10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-success uppercase tracking-wide">Activas</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.active }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-success/20 text-success">
-                            <Eye :size="20" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card !p-4 bg-gradient-to-br from-secondary/5 to-secondary/10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-secondary uppercase tracking-wide">Padres</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.parents }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-secondary/20 text-secondary">
-                            <Folder :size="20" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card !p-4 bg-gradient-to-br from-warning/5 to-warning/10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-warning uppercase tracking-wide">Destacadas</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.featured }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-warning/20 text-warning">
-                            <TrendingUp :size="20" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card !p-4 bg-gradient-to-br from-error/5 to-error/10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-error uppercase tracking-wide">+18</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.withAgeRestriction }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-error/20 text-error">
-                            <AlertCircle :size="20" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card !p-4 bg-gradient-to-br from-info/5 to-info/10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-info uppercase tracking-wide">Con Imagen</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.withImages }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-info/20 text-info">
-                            <BarChart3 :size="20" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card !p-4 bg-gradient-to-br from-muted to-muted/50">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Inactivas</p>
-                            <p class="text-2xl font-display font-bold text-foreground mt-1">{{ stats.inactive }}</p>
-                        </div>
-                        <div class="p-2 rounded-full bg-muted text-muted-foreground">
-                            <EyeOff :size="20" />
-                        </div>
-                    </div>
+                    <span class="text-2xl font-display font-black text-foreground tracking-tight">{{ stat.value }}</span>
                 </div>
             </div>
-        </div>
 
-        <!-- Contenedor principal de dos paneles -->
-        <div class="flex flex-col lg:flex-row gap-6">
-            
-            <!-- Panel izquierdo: Navegación de categorías padre -->
-            <div class="lg:w-1/3 xl:w-1/4">
-                <div class="card sticky top-6 overflow-hidden border-border/50">
-                    <div class="card-header !pb-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h2 class="font-display font-semibold text-lg text-foreground">
-                                    Navegación
-                                </h2>
-                                <p class="text-xs text-muted-foreground mt-1">{{ filteredTree.length }} categorías padre</p>
-                            </div>
+            <div class="space-y-3">
+                <TransitionGroup name="list">
+                    <div v-for="parent in filteredTree" :key="parent.id" 
+                         class="card border-border/50 overflow-hidden transition-all duration-300 bg-card"
+                         :class="expandedCategories.includes(parent.id) ? 'ring-2 ring-primary/20 shadow-md' : 'shadow-sm'">
+                        
+                        <div class="p-3 sm:p-4 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors select-none relative"
+                             @click="toggleExpand(parent.id)">
                             
-                            <div class="flex items-center gap-2">
-                                <button @click="showInactive = !showInactive" 
-                                        class="btn btn-ghost btn-sm !p-2"
-                                        :class="showInactive ? 'text-success' : 'text-muted-foreground'"
-                                        title="Mostrar/ocultar inactivas">
-                                    <Eye v-if="showInactive" :size="16" />
-                                    <EyeOff v-else :size="16" />
-                                </button>
-                                
-                                <Link v-if="can_manage" :href="route('admin.categories.create')" 
-                                      class="btn btn-primary btn-sm !px-3 shadow-sm"
-                                      title="Nueva categoría padre">
-                                    <Plus :size="16" />
-                                </Link>
-                            </div>
-                        </div>
-
-                        <!-- Filtros -->
-                        <div class="space-y-3">
-                            <SearchInput v-model="search" placeholder="Filtrar categorías..." />
-                            
-                            <div class="flex items-center justify-between text-xs">
-                                <span class="text-muted-foreground">
-                                    Mostrando {{ filteredTree.length }} de {{ treeData.length }}
-                                </span>
-                                <button class="text-primary hover:underline font-medium">
-                                    <Filter :size="12" class="inline mr-1" />
-                                    Filtros avanzados
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Lista de categorías padre -->
-                    <div class="max-h-[calc(100vh-400px)] overflow-y-auto scrollbar-thin p-2">
-                        <div v-for="parent in filteredTree" :key="parent.id"
-                             @click="selectParent(parent.id)"
-                             class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 mb-2 group/item"
-                             :class="selectedParentId === parent.id 
-                                ? 'bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 shadow-sm' 
-                                : 'hover:bg-muted/50 border border-transparent hover:border-input'">
-                            
-                            <!-- Ícono/Imagen -->
-                            <div class="relative">
-                                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10 border border-input overflow-hidden flex items-center justify-center group-hover/item:scale-105 transition-transform">
-                                    <img v-if="parent.image_url" 
-                                         :src="parent.image_url" 
-                                         class="w-full h-full object-cover">
-                                    <Folder v-else :size="20" class="text-primary" />
+                            <div class="relative shrink-0">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-muted to-muted/50 border border-border flex items-center justify-center overflow-hidden">
+                                    <img v-if="parent.image_url" :src="parent.image_url" class="w-full h-full object-cover">
+                                    <Folder v-else :size="20" class="text-muted-foreground/60" />
                                 </div>
-                                
-                                <!-- Indicador de restricción de edad -->
-                                <div v-if="parent.requires_age_check" 
-                                     class="absolute -top-1 -right-1 w-5 h-5 bg-error rounded-full flex items-center justify-center ring-2 ring-background">
-                                    <span class="text-[8px] font-bold text-error-foreground">18</span>
+                                <div v-if="!parent.is_active" class="absolute -bottom-1 -right-1 bg-muted border border-background rounded-full p-0.5 shadow-sm">
+                                    <EyeOff :size="10" class="text-muted-foreground"/>
                                 </div>
                             </div>
 
-                            <!-- Información -->
                             <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-center">
-                                    <h3 class="font-medium text-foreground truncate"
-                                        :class="selectedParentId === parent.id ? 'text-primary font-semibold' : ''">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-foreground truncate text-base leading-tight pr-6">
                                         {{ parent.name }}
                                     </h3>
-                                    <ChevronRight v-if="selectedParentId === parent.id" 
-                                                  :size="16" 
-                                                  class="text-primary shrink-0 ml-2 transform group-hover/item:translate-x-1 transition-transform" />
+                                    <div class="absolute right-4 top-1/2 -translate-y-1/2">
+                                        <ChevronDown :size="20" class="text-muted-foreground transition-transform duration-300" 
+                                                     :class="expandedCategories.includes(parent.id) ? 'rotate-180 text-primary' : ''"/>
+                                    </div>
                                 </div>
-                                
-                                <div class="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                    <span class="flex items-center gap-1">
-                                        <FolderOpen :size="12" />
-                                        {{ parent.children.length }} subcat.
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-xs text-muted-foreground flex items-center gap-1 font-medium bg-muted/30 px-1.5 py-0.5 rounded">
+                                        {{ parent.children.length }} subcategorías
                                     </span>
-                                    
-                                    <span v-if="parent.external_code" class="font-mono bg-muted px-1.5 py-0.5 rounded">
-                                        {{ parent.external_code }}
-                                    </span>
-                                    
-                                    <span v-if="!parent.is_active" class="text-error font-bold">
-                                        INACTIVO
+                                    <span v-if="parent.external_code" class="text-[10px] text-muted-foreground font-mono">
+                                        #{{ parent.external_code }}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Estado vacío -->
-                        <div v-if="filteredTree.length === 0" class="text-center py-12 px-4">
-                            <Search :size="48" class="mx-auto mb-4 text-muted-foreground/20" />
-                            <p class="font-medium text-foreground mb-2">No se encontraron categorías</p>
-                            <p class="text-sm text-muted-foreground mb-4">
-                                {{ search ? 'Intenta con otro término de búsqueda' : 'No hay categorías padre registradas' }}
-                            </p>
-                            <Link v-if="can_manage" :href="route('admin.categories.create')" 
-                                  class="btn btn-outline btn-sm">
-                                Crear primera categoría
-                            </Link>
-                        </div>
-                    </div>
-                    
-                    <!-- Footer del panel -->
-                    <div class="p-4 border-t border-border/30 bg-muted/20">
-                        <div class="text-xs text-muted-foreground flex items-center justify-between">
-                            <span>Total: {{ props.categories.length }} categorías</span>
-                            <Link :href="route('admin.categories.index')" 
-                                  class="text-primary hover:underline font-medium">
-                                Ver todas
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Panel derecho: Detalles y subcategorías -->
-            <div class="lg:w-2/3 xl:w-3/4">
-                <Transition name="fade" mode="out-in">
-                    <!-- Vista con categoría seleccionada -->
-                    <div v-if="activeParent" :key="activeParent.id" class="space-y-6 animate-in">
-                        <!-- Header de categoría padre -->
-                        <div class="card overflow-hidden border-border/50 relative">
-                            <div class="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
-                                <FolderOpen :size="140" />
+                        <div v-show="expandedCategories.includes(parent.id)">
+                            
+                            <div class="flex border-t border-border/50 divide-x divide-border/50 bg-muted/10">
+                                <Link v-if="can_manage" :href="route('admin.categories.edit', parent.id)" 
+                                      class="flex-1 py-3 flex items-center justify-center gap-2 text-xs font-bold text-foreground hover:bg-background transition-colors">
+                                    <Settings :size="14"/> Configurar
+                                </Link>
+                                <Link v-if="can_manage" :href="route('admin.categories.create', { parent: parent.id })"
+                                      class="flex-1 py-3 flex items-center justify-center gap-2 text-xs font-bold text-primary hover:bg-primary/5 transition-colors">
+                                    <Plus :size="14"/> Añadir Hija
+                                </Link>
                             </div>
 
-                            <div class="card-header !pb-0">
-                                <div class="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                                    <div class="flex items-start gap-4">
-                                        <!-- Imagen -->
-                                        <div class="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-input overflow-hidden flex items-center justify-center shrink-0">
-                                            <img v-if="activeParent.image_url" 
-                                                 :src="activeParent.image_url" 
-                                                 class="w-full h-full object-cover">
-                                            <FolderOpen v-else :size="32" class="text-primary/40" />
-                                        </div>
+                            <div class="bg-muted/5 border-t border-border/50 p-2 sm:p-3 space-y-2">
+                                <div v-if="parent.children.length === 0" class="text-center py-4 text-xs text-muted-foreground italic flex flex-col items-center">
+                                    <span class="opacity-50">Sin subcategorías</span>
+                                </div>
 
-                                        <!-- Información -->
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex flex-wrap items-center gap-2 mb-3">
-                                                <span class="badge badge-primary font-bold">
-                                                    <Shield :size="12" class="mr-1" />
-                                                    Categoría Padre
-                                                </span>
-                                                
-                                                <span v-if="activeParent.is_active" 
-                                                      class="badge badge-success font-bold">
-                                                    <Eye :size="12" class="mr-1" />
-                                                    ACTIVO
-                                                </span>
-                                                
-                                                <span v-else 
-                                                      class="badge badge-error font-bold">
-                                                    <EyeOff :size="12" class="mr-1" />
-                                                    INACTIVO
-                                                </span>
-                                                
-                                                <span v-if="activeParent.is_featured" 
-                                                      class="badge badge-warning font-bold">
-                                                    <Star :size="12" class="mr-1" />
-                                                    DESTACADO
-                                                </span>
-                                                
-                                                <span v-if="activeParent.requires_age_check" 
-                                                      class="badge badge-error font-bold">
-                                                    <AlertCircle :size="12" class="mr-1" />
-                                                    RESTRICCIÓN +18
-                                                </span>
-                                            </div>
-                                            
-                                            <h1 class="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight mb-2">
-                                                {{ activeParent.name }}
-                                            </h1>
-                                            
-                                            <div class="flex flex-wrap items-center gap-4 text-sm">
-                                                <div class="flex items-center gap-2 text-muted-foreground">
-                                                    <Hash :size="14" />
-                                                    <span class="font-mono font-bold text-foreground">
-                                                        {{ activeParent.external_code || 'Sin código' }}
-                                                    </span>
-                                                </div>
-                                                
-                                                <div class="flex items-center gap-2 text-muted-foreground">
-                                                    <Globe :size="14" />
-                                                    <span class="font-medium">
-                                                        /{{ activeParent.slug }}
-                                                    </span>
-                                                </div>
-                                                
-                                                <div class="flex items-center gap-2 text-muted-foreground">
-                                                    <Layers :size="14" />
-                                                    <span class="font-medium">
-                                                        {{ activeParent.children.length }} subcategorías
-                                                    </span>
-                                                </div>
+                                <div v-for="child in parent.children" :key="child.id" 
+                                     class="flex items-center justify-between p-3 rounded-lg bg-background border border-border/40 hover:border-primary/30 transition-colors shadow-sm ml-4 relative before:absolute before:left-[-12px] before:top-1/2 before:w-3 before:h-[2px] before:bg-border/50">
+                                    
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-2 h-2 rounded-full bg-primary/40 shrink-0"></div>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold text-foreground truncate">{{ child.name }}</p>
+                                            <div class="flex items-center gap-2 mt-0.5">
+                                                <p v-if="child.external_code" class="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
+                                                    {{ child.external_code }}
+                                                </p>
+                                                <span v-if="!child.is_active" class="text-[9px] text-error font-bold uppercase">Inactiva</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Acciones -->
-                                    <div v-if="can_manage" class="flex flex-col sm:flex-row gap-2 shrink-0">
-                                        <Link :href="route('admin.categories.create', { parent: activeParent.id })" 
-                                              class="btn btn-outline btn-sm">
-                                            + Subcategoría
+                                    <div class="flex items-center gap-1">
+                                        <Link v-if="can_manage" :href="route('admin.categories.edit', child.id)" class="btn btn-ghost btn-sm w-8 h-8 p-0 hover:bg-muted">
+                                            <Settings :size="14" class="text-muted-foreground"/>
                                         </Link>
-                                        
-                                        <Link :href="route('admin.categories.edit', activeParent.id)" 
-                                              class="btn btn-primary btn-sm shadow-sm">
-                                            <Settings :size="14" class="mr-2" />
-                                            Editar
-                                        </Link>
-                                        
-                                        <button @click="deleteCategory(activeParent)" 
-                                                class="btn btn-error btn-sm">
-                                            Eliminar
+                                        <button v-if="can_manage" @click="deleteCategory(child)" class="btn btn-ghost btn-sm w-8 h-8 p-0 hover:bg-error/10 hover:text-error">
+                                            <Trash2 :size="14" />
                                         </button>
                                     </div>
                                 </div>
-
-                                <!-- Descripción y SEO -->
-                                <div class="mt-6 pt-6 border-t border-border/30">
-                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <!-- Descripción -->
-                                        <div v-if="activeParent.description">
-                                            <h3 class="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                                                <FileText :size="14" />
-                                                Descripción
-                                            </h3>
-                                            <p class="text-sm text-muted-foreground leading-relaxed">
-                                                {{ activeParent.description }}
-                                            </p>
-                                        </div>
-
-                                        <!-- SEO -->
-                                        <div v-if="activeParent.seo_title || activeParent.seo_description">
-                                            <h3 class="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                                                <TrendingUp :size="14" class="text-success" />
-                                                Optimización SEO
-                                            </h3>
-                                            
-                                            <div class="space-y-2">
-                                                <div v-if="activeParent.seo_title">
-                                                    <div class="text-xs text-muted-foreground">Meta Título</div>
-                                                    <div class="text-sm font-medium text-foreground line-clamp-2">
-                                                        {{ activeParent.seo_title }}
-                                                    </div>
-                                                </div>
-                                                
-                                                <div v-if="activeParent.seo_description">
-                                                    <div class="text-xs text-muted-foreground">Meta Descripción</div>
-                                                    <div class="text-sm text-muted-foreground line-clamp-3">
-                                                        {{ activeParent.seo_description }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Subcategorías -->
-                        <div class="card border-border/50">
-                            <div class="card-header">
-                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                    <div>
-                                        <h2 class="font-display font-semibold text-xl text-foreground flex items-center gap-2">
-                                            Subcategorías
-                                            <span class="badge badge-outline font-bold">
-                                                {{ activeParent.children.length }}
-                                            </span>
-                                        </h2>
-                                        <p class="text-sm text-muted-foreground mt-1">
-                                            Organizadas bajo "{{ activeParent.name }}"
-                                        </p>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-3">
-                                        <!-- Toggle de vista -->
-                                        <div class="flex border border-input rounded-lg overflow-hidden">
-                                            <button @click="viewMode = 'grid'" 
-                                                    class="p-2 transition-colors"
-                                                    :class="viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
-                                                    title="Vista de cuadrícula">
-                                                <Grid :size="16" />
-                                            </button>
-                                            <button @click="viewMode = 'list'" 
-                                                    class="p-2 transition-colors"
-                                                    :class="viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
-                                                    title="Vista de lista">
-                                                <List :size="16" />
-                                            </button>
-                                        </div>
-                                        
-                                        <!-- Acciones -->
-                                        <Link v-if="can_manage" 
-                                              :href="route('admin.categories.create', { parent: activeParent.id })" 
-                                              class="btn btn-primary btn-sm shadow-sm">
-                                            <Plus :size="14" class="mr-2" />
-                                            Nueva Subcategoría
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Contenido de subcategorías -->
-                            <div class="card-content !pt-0">
-                                <!-- Grid/List de subcategorías -->
-                                <div v-if="activeParent.children.length > 0" 
-                                     :class="[
-                                        'transition-all duration-300',
-                                        viewMode === 'grid' 
-                                            ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' 
-                                            : 'space-y-3'
-                                     ]">
-                                    
-                                    <CategoryCard v-for="child in activeParent.children" 
-                                                 :key="child.id"
-                                                 :category="child"
-                                                 :can-manage="can_manage"
-                                                 @delete="deleteCategory" 
-                                                 :class="viewMode === 'list' ? '!flex-row h-auto items-center' : ''" />
-                                </div>
-
-                                <!-- Estado vacío para subcategorías -->
-                                <div v-else class="text-center py-12">
-                                    <div class="max-w-md mx-auto">
-                                        <FolderOpen :size="64" class="mx-auto mb-6 text-muted-foreground/20" />
-                                        <h3 class="font-display font-semibold text-xl text-foreground mb-3">
-                                            No hay subcategorías
-                                        </h3>
-                                        <p class="text-muted-foreground mb-6">
-                                            Las subcategorías te permiten organizar productos de manera más específica dentro de esta categoría.
-                                        </p>
-                                        <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                                            <Link v-if="can_manage" 
-                                                  :href="route('admin.categories.create', { parent: activeParent.id })" 
-                                                  class="btn btn-primary">
-                                                <Plus :size="16" class="mr-2" />
-                                                Crear primera subcategoría
-                                            </Link>
-                                            
-                                            <Link :href="route('admin.categories.index')" 
-                                                  class="btn btn-outline">
-                                                Ver todas las categorías
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
+                </TransitionGroup>
 
-                    <!-- Estado sin selección -->
-                    <div v-else class="card text-center py-16 border-border/50">
-                        <div class="max-w-md mx-auto">
-                            <FolderOpen :size="80" class="mx-auto mb-8 text-muted-foreground/10" />
-                            <h2 class="text-2xl font-display font-semibold text-foreground mb-4">
-                                Selecciona una categoría
-                            </h2>
-                            <p class="text-muted-foreground mb-8 leading-relaxed">
-                                Elige una categoría padre del panel izquierdo para ver sus detalles completos, 
-                                gestionar sus subcategorías y configurar su visibilidad.
-                            </p>
-                            <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                                <Link v-if="can_manage" :href="route('admin.categories.create')" 
-                                      class="btn btn-primary shadow-md">
-                                    <Plus :size="18" class="mr-2" />
-                                    Crear nueva categoría
-                                </Link>
-                                
-                                <button @click="selectedParentId = filteredTree[0]?.id" 
-                                        v-if="filteredTree.length > 0"
-                                        class="btn btn-outline">
-                                    Seleccionar primera categoría
-                                </button>
-                            </div>
-                        </div>
+                <div v-if="filteredTree.length === 0" class="flex flex-col items-center justify-center py-16 text-center opacity-60">
+                    <div class="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+                        <FolderOpen :size="32" class="text-muted-foreground" />
                     </div>
-                </Transition>
+                    <p class="text-sm font-medium">No se encontraron categorías</p>
+                    <p class="text-xs text-muted-foreground mt-1">Prueba con otra búsqueda o crea una nueva.</p>
+                </div>
             </div>
+
+            <Link v-if="can_manage" :href="route('admin.categories.create')" 
+                class="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[100] flex items-center justify-center w-14 h-14 rounded-2xl bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(var(--primary),0.4)] hover:scale-110 active:scale-95 transition-all duration-300 group border border-white/20">
+                <Plus :size="28" stroke-width="3" class="group-hover:rotate-90 transition-transform duration-300"/>
+                <span class="sr-only">Nueva Categoría</span>
+            </Link>
+
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { 
-    transition: opacity 0.3s var(--ease-smooth), transform 0.3s var(--ease-elastic); 
+/* Utilidad para ocultar scrollbar en carrusel móvil */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
 }
-.fade-enter-from, .fade-leave-to { 
-    opacity: 0; 
-    transform: translateY(20px) scale(0.98); 
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Animaciones de lista */
+.list-enter-active,
+.list-leave-active {
+    transition: all 0.3s ease;
+}
+.list-enter-from,
+.list-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
 }
 </style>

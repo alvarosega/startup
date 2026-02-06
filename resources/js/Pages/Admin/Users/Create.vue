@@ -1,10 +1,10 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { 
     User, Shield, ArrowRight, ArrowLeft, 
-    Save, Building, Lock, Mail, Phone, AlertTriangle 
+    Save, Building, Lock, Mail, Phone, AlertTriangle, CheckCircle2
 } from 'lucide-vue-next';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -12,47 +12,38 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 const props = defineProps({ roles: Array, branches: Array });
 
 const steps = [
-    { id: 1, title: 'Identidad', icon: User },
-    { id: 2, title: 'Permisos', icon: Shield },
+    { id: 1, title: 'Datos Personales', icon: User },
+    { id: 2, title: 'Roles y Accesos', icon: Shield },
 ];
 
 const currentStep = ref(1);
 
 const form = useForm({
-    first_name: '', 
-    last_name: '', 
-    email: '', 
-    phone: '',
-    password: '', 
-    role_id: null, 
-    branch_id: null
+    first_name: '', last_name: '', email: '', phone: '',
+    password: '', role_id: null, branch_id: null
 });
 
-// --- Lógica de Validación Cliente ---
+// --- CLIENT VALIDATION ---
 const validateStep1 = () => {
-    form.clearErrors(); // Limpiar errores previos visuales
+    form.clearErrors();
     let isValid = true;
-
-    if (!form.first_name) { form.setError('first_name', 'El nombre es obligatorio'); isValid = false; }
-    if (!form.last_name) { form.setError('last_name', 'El apellido es obligatorio'); isValid = false; }
-    if (!form.phone) { form.setError('phone', 'El teléfono es obligatorio'); isValid = false; }
+    if (!form.first_name) { form.setError('first_name', 'Nombre requerido'); isValid = false; }
+    if (!form.last_name) { form.setError('last_name', 'Apellido requerido'); isValid = false; }
+    if (!form.phone) { form.setError('phone', 'Teléfono requerido'); isValid = false; }
     if (!form.password || form.password.length < 6) { 
-        form.setError('password', 'La contraseña debe tener mín. 6 caracteres'); 
-        isValid = false; 
+        form.setError('password', 'Mínimo 6 caracteres'); isValid = false; 
     }
-
     return isValid;
 };
 
 const nextStep = () => {
     if (currentStep.value === 1) {
-        if (validateStep1()) {
-            currentStep.value = 2;
-        } else {
-            // Feedback vibrante si hay error
-            const card = document.querySelector('.card-content');
-            card.classList.add('animate-shake');
-            setTimeout(() => card.classList.remove('animate-shake'), 400);
+        if (validateStep1()) currentStep.value = 2;
+        else {
+            // Visual feedback for error
+            const card = document.getElementById('wizard-card');
+            card?.classList.add('shake');
+            setTimeout(() => card?.classList.remove('shake'), 400);
         }
     }
 };
@@ -61,8 +52,7 @@ const submit = () => {
     form.post(route('admin.users.store'), {
         preserveScroll: true,
         onError: (errors) => {
-            // SI HAY ERRORES EN EL PASO 1, VOLVER AUTOMÁTICAMENTE
-            if (errors.first_name || errors.last_name || errors.email || errors.phone || errors.password) {
+            if (errors.first_name || errors.last_name || errors.email || errors.password) {
                 currentStep.value = 1;
             }
         }
@@ -72,124 +62,153 @@ const submit = () => {
 
 <template>
     <AdminLayout>
+        
         <template #header>
-            <div class="animate-slide-up">
-                <h1 class="text-3xl font-display font-black text-gradient-primary">Nuevo Usuario</h1>
-                <p class="text-muted-foreground text-sm">Alta de personal y configuración de accesos.</p>
+            <div class="flex items-center gap-3 pt-1 mb-6">
+                <Link :href="route('admin.users.index')" class="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeft :size="20" />
+                </Link>
+                <div>
+                    <h1 class="text-2xl font-display font-black tracking-tight text-foreground leading-none">
+                        Nuevo Usuario
+                    </h1>
+                    <p class="text-[10px] text-muted-foreground font-medium mt-0.5">
+                        Alta de personal y permisos
+                    </p>
+                </div>
             </div>
         </template>
 
-        <div class="max-w-3xl mx-auto pb-24 px-4 md:px-0">
-            <div class="mb-8 md:mb-12 relative">
-                <div class="flex justify-between items-center relative z-10 px-8">
-                    <div v-for="step in steps" :key="step.id" class="flex flex-col items-center gap-2">
-                        <div :class="[
-                            'w-10 h-10 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border-4 border-background shadow-sm',
-                            currentStep >= step.id ? 'bg-primary text-primary-foreground scale-110 shadow-primary/20' : 'bg-muted text-muted-foreground'
-                        ]">
-                            <component :is="step.icon" :size="20" />
-                        </div>
-                        <span class="text-[10px] font-black uppercase tracking-widest hidden md:block" 
-                              :class="currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'">
-                            {{ step.title }}
-                        </span>
+        <div id="wizard-card" class="max-w-2xl mx-auto pb-32 md:pb-12">
+            
+            <div class="flex items-center justify-between px-8 mb-8 relative">
+                <div class="absolute top-1/2 left-10 right-10 h-0.5 bg-border -z-10"></div>
+                <div class="absolute top-1/2 left-10 h-0.5 bg-primary -z-10 transition-all duration-500"
+                     :style="{ width: currentStep === 2 ? 'calc(100% - 5rem)' : '0%' }"></div>
+
+                <div v-for="step in steps" :key="step.id" class="flex flex-col items-center gap-2 relative bg-background p-1">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border-2"
+                         :class="currentStep >= step.id 
+                            ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20 scale-110' 
+                            : 'bg-card border-border text-muted-foreground'">
+                        <component :is="step.icon" :size="18" />
                     </div>
-                </div>
-                <div class="absolute top-5 md:top-7 left-0 w-full h-1 bg-muted rounded-full -z-0 px-10">
-                    <div class="h-full bg-primary transition-all duration-500 rounded-full" 
-                         :style="{ width: currentStep === 2 ? '100%' : '0%' }"></div>
+                    <span class="text-[10px] font-black uppercase tracking-wider transition-colors"
+                          :class="currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'">
+                        {{ step.title }}
+                    </span>
                 </div>
             </div>
 
-            <div class="card glass shadow-xl min-h-[480px] flex flex-col">
-                <div class="card-content p-5 md:p-8 flex-1">
+            <div class="bg-card rounded-3xl border border-border shadow-xl overflow-hidden flex flex-col min-h-[400px]">
+                
+                <div class="p-6 md:p-8 flex-1">
                     
-                    <div v-show="currentStep === 1" class="space-y-6 animate-in fade-in">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                            <BaseInput v-model="form.first_name" label="Nombre" placeholder="Ej: Juan" :icon="User" required :error="form.errors.first_name" />
-                            <BaseInput v-model="form.last_name" label="Apellido" placeholder="Ej: Perez" required :error="form.errors.last_name" />
+                    <div v-show="currentStep === 1" class="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <BaseInput v-model="form.first_name" label="Nombres" placeholder="Ej: Juan" :icon="User" :error="form.errors.first_name" />
+                            <BaseInput v-model="form.last_name" label="Apellidos" placeholder="Ej: Perez" :error="form.errors.last_name" />
                         </div>
                         
                         <BaseInput v-model="form.email" label="Email Corporativo" type="email" placeholder="usuario@empresa.com" :icon="Mail" :error="form.errors.email" />
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                            <BaseInput v-model="form.phone" label="Celular (Login ID)" placeholder="70012345" :icon="Phone" required :error="form.errors.phone" />
-                            <BaseInput v-model="form.password" label="Contraseña Inicial" type="password" placeholder="••••••" :icon="Lock" required :error="form.errors.password" />
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <BaseInput v-model="form.phone" label="Celular" placeholder="70012345" :icon="Phone" :error="form.errors.phone" />
+                            <BaseInput v-model="form.password" label="Contraseña" type="password" placeholder="••••••" :icon="Lock" :error="form.errors.password" />
                         </div>
                     </div>
 
-                    <div v-show="currentStep === 2" class="space-y-6 animate-in slide-in-from-right-4">
+                    <div v-show="currentStep === 2" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         
                         <div v-if="form.hasErrors && (form.errors.first_name || form.errors.phone)" 
-                             class="alert alert-error mb-4 cursor-pointer" @click="currentStep = 1">
-                            <AlertTriangle :size="18"/>
-                            <span class="text-xs font-bold">Hay errores en los datos personales. Click para corregir.</span>
+                             class="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-destructive/20 transition-colors"
+                             @click="currentStep = 1">
+                            <AlertTriangle class="text-destructive shrink-0" :size="18"/>
+                            <p class="text-xs font-bold text-destructive">Datos incompletos en el paso anterior.</p>
+                            <ArrowLeft :size="14" class="text-destructive ml-auto"/>
                         </div>
 
                         <div>
-                            <label class="form-label mb-3">Rol de Acceso <span class="text-error">*</span></label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="text-xs font-black text-muted-foreground uppercase tracking-wider mb-3 block ml-1">
+                                Rol de Sistema
+                            </label>
+                            <div class="grid grid-cols-1 gap-3">
                                 <div v-for="role in roles" :key="role.id" 
                                      @click="form.role_id = role.id"
-                                     :class="['cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center gap-3', 
-                                              form.role_id === role.id ? 'border-primary bg-primary/5 ring-2 ring-primary/10' : 'border-border hover:border-primary/40']">
-                                    <div :class="['w-8 h-8 rounded-lg flex items-center justify-center transition-colors', form.role_id === role.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground']">
-                                        <Shield :size="16" />
+                                     class="relative p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 group"
+                                     :class="form.role_id === role.id 
+                                        ? 'border-primary bg-primary/5 shadow-md' 
+                                        : 'border-border bg-card hover:border-primary/30'">
+                                    
+                                    <div class="w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0"
+                                         :class="form.role_id === role.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'">
+                                        <Shield :size="18" />
                                     </div>
-                                    <span class="font-bold text-sm" :class="form.role_id === role.id ? 'text-primary' : 'text-foreground'">{{ role.name }}</span>
+                                    <div>
+                                        <p class="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                                            {{ role.name }}
+                                        </p>
+                                        <p class="text-[10px] text-muted-foreground mt-0.5">
+                                            {{ role.description || 'Acceso estándar al sistema.' }}
+                                        </p>
+                                    </div>
+                                    <div v-if="form.role_id === role.id" class="absolute top-4 right-4 text-primary">
+                                        <CheckCircle2 :size="18" />
+                                    </div>
                                 </div>
                             </div>
-                            <p v-if="form.errors.role_id" class="form-error mt-2">{{ form.errors.role_id }}</p>
+                            <p v-if="form.errors.role_id" class="text-destructive text-xs mt-2 font-bold">{{ form.errors.role_id }}</p>
                         </div>
-                        
-                        <div v-if="form.role_id" class="animate-scale-in">
+
+                        <div v-if="form.role_id" class="animate-in fade-in slide-in-from-bottom-2">
                             <BaseSelect 
                                 v-model="form.branch_id"
-                                label="Asignar Sucursal Operativa"
+                                label="Sucursal Asignada"
                                 :options="branches"
-                                placeholder="Seleccionar Sucursal..."
+                                placeholder="Acceso Global (Todas)"
                                 :icon="Building"
                                 :error="form.errors.branch_id"
                             />
-                            <p class="text-xs text-muted-foreground mt-2 ml-1">
-                                * Déjalo vacío si el usuario necesita acceso global (Super Admin).
+                            <p class="text-[10px] text-muted-foreground mt-2 px-2 bg-muted/30 py-1.5 rounded-lg inline-block">
+                                <span class="font-bold">Nota:</span> Si se deja vacío, el usuario tendrá visión global.
                             </p>
                         </div>
                     </div>
+
                 </div>
 
-                <div class="card-footer bg-muted/20 border-t border-border/50 p-6 flex justify-between items-center sticky bottom-0 md:static backdrop-blur-md md:backdrop-blur-none z-20">
-                    <button @click="currentStep = 1" v-show="currentStep === 2" class="btn btn-ghost hover:bg-background gap-2 text-muted-foreground">
-                        <ArrowLeft :size="18"/> <span class="hidden md:inline">Volver</span>
+                <div class="p-4 border-t border-border bg-background/80 backdrop-blur-md sticky bottom-0 z-20 flex justify-between items-center gap-4">
+                    <button v-if="currentStep === 2" @click="currentStep = 1" 
+                            class="btn btn-ghost text-muted-foreground hover:text-foreground">
+                        <ArrowLeft :size="18" class="mr-2"/> Atrás
+                    </button>
+                    <div v-else></div> <button v-if="currentStep === 1" @click="nextStep" 
+                            class="btn btn-primary shadow-lg shadow-primary/25 w-full md:w-auto px-8">
+                        Siguiente <ArrowRight :size="18" class="ml-2"/>
                     </button>
                     
-                    <div class="flex-1 md:flex-none flex justify-end">
-                        <button @click="nextStep" v-if="currentStep === 1" class="btn btn-primary w-full md:w-auto gap-2">
-                            Continuar <ArrowRight :size="18"/>
-                        </button>
-                        
-                        <button @click="submit" v-else 
-                                class="btn btn-primary w-full md:w-auto gap-2 shadow-lg shadow-primary/20" 
-                                :disabled="form.processing">
-                            <span v-if="form.processing" class="spinner spinner-sm"></span>
-                            <Save v-else :size="18"/> 
-                            {{ form.processing ? 'Guardando...' : 'Finalizar Registro' }}
-                        </button>
-                    </div>
+                    <button v-else @click="submit" :disabled="form.processing"
+                            class="btn btn-primary shadow-lg shadow-primary/25 w-full md:w-auto px-8">
+                        <span v-if="form.processing">Guardando...</span>
+                        <span v-else class="flex items-center gap-2">
+                            <Save :size="18"/> Crear Usuario
+                        </span>
+                    </button>
                 </div>
             </div>
+
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-/* Animación de error (vibración) */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+.shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
-.animate-shake {
-  animation: shake 0.4s ease-in-out;
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 </style>

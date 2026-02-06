@@ -52,27 +52,44 @@ class UserController extends Controller
             })
             ->orderBy('id', 'desc');
 
+        // ... dentro de index() ...
         $users = $usersQuery->paginate(10)->withQueryString()
             ->through(function ($user) {
-                // Nombre del rol seguro
                 $roleName = $user->roles->first()?->display_name ?? $user->roles->first()?->name ?? 'Sin Rol';
                 $roleKey = $user->roles->first()?->name ?? '';
 
+                // --- LÓGICA CORREGIDA PARA EL NOMBRE ---
+                $displayName = 'Usuario Nuevo'; // Fallback final
+                
+                // 1. Intentar sacar nombre del perfil
+                if ($user->profile && ($user->profile->first_name || $user->profile->last_name)) {
+                    $displayName = trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? ''));
+                } 
+                // 2. Si no hay perfil o nombres vacíos, usar el teléfono (Identificador Customer)
+                elseif ($user->phone) {
+                    $displayName = $user->phone;
+                }
+                // 3. Si no, usar email
+                elseif ($user->email) {
+                    $displayName = $user->email;
+                }
+                // ----------------------------------------
+
                 return [
                     'id' => $user->id,
-                    'full_name' => $user->profile ? ($user->profile->first_name . ' ' . $user->profile->last_name) : 'Sin Perfil',
+                    'name' => $displayName, // <--- CAMBIADO DE 'full_name' A 'name' PARA QUE VUE LO LEA
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'role' => $roleName,
-                    'role_key' => $roleKey, // Para agrupar en el frontend
+                    'role_key' => $roleKey,
                     'branch' => $user->branch?->name,
                     'is_active' => $user->is_active,
-
                     'is_verified' => $user->profile?->is_identity_verified ?? false,
-                    'vehicle' => $user->profile?->vehicle_type, // 'moto', 'car', etc.
+                    'vehicle' => $user->profile?->vehicle_type,
                     'plate' => $user->profile?->license_plate,
                 ];
             });
+
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,

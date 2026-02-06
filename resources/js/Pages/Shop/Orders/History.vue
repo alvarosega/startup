@@ -1,122 +1,157 @@
 <script setup>
-    import { Head, Link } from '@inertiajs/vue3';
-    import ShopLayout from '@/Layouts/ShopLayout.vue';
-    import { 
-        Package, Calendar, ChevronRight, SearchX, 
-        Clock, FileText, CheckCircle2, Truck, XCircle 
-    } from 'lucide-vue-next';
-    
-    defineProps({
-        orders: Object // Objeto paginado de Laravel
+import { Head, Link } from '@inertiajs/vue3';
+import ShopLayout from '@/Layouts/ShopLayout.vue';
+import { 
+    Package, Calendar, ChevronRight, SearchX, 
+    Clock, FileText, CheckCircle2, Truck, XCircle, AlertTriangle 
+} from 'lucide-vue-next';
+
+defineProps({
+    orders: Object 
+});
+
+// Semantic Status Map
+const statusMap = {
+    pending_proof: { 
+        label: 'Pagar Ahora', 
+        classes: 'bg-warning/10 text-warning border-warning/20 animate-pulse', 
+        icon: AlertTriangle 
+    },
+    review: { 
+        label: 'Verificando', 
+        classes: 'bg-primary/10 text-primary border-primary/20', 
+        icon: FileText 
+    },
+    confirmed: { 
+        label: 'Preparando', 
+        classes: 'bg-blue-500/10 text-blue-500 border-blue-500/20', 
+        icon: Package 
+    },
+    dispatched: { 
+        label: 'En Camino', 
+        classes: 'bg-purple-500/10 text-purple-500 border-purple-500/20', 
+        icon: Truck 
+    },
+    completed: { 
+        label: 'Entregado', 
+        classes: 'bg-success/10 text-success border-success/20', 
+        icon: CheckCircle2 
+    },
+    cancelled: { 
+        label: 'Cancelado', 
+        classes: 'bg-destructive/10 text-destructive border-destructive/20', 
+        icon: XCircle 
+    },
+};
+
+const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('es-BO', { 
+        year: 'numeric', month: 'short', day: 'numeric' 
     });
-    
-    // Mapa de estados para las etiquetas (Badges)
-    const statusMap = {
-        pending_proof: { label: 'Pagar Ahora', classes: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
-        review:        { label: 'Verificando', classes: 'bg-blue-100 text-blue-700 border-blue-200',     icon: FileText },
-        confirmed:     { label: 'Preparando',  classes: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: Package },
-        dispatched:    { label: 'En Camino',   classes: 'bg-purple-100 text-purple-700 border-purple-200', icon: Truck },
-        completed:     { label: 'Entregado',   classes: 'bg-green-100 text-green-700 border-green-200',   icon: CheckCircle2 },
-        cancelled:     { label: 'Cancelado',   classes: 'bg-red-100 text-red-700 border-red-200',       icon: XCircle },
-    };
-    
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('es-BO', { 
-            year: 'numeric', month: 'long', day: 'numeric' 
-        });
-    };
-    </script>
-    
-    <template>
-        <ShopLayout>
-            <Head title="Mis Pedidos" />
-    
-            <div class="max-w-4xl mx-auto py-10 px-4 min-h-[60vh]">
-                
-                <div class="flex items-center gap-3 mb-8">
-                    <div class="p-3 bg-blue-50 rounded-full text-blue-600">
-                        <Package :size="28" />
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-black text-gray-800 leading-none">Mis Pedidos</h1>
-                        <p class="text-sm text-gray-500 mt-1">Historial y seguimiento de compras.</p>
-                    </div>
+};
+</script>
+
+<template>
+    <ShopLayout>
+        <Head title="Mis Pedidos" />
+
+        <div class="container mx-auto px-4 py-8 pb-32 lg:pb-12 min-h-[80vh]">
+            
+            <div class="flex items-center gap-4 mb-8">
+                <div class="p-3 bg-primary/10 rounded-2xl text-primary border border-primary/20">
+                    <Package :size="24" stroke-width="2.5" />
                 </div>
-    
-                <div v-if="orders.data.length > 0" class="space-y-4">
-                    
-                    <div v-for="order in orders.data" :key="order.id" 
-                         class="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 overflow-hidden">
-                        
-                        <Link :href="route('orders.show', order.code)" class="block p-6">
-                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-3 mb-1">
-                                        <span class="font-black text-lg text-gray-800">#{{ order.code }}</span>
-                                        
-                                        <span :class="`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border flex items-center gap-1 ${statusMap[order.status].classes}`">
-                                            <component :is="statusMap[order.status].icon" :size="12" />
-                                            {{ statusMap[order.status].label }}
-                                        </span>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-4 text-xs text-gray-500 font-medium">
-                                        <span class="flex items-center gap-1">
-                                            <Calendar :size="14"/> {{ formatDate(order.created_at) }}
-                                        </span>
-                                        <span>•</span>
-                                        <span>{{ order.items_count }} Productos</span>
-                                    </div>
-                                </div>
-    
-                                <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
-                                    <div class="text-right">
-                                        <p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
-                                        <p class="text-xl font-black text-gray-800">Bs {{ order.total_amount }}</p>
-                                    </div>
-                                    
-                                    <div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                        <ChevronRight :size="20" />
-                                    </div>
-                                </div>
-    
-                            </div>
-                        </Link>
-    
-                        <div v-if="order.status === 'pending_proof'" class="bg-yellow-50 px-6 py-2 border-t border-yellow-100 flex justify-between items-center">
-                            <span class="text-xs font-bold text-yellow-700 flex items-center gap-2">
-                                ⚠️ Pendiente de Pago
-                            </span>
-                            <Link :href="route('orders.show', order.code)" class="text-xs font-black text-yellow-800 hover:underline">
-                                Subir Comprobante →
-                            </Link>
-                        </div>
-                    </div>
-    
-                    <div v-if="orders.links.length > 3" class="flex justify-center mt-8 gap-2">
-                        <Link v-for="(link, k) in orders.links" :key="k" 
-                              :href="link.url || '#'" 
-                              v-html="link.label"
-                              class="px-4 py-2 text-sm rounded-lg border transition-colors"
-                              :class="link.active ? 'bg-blue-600 text-white border-blue-600 font-bold' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' + (!link.url ? ' opacity-50 pointer-events-none' : '')"
-                        />
-                    </div>
-    
+                <div>
+                    <h1 class="font-display font-black text-3xl text-foreground tracking-tight leading-none italic">
+                        Mis <span class="text-primary">Pedidos</span>
+                    </h1>
+                    <p class="text-xs text-muted-foreground font-medium mt-1">Historial de compras</p>
                 </div>
-    
-                <div v-else class="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-                    <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <SearchX :size="32" class="text-gray-300" />
-                    </div>
-                    <h3 class="text-lg font-bold text-gray-800">No tienes pedidos aún</h3>
-                    <p class="text-gray-500 text-sm mb-6 max-w-xs mx-auto">Explora nuestro catálogo y encuentra los mejores productos para tu evento.</p>
-                    
-                    <Link :href="route('shop.index')" class="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">
-                        Ir a Comprar
-                    </Link>
-                </div>
-    
             </div>
-        </ShopLayout>
-    </template>
+
+            <div v-if="orders.data.length > 0" class="space-y-4">
+                
+                <div v-for="order in orders.data" :key="order.id" 
+                     class="group relative bg-card rounded-2xl border transition-all duration-300 overflow-hidden hover:shadow-lg active:scale-[0.99]"
+                     :class="order.status === 'pending_proof' 
+                        ? 'border-warning/50 shadow-[0_0_15px_rgba(var(--warning-rgb),0.15)]' 
+                        : 'border-border hover:border-primary/30'">
+                    
+                    <Link :href="route('orders.show', order.code)" class="block p-5">
+                        
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <span class="font-mono text-xs text-muted-foreground">ID PEDIDO</span>
+                                <h3 class="font-black text-lg text-foreground tracking-tight">#{{ order.code }}</h3>
+                            </div>
+                            
+                            <div class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5"
+                                 :class="statusMap[order.status].classes">
+                                <component :is="statusMap[order.status].icon" :size="12" stroke-width="3" />
+                                {{ statusMap[order.status].label }}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-4 text-xs text-muted-foreground font-medium mb-4">
+                            <div class="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg">
+                                <Calendar :size="14"/> {{ formatDate(order.created_at) }}
+                            </div>
+                            <div class="w-1 h-1 bg-border rounded-full"></div>
+                            <span>{{ order.items_count }} Items</span>
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-border/50 pt-4 mt-2">
+                            <div>
+                                <p class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total</p>
+                                <p class="text-xl font-black text-foreground">Bs {{ order.total_amount }}</p>
+                            </div>
+                            
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300"
+                                 :class="order.status === 'pending_proof' 
+                                    ? 'bg-warning text-warning-foreground shadow-lg shadow-warning/20' 
+                                    : 'bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground'">
+                                <ChevronRight :size="20" stroke-width="3" />
+                            </div>
+                        </div>
+                    </Link>
+
+                    <div v-if="order.status === 'pending_proof'" class="bg-warning/10 px-5 py-2 border-t border-warning/20 flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-warning flex items-center gap-1.5">
+                            <Clock :size="12" /> Pendiente de Pago
+                        </span>
+                        <Link :href="route('orders.show', order.code)" class="text-[10px] font-black text-warning hover:underline uppercase tracking-wide">
+                            Subir Comprobante →
+                        </Link>
+                    </div>
+                </div>
+
+                <div v-if="orders.links.length > 3" class="flex justify-center mt-8 gap-1.5 overflow-x-auto py-2">
+                    <Link v-for="(link, k) in orders.links" :key="k" 
+                          :href="link.url || '#'" 
+                          v-html="link.label"
+                          class="px-4 py-2.5 text-xs rounded-xl border transition-all font-bold min-w-[40px] text-center"
+                          :class="link.active 
+                            ? 'bg-primary text-primary-foreground border-primary shadow-md' 
+                            : 'bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground' + (!link.url ? ' opacity-40 pointer-events-none' : '')"
+                    />
+                </div>
+
+            </div>
+
+            <div v-else class="flex flex-col items-center justify-center py-20 text-center opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-forwards">
+                <div class="w-32 h-32 bg-muted/20 rounded-full flex items-center justify-center mb-6 border border-border shadow-inner">
+                    <SearchX class="text-muted-foreground/50" :size="48" stroke-width="1.5" />
+                </div>
+                <h3 class="text-xl font-black text-foreground mb-2">No tienes pedidos</h3>
+                <p class="text-sm text-muted-foreground mb-8 max-w-xs mx-auto leading-relaxed">
+                    Aún no has realizado ninguna compra. Explora nuestro catálogo y equipa tu evento.
+                </p>
+                
+                <Link :href="route('shop.index')" class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-full font-bold text-sm shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+                    Ir a la Tienda
+                </Link>
+            </div>
+
+        </div>
+    </ShopLayout>
+</template>

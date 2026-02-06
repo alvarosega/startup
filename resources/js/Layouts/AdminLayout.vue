@@ -1,4 +1,3 @@
-//ok 
 <script setup>
 import { ref, onMounted } from 'vue';
 import Sidebar from '@/Components/Admin/Sidebar.vue';
@@ -20,7 +19,6 @@ const handleSidebarToggle = (collapsed) => {
 const page = usePage();
 const user = page.props.auth.user;
 
-// Indicador de ambiente (Dev/Staging)
 const isDevelopment = ref(false);
 onMounted(() => {
     isDevelopment.value = ['localhost', '127.0.0.1', 'test', 'dev'].some(host => 
@@ -43,10 +41,10 @@ onMounted(() => {
             class="relative flex-1 min-h-screen transition-[margin] duration-300 ease-smooth will-change-[margin]"
             :class="[
                 isSidebarCollapsed ? 'md:ml-[88px]' : 'md:ml-[280px]',
-                'pb-24 md:pb-8' /* Padding bottom extra en móvil para el menú */
+                'pb-24 md:pb-8'
             ]"
         >
-            <header class="sticky top-0 z-20 px-4 py-4 md:px-8 flex justify-end items-center pointer-events-none">
+            <header class="absolute top-0 right-0 w-full md:sticky md:top-0 z-50 px-4 py-3 md:px-8 flex justify-end items-center pointer-events-none">
                 <div class="flex items-center gap-4 pointer-events-auto">
                     
                     <div v-if="user" class="hidden md:flex glass rounded-full pl-1 pr-4 py-1 items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-300">
@@ -63,15 +61,14 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="glass rounded-full p-1 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="bg-background/80 backdrop-blur-md border border-border/50 rounded-full p-1 shadow-lg md:shadow-sm md:bg-transparent md:border-none hover:scale-105 transition-transform">
                         <ThemeToggler />
                     </div>
                 </div>
             </header>
 
-            <div class="px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div v-if="$slots.header" class="mb-8">
-                    <slot name="header" />
+            <div class="px-4 pt-4 md:pt-0 sm:px-6 lg:px-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-0">
+                <div v-if="$slots.header" class="mb-4 md:mb-8 pr-12 md:pr-0"> <slot name="header" />
                 </div>
 
                 <slot />
@@ -82,9 +79,9 @@ onMounted(() => {
             </div>
         </main>
 
-        <div v-if="isDevelopment" class="fixed bottom-4 left-4 z-50 pointer-events-none">
-            <span class="badge badge-warning font-mono text-[10px] shadow-lg animate-pulse">
-                DEV MODE
+        <div v-if="isDevelopment" class="fixed bottom-24 md:bottom-4 left-4 z-50 pointer-events-none">
+            <span class="badge badge-warning font-mono text-[10px] shadow-lg animate-pulse opacity-50 hover:opacity-100 transition-opacity">
+                DEV
             </span>
         </div>
     </div>

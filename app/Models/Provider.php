@@ -10,7 +10,8 @@ use App\Models\Concerns\HasUuidv7; // <--- OBLIGATORIO
 class Provider extends Model
 {
     use HasFactory, SoftDeletes, HasUuidv7;
-
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $fillable = [
         'company_name', 'commercial_name', 'tax_id', 'internal_code',
         'contact_name', 'email_orders', 'phone', 'address', 'city',

@@ -61,10 +61,9 @@ class ProviderController extends Controller
     {
         $this->authorize('update', $provider);
         
+        // FORMA MÁS SEGURA: toArray(request()) devuelve el array puro sin wrappers de 'data'
         return Inertia::render('Admin/Providers/Edit', [
-            // AGREGAMOS ->resolve() AQUÍ:
-            // Esto "desempaqueta" el objeto 'data' y envía el array limpio a Vue
-            'provider' => (new ProviderResource($provider))->resolve() 
+            'provider' => (new ProviderResource($provider))->toArray(request())
         ]);
     }
 
