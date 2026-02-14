@@ -12,13 +12,14 @@ return new class extends Migration
             $table->id();
             
             // Usuario es UUID
-            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
+            $table->char('customer_id', 16)->charset('binary');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             
             // CORRECCIÓN CRÍTICA:
             // Como Products y Bundles ahora son UUIDs, 
             // no podemos usar 'morphs()' (que crea BIGINT).
             // Debemos usar 'uuidMorphs()' (que crea CHAR 36).
-            $table->uuidMorphs('reviewable'); 
+            $table->uuidMorphs('reviewable');
             
             $table->unsignedTinyInteger('rating'); 
             $table->text('comment')->nullable();

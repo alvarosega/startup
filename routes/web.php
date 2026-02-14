@@ -2,299 +2,215 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
-// --- CONTROLADORES ---
-use App\Http\Controllers\PublicController;
-use App\Http\Controllers\Web\Auth\WebAuthController; 
-use App\Modules\Identity\Controllers\PasswordResetController;
-use App\Http\Controllers\Client\ProfileController;
-use App\Modules\Identity\Controllers\VerificationController;
-use App\Modules\Identity\Controllers\DashboardController;
+// --- CONTROLADORES CUSTOMER ---
+use App\Http\Controllers\Web\Customer\Auth\LoginController as CustomerLoginController;
+use App\Http\Controllers\Web\Customer\Shop\ShopController;
+use App\Http\Controllers\Web\Customer\Shop\CartController;
+use App\Http\Controllers\Web\Customer\ProfileController;
+use App\Http\Controllers\Web\Customer\AddressController;
+use App\Http\Controllers\Web\Customer\Auth\RegisterController;
+use App\Http\Controllers\Web\Customer\OrderController as CustomerOrderController;
+use App\Http\Controllers\Web\Customer\Auth\RegisterController as CustomerRegisterController;
+use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
+use App\Http\Controllers\Web\Customer\Auth\ResetPasswordController;
+//use App\Http\Controllers\Web\Customer\CheckoutController; // Asegúrate de tener este import si usas Checkout
 
-// BACK-OFFICE (ADMIN)
-use App\Http\Controllers\Admin\BranchController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\ProviderController;
-use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Admin\BrandController;
-use App\Http\Controllers\Admin\ProductController;
-use App\Http\Controllers\Admin\SkuController;
-use App\Http\Controllers\Admin\PurchaseController;
-use App\Http\Controllers\Admin\InventoryController;
-use App\Http\Controllers\Admin\RemovalController;
-use App\Http\Controllers\Admin\TransferController;
-use App\Http\Controllers\Admin\LogisticsDashboardController;
-use App\Http\Controllers\Admin\TransformationController;
-use App\Http\Controllers\Admin\MarketZoneController;
-
-
-
-// FRONT-OFFICE (TIENDA)
-use App\Http\Controllers\Shop\CatalogController;
-use App\Http\Controllers\Shop\OrderController;
-use App\Http\Controllers\Shop\LocationController;
-use App\Http\Controllers\Shop\CartController;
-use App\Http\Controllers\Shop\CheckoutController;
-
-use App\Http\Controllers\Admin\BundleController;
-
-use App\Http\Controllers\Client\AddressController;
-use App\Http\Controllers\Driver\DriverController;
-
-use App\Http\Controllers\Shop\ShopController;
+// --- CONTROLADORES ADMIN ---
+use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
+use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Web\Admin\UserController;
+use App\Http\Controllers\Web\Admin\BranchController;
+use App\Http\Controllers\Web\Admin\ProductController;
+use App\Http\Controllers\Web\Admin\CategoryController;
+use App\Http\Controllers\Web\Admin\MarketZoneController;
+use App\Http\Controllers\Web\Admin\BundleController;
+use App\Http\Controllers\Web\Admin\BrandController;
+use App\Http\Controllers\Web\Admin\ProviderController;
+use App\Http\Controllers\Web\Admin\SkuController;
+use App\Http\Controllers\Web\Admin\PriceController;
+use App\Http\Controllers\Web\Admin\InventoryController;
+use App\Http\Controllers\Web\Admin\PurchaseController;
+use App\Http\Controllers\Web\Admin\TransferController;
+use App\Http\Controllers\Web\Admin\RemovalController;
+use App\Http\Controllers\Web\Admin\TransformationController;
+use App\Http\Controllers\Web\Admin\OrderController as AdminOrderController; // Alias para evitar colisión
+use App\Http\Controllers\Web\Admin\DriverController;
 
 
 
-// =============================================================================
-// 1. ZONA PÚBLICA (LANDING PAGE & CATÁLOGO)
-// =============================================================================
+use App\Http\Controllers\Web\Driver\Auth\LoginController as DriverLoginController;
+use App\Http\Controllers\Web\Driver\Auth\RegisterController as DriverRegisterController;
+use App\Http\Controllers\Web\Driver\DashboardController as DriverDashboardController;
+use App\Http\Controllers\Web\Driver\ProfileController as DriverProfileController;
+use App\Http\Middleware\HandleDriverInertiaRequests;
+use App\Http\Controllers\Web\Driver\Auth\ForgotPasswordController as DriverForgotController;
+use App\Http\Controllers\Web\Driver\Auth\ResetPasswordController as DriverResetController;
 
-Route::get('/', [ShopController::class, 'index'])->name('shop.index');
-Route::get('/p/{id}', [CatalogController::class, 'show'])->name('shop.show');
-Route::get('/shop/bundle/{slug}', [App\Http\Controllers\Shop\BundleController::class, 'show'])->name('shop.bundle.show');
-// Rutas Legales
-Route::get('/terms', function () { return Inertia::render('Legal/Terms'); })->name('terms.show');
-Route::get('/privacy', function () { return Inertia::render('Legal/Privacy'); })->name('privacy.show');
-
+$adminPath = env('ADMIN_PATH', 'admin');
 
 // =============================================================================
-// 2. AUTENTICACIÓN (GUEST)
+// GRUPO 1: CLIENTES & TIENDA (Middleware: inertia.customer)
 // =============================================================================
-Route::middleware('guest')->group(function () {
+// Este middleware carga el carrito, branches y datos específicos del cliente.
+// Evita cargar datos pesados para rutas que no son de cliente.
 
-    
-    Route::get('login', [WebAuthController::class, 'showLogin'])->name('login');
-    Route::post('login', [WebAuthController::class, 'login'])->middleware('throttle:login');
-    
-    Route::get('register', [WebAuthController::class, 'showRegister'])->name('register');
-    Route::post('register', [WebAuthController::class, 'register']);
-    
-    // Validación Asíncrona Paso 1
-    Route::post('register/validate-step-1', [WebAuthController::class, 'validateStep1'])->name('register.validate-step-1');
-        
-    // Driver (Vista placeholder)
-    Route::get('register/driver', function () { return Inertia::render('Auth/RegisterDriver'); })->name('register.driver');
-    Route::post('register/driver', [WebAuthController::class, 'registerDriver'])->name('register.driver.store');
-    // Recuperación de Contraseña
-    // Paso 1: Solicitar
-    Route::post('/forgot-password', [WebAuthController::class, 'sendRecoveryCode'])
-    ->name('password.email');
+Route::middleware(['inertia.customer'])->group(function () {
 
-    // 2. Validar código y cambiar password (POST desde el form de "Nueva Contraseña")
-    Route::post('/reset-password', [WebAuthController::class, 'resetPassword'])
-        ->name('password.update');
-});
- 
-Route::post('logout', [WebAuthController::class, 'logout'])->name('logout');
+    // --- LANDING PAGE & CATÁLOGO ---
+    Route::get('/', [ShopController::class, 'index'])->name('shop.index');
+    Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('shop.zone');
 
+    // --- AUTENTICACIÓN CLIENTE (GUEST) ---
+    Route::middleware('guest:customer')->group(function () {
+        // Login
+        Route::get('login', [CustomerLoginController::class, 'show'])->name('login');
+        Route::post('login', [CustomerLoginController::class, 'store']); // Ya no se llama 'login.store' sino 'login' post
+    
+        // Registro
+        Route::get('register', [CustomerRegisterController::class, 'create'])->name('register');
+        Route::post('register', [CustomerRegisterController::class, 'store']);
+        Route::post('register/validate-step-1', [CustomerRegisterController::class, 'validateStep1'])->name('register.validate-step-1');
+        Route::get('password/forgot', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+        Route::post('password/email', [ForgotPasswordController::class, 'sendResetCode'])->name('password.email');
 
-
-// Grupo de rutas para la tienda (con middleware de sesión/auth según necesites)
-Route::prefix('shop')->name('cart.')->group(function () {
-    
-    // Ver Carrito
-    Route::get('/cart', [CartController::class, 'index'])->name('index');
-    
-    // Agregar Item (POST)
-    Route::post('/cart/add', [CartController::class, 'store'])->name('add');
-    
-    // Actualizar Cantidad (PATCH)
-    Route::patch('/cart/{id}', [CartController::class, 'update'])->name('update');
-    
-    // Eliminar Item (DELETE)
-    Route::delete('/cart/{id}', [CartController::class, 'destroy'])->name('remove');
-    
-    // Vaciar / Bulk (Opcional)
-    Route::post('/cart/bulk', [CartController::class, 'bulkStore'])->name('bulk');
-});
-
-Route::get('/shop/zone/{zone}', [ShopController::class, 'showZone'])->name('shop.zone');
-Route::get('/shop/zone/{zone:slug}', [ShopController::class, 'showZone'])
-->name('shop.zone');
-// =============================================================================
-// 3. ZONA CLIENTE & PERFIL (AUTENTICADOS)
-// =============================================================================
-Route::middleware(['auth'])->group(function () {
-    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
-
-    // Rutas de Órdenes (Historial y Detalles)
-    Route::get('/orders/{code}', [OrderController::class, 'show'])->name('orders.show');
-    // A. CENTRO DE MANDO (PERFIL)
-    // -------------------------------------------------------------
-    // 1. Dashboard del Perfil (Solo Lectura - Resumen)
-    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
-    
-    // 2. Edición de Datos Personales (Formulario)
-    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    
-    // Avatar (POST separado para manejo de archivos limpio)
-    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
-    // 3. Verificación de Identidad (Subida de Docs)
-    Route::get('/profile/verification', function() { return Inertia::render('Profile/Verification'); })->name('profile.verification');
-    Route::post('/profile/verify', [VerificationController::class, 'store'])->name('profile.verify'); 
-    
-    // 4. Sub-módulos (Direcciones y Seguridad)
-    Route::get('/profile/security', function() { return Inertia::render('Profile/Security'); })->name('profile.security');
-
-    // Utilitarios
-    Route::get('/email/verify', function () { return Inertia::render('Auth/VerifyEmail'); })->name('verification.notice');
-    Route::get('/storage/avatars/{filename}', function ($filename) {
-        $path = storage_path("app/private/avatars/" . auth()->id() . "/" . $filename);
-        if (!file_exists($path)) abort(404);
-        return response()->file($path);
-    })->name('avatar.download');
-    Route::middleware(['auth'])->group(function () {
-        Route::resource('addresses', AddressController::class);
-        Route::patch('/addresses/{address}/default', [AddressController::class, 'makeDefault'])->name('addresses.set-default');
+        // Paso 2: Ingresar código y nueva clave
+        Route::get('password/reset/{email}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+        Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
     });
-    // ... rutas anteriores ...
 
-    // Gestión de Avatar
-    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    // --- AUTENTICACIÓN CLIENTE (LOGOUT) ---
+    Route::post('logout', [CustomerLoginController::class, 'destroy'])->name('logout');
 
-    // Verificación de Email
-    Route::post('/email/verification-notification', function (\Illuminate\Http\Request $request) {
-        $request->user()->sendEmailVerificationNotification();
-        return back()->with('success', '¡Enlace de verificación enviado!');
-    })->middleware(['throttle:6,1'])->name('verification.send'); // Máximo 6 intentos por minuto
+    // --- ZONA PRIVADA CLIENTE (AUTH) ---
+    Route::middleware(['auth:customer'])->group(function () {
+        
+        // Perfil
+        Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
 
-    // Validar contraseña actual (para cambios sensibles)
-    // CORRECCIÓN: Usar WebAuthController, NO AuthController
-    Route::post('/user/confirm-password', [WebAuthController::class, 'confirmPassword'])
-    ->name('user.confirm-password');
+        // Direcciones
+        Route::resource('addresses', AddressController::class);
+        Route::patch('/addresses/{address}/default', [App\Http\Controllers\Web\Customer\AddressController::class, 'makeDefault'])
+            ->name('addresses.set-default');
 
-    // B. E-COMMERCE (Funciones de Compra)
-    // -------------------------------------------------------------
-    
-    Route::post('/shop/set-location', [App\Http\Controllers\Shop\LocationController::class, 'setLocation'])->name('shop.setLocation');
-    
-    // --- AQUÍ ESTABA EL ERROR ---
-    // Borra las líneas viejas que usan OrderController para el checkout
-    
-    // Rutas Correctas usando CheckoutController:
-    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index'); // <--- FALTABA ESTA (Error Ziggy)
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store'); // <--- CORREGIDO (Usar CheckoutController)
+        // Checkout & Pedidos
+        Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+        Route::get('/my-orders', function() { return Inertia::render('Customer/Orders/Index'); })->name('orders.history');
+    });
 
-    // Rutas de Seguimiento y Pago (OrderController está bien aquí)
-    Route::post('/checkout/{id}/upload-proof', [OrderController::class, 'uploadProof'])->name('checkout.upload');
-    
-    Route::get('/my-orders', [OrderController::class, 'history'])->name('orders.history');
-    Route::get('/my-orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+    // --- CARRITO DE COMPRAS (Míxto: Guest + Auth) ---
+    Route::prefix('cart')->name('cart.')->group(function () {
+        Route::get('/', [CartController::class, 'index'])->name('index'); 
+        Route::post('/add', [CartController::class, 'store'])->name('add');
+        Route::post('/bulk', [CartController::class, 'bulkStore'])->name('bulk');
+        Route::patch('/{id}', [CartController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CartController::class, 'destroy'])->name('remove');
+    });
 
-    
-    
-    // ... dentro de Route::middleware(['auth']) ...
-
-    // ZONA CONDUCTORES
-    Route::middleware(['role:driver']) // Asegura que solo entren conductores
-        ->prefix('driver')             // La URL será /driver/...
-        ->name('driver.')              // Las rutas se llamarán driver....
-        ->group(function () {
-            
-            // Dashboard y Historial
-            Route::get('/dashboard', [App\Http\Controllers\Driver\DriverController::class, 'dashboard'])->name('dashboard');
-            Route::get('/history', [App\Http\Controllers\Driver\DriverController::class, 'history'])->name('history');
-            
-            // Subida de Documentos
-            Route::post('/upload-docs', [App\Http\Controllers\Driver\DriverController::class, 'uploadDocuments'])->name('upload-docs');
-            
-            // --- AQUÍ ESTÁN LAS RUTAS DEL PERFIL ---
-            
-            // 1. Mostrar el formulario (Esta es la que usa el botón del menú)
-           // GESTIÓN DE PERFIL CONDUCTOR
-            Route::get('/profile', [DriverController::class, 'indexProfile'])->name('profile.index'); 
-            Route::get('/profile/edit', [DriverController::class, 'editProfile'])->name('profile.edit'); 
-            Route::patch('/profile', [DriverController::class, 'updateProfile'])->name('profile.update');
+    // --- DEBUGGING (Solo Local) ---
+    if (app()->environment('local')) {
+        Route::get('/debug-auth', function () {
+             $customer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
+             return response()->json([
+                 'status' => $customer ? 'LOGUEADO' : 'GUEST',
+                 'id' => $customer?->id ? bin2hex($customer->getRawOriginal('id')) : null
+             ]);
         });
-    // AGREGAR ESTAS 2 LÍNEAS PARA QUE ZIGGY RECONOZCA LAS RUTAS
-    
+    }
 });
 
 
 // =============================================================================
-// 4. ZONA ADMINISTRATIVA (ERP / BACK-OFFICE)
+// GRUPO 2: ADMIN / BACKOFFICE (Middleware: inertia.admin)
 // =============================================================================
-Route::middleware(['auth', 'verified', 'can:view_admin_dashboard'])
-    ->prefix('admin')
-    ->name('admin.')
-    ->group(function () {
-        
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/logistics-dashboard', [LogisticsDashboardController::class, 'index'])->name('logistics.dashboard');
+// Este middleware es ligero. NO carga carrito ni branches públicas.
 
-        // GESTIÓN CRÍTICA (Solo Super Admin)
-        Route::middleware(['role:super_admin'])->group(function () {
-            Route::resource('branches', BranchController::class);
-            Route::resource('bundles', BundleController::class);
-            Route::resource('market-zones', MarketZoneController::class);
-            Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
-            Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
-                        // GESTIÓN DE PRECIOS
-            Route::get('prices', [App\Http\Controllers\Admin\PriceController::class, 'index'])->name('prices.index');
-            Route::post('prices', [App\Http\Controllers\Admin\PriceController::class, 'store'])->name('prices.store');
-        });
+Route::prefix($adminPath)->name('admin.')->middleware(['inertia.admin'])->group(function () {
 
-        // GESTIÓN GENERAL
+    // --- LOGIN ADMIN (GUEST) ---
+    Route::middleware('guest:admin')->group(function () {
+        Route::get('login', [AdminLoginController::class, 'showLogin'])->name('login');
+        Route::post('login', [AdminLoginController::class, 'login'])->name('login.store');
+    });
+
+    // --- PANEL ADMIN (AUTH) ---
+    Route::middleware(['auth:admin'])->group(function () {
+        Route::post('logout', [AdminLoginController::class, 'logout'])->name('logout');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        // --- RECURSOS ---
         Route::resource('users', UserController::class);
-        Route::resource('providers', ProviderController::class);
-        Route::resource('categories', CategoryController::class);
-        Route::resource('brands', BrandController::class);
+        Route::resource('drivers', DriverController::class);
+        Route::resource('branches', BranchController::class);
         Route::resource('products', ProductController::class);
-       // Corrección: Agregamos 'update' a la lista de métodos permitidos
+        Route::resource('categories', CategoryController::class);
+        Route::resource('market-zones', MarketZoneController::class);
+        Route::resource('bundles', BundleController::class);
+        Route::resource('brands', BrandController::class);
+        Route::resource('providers', ProviderController::class);
         Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);
+        
+        // Precios
+        Route::get('prices', [PriceController::class, 'index'])->name('prices.index');
+        Route::post('prices', [PriceController::class, 'store'])->name('prices.store');
+
+        // Inventario
+        Route::resource('inventory', InventoryController::class)->only(['index']);
+        Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
+        Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
+
+        // Operaciones
         Route::resource('purchases', PurchaseController::class);
         Route::resource('transfers', TransferController::class);
+        Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
 
-        // OPERACIONES DIARIAS
-        Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
+        Route::resource('removals', RemovalController::class);
+        Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
+        Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
         
-        Route::middleware(['permission:view_inventory'])->group(function () {
-            Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
-            Route::resource('inventory', InventoryController::class)->only(['index']);
-            
-            Route::get('removals', [RemovalController::class, 'index'])->name('removals.index');
-            Route::get('removals/create', [RemovalController::class, 'create'])->name('removals.create');
-            Route::post('removals', [RemovalController::class, 'store'])->name('removals.store');
+        Route::resource('transformations', TransformationController::class);
 
-            Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
+        // Pedidos (Admin View)
+        Route::get('orders/kanban', [AdminOrderController::class, 'index'])->name('orders.kanban');
+        Route::patch('orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
+    });
+});
 
-            Route::get('transformations', [TransformationController::class, 'index'])->name('transformations.index');
-            Route::get('transformations/create', [TransformationController::class, 'create'])->name('transformations.create');
-            Route::post('transformations', [TransformationController::class, 'store'])->name('transformations.store');
-        });
-        Route::get('orders/kanban', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.kanban');
-        Route::patch('orders/{id}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('orders.status');
-        // En routes/web.php, dentro del grupo 'admin.'
-        Route::resource('drivers', App\Http\Controllers\Admin\DriverController::class);
-       
+// routes/web.php
+
+// MODIFICACIÓN: Añadir middleware 'inertia.driver' al grupo
+Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(function () {
+
+    Route::middleware('guest:driver')->group(function () {
+        // --- ESTA ES LA RUTA QUE FALTA ---
+        Route::get('register', [DriverRegisterController::class, 'create'])
+            ->name('register'); 
+
+        Route::get('login', [DriverLoginController::class, 'show'])->name('login');
+        Route::post('login', [DriverLoginController::class, 'store']);
+        
+        Route::post('register/validate-step-1', [DriverRegisterController::class, 'validateStep1'])
+            ->name('register.validate-step-1');
+        
+        Route::post('register/store', [DriverRegisterController::class, 'store'])
+            ->name('register.store');
+        Route::get('password/forgot', [DriverForgotController::class, 'showLinkRequestForm'])->name('password.request');
+        Route::post('password/email', [DriverForgotController::class, 'sendResetCode'])->name('password.email');
+        
+        Route::get('password/reset/{email}', [DriverResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('password/update', [DriverResetController::class, 'reset'])->name('password.update');
+        
     });
 
-// 5. REDIRECCIÓN DEFAULT
-// 5. REDIRECCIÓN CENTRALIZADA (TRAFFIC CONTROLLER)
-Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
-    $user = auth()->user();
-
-    // 1. NIVEL LOGÍSTICO
-    if ($user->hasRole('logistics_operator')) {
-        return redirect()->route('admin.logistics.dashboard');
-    }
-
-    // 2. NIVEL CONDUCTOR (DriverLayout)
-    if ($user->hasRole('driver')) {
-        return redirect()->route('driver.dashboard');
-    }
-
-    // 3. NIVEL ADMINISTRATIVO (AdminLayout)
-    // Usamos el permiso 'view_admin_dashboard' o un array de roles
-    if ($user->can('view_admin_dashboard') || $user->hasRole('super_admin')) {
-        return redirect()->route('admin.dashboard');
-    }
-
-    // 4. NIVEL CLIENTE (ShopLayout)
-    // Si no es ninguno de los anteriores, es un cliente.
-    // Aquí decidimos si va al Perfil o a la Tienda. Tú pediste ShopLayout:
-    return redirect()->route('shop.index'); 
-})->name('dashboard');
-
+    // --- APP PRIVADA (AUTH:DRIVER) ---
+    Route::middleware(['auth:driver'])->group(function () {
+        Route::post('logout', [DriverLoginController::class, 'destroy'])->name('logout');
+        Route::get('/dashboard', [DriverDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
+        Route::get('/profile', [DriverProfileController::class, 'index'])->name('profile.index');
+        Route::patch('/profile', [DriverProfileController::class, 'update'])->name('profile.update');
+    });
+});

@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\HasUuidv7; // <--- OBLIGATORIO
+use App\Models\Concerns\HasBinaryUuid; // <--- OBLIGATORIO
 
 class Provider extends Model
 {
-    use HasFactory, SoftDeletes, HasUuidv7;
+    use HasFactory, SoftDeletes, HasBinaryUuid;
     public $incrementing = false;
     protected $keyType = 'string';
     protected $fillable = [
@@ -24,4 +24,8 @@ class Provider extends Model
         'min_order_value' => 'decimal:2',
         'credit_limit' => 'decimal:2'
     ];
+    public function brands()
+    {
+        return $this->hasMany(Brand::class);
+    }
 }

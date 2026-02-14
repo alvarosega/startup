@@ -139,9 +139,9 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
         </nav>
 
         <div class="p-4 border-t border-border/40 bg-muted/10 shrink-0">
-            <Link :href="route('logout')" method="post" as="button" 
-                  class="group flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background p-2 text-sm font-medium transition-all hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
-                  :class="isCollapsed ? 'aspect-square p-0' : ''">
+            <Link :href="route('admin.logout')" method="post" as="button" 
+                class="group flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background p-2 text-sm font-medium transition-all hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
+                :class="isCollapsed ? 'aspect-square p-0' : ''">
                 <LogOut :size="16" />
                 <span v-if="!isCollapsed">Cerrar Sesión</span>
             </Link>
@@ -198,7 +198,7 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
                         <Link v-if="isSuperAdmin || isBranchAdmin" @click="closeMobileMenu" :href="route('admin.drivers.index')" class="mobile-item group"><div class="mobile-icon"><Truck :size="24" /></div><span>Drivers</span></Link>
                     </div>
                     
-                    <Link :href="route('logout')" method="post" as="button" class="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-all font-semibold tracking-wide">
+                    <Link :href="route('admin.logout')" method="post" as="button" class="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-all font-semibold tracking-wide">
                         <LogOut :size="20" />
                         Cerrar Sesión
                     </Link>

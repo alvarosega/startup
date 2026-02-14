@@ -48,6 +48,7 @@ class BrandSeeder extends Seeder
                 ['name' => $data['name']],
                 [
                     'slug' => Str::slug($data['name']),
+                    // CORRECCIÓN: Usar el valor directo
                     'provider_id' => $data['provider_id'],
                     'is_active' => true
                 ]

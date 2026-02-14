@@ -8,32 +8,25 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('prices', function (Blueprint $table) {
-            $table->id();
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             
-            // Relaciones
-            $table->foreignUuid('sku_id')->constrained('skus')->onDelete('cascade');
-            $table->foreignId('branch_id')->nullable()->constrained('branches'); // Null = Nacional
+            $table->char('sku_id', 16)->charset('binary');
+            $table->foreign('sku_id')->references('id')->on('skus')->onDelete('cascade');
+
+            $table->char('branch_id', 16)->charset('binary')->nullable();
+            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete(); 
             
-            // Clasificación
-            // Ej: 'regular', 'offer', 'clearance'
             $table->string('type')->default('regular')->index(); 
-            
-            // Datos Económicos
-            $table->decimal('list_price', 10, 2); // Precio "tachado" (Precio de lista original)
-            $table->decimal('final_price', 10, 2); // Precio real de venta
-            
-            // Reglas de aplicación
-            $table->integer('min_quantity')->default(1); // Para precios mayoristas
-            $table->integer('priority')->default(0); // Si hay 2 ofertas, gana la de mayor prioridad
-            
-            // Vigencia
+            $table->decimal('list_price', 10, 2); 
+            $table->decimal('final_price', 10, 2); 
+            $table->integer('min_quantity')->default(1); 
+            $table->integer('priority')->default(0); 
             $table->timestamp('valid_from')->useCurrent();
-            $table->timestamp('valid_to')->nullable(); // CRÍTICO: Para ofertas temporales
+            $table->timestamp('valid_to')->nullable(); 
             
             $table->timestamps();
             $table->softDeletes();
 
-            // Índices para velocidad (Búsqueda de precio actual es pesada)
             $table->index(['sku_id', 'branch_id', 'valid_from', 'valid_to']);
         });
     }

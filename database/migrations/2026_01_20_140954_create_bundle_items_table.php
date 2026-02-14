@@ -9,13 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('bundle_items', function (Blueprint $table) {
-            $table->id(); // ID interno del item (puede ser INT)
+            // CORRECCIÓN: ID Binario
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // CORRECCIÓN: Como cambiamos Bundles a UUID, esto funciona perfecto ahora
-            $table->foreignUuid('bundle_id')->constrained('bundles')->onDelete('cascade');
+            // CORRECCIÓN: Relación con Bundle (Binaria)
+            $table->char('bundle_id', 16)->charset('binary');
+            $table->foreign('bundle_id')->references('id')->on('bundles')->onDelete('cascade');
             
-            // SKU ya era UUID desde el paso anterior
-            $table->foreignUuid('sku_id')->constrained('skus')->onDelete('cascade'); 
+            // CORRECCIÓN: Relación con SKU (Binaria)
+            $table->char('sku_id', 16)->charset('binary');
+            $table->foreign('sku_id')->references('id')->on('skus')->onDelete('cascade');
             
             $table->integer('quantity')->default(1);
             $table->timestamps();

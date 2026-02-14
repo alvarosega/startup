@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\HasBinaryUuid; // <--- 1. IMPORTAR
 
 class MarketZone extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes, HasBinaryUuid; // <--- 2. AÑADIR TRAIT
 
-    protected $fillable = ['name', 'slug', 'hex_color', 'svg_id', 'description'];
+    protected $fillable = [
+        'name', 'slug', 'hex_color', 
+        'svg_id', 'description'
+    ];
 
-    // Relación: Una zona tiene muchas categorías
     public function categories()
     {
         return $this->hasMany(Category::class);

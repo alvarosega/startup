@@ -5,45 +5,44 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\HasGeospatial;
+use App\Models\Concerns\HasBinaryUuid; // <--- 1. IMPORTANTE
 
 class Branch extends Model
 {
-    use SoftDeletes, HasGeospatial;
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasBinaryUuid; // <--- 2. IMPORTANTE (Faltaba esto)
+
+    protected $table = 'branches';
 
     protected $fillable = [
         'name', 'phone', 'city', 'address', 
         'coverage_polygon', 'opening_hours', 
         'is_active', 'latitude', 'longitude'
     ];
-
     protected $casts = [
         'is_active' => 'boolean',
-        'coverage_polygon' => 'array', // Auto-conversión JSON <-> Array
         'opening_hours' => 'array',
         'latitude' => 'float',
-        'longitude' => 'float'
+        'longitude' => 'float',
+        
+        // CORRECCIÓN: Descomenta o agrega esta línea para que el Array se guarde como JSON
+        'coverage_polygon' => 'array', 
     ];
 
-    public function users()
+    // PROTECCIÓN CRÍTICA PARA EL JSON
+    public function getCoveragePolygonAttribute($value)
     {
-        return $this->hasMany(User::class);
+        if (is_string($value) && !ctype_print($value)) return null; 
+        return $value;
     }
-    public static function findCoveringBranch(float $lat, float $lng): ?self
+    public function toArray()
     {
-        // 1. Traemos solo sucursales activas que tengan polígono definido
-        $branches = self::where('is_active', true)
-            ->whereNotNull('coverage_polygon')
-            ->get();
-
-        // 2. Iteramos en PHP (es rápido para < 100 sucursales)
-        foreach ($branches as $branch) {
-            if ($branch->isPointInPolygon($lat, $lng, $branch->coverage_polygon)) {
-                return $branch;
-            }
+        $array = parent::toArray();
+        // Convertir el ID binario de la sucursal a Hexadecimal para Vue
+        if ($this->getRawOriginal('id')) {
+            $array['id'] = bin2hex($this->getRawOriginal('id'));
         }
-
-        return null;
+        return $array;
     }
+    public function admins() { return $this->hasMany(Admin::class); }
+    public function customers() { return $this->hasMany(Customer::class); }
 }

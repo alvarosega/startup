@@ -6,17 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // <--- CAMBIO RECOMENDADO A UUID PARA ORDENES (Más seguro)
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             $table->string('code')->unique(); 
             
-            $table->foreignUuid('user_id')->constrained('users');
+            $table->char('customer_id', 16)->charset('binary');
+            $table->foreign('customer_id')->references('id')->on('customers');
+
+            $table->char('driver_id', 16)->charset('binary')->nullable();
+            $table->foreign('driver_id')->references('id')->on('drivers');
+
+            $table->char('branch_id', 16)->charset('binary');
+            $table->foreign('branch_id')->references('id')->on('branches');
             
-            // CORRECCIÓN: Branch es INT
-            $table->foreignId('branch_id')->constrained('branches');
             $table->enum('delivery_type', ['pickup', 'delivery'])->default('pickup');
             $table->enum('status', ['pending_proof', 'review', 'confirmed', 'dispatched', 'completed', 'cancelled'])->default('pending_proof')->index(); 
             
@@ -26,21 +30,19 @@ return new class extends Migration
             $table->text('rejection_reason')->nullable(); 
             
             $table->json('delivery_data'); 
-            $table->foreignUuid('driver_id')->nullable()->constrained('users'); 
-            
             $table->timestamp('reviewed_at')->nullable(); 
             $table->timestamps();
             $table->softDeletes();
         });
     
         Schema::create('order_items', function (Blueprint $table) {
-            $table->id();
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             
-            // Como Orders es UUID, aquí también
-            $table->foreignUuid('order_id')->constrained('orders')->onDelete('cascade');
+            $table->char('order_id', 16)->charset('binary');
+            $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             
-            // SKU es UUID
-            $table->foreignUuid('sku_id')->constrained('skus');
+            $table->char('sku_id', 16)->charset('binary');
+            $table->foreign('sku_id')->references('id')->on('skus');
             
             $table->integer('quantity');
             $table->decimal('unit_price', 10, 2); 

@@ -1,15 +1,29 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { 
     User, Shield, ArrowRight, ArrowLeft, 
-    Save, Building, Lock, Mail, Phone, AlertTriangle, CheckCircle2
+    Save, Building, Lock, Mail, Phone, AlertTriangle, CheckCircle2, MapPin
 } from 'lucide-vue-next';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import ClientLocationPicker from '@/Components/Maps/ClientLocationPicker.vue';
+import { VueTelInput } from 'vue-tel-input';
+import 'vue-tel-input/vue-tel-input.css';
 
-const props = defineProps({ roles: Array, branches: Array });
+const props = defineProps({ 
+    roles: Array, 
+    branches: Array 
+});
+
+// --- LÓGICA DE ROLES ---
+const isCustomerRole = computed(() => {
+    if (!form.role_id) return false;
+    const selected = props.roles.find(r => r.id === form.role_id);
+    // Asegúrate que el 'name' coincida con tu base de datos ('customer', 'cliente', etc)
+    return selected?.name === 'customer'; 
+});
 
 const steps = [
     { id: 1, title: 'Datos Personales', icon: User },
@@ -19,16 +33,32 @@ const steps = [
 const currentStep = ref(1);
 
 const form = useForm({
-    first_name: '', last_name: '', email: '', phone: '',
-    password: '', role_id: null, branch_id: null
+    first_name: '', 
+    last_name: '', 
+    phone: '',
+    email: '', 
+    phone: '',
+    password: '', 
+    role_id: null, 
+    branch_id: null,
+    // Campos adicionales para Customer
+    latitude: -16.5000, 
+    longitude: -68.1500,
+    address: ''
 });
+const onPhoneInput = (phone, obj) => {
+    if (obj?.number) {
+        form.phone = obj.number; // Guarda el formato +591XXXXXXXX
+    }
+};
 
-// --- CLIENT VALIDATION ---
+// --- VALIDACIONES CLIENTE ---
 const validateStep1 = () => {
     form.clearErrors();
     let isValid = true;
     if (!form.first_name) { form.setError('first_name', 'Nombre requerido'); isValid = false; }
     if (!form.last_name) { form.setError('last_name', 'Apellido requerido'); isValid = false; }
+    if (!form.email) { form.setError('email', 'Email requerido'); isValid = false; }
     if (!form.phone) { form.setError('phone', 'Teléfono requerido'); isValid = false; }
     if (!form.password || form.password.length < 6) { 
         form.setError('password', 'Mínimo 6 caracteres'); isValid = false; 
@@ -40,7 +70,6 @@ const nextStep = () => {
     if (currentStep.value === 1) {
         if (validateStep1()) currentStep.value = 2;
         else {
-            // Visual feedback for error
             const card = document.getElementById('wizard-card');
             card?.classList.add('shake');
             setTimeout(() => card?.classList.remove('shake'), 400);
@@ -48,11 +77,26 @@ const nextStep = () => {
     }
 };
 
+// --- LIMPIEZA DE DATOS AL CAMBIAR ROL ---
+watch(isCustomerRole, (isCustomer) => {
+    if (isCustomer) {
+        // Si cambia a cliente, limpiamos la sucursal manual (el mapa la definirá)
+        form.branch_id = null;
+    } else {
+        // Si cambia a staff, limpiamos los datos del mapa
+        form.latitude = -16.5000;
+        form.longitude = -68.1500;
+        form.address = '';
+        form.branch_id = null; 
+    }
+});
+
 const submit = () => {
     form.post(route('admin.users.store'), {
         preserveScroll: true,
         onError: (errors) => {
-            if (errors.first_name || errors.last_name || errors.email || errors.password) {
+            // Si hay errores en campos del paso 1, volver ahí
+            if (errors.first_name || errors.last_name || errors.email || errors.phone || errors.password) {
                 currentStep.value = 1;
             }
         }
@@ -100,7 +144,7 @@ const submit = () => {
                 </div>
             </div>
 
-            <div class="bg-card rounded-3xl border border-border shadow-xl overflow-hidden flex flex-col min-h-[400px]">
+            <form @submit.prevent="submit" novalidate class="bg-card rounded-3xl border border-border shadow-xl overflow-hidden flex flex-col min-h-[450px]">
                 
                 <div class="p-6 md:p-8 flex-1">
                     
@@ -110,21 +154,36 @@ const submit = () => {
                             <BaseInput v-model="form.last_name" label="Apellidos" placeholder="Ej: Perez" :error="form.errors.last_name" />
                         </div>
                         
-                        <BaseInput v-model="form.email" label="Email Corporativo" type="email" placeholder="usuario@empresa.com" :icon="Mail" :error="form.errors.email" />
+                        <BaseInput v-model="form.email" label="Email" type="email" placeholder="usuario@empresa.com" :icon="Mail" :error="form.errors.email" autocomplete="username"/>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <BaseInput v-model="form.phone" label="Celular" placeholder="70012345" :icon="Phone" :error="form.errors.phone" />
-                            <BaseInput v-model="form.password" label="Contraseña" type="password" placeholder="••••••" :icon="Lock" :error="form.errors.password" />
+                            <div class="space-y-1.5">
+                <label class="text-xs font-black text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                    <Phone :size="14" /> Celular
+                </label>
+                <vue-tel-input 
+                    v-model="form.phone" 
+                    @on-input="onPhoneInput"
+                    mode="international"
+                    :preferredCountries="['BO']" 
+                    :defaultCountry="'BO'"
+                    :inputOptions="{ placeholder: '70012345' }"
+                    class="admin-tel-input"
+                    :class="{ '!border-destructive': form.errors.phone }"
+                />
+                <p v-if="form.errors.phone" class="text-destructive text-[10px] font-bold ml-1">{{ form.errors.phone }}</p>
+            </div>
+                            <BaseInput v-model="form.password" label="Contraseña" type="password" placeholder="••••••" :icon="Lock" :error="form.errors.password" autocomplete="new-password"/>
                         </div>
                     </div>
 
                     <div v-show="currentStep === 2" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         
-                        <div v-if="form.hasErrors && (form.errors.first_name || form.errors.phone)" 
+                        <div v-if="form.hasErrors && (form.errors.first_name || form.errors.phone || form.errors.email)" 
                              class="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-destructive/20 transition-colors"
                              @click="currentStep = 1">
                             <AlertTriangle class="text-destructive shrink-0" :size="18"/>
-                            <p class="text-xs font-bold text-destructive">Datos incompletos en el paso anterior.</p>
+                            <p class="text-xs font-bold text-destructive">Faltan datos en el paso anterior.</p>
                             <ArrowLeft :size="14" class="text-destructive ml-auto"/>
                         </div>
 
@@ -149,7 +208,7 @@ const submit = () => {
                                             {{ role.name }}
                                         </p>
                                         <p class="text-[10px] text-muted-foreground mt-0.5">
-                                            {{ role.description || 'Acceso estándar al sistema.' }}
+                                            {{ role.description || 'Acceso al sistema.' }}
                                         </p>
                                     </div>
                                     <div v-if="form.role_id === role.id" class="absolute top-4 right-4 text-primary">
@@ -161,41 +220,84 @@ const submit = () => {
                         </div>
 
                         <div v-if="form.role_id" class="animate-in fade-in slide-in-from-bottom-2">
-                            <BaseSelect 
-                                v-model="form.branch_id"
-                                label="Sucursal Asignada"
-                                :options="branches"
-                                placeholder="Acceso Global (Todas)"
-                                :icon="Building"
-                                :error="form.errors.branch_id"
-                            />
-                            <p class="text-[10px] text-muted-foreground mt-2 px-2 bg-muted/30 py-1.5 rounded-lg inline-block">
-                                <span class="font-bold">Nota:</span> Si se deja vacío, el usuario tendrá visión global.
-                            </p>
+                            
+                            <div v-if="!isCustomerRole">
+                                <BaseSelect 
+                                    v-model="form.branch_id"
+                                    label="Sucursal Asignada (Lugar de Trabajo)"
+                                    :options="branches"
+                                    placeholder="Acceso Global (Todas)"
+                                    :icon="Building"
+                                    :error="form.errors.branch_id"
+                                />
+                                <p class="text-[10px] text-muted-foreground mt-2 px-2 bg-muted/30 py-1.5 rounded-lg inline-block">
+                                    <span class="font-bold">Nota:</span> Si se deja vacío, el usuario tendrá visión global.
+                                </p>
+                            </div>
+
+                            <div v-else class="space-y-4 pt-2 border-t border-border">
+                                <div class="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex gap-3 items-center">
+                                    <MapPin class="text-blue-500" :size="20"/>
+                                    <div>
+                                        <p class="text-xs font-bold text-blue-600 dark:text-blue-400">Ubicación del Cliente</p>
+                                        <p class="text-[10px] text-muted-foreground mt-0.5">La sucursal se asignará automáticamente según la cobertura.</p>
+                                    </div>
+                                </div>
+
+                                <div class="h-72 w-full rounded-2xl overflow-hidden border-2 border-border shadow-inner relative z-0">
+                                    <ClientLocationPicker
+                                        v-model:modelValueLat="form.latitude"
+                                        v-model:modelValueLng="form.longitude"
+                                        v-model:modelValueAddress="form.address"
+                                        v-model:modelValueBranchId="form.branch_id"
+                                        :activeBranches="branches"
+                                    />
+                                </div>
+
+                                <BaseInput 
+                                    v-model="form.address" 
+                                    label="Dirección Detectada" 
+                                    readonly 
+                                    class="opacity-75 cursor-not-allowed bg-muted/20"
+                                    :error="form.errors.address"
+                                />
+                                
+                                <div v-if="form.address">
+                                    <p v-if="!form.branch_id" class="text-xs text-destructive font-bold flex items-center gap-1.5 bg-destructive/10 p-2 rounded-lg border border-destructive/20">
+                                        <AlertTriangle :size="14"/> Ubicación fuera de zona de cobertura.
+                                    </p>
+                                    <p v-else class="text-xs text-success font-bold flex items-center gap-1.5 bg-success/10 p-2 rounded-lg border border-success/20">
+                                        <CheckCircle2 :size="14"/> Cobertura confirmada.
+                                    </p>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
                 </div>
 
                 <div class="p-4 border-t border-border bg-background/80 backdrop-blur-md sticky bottom-0 z-20 flex justify-between items-center gap-4">
-                    <button v-if="currentStep === 2" @click="currentStep = 1" 
+                    <button type="button" v-if="currentStep === 2" @click="currentStep = 1" 
                             class="btn btn-ghost text-muted-foreground hover:text-foreground">
                         <ArrowLeft :size="18" class="mr-2"/> Atrás
                     </button>
-                    <div v-else></div> <button v-if="currentStep === 1" @click="nextStep" 
+                    <div v-else></div> 
+                    
+                    <button type="button" v-if="currentStep === 1" @click="nextStep" 
                             class="btn btn-primary shadow-lg shadow-primary/25 w-full md:w-auto px-8">
                         Siguiente <ArrowRight :size="18" class="ml-2"/>
                     </button>
                     
-                    <button v-else @click="submit" :disabled="form.processing"
+                    <button type="submit" v-else :disabled="form.processing"
                             class="btn btn-primary shadow-lg shadow-primary/25 w-full md:w-auto px-8">
                         <span v-if="form.processing">Guardando...</span>
                         <span v-else class="flex items-center gap-2">
-                            <Save :size="18"/> Crear Usuario
+                            <Save :size="18"/> {{ isCustomerRole ? 'Registrar Cliente' : 'Crear Usuario' }}
                         </span>
                     </button>
                 </div>
-            </div>
+            </form>
 
         </div>
     </AdminLayout>

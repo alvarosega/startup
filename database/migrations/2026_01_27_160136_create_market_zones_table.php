@@ -10,11 +10,13 @@ return new class extends Migration
     {
         // 1. Tabla de Zonas
         Schema::create('market_zones', function (Blueprint $table) {
-            $table->id();
-            $table->string('name'); // Ej: "Zona Norte (Fríos)"
+            // CORRECCIÓN: ID Binario
+            $table->char('id', 16)->charset('binary')->primary();
+            
+            $table->string('name'); 
             $table->string('slug')->unique();
-            $table->string('hex_color')->default('#CCCCCC'); // Para UI
-            $table->string('svg_id')->nullable(); // ID del grupo <g> en el SVG
+            $table->string('hex_color')->default('#CCCCCC'); 
+            $table->string('svg_id')->nullable(); 
             $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -22,13 +24,11 @@ return new class extends Migration
 
         // 2. Modificar Categorías para pertenecer a una zona
         Schema::table('categories', function (Blueprint $table) {
-            $table->foreignId('market_zone_id')
-                  ->nullable()
-                  ->constrained('market_zones')
-                  ->nullOnDelete();
+            // CORRECCIÓN: Relación Binaria
+            $table->char('market_zone_id', 16)->charset('binary')->nullable();
+            $table->foreign('market_zone_id')->references('id')->on('market_zones')->nullOnDelete();
         });
     }
-
     public function down(): void
     {
         Schema::table('categories', function (Blueprint $table) {

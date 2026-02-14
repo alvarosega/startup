@@ -9,13 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('categories', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // <--- UUID
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // Relación Recursiva (UUID)
-            $table->foreignUuid('parent_id')
-                  ->nullable()
-                  ->constrained('categories')
-                  ->nullOnDelete(); // Si borran el padre, los hijos quedan huérfanos (raíz)
+            // CORRECCIÓN: Parent ID Binario
+            $table->char('parent_id', 16)->charset('binary')->nullable();
+            $table->foreign('parent_id')->references('id')->on('categories')->nullOnDelete();
             
             $table->string('name');
             $table->string('slug')->unique();

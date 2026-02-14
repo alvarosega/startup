@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\Concerns\HasBinaryUuid; // <--- IMPORTAR
 class InventoryLot extends Model
 {
+    use HasFactory, HasBinaryUuid;
     protected $fillable = [
         'purchase_id', 'transfer_id',
         'sku_id', 'branch_id', 'lot_code',

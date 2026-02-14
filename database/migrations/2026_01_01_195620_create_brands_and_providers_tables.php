@@ -9,28 +9,25 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('providers', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // <--- CAMBIO A UUID
+            // ID BINARIO
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // Identidad
             $table->string('company_name'); 
             $table->string('commercial_name')->nullable();
-            $table->string('tax_id')->unique(); // NIT
+            $table->string('tax_id')->unique(); 
             $table->string('internal_code')->nullable()->unique();
             
-            // Contacto
             $table->string('contact_name')->nullable();
             $table->string('email_orders')->nullable();
             $table->string('phone')->nullable();
             $table->string('address')->nullable();
             $table->string('city')->nullable();
             
-            // Reglas
             $table->integer('lead_time_days')->default(1); 
             $table->decimal('min_order_value', 12, 2)->default(0); 
             $table->integer('credit_days')->default(0); 
             $table->decimal('credit_limit', 12, 2)->default(0);
     
-            // Control
             $table->boolean('is_active')->default(true);
             $table->text('notes')->nullable();
     
@@ -38,32 +35,27 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        // Marcas (Brands) - Depende de Providers
+        // Marcas (Brands)
         Schema::create('brands', function (Blueprint $table) {
-            $table->id();
+            // CORRECCIÓN 1: ID propio debe ser Binario (antes era id() numérico)
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // Relación
-            $table->foreignUuid('provider_id')
-                    ->nullable()
-                    ->constrained('providers')
-                    ->nullOnDelete();
+            // CORRECCIÓN 2: Relación con Provider debe ser Binaria (antes foreignUuid)
+            $table->char('provider_id', 16)->charset('binary')->nullable();
+            $table->foreign('provider_id')->references('id')->on('providers')->nullOnDelete();
 
             // Identidad
             $table->string('name')->unique();
             $table->string('slug')->unique();
             
-            // Detalles del Fabricante
             $table->string('manufacturer')->nullable();
-            $table->char('origin_country_code', 2)->nullable(); // ISO: BO, US, GB
+            $table->char('origin_country_code', 2)->nullable(); 
             
-            // ESTA ES LA LÍNEA QUE FALTABA:
-            $table->string('tier')->default('Standard'); // Economy, Standard, Premium, Luxury
+            $table->string('tier')->default('Standard'); 
             
-            // Assets y Marketing
             $table->string('image_path')->nullable();
             $table->string('website')->nullable();
             
-            // Control
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);

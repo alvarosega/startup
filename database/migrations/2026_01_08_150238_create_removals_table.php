@@ -8,37 +8,34 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Cabecera (La Solicitud)
         Schema::create('removal_requests', function (Blueprint $table) {
-            $table->id();
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             $table->string('code')->unique(); 
             
-            // Branch es ID numérico (CORRECTO: foreignId)
-            $table->foreignId('branch_id')->constrained('branches');
+            $table->char('branch_id', 16)->charset('binary');
+            $table->foreign('branch_id')->references('id')->on('branches');
             
-            // CORRECCIÓN AQUÍ: User es UUID (Debe ser foreignUuid)
-            $table->foreignUuid('user_id')->constrained('users'); 
+            $table->char('admin_id', 16)->charset('binary'); 
+            $table->foreign('admin_id')->references('id')->on('admins');
+
+            $table->char('approved_by', 16)->charset('binary')->nullable(); 
+            $table->foreign('approved_by')->references('id')->on('admins');
             
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            
-            // Approved_by ya lo tenías bien como UUID
-            $table->foreignUuid('approved_by')->nullable()->constrained('users'); 
-            
             $table->timestamp('approved_at')->nullable();
-
             $table->enum('reason', ['expiration', 'damage', 'theft', 'internal_use', 'admin_error']);
-            
             $table->text('notes')->nullable();
             $table->timestamps();
         });
 
-        // 2. Detalle
         Schema::create('removal_items', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('removal_request_id')->constrained('removal_requests')->onDelete('cascade');
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             
-            // Inventory Lots usa ID numérico, así que foreignId es correcto aquí
-            $table->foreignId('inventory_lot_id')->constrained('inventory_lots');
+            $table->char('removal_request_id', 16)->charset('binary');
+            $table->foreign('removal_request_id')->references('id')->on('removal_requests')->onDelete('cascade');
+            
+            $table->char('inventory_lot_id', 16)->charset('binary');
+            $table->foreign('inventory_lot_id')->references('id')->on('inventory_lots');
             
             $table->decimal('quantity', 10, 2); 
             $table->decimal('unit_cost', 10, 2); 

@@ -5,24 +5,29 @@
     import { Map, List, User, LogOut } from 'lucide-vue-next';
 
     const page = usePage();
-    const user = computed(() => page.props.auth.user);
-    const driverStatus = computed(() => page.props.driver?.status || user.value?.driver_profile?.status || 'pending');
+
+    // CORRECCIÓN: Uso de ?. para que si 'auth' no existe, devuelva null y no explote
+    const user = computed(() => page.props.auth?.user);
+    
+    // CORRECCIÓN: Validar existencia de driver_profile o user antes de leer
+    const driverStatus = computed(() => {
+        return page.props.driver?.status || user.value?.status || 'pending';
+    });
+
     const isVerified = computed(() => driverStatus.value === 'verified');
     
-    // Initials Helper
     const getUserInitial = () => {
-        const name = user.value?.driver_profile?.first_name || user.value?.name || 'D';
-        return name.charAt(0).toUpperCase();
+        // Defensa: si no hay usuario aún, retornar letra genérica
+        if (!user.value?.name) return 'D';
+        return user.value.name.charAt(0).toUpperCase();
     };
 
     const navItems = [
         { label: 'Ruta', route: 'driver.dashboard', icon: Map, activePrefix: '/driver/dashboard' },
         { label: 'Historial', route: 'driver.history', icon: List, activePrefix: '/driver/history' },
-        // CAMBIO: Apunta al INDEX, no al EDIT
         { label: 'Perfil', route: 'driver.profile.index', icon: User, activePrefix: '/driver/profile' },
     ];
 </script>
-
 <template>
     <div class="min-h-screen bg-gray-50 font-sans pb-24 text-gray-800"> 
         <header class="bg-gray-900 text-white p-4 shadow-md sticky top-0 z-30 flex justify-between items-center transition-all">

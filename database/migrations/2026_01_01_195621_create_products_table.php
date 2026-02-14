@@ -8,13 +8,15 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('products', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // <--- CAMBIO A UUID (Estandarización)
+            // CORRECCIÓN: ID Binario
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // Relaciones
-            $table->foreignId('brand_id')->constrained('brands'); // Brands es INT, está bien así.
-            
-            // CORRECCIÓN DEL ERROR:
-            $table->foreignUuid('category_id')->constrained('categories'); // Categories es UUID.
+            // CORRECCIÓN: Relaciones Binarias
+            $table->char('brand_id', 16)->charset('binary');
+            $table->foreign('brand_id')->references('id')->on('brands');
+
+            $table->char('category_id', 16)->charset('binary');
+            $table->foreign('category_id')->references('id')->on('categories');
             
             $table->string('name')->unique(); 
             $table->string('slug')->unique();

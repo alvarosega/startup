@@ -8,17 +8,18 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('skus', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // UUID
+            // CORRECCIÓN: ID Binario
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // CORRECCIÓN AQUÍ:
-            $table->foreignUuid('product_id')->constrained('products')->onDelete('cascade');
+            // CORRECCIÓN: Product ID Binario
+            $table->char('product_id', 16)->charset('binary');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
             
-            $table->string('code')->nullable()->unique(); // Código de Barras / EAN
-            $table->string('name'); // Ej: "Botella 750ml"
+            $table->string('code')->nullable()->unique(); 
+            $table->string('name'); 
             $table->decimal('base_price', 10, 2)->default(0);
-            // Logística
-            $table->decimal('weight', 8, 3)->default(0); // Kg
-            $table->decimal('conversion_factor', 8, 2)->default(1); // Unidades
+            $table->decimal('weight', 8, 3)->default(0); 
+            $table->decimal('conversion_factor', 8, 2)->default(1); 
             $table->string('image_path')->nullable();
             
             $table->boolean('is_active')->default(true);
@@ -26,7 +27,6 @@ return new class extends Migration
             $table->softDeletes();
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('skus');

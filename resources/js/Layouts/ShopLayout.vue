@@ -1,22 +1,19 @@
+// resources/js/Layouts/ShopLayout.vue
+
 <script setup>
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import Toast from '@/Components/Base/Toast.vue';
 import { 
-    MapPin, ShoppingCart, Menu, X, LogIn, User, 
+    MapPin, ShoppingCart, Menu, X, User, 
     FileText, LogOut, Store, Home, Search, ChevronRight,
     Zap, Facebook, Instagram, Twitter, Phone
 } from 'lucide-vue-next';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
 
-// Componentes Auth
-import LoginForm from '@/Components/Auth/LoginForm.vue';
-import RegisterForm from '@/Components/Auth/RegisterForm.vue';
-import RegisterDriverForm from '@/Components/Auth/RegisterDriverForm.vue';
-import ForgotPasswordForm from '@/Components/Auth/ForgotPasswordForm.vue';
-import ResetPasswordForm from '@/Components/Auth/ResetPasswordForm.vue';
-import { useAuthModal } from '@/Composables/useAuthModal'; 
+// ELIMINAMOS: import { useAuthModal } from '@/Composables/useAuthModal';
+// ELIMINAMOS: Las importaciones de LoginForm, RegisterForm, etc.
 
 const props = defineProps({
     isProfileSection: { type: Boolean, default: false }
@@ -32,33 +29,22 @@ const showUserDropdown = ref(false);
 const showMobileDrawer = ref(false);
 const showMobileSearch = ref(false);
 
-// Cerrar búsqueda móvil al navegar
 watch(() => page.url, () => {
     showMobileSearch.value = false;
     showMobileDrawer.value = false;
 });
-// Agrega esta función helper
+
 const getAvatar = (u) => {
     if (!u) return null;
-    // Si el tipo es 'storage', usamos la carpeta pública de almacenamiento
-    if (u.avatar_type === 'storage') {
-        return `/storage/${u.avatar_source}`;
-    }
-    // Si es 'icon' o null, usamos la carpeta de assets estáticos
+    if (u.avatar_type === 'storage') return `/storage/${u.avatar_source}`;
     return `/assets/avatars/${u.avatar_source || 'avatar_1.svg'}`;
 };
-const { 
-    showLogin, showRegister, showRegisterDriver, 
-    showForgotPassword, showResetPassword, // <--- AGREGAR ESTO
-    openLogin, openRegister, openRegisterDriver,
-    openForgotPassword, closeModals 
-} = useAuthModal();
 
 const customerMenuItems = [
-    // Ahora 'profile.index' contiene Datos + Direcciones + Seguridad
     { name: 'Mi Cuenta', route: 'profile.index', icon: User }, 
     { name: 'Mis Pedidos', route: 'orders.history', icon: FileText },
 ];
+
 const socialLinks = [
     { name: 'Facebook', icon: Facebook, url: '#' },
     { name: 'Instagram', icon: Instagram, url: '#' },
@@ -76,7 +62,6 @@ const logout = () => {
 
 const isIndexPage = computed(() => route().current('shop.index'));
 </script>
-
 <template>
     <div class="h-[100svh] bg-background text-foreground font-sans flex flex-col selection:bg-primary selection:text-primary-foreground overflow-hidden transition-colors duration-300">
         
@@ -178,8 +163,12 @@ const isIndexPage = computed(() => route().current('shop.index'));
                                 <div v-if="showUserDropdown" class="fixed inset-0 z-40" @click="showUserDropdown = false"></div>
                             </div>
                             <div v-else class="flex items-center gap-2">
-                                <button @click="openLogin" class="text-sm font-bold hover:text-primary transition-colors px-2">Ingresar</button>
-                                <button @click="openRegister" class="btn btn-primary btn-sm rounded-full px-4 shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all">Registro</button>
+                                <Link :href="route('login')" class="text-sm font-bold hover:text-primary transition-colors px-2">
+                                    Ingresar
+                                </Link>
+                                <Link :href="route('register')" class="btn btn-primary btn-sm rounded-full px-4 shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all">
+                                    Registro
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -292,8 +281,12 @@ const isIndexPage = computed(() => route().current('shop.index'));
                             <button @click="logout" class="w-full btn btn-outline border-error/30 text-error hover:bg-error hover:text-white justify-center gap-2 font-bold"><LogOut :size="18"/> Cerrar Sesión</button>
                         </div>
                         <div v-else class="grid grid-cols-2 gap-3">
-                            <button @click="openLogin(); showMobileDrawer = false" class="btn btn-outline w-full font-bold">Ingresar</button>
-                            <button @click="openRegister(); showMobileDrawer = false" class="btn btn-primary w-full shadow-lg font-bold">Registro</button>
+                            <Link :href="route('login')" class="btn btn-outline w-full font-bold flex justify-center items-center">
+                                Ingresar
+                            </Link>
+                            <Link :href="route('register')" class="btn btn-primary w-full shadow-lg font-bold flex justify-center items-center">
+                                Registro
+                            </Link>
                         </div>
                     </div>
                 </aside>
@@ -303,22 +296,24 @@ const isIndexPage = computed(() => route().current('shop.index'));
         <Toast />
         
         <Teleport to="body">
-             <Transition name="modal-bounce">
-                <div v-if="showLogin || showRegister || showRegisterDriver || showForgotPassword || showResetPassword" 
-                     class="fixed inset-0 z-[100] flex items-end md:items-center justify-center sm:p-4">
-                     <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm" @click="closeModals"></div>
-                     <div class="relative bg-background w-full md:w-auto md:min-w-[420px] md:rounded-3xl rounded-t-[2rem] shadow-2xl z-50 border border-white/10 flex flex-col max-h-[90vh] overflow-hidden modal-shadow-glow">
-                        <div class="overflow-y-auto scrollbar-hide p-6 md:p-8">
-                            <LoginForm v-if="showLogin" @close="closeModals" @switchToRegister="openRegister" @switchToForgot="openForgotPassword" />
-                            <RegisterForm v-if="showRegister" :activeBranches="page.props.active_branches || []" @close="closeModals" @switchToLogin="openLogin" @switchToDriver="openRegisterDriver" />
-                            <RegisterDriverForm v-if="showRegisterDriver" @close="closeModals" @switchToRegister="openRegister"/>
-                            <ForgotPasswordForm v-if="showForgotPassword" @close="closeModals" @switchToLogin="openLogin" />
+            <Transition name="modal-bounce">
+                <div v-if="showLogin || showRegister || showRegisterDriver" 
+                    class="fixed inset-0 z-[100] flex items-end md:items-center justify-center sm:p-4">
+                    
+                    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm" @click="closeModals"></div>
+                    
+                    <div class="relative bg-background w-full md:w-auto md:min-w-[420px] md:rounded-3xl rounded-t-[2rem] shadow-2xl z-50 border border-white/10 flex flex-col max-h-[90vh] overflow-hidden">
+                        <div class="overflow-y-auto p-6 md:p-8">
+                            <LoginForm v-if="showLogin" @close="closeModals" @switchToRegister="openRegister" />
                             
-                            <ResetPasswordForm v-if="showResetPassword" @close="closeModals" @switchToLogin="openLogin" />
-                        </div>
-                     </div>
+                            <RegisterForm v-if="showRegister" :activeBranches="page.props.active_branches || []" @close="closeModals" @switchToLogin="openLogin" @switchToDriver="openRegisterDriver" />
+                            
+                            <RegisterDriverForm v-if="showRegisterDriver" @close="closeModals" @switchToRegister="openRegister"/>
+
+                            </div>
+                    </div>
                 </div>
-             </Transition>
+            </Transition>
         </Teleport>
     </div>
 </template>

@@ -10,11 +10,12 @@ use App\Models\Concerns\HasUuidv7; // <--- Trait UUID
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany; 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Concerns\HasBinaryUuid;
 
 
 class Category extends Model
 {
-    use HasFactory, SoftDeletes, HasUuidv7;
+    use HasFactory, SoftDeletes, HasBinaryUuid; 
 
     protected $fillable = [
         'parent_id', 'name', 'slug', 'external_code',

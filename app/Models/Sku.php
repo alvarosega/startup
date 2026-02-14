@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Concerns\HasUuidv7;
+use App\Models\Concerns\HasBinaryUuid;
 
 class Sku extends Model
 {
-    use HasFactory, SoftDeletes, HasUuidv7;
+    use HasFactory, SoftDeletes, HasBinaryUuid;
 
     protected $fillable = [
         'id',

@@ -8,10 +8,11 @@ const props = defineProps({
     type: { type: String, default: 'text' },
     placeholder: String,
     error: String,
-    icon: Object,
     disabled: Boolean,
     autofocus: Boolean,
-    required: Boolean
+    required: Boolean, // <--- Faltaba esta prop
+    // CAMBIO: Usamos 'null' para aceptar cualquier tipo de componente (Objeto o Función) y silenciar la alerta
+    icon: { type: null, default: null }, 
 });
 
 const emit = defineEmits(['update:modelValue']);

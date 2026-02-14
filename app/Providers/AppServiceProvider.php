@@ -5,33 +5,28 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
-use App\Models\User;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;  // <--- FALTABA ESTA
+use Illuminate\Support\Facades\Log; // <--- FALTABA ESTA
 
-// 1. IMPORTAR MODELOS
+// Importaciones de modelos
+use App\Models\Admin;
 use App\Models\Category;
 use App\Models\Provider;
 use App\Models\Brand;
 use App\Models\Product;
-use App\Models\Sku; // <--- FALTABA ESTE
-use App\Models\InventoryLot;
+use App\Models\Sku;
 use App\Models\Transfer;
-use App\Models\RemovalRequest;
+use App\Models\Branch;
 
-// 2. IMPORTAR POLICIES (NECESARIO PARA REGISTRO MANUAL)
+// Importaciones de Policies
 use App\Policies\CategoryPolicy;
 use App\Policies\ProviderPolicy;
 use App\Policies\BrandPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\SkuPolicy;
-use App\Policies\TransferPolicy; // <--- IMPORTAR 
-// 3. IMPORTAR OBSERVERS
-use App\Observers\CategoryObserver;
-use App\Observers\ProviderObserver;
-use App\Observers\BrandObserver;
-use App\Observers\ProductObserver;
-use App\Observers\InventoryLotObserver;
-use App\Observers\TransferObserver;
-use App\Observers\RemovalRequestObserver;
+use App\Policies\TransferPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,41 +34,46 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Fix longitud strings para MySQL antiguos
+        // --- SOLUCIÓN PARA CLOUD WORKSTATIONS ---
+        if (config('app.env') !== 'testing') {
+            URL::forceScheme('https');
+            URL::forceRootUrl(config('app.url'));
+        }
+
         Schema::defaultStringLength(191);
 
-        // --- GATES Y POLICIES ---
-
-        // 1. Gate Global para Super Admin (GOD MODE)
-        // Esto asegura que el Super Admin pase TODAS las validaciones antes de revisar las policies
+        // --- GATES ---
         Gate::before(function ($user, $ability) {
             return $user->hasRole('super_admin') ? true : null;
         });
 
-        // 2. Registro Manual de Policies (Blindaje contra fallos de auto-discovery)
+        Gate::define('view_admin_dashboard', function (Admin $user) {
+            return $user->hasAnyRole(['super_admin', 'branch_admin', 'logistics_manager', 'inventory_manager', 'finance_manager']);
+        });
+
+        // --- POLICIES ---
         Gate::policy(Category::class, CategoryPolicy::class);
         Gate::policy(Provider::class, ProviderPolicy::class);
         Gate::policy(Brand::class, BrandPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Sku::class, SkuPolicy::class);
-        Gate::policy(Product::class, ProductPolicy::class);
-        Gate::policy(Purchase::class, PurchasePolicy::class);
-        
-        // --- AGREGA ESTA LÍNEA ---
         Gate::policy(Transfer::class, TransferPolicy::class);
 
-        // 3. Gate Legacy para Dashboard
-        Gate::define('view_admin_dashboard', function (User $user) {
-            return $user->hasAnyRole(['super_admin', 'branch_admin', 'logistics_manager', 'inventory_manager', 'finance_manager']);
+        // --- AUTH PROVIDER CUSTOM ---
+        Auth::provider('admins', function ($app, array $config) {
+            return new \Illuminate\Auth\EloquentUserProvider($app['hash'], $config['model']);
         });
 
-        // --- OBSERVERS ---
-        Category::observe(CategoryObserver::class);
-        Provider::observe(ProviderObserver::class);
-        Brand::observe(BrandObserver::class);
-        Product::observe(ProductObserver::class);
-        InventoryLot::observe(InventoryLotObserver::class);
-        Transfer::observe(TransferObserver::class);
-        RemovalRequest::observe(RemovalRequestObserver::class);
+        // --- CHIVATO DE SQL (DEBUG) ---
+        DB::listen(function ($query) {
+            // Solo loguear consultas a la tabla admins para no saturar el log
+            if (str_contains($query->sql, 'admins')) {
+                Log::info('SQL ADMIN DEBUG:', [
+                    'sql' => $query->sql,
+                    'bindings' => $query->bindings, // ¡Aquí veremos si envía HEX o BINARIO!
+                    'time' => $query->time
+                ]);
+            }
+        });
     }
 }

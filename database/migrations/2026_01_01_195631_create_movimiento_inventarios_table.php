@@ -9,11 +9,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('inventory_movements', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('branch_id')->constrained('branches');
-            $table->foreignUuid('sku_id')->constrained('skus');
-            $table->foreignId('inventory_lot_id')->constrained('inventory_lots');
-            $table->foreignUuid('user_id')->constrained('users'); // CORREGIDO
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+
+            $table->char('branch_id', 16)->charset('binary');
+            $table->foreign('branch_id')->references('id')->on('branches');
+
+            $table->char('sku_id', 16)->charset('binary');
+            $table->foreign('sku_id')->references('id')->on('skus');
+
+            $table->char('inventory_lot_id', 16)->charset('binary');
+            $table->foreign('inventory_lot_id')->references('id')->on('inventory_lots');
+
+            $table->char('admin_id', 16)->charset('binary');
+            $table->foreign('admin_id')->references('id')->on('admins');
             
             $table->string('type'); 
             $table->integer('quantity'); 

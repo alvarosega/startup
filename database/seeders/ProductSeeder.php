@@ -19,23 +19,23 @@ class ProductSeeder extends Seeder
             $productsData = $this->generateRealProducts($category->name, 4);
 
             foreach ($productsData as $prodData) {
-                // CORRECCIÓN: Buscamos por Slug para evitar duplicados si el nombre varía ligeramente
+                // Buscamos por Slug para evitar duplicados
                 $slug = Str::slug($prodData['brand']);
                 
                 $brand = Brand::firstOrCreate(
-                    ['slug' => $slug], // 1. Buscamos por la llave única
-                    ['name' => $prodData['brand']] // 2. Si no existe, usamos este nombre
+                    ['slug' => $slug],
+                    ['name' => $prodData['brand']]
                 );
 
                 $product = Product::firstOrCreate([
-                    'name' => $prodData['name']
+                    'name' => $prodData['name'] // Ojo: Si hay nombres repetidos en categorías distintas, usará el mismo ID.
                 ], [
                     'brand_id' => $brand->id,
                     'category_id' => $category->id,
                     'slug' => Str::slug($prodData['name']) . '-' . Str::random(4),
                     'description' => "Producto original " . $prodData['name'],
                     'is_active' => true,
-                    'is_alcoholic' => $category->requires_age_check
+                    'is_alcoholic' => $category->requires_age_check ?? false
                 ]);
 
                 $this->createSkusForProduct($product, $prodData['base_price']);
@@ -57,27 +57,36 @@ class ProductSeeder extends Seeder
             $skuName = $product->name . ' - ' . $var['suffix'];
             $price = $basePrice * $var['price_mult'];
 
-            // Hash determinista para evitar colisiones de SKU sin usar random()
+            // Hash determinista
             $uniqueHash = strtoupper(substr(md5($product->id . $var['suffix']), 0, 8));
             $skuCode = "SKU-{$var['code_suf']}-{$uniqueHash}";
 
-            $sku = Sku::firstOrCreate([
-                'product_id' => $product->id,
-                'name' => $skuName
-            ], [
-                'code' => $skuCode,
-                'base_price' => (float) $price,
-                'conversion_factor' => $var['factor'],
-                'weight' => rand(100, 2000) / 1000,
-                'is_active' => true
-            ]);
+            // === CORRECCIÓN AQUÍ ===
+            // Buscamos por 'code' (que es unique) en lugar de 'name'.
+            // Usamos updateOrCreate para actualizar precios si ya existe.
+            $sku = Sku::updateOrCreate(
+                [
+                    'code' => $skuCode // 1. Buscamos por la llave ÚNICA
+                ], 
+                [
+                    'product_id' => $product->id,
+                    'name' => $skuName,
+                    'base_price' => (float) $price,
+                    'conversion_factor' => $var['factor'],
+                    'weight' => rand(100, 2000) / 1000,
+                    'is_active' => true
+                ]
+            );
             
+            // Si usas lógica de precios extra en el modelo
             if(method_exists($sku, 'updatePrice')) {
                 $sku->updatePrice((float) $price);
             }
         }
     }
 
+    // ... (El resto de tus métodos generateRealProducts y getContextByKeyword siguen igual) ...
+    
     private function generateRealProducts($categoryName, $qty)
     {
         $context = $this->getContextByKeyword($categoryName);
@@ -111,6 +120,9 @@ class ProductSeeder extends Seeder
             'types' => ['Pilsener', 'Lager', 'Stout', 'Trigo', 'IPA'],
             'min' => 10, 'max' => 25
         ];
+        // ... (resto de tus condiciones) ...
+        
+        // Copia aquí el resto de tu método getContextByKeyword tal cual lo tenías
         if (str_contains($n, 'singani')) return [
             'brands' => ['Casa Real', 'Los Parrales', 'Rujero', 'San Pedro'],
             'types' => ['Etiqueta Negra', 'Gran Singani', 'Tradicional', 'Aniversario'],

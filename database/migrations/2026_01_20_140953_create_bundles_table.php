@@ -9,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('bundles', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            // CORRECCIÓN: ID Binario
+            $table->char('id', 16)->charset('binary')->primary();
             
-            // VINCULACIÓN CON SUCURSAL
-            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
+            // CORRECCIÓN: branch_id Binario (Antes era foreignId numérico)
+            $table->char('branch_id', 16)->charset('binary');
+            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
             
             $table->string('name');
-            // El slug debe ser único PERO por sucursal (opcional, o globalmente único)
-            // Para evitar conflictos simples, lo dejamos único global, o unique(['slug', 'branch_id'])
             $table->string('slug'); 
             
             $table->text('description')->nullable();
@@ -27,9 +27,7 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
 
-            // Índices para búsqueda rápida
             $table->index(['branch_id', 'is_active']);
-            // Aseguramos que no haya dos slugs iguales en la misma sucursal
             $table->unique(['branch_id', 'slug']); 
         });
     }

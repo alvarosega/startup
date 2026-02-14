@@ -7,7 +7,10 @@ defineProps({
     options: { type: Array, default: () => [] }, // Array de objetos {id, name}
     placeholder: { type: String, default: 'Seleccionar...' },
     error: String,
-    icon: Object,
+    icon: { 
+        type: [Object, Function], 
+        default: null 
+    },
     required: Boolean,
     disabled: Boolean
 });

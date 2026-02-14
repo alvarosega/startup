@@ -10,18 +10,22 @@ return new class extends Migration
     {
         // 1. Cabecera de Compras
         Schema::create('purchases', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // UUID
-            $table->foreignId('branch_id')->constrained('branches'); // Branches sigue siendo INT
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             
-            $table->foreignUuid('provider_id')->constrained('providers');
-            $table->foreignUuid('user_id')->constrained('users');
+            $table->char('branch_id', 16)->charset('binary');
+            $table->foreign('branch_id')->references('id')->on('branches'); 
+            
+            $table->char('provider_id', 16)->charset('binary'); // <--- Binario
+            $table->foreign('provider_id')->references('id')->on('providers'); 
+            
+            $table->char('admin_id', 16)->charset('binary');
+            $table->foreign('admin_id')->references('id')->on('admins');
             
             $table->string('document_number')->index();
             $table->date('purchase_date');
             
             $table->string('payment_type')->default('CASH'); 
             $table->date('payment_due_date')->nullable(); 
-
             $table->decimal('total_amount', 12, 2)->default(0);
             $table->text('notes')->nullable();
             $table->string('status')->default('COMPLETED'); 
@@ -30,20 +34,22 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        // 2. Lotes de Inventario (Detalle de Compra + Stock)
+        // 2. Lotes de Inventario
         Schema::create('inventory_lots', function (Blueprint $table) {
-            $table->id(); // El ID interno del lote puede ser INT, no afecta relaciones externas
+            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
             
-            // CORRECCIÓN 1: Purchase es UUID
-            $table->foreignUuid('purchase_id')->nullable()->constrained('purchases'); 
+            $table->char('purchase_id', 16)->charset('binary')->nullable(); // <--- Binario
+            $table->foreign('purchase_id')->references('id')->on('purchases');
             
-            // Placeholder para transferencias
-            $table->unsignedBigInteger('transfer_id')->nullable(); 
-    
-            $table->foreignId('branch_id')->constrained('branches');
+            // Transfer ID será referenciado después (en la migración de transfers) o aquí si ya existe
+            // Para evitar errores circulares, lo dejamos nullable y añadimos la FK en la migración de transfers
+            $table->char('transfer_id', 16)->charset('binary')->nullable(); 
             
-            // CORRECCIÓN 2: SKU ahora es UUID (lo cambiamos en el paso anterior)
-            $table->foreignUuid('sku_id')->constrained('skus');
+            $table->char('branch_id', 16)->charset('binary');
+            $table->foreign('branch_id')->references('id')->on('branches');
+            
+            $table->char('sku_id', 16)->charset('binary'); // <--- Binario
+            $table->foreign('sku_id')->references('id')->on('skus');
             
             $table->string('lot_code')->unique();
             $table->integer('quantity');

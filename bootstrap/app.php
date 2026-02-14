@@ -14,26 +14,52 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // 1. Configuración Web (Inertia + Sesiones)
+        
+        $middleware->trustProxies(at: '*');
+
+        // 1. Configuración Web
         $middleware->web(append: [
-            \Illuminate\Session\Middleware\AuthenticateSession::class,
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            // ELIMINADO: \App\Http\Middleware\HandleInertiaRequests::class,  <-- YA NO VA AQUÍ
+            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // 2. ALIAS PARA PERMISOS (SOLUCIÓN AL ERROR 500)
-        // Esto permite usar 'role:super_admin' en las rutas
+        $middleware->encryptCookies(except: []);
+
+        // 2. ALIAS (AQUÍ AGREGAMOS LOS NUEVOS)
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            
+            // NUEVOS ALIAS:
+            'inertia.customer' => \App\Http\Middleware\HandleCustomerInertiaRequests::class,
+            'inertia.admin'    => \App\Http\Middleware\HandleAdminInertiaRequests::class,
+            'inertia.driver'   => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
         ]);
+
+        // 3. REDIRECCIÓN (Sin cambios)
+        $middleware->redirectGuestsTo(function (Request $request) {
+            
+            // Leemos la ruta del admin desde el .env (por seguridad)
+            $adminPath = env('ADMIN_PATH', 'admin');
+
+            // Si intenta entrar a cualquier ruta que empiece con /admin...
+            if ($request->is($adminPath . '/*') || $request->is($adminPath)) {
+                return route('admin.login'); 
+            }
+            if ($request->is('driver/*') || $request->is('driver')) {
+                return route('driver.login');
+            }
+            // Para cualquier otro caso, lo mandamos al login de cliente
+            return route('login'); 
+        });
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })
     ->booting(function () {
-        // 3. Rate Limiter para Login (5 intentos por minuto)
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->phone . $request->ip());
+            $identity = $request->input('email') ?: $request->input('phone');
+            return Limit::perMinute(5)->by($identity . $request->ip());
         });
     })->create();

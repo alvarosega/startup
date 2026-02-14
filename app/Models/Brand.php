@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\HasBinaryUuid;
 use Illuminate\Support\Facades\Storage;
 
 class Brand extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasBinaryUuid;
 
     protected $fillable = [
         'provider_id', 'name', 'slug', 'manufacturer', 

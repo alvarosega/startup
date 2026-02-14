@@ -76,7 +76,8 @@ class CategorySeeder extends Seeder
                 Category::firstOrCreate([
                     'name' => $subName,
                     'slug' => Str::slug($subName),
-                    'parent_id' => $parent->id
+                    // CORRECCIÓN: Usar el ID directo (ya es binario)
+                    'parent_id' => $parent->id 
                 ], [
                     'is_active' => true,
                     'requires_age_check' => $catData['adult']
