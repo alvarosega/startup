@@ -18,11 +18,11 @@ const props = defineProps({
 });
 
 const params = ref({
-    search: props.filters.search || '',
-    role_id: props.filters.role_id || '',
-    branch_id: props.filters.branch_id || '',
+    // Usamos el encadenamiento opcional (?.) para evitar el error de undefined
+    search: props.filters?.search || '',
+    role_id: props.filters?.role_id || '',
+    branch_id: props.filters?.branch_id || '',
 });
-
 const showMobileFilters = ref(false);
 const activeMenuUserId = ref(null);
 

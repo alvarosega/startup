@@ -19,10 +19,13 @@ const props = defineProps({
 
 // --- LÓGICA DE ROLES ---
 const isCustomerRole = computed(() => {
-    if (!form.role_id) return false;
     const selected = props.roles.find(r => r.id === form.role_id);
-    // Asegúrate que el 'name' coincida con tu base de datos ('customer', 'cliente', etc)
     return selected?.name === 'customer'; 
+});
+
+const isDriverRole = computed(() => {
+    const selected = props.roles.find(r => r.id === form.role_id);
+    return selected?.name === 'driver'; 
 });
 
 const steps = [
@@ -37,7 +40,6 @@ const form = useForm({
     last_name: '', 
     phone: '',
     email: '', 
-    phone: '',
     password: '', 
     role_id: null, 
     branch_id: null,

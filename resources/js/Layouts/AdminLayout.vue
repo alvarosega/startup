@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import Sidebar from '@/Components/Admin/Sidebar.vue';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import { usePage } from '@inertiajs/vue3';
@@ -17,7 +17,7 @@ const handleSidebarToggle = (collapsed) => {
 };
 
 const page = usePage();
-const user = page.props.auth.user;
+const user = computed(() => page.props.auth?.user);
 
 const isDevelopment = ref(false);
 onMounted(() => {

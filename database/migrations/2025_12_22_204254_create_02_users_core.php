@@ -17,18 +17,22 @@ return new class extends Migration
             $table->string('last_name');
             $table->string('phone', 20)->nullable();
             
-            // CORRECCIÓN: branch_id debe ser binario para coincidir con la tabla branches
             $table->char('branch_id', 16)->charset('binary')->nullable()->index();
             
             $table->string('email')->unique();
             $table->string('password');
-            $table->string('role_level')->default('moderator');
+
+            // ELIMINADO: role_level (Spatie gestiona esto en model_has_roles)
+            
             $table->boolean('is_active')->default(true);
             $table->string('mfa_secret')->nullable();
+            
+            // Campos de actividad (Correctos para los 3 silos)
+            $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
+            
             $table->timestamps();
 
-            // Referencia explícita (Opcional, pero recomendada)
             $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
         });
 
@@ -62,6 +66,8 @@ return new class extends Migration
             $table->string('status')->default('pending'); 
             $table->decimal('current_lat', 10, 8)->nullable();
             $table->decimal('current_lng', 11, 8)->nullable();
+            $table->timestamp('last_login_at')->nullable(); 
+            $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
             $table->softDeletes(); 
         });
@@ -71,9 +77,10 @@ return new class extends Migration
             $table->char('driver_id', 16)->charset('binary')->primary();
             $table->string('first_name');
             $table->string('last_name');
-            $table->string('license_number')->unique();
-            $table->string('license_plate', 10);
-            $table->string('vehicle_type'); 
+            // Hacemos estos campos nullable para que el "registro rápido" desde Admin no falle
+            $table->string('license_number')->unique()->nullable();
+            $table->string('license_plate', 10)->nullable();
+            $table->string('vehicle_type')->nullable(); 
             $table->timestamps();
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
         });
@@ -123,6 +130,7 @@ return new class extends Migration
             $table->integer('trust_score')->default(50);
             $table->boolean('is_active')->default(true);
             $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
             $table->timestamps();
             $table->index(['phone', 'country_code']);
@@ -134,6 +142,12 @@ return new class extends Migration
             $table->char('customer_id', 16)->charset('binary')->primary();
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
+            
+            // CORRECCIÓN CRÍTICA: Añadimos los campos que el controlador busca
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
+            $table->text('address')->nullable();
+        
             $table->date('birth_date')->nullable();
             $table->string('gender', 20)->nullable();
             $table->string('avatar_type')->default('icon'); 
@@ -141,7 +155,6 @@ return new class extends Migration
             $table->timestamps();
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
         });
-
         Schema::create('customer_addresses', function (Blueprint $table) {
             // CORRECCIÓN: ID Binario para la dirección también
             $table->char('id', 16)->charset('binary')->primary();

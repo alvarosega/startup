@@ -9,102 +9,48 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        // 1. Limpiar caché
+        // Limpiar caché de permisos al iniciar
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // =========================================================================
-        // SILO 1: ADMIN (Guard: 'admin')
-        // =========================================================================
-        
-        // Listado de Permisos para el ERP
-        $adminPermissions = [
+        // --- SILO 1: ADMINISTRACIÓN (Guard: super_admin) ---
+        $adminPerms = [
             'view_admin_dashboard',
-            'manage_settings',
+            'manage_users',
+            'manage_drivers',
             'manage_catalog',
-            'view_inventory',
-            'create_purchase',
-            'manage_transfers',
-            'manage_transformations',
-            'request_removal',
-            'approve_removal',
-            'audit_identity',
-            'view_analytics',
+            'manage_inventory',
+            'manage_branches'
         ];
 
-        // Crear permisos EXPECÍFICAMENTE para el guard 'admin'
-        foreach ($adminPermissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'admin']);
+        foreach ($adminPerms as $p) {
+            Permission::firstOrCreate(['name' => $p, 'guard_name' => 'super_admin']);
         }
 
-        // --- ROLES ADMIN ---
-
-        // A. SUPER ADMIN
-        $roleSuper = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'admin']);
-        // El Super Admin obtiene TODOS los permisos del guard 'admin'
-        $roleSuper->syncPermissions(Permission::where('guard_name', 'admin')->get());
-
-        // B. BRANCH ADMIN
-        $roleBranch = Role::firstOrCreate(['name' => 'branch_admin', 'guard_name' => 'admin']);
-        $roleBranch->syncPermissions([
-            'view_admin_dashboard', 'view_inventory', 'create_purchase', 
-            'manage_transfers', 'request_removal', 'manage_transformations'
-        ]);
-
-        // C. LOGISTICS MANAGER
-        $roleLogistics = Role::firstOrCreate(['name' => 'logistics_manager', 'guard_name' => 'admin']);
-        $roleLogistics->syncPermissions([
-            'view_admin_dashboard', 'manage_catalog', 'view_inventory', 
-            'manage_transfers', 'approve_removal'
-        ]);
-
-        // D. FINANCE MANAGER
-        $roleFinance = Role::firstOrCreate(['name' => 'finance_manager', 'guard_name' => 'admin']);
-        $roleFinance->syncPermissions([
-            'view_admin_dashboard', 'approve_removal', 'view_analytics'
-        ]);
-
-        // E. INVENTORY MANAGER
-        $roleInventory = Role::firstOrCreate(['name' => 'inventory_manager', 'guard_name' => 'admin']);
-        $roleInventory->syncPermissions([
-            'view_admin_dashboard', 'view_inventory', 'manage_transformations', 
-            'request_removal', 'create_purchase'
-        ]);
-
-        // F. OTHERS
-        $roleGrowth = Role::firstOrCreate(['name' => 'growth_specialist', 'guard_name' => 'admin']);
-        $roleGrowth->syncPermissions(['view_admin_dashboard', 'view_analytics']);
-
-        $roleIdentity = Role::firstOrCreate(['name' => 'identity_auditor', 'guard_name' => 'admin']);
-        $roleIdentity->syncPermissions(['view_admin_dashboard', 'audit_identity']);
-
-        $roleOperator = Role::firstOrCreate(['name' => 'logistics_operator', 'guard_name' => 'admin']);
-        $roleOperator->syncPermissions(['view_admin_dashboard', 'manage_transformations', 'view_inventory']);
+        // Crear Rol y asignar SOLO estos permisos iniciales
+        $roleSuper = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'super_admin']);
+        $roleSuper->syncPermissions($adminPerms);
 
 
-        // =========================================================================
-        // SILO 2: DRIVER (Guard: 'driver')
-        // =========================================================================
-
-        $driverPermissions = [
+        // --- SILO 2: LOGÍSTICA (Guard: driver) ---
+        $driverPerms = [
             'access_driver_app',
-            'manage_deliveries'
+            'update_delivery_status'
         ];
 
-        foreach ($driverPermissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'driver']);
+        foreach ($driverPerms as $p) {
+            Permission::firstOrCreate(['name' => $p, 'guard_name' => 'driver']);
         }
 
         $roleDriver = Role::firstOrCreate(['name' => 'driver', 'guard_name' => 'driver']);
-        $roleDriver->syncPermissions(['access_driver_app', 'manage_deliveries']);
+        $roleDriver->syncPermissions($driverPerms);
 
 
-        // =========================================================================
-        // SILO 3: CUSTOMER (Guard: 'web')
-        // =========================================================================
+        // --- SILO 3: CLIENTES (Guard: customer) ---
+        // Por ahora sin permisos específicos, solo el rol
+        Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'customer']);
         
-        // El cliente generalmente no tiene permisos granulares complejos, solo el rol
-        Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+        $this->command->info('Roles y permisos granulares creados correctamente.');
     }
 }

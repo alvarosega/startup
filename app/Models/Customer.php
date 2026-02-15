@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -9,7 +10,8 @@ use Illuminate\Support\Str;
 
 class Customer extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
+    protected $guard_name = 'customer';
 
     // --- CONFIGURACIÓN BINARIA ---
     public $incrementing = false;
@@ -64,17 +66,16 @@ class Customer extends Authenticatable
     public function toArray()
     {
         $array = parent::toArray();
-
-        // Convertir ID principal a Hex
-        if ($this->getRawOriginal('id')) {
-            $array['id'] = bin2hex($this->getRawOriginal('id'));
+        
+        // Inyectamos las versiones Hexadecimales para que Vue las entienda
+        $rawId = $this->getRawOriginal('id');
+        $array['id'] = $rawId ? bin2hex($rawId) : null;
+        
+        $rawBranch = $this->getRawOriginal('branch_id');
+        if ($rawBranch) {
+            $array['branch_id'] = bin2hex($rawBranch);
         }
-
-        // Convertir Branch ID a Hex (si existe)
-        if ($this->getRawOriginal('branch_id')) {
-            $array['branch_id'] = bin2hex($this->getRawOriginal('branch_id'));
-        }
-
+        
         return $array;
     }
 

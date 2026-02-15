@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\Auth;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,49 +18,53 @@ return Application::configure(basePath: dirname(__DIR__))
         
         $middleware->trustProxies(at: '*');
 
-        // 1. Configuración Web
         $middleware->web(append: [
-            // ELIMINADO: \App\Http\Middleware\HandleInertiaRequests::class,  <-- YA NO VA AQUÍ
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        $middleware->encryptCookies(except: []);
-
-        // 2. ALIAS (AQUÍ AGREGAMOS LOS NUEVOS)
         $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            
-            // NUEVOS ALIAS:
-            'inertia.customer' => \App\Http\Middleware\HandleCustomerInertiaRequests::class,
-            'inertia.admin'    => \App\Http\Middleware\HandleAdminInertiaRequests::class,
-            'inertia.driver'   => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
+            'inertia.customer'   => \App\Http\Middleware\HandleCustomerInertiaRequests::class,
+            'inertia.admin'      => \App\Http\Middleware\HandleAdminInertiaRequests::class,
+            'inertia.driver'     => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
         ]);
 
-        // 3. REDIRECCIÓN (Sin cambios)
-        $middleware->redirectGuestsTo(function (Request $request) {
+        // --- REDIRECCIÓN DE USUARIOS LOGUEADOS (Preventivo) ---
+        $middleware->redirectUsersTo(function (Request $request) {
+            $adminPath = env('ADMIN_PATH', 'adm'); // Unificamos fallback a 'adm'
+        
+            if (Auth::guard('super_admin')->check()) {
+                return "/{$adminPath}/dashboard"; 
+            }
             
-            // Leemos la ruta del admin desde el .env (por seguridad)
-            $adminPath = env('ADMIN_PATH', 'admin');
+            if (Auth::guard('driver')->check()) {
+                return '/driver/dashboard';
+            }
+        
+            return '/'; // Fallback para Customer
+        });
 
-            // Si intenta entrar a cualquier ruta que empiece con /admin...
+        // --- REDIRECCIÓN DE INVITADOS (NO LOGUEADOS) ---
+        $middleware->redirectGuestsTo(function (Request $request) {
+            $adminPath = env('ADMIN_PATH', 'adm');
+
+            // Detectar si el intento de acceso es al silo administrativo
             if ($request->is($adminPath . '/*') || $request->is($adminPath)) {
                 return route('admin.login'); 
             }
+
+            // Detectar si es al silo de conductores
             if ($request->is('driver/*') || $request->is('driver')) {
                 return route('driver.login');
             }
-            // Para cualquier otro caso, lo mandamos al login de cliente
+
+            // Por defecto: login de cliente
             return route('login'); 
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })
-    ->booting(function () {
-        RateLimiter::for('login', function (Request $request) {
-            $identity = $request->input('email') ?: $request->input('phone');
-            return Limit::perMinute(5)->by($identity . $request->ip());
-        });
-    })->create();
+    ->create();

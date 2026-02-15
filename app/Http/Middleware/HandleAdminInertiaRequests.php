@@ -8,26 +8,30 @@ use Illuminate\Support\Facades\Auth;
 
 class HandleAdminInertiaRequests extends Middleware
 {
-    // Usamos 'app' porque no tienes 'admin.blade.php'
     protected $rootView = 'app'; 
 
     public function share(Request $request): array
     {
-        $admin = Auth::guard('admin')->user();
-
+        $admin = Auth::guard('super_admin')->user();
+    
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $admin ? [
-                    'id' => bin2hex($admin->getRawOriginal('id') ?? $admin->id),
+                    'id'         => bin2hex($admin->getRawOriginal('id')), 
                     'first_name' => $admin->first_name,
-                    'last_name' => $admin->last_name,
-                    'email' => $admin->email,
-                    // IMPORTANTE: Enviamos 'roles' como array para que el Sidebar no falle
-                    'roles' => [$admin->role_level], 
-                ] : null, // Si es null, el JS debe manejarlo
+                    'last_name'  => $admin->last_name,
+                    'email'      => $admin->email,
+                    'roles'      => $admin->getRoleNames()->toArray(), 
+                    'can' => [
+                        // CORRECCIÓN: Cambiar $user por $admin
+                        'manage_users'   => $admin->can('manage_users'),
+                        'manage_drivers' => $admin->can('manage_drivers'),
+                        'manage_catalog' => $admin->can('manage_catalog'),
+                    ],
+                ] : null,
             ],
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
+                'message' => fn () => $request->session()->get('message'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
         ]);

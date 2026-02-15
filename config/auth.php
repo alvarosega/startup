@@ -18,7 +18,7 @@ return [
 
         // --- ESTO ES LO QUE PROBABLEMENTE TE FALTA ---
         // El guard para el Administrador
-        'admin' => [
+        'super_admin' => [
             'driver' => 'session',
             'provider' => 'admins', // <--- Apunta al provider de abajo
         ],
@@ -59,9 +59,9 @@ return [
             'throttle' => 60,
         ],
 
-        'admins' => [
-            'provider' => 'admins',
-            'table' => 'password_reset_codes_admins',    // Tabla específica
+        'super_admin' => [
+            'provider' => 'admins', // Sigue usando el provider 'admins' porque apunta al modelo Admin
+            'table' => 'password_reset_codes_admins',
             'expire' => 60,
             'throttle' => 60,
         ],

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
@@ -11,8 +12,8 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Driver extends Authenticatable
 {
-    use HasFactory, Notifiable;
-
+    use HasFactory, Notifiable, HasRoles;
+    protected $guard_name = 'driver';
     public $incrementing = false;
     protected $keyType = 'string';
     protected $primaryKey = 'id';

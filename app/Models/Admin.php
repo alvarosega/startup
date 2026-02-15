@@ -8,6 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Admin extends Authenticatable
 {
@@ -16,55 +17,67 @@ class Admin extends Authenticatable
     public $incrementing = false;
     protected $keyType = 'string';
     protected $primaryKey = 'id';
-    protected $guard_name = 'admin';
+    protected $guard_name = 'super_admin';
 
     protected $fillable = [
-        'id', 'first_name', 'last_name', 'phone', 'email', 'password', 'role_level', 'branch_id', 'is_active'
+        'id', 'first_name', 'last_name', 'phone', 'email', 'password', 'branch_id', 'is_active'
     ];
 
-    // IMPORTANTE: Asegúrate de que 'id' y 'branch_id' estén ocultos para evitar la serialización binaria accidental
-    protected $hidden = ['password', 'remember_token', 'id', 'branch_id'];
+    protected $hidden = [
+        'password', 
+        'remember_token',
+        // BLINDAJE: Ocultar campos binarios para evitar errores de serialización JSON
+        'id', 
+        'branch_id' 
+    ];
 
     protected $casts = [
         'password' => 'hashed',
         'is_active' => 'boolean',
     ];
 
-    // 1. SERIALIZACIÓN: Único lugar donde el Binario se vuelve Hexadecimal
+
     public function toArray()
     {
+        // parent::toArray() respetará el $hidden, eliminando los binarios
         $array = parent::toArray();
+     
+        // Inyectamos manualmente las versiones Hexadecimales para Vue
         $rawId = $this->getRawOriginal('id');
-        if ($rawId) {
-            $array['id'] = bin2hex($rawId);
-        }
+        $array['id'] = $rawId ? bin2hex($rawId) : null;
         
         $rawBranch = $this->getRawOriginal('branch_id');
         if ($rawBranch) {
-            $array['branch_id'] = bin2hex($rawBranch);
+            $array['id_branch'] = bin2hex($rawBranch); // Cambiado a id_branch por claridad
         }
+        
         return $array;
+    }
+
+    public function getKey()
+    {
+        // Obtenemos el valor original de la base de datos (siempre binario)
+        return $this->getRawOriginal('id') ?? $this->getAttribute('id');
+    }
+
+   
+    public function getAuthIdentifier()
+    {
+       
+        return bin2hex($this->getRawOriginal('id'));
     }
     protected static function boot()
     {
         parent::boot();
         static::creating(function ($model) {
-            if (empty($model->id)) {
-                $model->id = hex2bin(str_replace('-', '', (string) Str::uuid()));
+            if (empty($model->getAttribute('id'))) {
+                
+                $model->setAttribute('id', hex2bin(str_replace('-', '', (string) \Illuminate\Support\Str::uuid())));
             }
         });
     }
 
-    // ❌ ELIMINADOS: getIdAttribute y setIdAttribute (Bórralos de tu archivo)
-
-    // 2. IDENTIDAD DE LOGIN: Debe devolver el Hex
-    public function getAuthIdentifier()
-    {
-        // Auth de Laravel necesita un String, convertimos el binario a hex aquí
-        return bin2hex($this->getRawOriginal('id'));
-    }
-
-    // 3. INTERCEPTOR DE CONSULTAS (Mantenlo, está bien hecho)
+    
     public function newEloquentBuilder($query)
     {
         return new class($query) extends Builder {
@@ -90,4 +103,5 @@ class Admin extends Authenticatable
 
     public function getFullNameAttribute() { return "{$this->first_name} {$this->last_name}"; }
     public function branch() { return $this->belongsTo(Branch::class); }
+
 }

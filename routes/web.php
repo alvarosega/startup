@@ -128,54 +128,60 @@ Route::middleware(['inertia.customer'])->group(function () {
 // =============================================================================
 // Este middleware es ligero. NO carga carrito ni branches públicas.
 
-Route::prefix($adminPath)->name('admin.')->middleware(['inertia.admin'])->group(function () {
+Route::prefix($adminPath)->name('admin.')->group(function () {
 
     // --- LOGIN ADMIN (GUEST) ---
-    Route::middleware('guest:admin')->group(function () {
+    Route::middleware(['inertia.admin', 'guest:super_admin'])->group(function () {
         Route::get('login', [AdminLoginController::class, 'showLogin'])->name('login');
         Route::post('login', [AdminLoginController::class, 'login'])->name('login.store');
     });
 
     // --- PANEL ADMIN (AUTH) ---
-    Route::middleware(['auth:admin'])->group(function () {
+    Route::middleware(['inertia.admin', 'auth:super_admin'])->group(function () {
         Route::post('logout', [AdminLoginController::class, 'logout'])->name('logout');
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         // --- RECURSOS ---
-        Route::resource('users', UserController::class);
-        Route::resource('drivers', DriverController::class);
-        Route::resource('branches', BranchController::class);
-        Route::resource('products', ProductController::class);
-        Route::resource('categories', CategoryController::class);
-        Route::resource('market-zones', MarketZoneController::class);
-        Route::resource('bundles', BundleController::class);
-        Route::resource('brands', BrandController::class);
-        Route::resource('providers', ProviderController::class);
-        Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);
+        Route::middleware('role:super_admin,super_admin')->group(function () {
+            Route::resource('users', UserController::class);
+            Route::resource('drivers', DriverController::class);
         
-        // Precios
-        Route::get('prices', [PriceController::class, 'index'])->name('prices.index');
-        Route::post('prices', [PriceController::class, 'store'])->name('prices.store');
-
-        // Inventario
-        Route::resource('inventory', InventoryController::class)->only(['index']);
-        Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
-        Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
-
-        // Operaciones
-        Route::resource('purchases', PurchaseController::class);
-        Route::resource('transfers', TransferController::class);
-        Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
-
-        Route::resource('removals', RemovalController::class);
-        Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
-        Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
+            Route::resource('branches', BranchController::class);
+            Route::resource('products', ProductController::class);
+            Route::resource('categories', CategoryController::class);
+            Route::resource('market-zones', MarketZoneController::class);
+            Route::resource('bundles', BundleController::class);
+            Route::resource('brands', BrandController::class);
+            Route::resource('providers', ProviderController::class);
+            Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);
+            
+            // Precios
+            Route::get('prices', [PriceController::class, 'index'])->name('prices.index');
+            Route::post('prices', [PriceController::class, 'store'])->name('prices.store');
+    
+            // Inventario
+            Route::resource('inventory', InventoryController::class)->only(['index']);
+            Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
+            Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
+    
+            // Operaciones
+            Route::resource('purchases', PurchaseController::class);
+            Route::resource('transfers', TransferController::class);
+            Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
+    
+            Route::resource('removals', RemovalController::class);
+            Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
+            Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
+            
+            Route::resource('transformations', TransformationController::class);
+    
+            // Pedidos (Admin View)
+            Route::get('orders/kanban', [AdminOrderController::class, 'index'])->name('orders.kanban');
+            Route::patch('orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
         
-        Route::resource('transformations', TransformationController::class);
+        });
 
-        // Pedidos (Admin View)
-        Route::get('orders/kanban', [AdminOrderController::class, 'index'])->name('orders.kanban');
-        Route::patch('orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
+
     });
 });
 

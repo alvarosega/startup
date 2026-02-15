@@ -37,7 +37,7 @@ class LoginController extends Controller
 
             // CORRECCIÓN: Usar route() genera la URL correcta dinámicamente
             // independientemente de lo que pongas en el .env
-            return Inertia::location(route('admin.dashboard')); 
+            return redirect()->intended(route('admin.dashboard'));
 
         } catch (\Exception $e) {
             $request->hitRateLimiter();
@@ -47,7 +47,7 @@ class LoginController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::guard('admin')->logout();
+        Auth::guard('super_admin')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

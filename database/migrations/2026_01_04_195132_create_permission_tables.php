@@ -50,15 +50,13 @@ return new class extends Migration
         Schema::create($tableNames['model_has_permissions'], function (Blueprint $table) use ($tableNames, $columnNames, $pivotPermission, $teams) {
             $table->unsignedBigInteger($pivotPermission);
             $table->string('model_type');
-
-            // --- CORRECCIÓN FINAL: CHAR 32 (Para guardar el Hexadecimal) ---
-            // Como el Admin Model devuelve el ID como String Hex (32 chars) para evitar 
-            // errores en Vue, la tabla pivote debe ser capaz de guardar ese string.
-            $table->char($columnNames['model_morph_key'], 32); 
-            // -------------------------------------------------------------
-
+        
+            // --- CORRECCIÓN: BINARY 16 (Para coincidir con Admins, Drivers y Customers) ---
+            $table->char($columnNames['model_morph_key'], 16)->charset('binary'); 
+            // ---------------------------------------------------------------------------
+        
             $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_permissions_model_id_model_type_index');
-
+        
             $table->foreign($pivotPermission)
                 ->references('id')->on($tableNames['permissions'])->onDelete('cascade');
 
@@ -77,13 +75,13 @@ return new class extends Migration
         Schema::create($tableNames['model_has_roles'], function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
             $table->unsignedBigInteger($pivotRole);
             $table->string('model_type');
-
-            // --- CORRECCIÓN FINAL: CHAR 32 ---
-            $table->char($columnNames['model_morph_key'], 32);
-            // ---------------------------------
-
+        
+            // --- CORRECCIÓN: BINARY 16 ---
+            $table->char($columnNames['model_morph_key'], 16)->charset('binary');
+            // -----------------------------
+        
             $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_roles_model_id_model_type_index');
-
+        
             $table->foreign($pivotRole)
                 ->references('id')->on($tableNames['roles'])->onDelete('cascade');
 

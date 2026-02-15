@@ -15,7 +15,17 @@ class CustomerProfile extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'customer_id', 'first_name', 'last_name', 'birth_date', 'gender', 'avatar_type', 'avatar_source'
+        'customer_id', 
+        'first_name', 
+        'last_name', 
+        'birth_date', 
+        'gender', 
+        'avatar_type', 
+        'avatar_source',
+        // AÑADIR ESTOS:
+        'latitude',
+        'longitude',
+        'address'
     ];
 
     protected $hidden = ['customer_id'];
