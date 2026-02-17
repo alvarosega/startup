@@ -61,4 +61,11 @@ class RegisterController extends Controller
             return back()->withErrors(['error' => 'Error del sistema: ' . $e->getMessage()]);
         }
     }
+    // app/Http/Controllers/Web/Customer/Auth/RegisterController.php
+    public function show()
+    {
+        return Inertia::render('Customer/Auth/Login', [
+            'activeBranches' => Branch::where('is_active', true)->get(), // <--- DEBE TENER DATOS
+        ]);
+    }
 }

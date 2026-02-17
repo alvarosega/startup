@@ -22,13 +22,6 @@ const mapComponentRef = ref(null);
 const validatingStep1 = ref(false);
 const customPreview = ref(null);
 const locating = ref(false);
-
-const steps = [
-    { id: 1, title: 'Cuenta', icon: UserPlus },
-    { id: 2, title: 'Avatar', icon: Image },
-    { id: 3, title: 'Ubicación', icon: MapPin },
-];
-
 const form = useForm({
     first_name: '',
     last_name: '',  
@@ -36,6 +29,28 @@ const form = useForm({
     avatar_type: 'icon', avatar_source: 'avatar_1.svg', avatar_file: null,
     alias: 'Mi Ubicación', address: '', details: '', latitude: -16.5000, longitude: -68.1500, branch_id: null, role: 'client'
 });
+
+// Añade estos watchers debajo de tus refs
+watch(() => form.first_name, () => { 
+    if (step1Errors.value.first_name) delete step1Errors.value.first_name; 
+});
+
+watch(() => form.last_name, () => { 
+    if (step1Errors.value.last_name) delete step1Errors.value.last_name; 
+});
+
+watch(() => form.email, () => { 
+    if (step1Errors.value.email) delete step1Errors.value.email; 
+});
+
+
+const steps = [
+    { id: 1, title: 'Cuenta', icon: UserPlus },
+    { id: 2, title: 'Avatar', icon: Image },
+    { id: 3, title: 'Ubicación', icon: MapPin },
+];
+
+
 
 const onInput = (phone, obj) => { 
     if(obj?.number) form.phone = obj.number; 
@@ -62,8 +77,21 @@ const nextStep = async () => {
 };
 
 const submit = () => {
+    if (form.processing) return;
+
+    // Ya no bloqueamos si branch_id es null, 
+    // dejamos que el backend lo reciba como nulo según tu lógica.
     form.post(route('register'), {
         preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            // Limpiar estados si es necesario
+        },
+        onError: (errors) => {
+            console.error('Fallo en el registro:', errors);
+            // Si el error es de cobertura y tú quieres que sea obligatorio, 
+            // aquí es donde avisarías al usuario.
+        }
     });
 };
 
@@ -78,6 +106,10 @@ const progressPercentage = computed(() => ((currentStep.value) / steps.length) *
             <div class="px-8 pt-8 pb-4 border-b border-border/40 shrink-0">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-display font-black text-foreground tracking-tight">Crea tu Cuenta</h2>
+                    <div class="bg-black text-green-400 p-2 text-[10px] font-mono rounded mb-4">
+                        DEBUG: BranchID: {{ form.branch_id || 'NULL' }} | 
+                        Branches en Props: {{ props.activeBranches.length }}
+                    </div>
                     <span class="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">
                         Paso {{ currentStep }} de {{ steps.length }}
                     </span>
@@ -91,7 +123,7 @@ const progressPercentage = computed(() => ((currentStep.value) / steps.length) *
             </div>
 
             <div class="flex-1 overflow-y-auto p-8">
-                <form @submit.prevent="submit" class="h-full">
+                <form id="registerForm" @submit.prevent="submit" class="h-full">
                     
                     <div v-show="currentStep === 1" class="space-y-5 animate-in slide-in-from-right-4">
                         <div class="grid grid-cols-2 gap-4">
@@ -167,9 +199,17 @@ const progressPercentage = computed(() => ((currentStep.value) / steps.length) *
                     <span v-if="validatingStep1" class="spinner spinner-sm"></span>
                     <span v-else class="flex items-center justify-center gap-2">Siguiente <ArrowRight :size="18" /></span>
                 </button>
-                <button v-else @click="submit" :disabled="form.processing" class="btn btn-primary flex-1 shadow-lg shadow-primary/20">
+                <button 
+                    v-else 
+                    type="submit" 
+                    form="registerForm" 
+                    :disabled="form.processing" 
+                    class="btn btn-primary flex-1 shadow-lg shadow-primary/20"
+                >
                     <span v-if="form.processing" class="spinner spinner-sm"></span>
-                    <span v-else class="flex items-center justify-center gap-2">Finalizar <CheckCircle :size="18" /></span>
+                    <span v-else class="flex items-center justify-center gap-2">
+                        Finalizar <CheckCircle :size="18" />
+                    </span>
                 </button>
             </div>
         </div>
