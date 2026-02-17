@@ -65,6 +65,10 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
-    })
-    ->create();
+        // REPORTAR ERRORES REALES AL LOG ANTES DE QUE INERTIA COLAPSE
+        $exceptions->report(function (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::emergency('--- ERROR CRÍTICO DETECTADO ---');
+            \Illuminate\Support\Facades\Log::emergency($e->getMessage());
+            \Illuminate\Support\Facades\Log::emergency('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
+        });
+    })->create();

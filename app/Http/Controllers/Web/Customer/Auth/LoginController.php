@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Web\Customer\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Hash;
-use App\Models\Customer;
 use Inertia\Inertia;
+// IMPORTACIÓN QUIRÚRGICA:
+use App\Http\Requests\Customer\Auth\LoginRequest; 
+use App\Actions\Customer\Auth\LoginCustomerAction;
+use App\DTOs\Customer\Auth\LoginCustomerData;
 
 class LoginController extends Controller
 {
@@ -19,33 +20,26 @@ class LoginController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(LoginRequest $request, LoginCustomerAction $action)
     {
-        // 1. Validar
-        $credentials = $request->validate([
-            'phone' => ['required', 'string'], // Acepta '+591...'
-            'password' => ['required'],
-        ]);
-
-        // 2. Buscar usuario manualmente para diagnóstico
-        $customer = Customer::where('phone', $request->phone)->first();
-
-        if (!$customer) {
-            return back()->withErrors(['phone' => 'No existe cuenta con este número.']);
-        }
-
-        // 3. Verificar Contraseña
-        if (!Hash::check($request->password, $customer->password)) {
-            return back()->withErrors(['phone' => 'Contraseña incorrecta.']);
-        }
-
-        // 4. Login
-        if (Auth::guard('customer')->attempt(['phone' => $request->phone, 'password' => $request->password], $request->boolean('remember'))) {
+        // 1. Transformación a DTO (Datos inmutables)
+        $data = LoginCustomerData::fromRequest($request);
+    
+        try {
+            // 2. Ejecución de la lógica de negocio
+            $action->execute($data);
+            
+            // 3. Gestión de sesión
             $request->session()->regenerate();
+            
             return redirect()->intended(route('shop.index'));
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('[LoginFailure] ' . $e->getMessage());
+            return back()->withErrors(['phone' => 'Error interno en el inicio de sesión.']);
         }
-
-        return back()->withErrors(['phone' => 'Error de autenticación.']);
     }
 
     public function destroy(Request $request)

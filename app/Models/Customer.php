@@ -30,10 +30,10 @@ class Customer extends Authenticatable
         'last_login_at'
     ];
 
+    // ASEGURAR que branch_id esté en hidden (Ya lo tienes, pero verifícalo)
     protected $hidden = [
         'password', 
         'remember_token',
-        // Ocultamos los campos binarios crudos para que no salgan "rotos" en JSON
         'id', 
         'branch_id'
     ];

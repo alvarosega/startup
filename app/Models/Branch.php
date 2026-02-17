@@ -45,4 +45,9 @@ class Branch extends Model
     }
     public function admins() { return $this->hasMany(Admin::class); }
     public function customers() { return $this->hasMany(Customer::class); }
+    // AÑADIR/ACTUALIZAR la propiedad hidden:
+    protected $hidden = [
+        'id', 
+        'deleted_at'
+    ];
 }

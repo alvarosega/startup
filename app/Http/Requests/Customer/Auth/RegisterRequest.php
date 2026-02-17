@@ -20,25 +20,18 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Identidad Global
-            'phone' => $this->globalPhoneRules(),
-            'email' => $this->globalEmailRules(),
-            
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'terms'    => ['accepted'],
-            
-            // Datos de Dirección
-            'alias'     => ['nullable', 'string', 'max:50'],
-            'address'   => ['required', 'string', 'max:255'],
-            'latitude'  => ['required', 'numeric'],
-            'longitude' => ['required', 'numeric'],
-            
-            // Branch ID (Hex de 32 chars)
-            'branch_id' => ['nullable', 'string', 'size:32'], 
-            
-            // Avatar
-            'avatar_type'   => ['required', 'in:icon,custom'],
+            'first_name' => ['required', 'string', 'max:100'], // OBLIGATORIO
+            'last_name'  => ['required', 'string', 'max:100'], // OBLIGATORIO
+            'phone'      => ['required', 'string', 'unique:customers,phone'],
+            'email'      => ['required', 'email', 'unique:customers,email'],
+            'password'   => ['required', 'confirmed', 'min:8'],
+            'address'    => ['required', 'string'],
+            'latitude'   => ['required', 'numeric'],
+            'longitude'  => ['required', 'numeric'],
+            'branch_id'  => ['nullable', 'string'],
+            'avatar_type'   => ['required', 'string', 'in:icon,custom'],
             'avatar_source' => ['nullable', 'string'],
+            'avatar_file'   => ['nullable', 'image', 'max:2048'],
         ];
     }
 }

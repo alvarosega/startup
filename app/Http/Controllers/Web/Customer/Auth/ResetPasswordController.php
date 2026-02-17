@@ -22,59 +22,27 @@ class ResetPasswordController extends Controller
             'email' => $email
         ]);
     }
-
-    /**
-     * Valida el código y actualiza la contraseña en el Silo
-     */
-    public function reset(Request $request)
+    public function reset(Request $request, \App\Actions\Customer\Auth\ResetPasswordAction $action)
     {
-        Log::info('--- INICIO RECUPERACIÓN: PASO 2 (UPDATE) ---');
-
+        // 1. Validación
         $request->validate([
             'email' => 'required|email|exists:customers,email',
             'code' => 'required|string|size:6',
             'password' => 'required|confirmed|min:8',
-        ], [
-            'code.required' => 'El código de 6 dígitos es obligatorio.',
-            'password.confirmed' => 'Las contraseñas no coinciden.'
         ]);
-
+    
         try {
-            // 1. Buscar código en el Silo de Clientes
-            $record = DB::table('password_reset_codes_customers')
-                ->where('email', $request->email)
-                ->where('token', $request->code)
-                ->first();
-
-            if (!$record) {
-                Log::warning('Código inválido intentado para email: ' . $request->email);
-                return back()->withErrors(['code' => 'El código es incorrecto o no existe.']);
-            }
-
-            // 2. Validar expiración (15 minutos)
-            if (Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
-                Log::warning('Código expirado para email: ' . $request->email);
-                return back()->withErrors(['code' => 'Este código ha expirado.']);
-            }
-
-            // 3. Actualizar Contraseña del Cliente
-            $customer = Customer::where('email', $request->email)->first();
-            $customer->update([
-                'password' => Hash::make($request->password)
-            ]);
-
-            // 4. Limpieza del Silo
-            DB::table('password_reset_codes_customers')->where('email', $request->email)->delete();
-            
-            Log::info('Contraseña actualizada con éxito para el cliente: ' . $request->email);
-
-            // 5. Redirección final al Login físico
+            // 2. Orquestación (DTO implícito por brevedad en este paso)
+            $action->execute($request->email, $request->code, $request->password);
+    
             return redirect()->route('login')
-                ->with('message', '¡Contraseña actualizada! Ya puedes ingresar.');
-
+                ->with('message', 'Contraseña actualizada correctamente.');
+                
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            Log::error('ERROR EN PASO 2 RECUPERACIÓN:', ['error' => $e->getMessage()]);
-            return back()->withErrors(['error' => 'Error interno al actualizar la contraseña.']);
+            \Illuminate\Support\Facades\Log::error('[PasswordUpdate] ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Error interno al actualizar la clave.']);
         }
     }
 }

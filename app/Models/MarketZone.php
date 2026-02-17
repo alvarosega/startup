@@ -9,8 +9,17 @@ use App\Models\Concerns\HasBinaryUuid; // <--- 1. IMPORTAR
 
 class MarketZone extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid; // <--- 2. AÑADIR TRAIT
+    use HasFactory, SoftDeletes, HasBinaryUuid; 
+    protected $hidden = ['id']; 
 
+    public function toArray()
+    {
+        $array = parent::toArray();
+        $rawId = $this->getRawOriginal('id');
+        $array['id'] = $rawId ? bin2hex($rawId) : null;
+        return $array;
+    }
+    
     protected $fillable = [
         'name', 'slug', 'hex_color', 
         'svg_id', 'description'

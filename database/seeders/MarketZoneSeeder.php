@@ -11,7 +11,6 @@ class MarketZoneSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. DEFINICIÓN DE ZONAS ESTRATÉGICAS
         $zones = [
             [
                 'name' => 'Licores & Bebidas',
@@ -21,7 +20,6 @@ class MarketZoneSeeder extends Seeder
                 'description' => 'Cervezas, vinos, destilados y gaseosas.',
                 'keywords' => ['Cerveza', 'Vino', 'Whisky', 'Vodka', 'Refresco', 'Agua', 'Bebida']
             ],
-            // ... (Tus otras zonas siguen igual, cópialas aquí) ...
             [
                 'name' => 'Almacén & Despensa',
                 'slug' => 'almacen-despensa',
@@ -52,29 +50,26 @@ class MarketZoneSeeder extends Seeder
             $keywords = $data['keywords'];
             unset($data['keywords']);
 
-            // Crear o actualizar la Zona
             $zone = MarketZone::updateOrCreate(
                 ['slug' => $data['slug']],
                 $data
             );
 
-            // CORRECCIÓN CRÍTICA: Convertir ID Hex a Binario para el UPDATE masivo
-            // El Accessor del modelo te da Hex, pero la DB quiere Binario.
-            // Usamos hex2bin sobre el ID que nos da el modelo.
-            $binaryZoneId = hex2bin($zone->id);
+            // EXTRACCIÓN BINARIA PURA: Evita el colapso de hex2bin
+            $binaryZoneId = $zone->getRawOriginal('id');
 
             foreach ($keywords as $keyword) {
                 Category::where('name', 'LIKE', "%{$keyword}%")
                     ->whereNull('parent_id')
-                    ->update(['market_zone_id' => $binaryZoneId]); // Enviamos BINARIO
+                    ->update(['market_zone_id' => $binaryZoneId]);
             }
         }
 
-        // 3. FALLBACK
+        // FALLBACK: Asignación de categorías huérfanas
         $defaultZone = MarketZone::where('slug', 'almacen-despensa')->first();
         
         if ($defaultZone) {
-            $binaryDefaultId = hex2bin($defaultZone->id); // Conversión también aquí
+            $binaryDefaultId = $defaultZone->getRawOriginal('id');
 
             Category::whereNull('market_zone_id')
                 ->whereNull('parent_id')

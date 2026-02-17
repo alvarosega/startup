@@ -72,12 +72,15 @@ class CategorySeeder extends Seeder
                 'requires_age_check' => $catData['adult']
             ]);
 
+            // EXTRACCIÓN QUIRÚRGICA: Obtenemos el binario puro (16 bytes)
+            // No usamos $parent->id porque el Trait lo convertiría a Hex (32 caracteres)
+            $parentBinaryId = $parent->getRawOriginal('id');
+
             foreach ($catData['subs'] as $subName) {
                 Category::firstOrCreate([
                     'name' => $subName,
                     'slug' => Str::slug($subName),
-                    // CORRECCIÓN: Usar el ID directo (ya es binario)
-                    'parent_id' => $parent->id 
+                    'parent_id' => $parentBinaryId // Inserción limpia en BINARY(16)
                 ], [
                     'is_active' => true,
                     'requires_age_check' => $catData['adult']

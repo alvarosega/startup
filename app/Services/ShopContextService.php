@@ -7,43 +7,37 @@ use Illuminate\Support\Facades\Session;
 
 class ShopContextService
 {
-    /**
-     * Determina el ID de la sucursal activa para el contexto actual.
-     * Regla: Sesión > Dirección Guardada > Sucursal Matriz (1)
-     */
-    public function getActiveBranchId(): int
+    // CAMBIAR EL MÉTODO getActiveBranchId:
+    public function getActiveBranchId(): mixed // Quitar :int, permitir binario o null
     {
-        // 1. PRIORIDAD ABSOLUTA: Usuario Logueado
-        // Si hay usuario, su sucursal manda sobre cualquier dato de sesión anterior.
         $user = auth()->user();
         
         if ($user && $user->branch_id) {
-            // Si la sesión no coincide con el usuario, la corregimos silenciosamente
-            if (Session::get('shop_branch_id') !== $user->branch_id) {
-                $this->setContext($user->branch_id);
-            }
-            return $user->branch_id;
+            // Retornamos el binario puro del modelo
+            return $user->getRawOriginal('branch_id'); 
         }
 
-        // 2. PRIORIDAD INVITADO: Sesión
-        // Si no hay usuario, respetamos si el invitado eligió una sucursal manualmente
         if (Session::has('shop_branch_id')) {
-            return (int) Session::get('shop_branch_id');
+            $sessionBranchId = Session::get('shop_branch_id');
+            // Si viene de sesión como Hex, convertir a binario para el servicio
+            return (is_string($sessionBranchId) && strlen($sessionBranchId) === 32) 
+                ? hex2bin($sessionBranchId) 
+                : $sessionBranchId;
         }
 
-        // 3. FALLBACK: Sucursal Matriz
-        return 1; 
+        return null; // El fallback debe ser null, no 1
     }
-    /**
-     * Guarda el contexto en la sesión.
-     * CORRECCIÓN: $addressId ahora acepta string (UUID) o int o null.
-     */
-    public function setContext(int $branchId, string|int|null $addressId = null): void
+
+    // CAMBIAR EL MÉTODO setContext:
+    public function setContext(mixed $branchId, mixed $addressId = null): void
     {
-        Session::put('shop_branch_id', $branchId);
+        // Guardamos en sesión como HEX para que sea seguro (UTF-8)
+        $hexBranchId = (is_string($branchId) && strlen($branchId) === 16) ? bin2hex($branchId) : $branchId;
+        Session::put('shop_branch_id', $hexBranchId);
         
         if ($addressId) {
-            Session::put('shop_address_id', $addressId);
+            $hexAddressId = (is_string($addressId) && strlen($addressId) === 16) ? bin2hex($addressId) : $addressId;
+            Session::put('shop_address_id', $hexAddressId);
         }
     }
 }

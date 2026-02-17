@@ -24,48 +24,53 @@ use App\Http\Resources\Shop\ShopProductResource;
 
 class ShopController extends Controller
 {
-    public function index(
-        Request $request, 
-        ShopContextService $contextService, 
-        GetShopCatalogAction $catalogAction,
-        GetShopLandingAction $landingAction // Inyección automática
-    ) {
+// app/Http/Controllers/Web/Customer/Shop/ShopController.php
+
+    public function index(Request $request, ShopContextService $contextService, GetShopCatalogAction $catalogAction, GetShopLandingAction $landingAction) 
+    {
         $branchId = $contextService->getActiveBranchId();
         
+        // PILLAR C: Orquestación con Fallback (Garantizar que la landing no esté vacía)
+        if (!$branchId) {
+            $defaultBranch = \App\Models\Branch::where('is_active', true)->first();
+            $branchId = $defaultBranch ? $defaultBranch->getRawOriginal('id') : null;
+        }
+
         if ($request->filled('search') || $request->filled('category_id') || $request->input('type') === 'bundles') {
-             // ... lógica de búsqueda ...
-             $dto = CatalogQueryDTO::fromRequest($request, $branchId);
-             $paginator = $catalogAction->execute($dto);
-             // ...
-             return Inertia::render('Shop/Index', [ /* ... */ ]);
+            $dto = CatalogQueryDTO::fromRequest($request, $branchId);
+            $paginator = $catalogAction->execute($dto);
+            
+            return Inertia::render('Shop/Index', [
+                'products' => ShopProductResource::collection($paginator),
+                'filters'  => $request->only(['search', 'category_id', 'type']),
+                // BLINDAJE: Convertir a Hex antes de enviar a Vue
+                'context'  => ['branch_id' => $branchId ? bin2hex($branchId) : null]
+            ]);
         } 
-        
-        // Ejecutamos la acción desde el namespace Customer
+
         $landingData = $landingAction->execute($branchId);
 
         return Inertia::render('Shop/Index', [
-            'zonesData' => $landingData['zones'],
+            'zonesData'   => $landingData['zones'],
             'bundlesData' => $landingData['bundles'],
-            'context' => ['branch_id' => $branchId]
+            // BLINDAJE: El binario NUNCA debe cruzar el puente hacia Vue
+            'context'     => ['branch_id' => $branchId ? bin2hex($branchId) : null]
         ]);
     }
 
-    public function showZone(
-        Request $request, 
-        MarketZone $zone, 
-        ShopContextService $contextService,
-        GetShopZoneAction $zoneAction // Inyección automática
-    ) {
-        $branchId = $contextService->getActiveBranchId();
+    // app/Http/Controllers/Web/Customer/Shop/ShopController.php
 
-        // Ejecutamos la acción desde el namespace Customer
+    public function showZone(Request $request, MarketZone $zone, ShopContextService $contextService, GetShopZoneAction $zoneAction) 
+    {
+        $branchId = $contextService->getActiveBranchId();
         $groupedCategories = $zoneAction->execute($zone, $branchId);
 
         return Inertia::render('Shop/ZoneProducts', [
-            'zone' => $zone,
+            'zone'              => $zone, // El modelo MarketZone ya debe tener el toArray corregido
             'groupedCategories' => $groupedCategories,
-            'targetCategory' => $request->input('category'),
-            'context' => ['branch_id' => $branchId]
+            'targetCategory'    => $request->input('category'),
+            // BLINDAJE: Sanitización obligatoria
+            'context'           => ['branch_id' => $branchId ? bin2hex($branchId) : null]
         ]);
     }
 }

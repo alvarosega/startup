@@ -30,6 +30,8 @@ const steps = [
 ];
 
 const form = useForm({
+    first_name: '',
+    last_name: '',  
     phone: '', email: '', password: '', password_confirmation: '', terms: false,
     avatar_type: 'icon', avatar_source: 'avatar_1.svg', avatar_file: null,
     alias: 'Mi Ubicación', address: '', details: '', latitude: -16.5000, longitude: -68.1500, branch_id: null, role: 'client'
@@ -92,6 +94,22 @@ const progressPercentage = computed(() => ((currentStep.value) / steps.length) *
                 <form @submit.prevent="submit" class="h-full">
                     
                     <div v-show="currentStep === 1" class="space-y-5 animate-in slide-in-from-right-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <BaseInput 
+                                v-model="form.first_name" 
+                                label="Nombre" 
+                                placeholder="Ej: Álvaro" 
+                                :icon="UserPlus" 
+                                :error="step1Errors.first_name ? step1Errors.first_name[0] : ''" 
+                            />
+                            <BaseInput 
+                                v-model="form.last_name" 
+                                label="Apellido" 
+                                placeholder="Ej: Segovia" 
+                                :icon="UserPlus" 
+                                :error="step1Errors.last_name ? step1Errors.last_name[0] : ''" 
+                            />
+                        </div>
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1 flex items-center gap-2">
                                 <Smartphone :size="14" /> Celular *

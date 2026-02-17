@@ -33,21 +33,27 @@ class GetShopLandingAction
             ];
         })->filter()->keyBy('slug');
 
-        $bundles = Bundle::where('branch_id', $branchId)
-            ->where('is_active', true)
-            ->latest()
-            ->get()
-            ->map(function($bundle) {
-                return [
-                    'id' => $bundle->id,
-                    'name' => $bundle->name,
-                    'image_url' => $bundle->image_path ? asset('storage/' . $bundle->image_path) : null,
-                    'slug' => $bundle->slug,
-                    'type' => 'bundle',
-                    'price_display' => $bundle->fixed_price ? 'Bs '.$bundle->fixed_price : 'Ver Precio'
-                ];
-            });
-
+        $bundles = collect();
+    
+        if ($branchId) {
+            $binaryId = (strlen($branchId) === 32) ? hex2bin($branchId) : $branchId;
+            
+            $bundles = Bundle::where('branch_id', $binaryId)
+                ->where('is_active', true)
+                ->latest()
+                ->get()
+                ->map(function($bundle) {
+                    return [
+                        'id' => bin2hex($bundle->getRawOriginal('id')), // Convertir a HEX para Vue
+                        'name' => $bundle->name,
+                        'image_url' => $bundle->image_path ? asset('storage/' . $bundle->image_path) : null,
+                        'slug' => $bundle->slug,
+                        'type' => 'bundle',
+                        'price_display' => $bundle->fixed_price ? 'Bs '.$bundle->fixed_price : 'Ver Precio'
+                    ];
+                });
+        }
+    
         return [
             'zones' => $zonesData,
             'bundles' => $bundles

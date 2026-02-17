@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Concerns\HasUuidv7; // <--- Trait UUID
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany; 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Concerns\HasBinaryUuid;
@@ -15,8 +13,22 @@ use App\Models\Concerns\HasBinaryUuid;
 
 class Category extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid; 
+    use HasFactory, SoftDeletes, HasBinaryUuid;
 
+    protected $hidden = ['id', 'parent_id', 'market_zone_id'];
+
+    public function toArray()
+    {
+        $array = parent::toArray();
+        $array['id'] = $this->toHex($this->getRawOriginal('id'));
+        $array['parent_id'] = $this->toHex($this->getRawOriginal('parent_id'));
+        $array['market_zone_id'] = $this->toHex($this->getRawOriginal('market_zone_id'));
+        return $array;
+    }
+
+    private function toHex($value) {
+        return (is_string($value) && strlen($value) === 16) ? bin2hex($value) : $value;
+    }
     protected $fillable = [
         'parent_id', 'name', 'slug', 'external_code',
         'tax_classification', 'requires_age_check',

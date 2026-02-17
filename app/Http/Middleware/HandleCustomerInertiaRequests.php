@@ -38,31 +38,18 @@ class HandleCustomerInertiaRequests extends Middleware
                     'branch_id' => $user->branch_id ? bin2hex($user->getRawOriginal('branch_id')) : null,
                 ] : null,
                 
-                // Direcciones
+                // MODIFICAR el map de addresses:
                 'addresses' => $user ? $user->addresses()
                     ->select('id', 'alias', 'address', 'branch_id', 'is_default')
                     ->orderBy('is_default', 'desc')
                     ->get()
-                    ->map(function ($addr) {
-                        // Conversión binaria para branch_id
-                        $rawBranchId = $addr->getRawOriginal('branch_id') ?? $addr->branch_id;
-                        $safeBranchId = (is_string($rawBranchId) && strlen($rawBranchId) === 16 && !ctype_print($rawBranchId))
-                            ? bin2hex($rawBranchId)
-                            : $rawBranchId;
-
-                        // Conversión binaria para id
-                        $rawId = $addr->getRawOriginal('id') ?? $addr->id;
-                        $safeId = (is_string($rawId) && strlen($rawId) === 16 && !ctype_print($rawId)) 
-                            ? bin2hex($rawId) : $rawId;
-
-                        return [
-                            'id' => $safeId,
-                            'alias' => $addr->alias,
-                            'address' => $addr->address,
-                            'branch_id' => $safeBranchId,
-                            'is_default' => (bool) $addr->is_default
-                        ];
-                    })
+                    ->map(fn($addr) => [
+                        'id'         => $this->toHex($addr->getRawOriginal('id')),
+                        'alias'      => $addr->alias,
+                        'address'    => $addr->address,
+                        'branch_id'  => $this->toHex($addr->getRawOriginal('branch_id')),
+                        'is_default' => (bool) $addr->is_default
+                    ])
                     : [],
             ],
 
@@ -70,15 +57,14 @@ class HandleCustomerInertiaRequests extends Middleware
 
             'active_branches' => fn () => Cache::remember('active_branches_list_v5', 3600, function () {
                 try {
-                    return Branch::where('is_active', true)
-                        ->select('id', 'name')
-                        ->get()
-                        ->map(function($b) {
-                            $rawId = $b->getRawOriginal('id') ?? $b->id;
-                            $id = (is_string($rawId) && strlen($rawId) === 16 && !ctype_print($rawId)) 
-                                ? bin2hex($rawId) : $b->id;
-                            return ['id' => $id, 'name' => $b->name];
-                        });
+                // MODIFICAR el map dentro del Cache::remember:
+                return Branch::where('is_active', true)
+                    ->select('id', 'name')
+                    ->get()
+                    ->map(fn($b) => [
+                        'id'   => $this->toHex($b->getRawOriginal('id')),
+                        'name' => $b->name
+                    ]);
                 } catch (\Throwable $e) { return []; }
             }),
 
@@ -102,18 +88,38 @@ class HandleCustomerInertiaRequests extends Middleware
     private function resolveShopContext()
     {
         try {
-            $contextService = app(ShopContextService::class);
+            $contextService = app(\App\Services\ShopContextService::class);
             $rawId = $contextService->getActiveBranchId();
             
-            $id = (is_string($rawId) && strlen($rawId) === 16 && !ctype_print($rawId)) 
-                ? bin2hex($rawId) : $rawId;
-            
-            $name = 'Desconocida';
-            if ($id) {
-                $b = Branch::find($id);
-                if ($b) $name = $b->name;
+            // LOG DE DEPURACIÓN
+            \Illuminate\Support\Facades\Log::info('[Debug Context] Raw ID Type: ' . gettype($rawId));
+            if (is_string($rawId)) {
+                \Illuminate\Support\Facades\Log::info('[Debug Context] Raw ID Length: ' . strlen($rawId));
             }
-            return ['branch_id' => $id, 'branch_name' => $name, 'is_fallback' => ($id == 1 || !$id) && !session('shop_address_id')];
-        } catch (\Throwable $e) { return ['branch_name' => 'Tienda', 'is_fallback' => false]; }
+    
+            $activeBranchId = (is_string($rawId) && strlen($rawId) === 16) ? bin2hex($rawId) : $rawId;
+            
+            $activeBranchName = 'Tienda';
+            if ($activeBranchId) {
+                // Buscamos por el ID ya convertido a Hex
+                $branch = \App\Models\Branch::find($activeBranchId); 
+                if ($branch) $activeBranchName = $branch->name;
+            }
+    
+            return [
+                'branch_id' => $activeBranchId, 
+                'branch_name' => $activeBranchName,
+                'is_fallback' => (!$activeBranchId) && !session('shop_address_id'),
+            ];
+        } catch (\Throwable $e) {
+            return ['branch_name' => 'Tienda', 'is_fallback' => true];
+        }
+    }
+    private function toHex(mixed $value): mixed
+    {
+        if (is_string($value) && strlen($value) === 16 && !ctype_print($value)) {
+            return bin2hex($value);
+        }
+        return $value;
     }
 }

@@ -22,34 +22,35 @@ class RegisterCustomerAction
                 'is_active' => true,
                 'country_code' => 'BO'
             ]);
-
+            // Dentro del DB::transaction
+            $customer->assignRole('customer');
             // 2. Procesar Avatar
             $avatarSource = 'avatar_1.svg';
-            
-            if ($data->avatar_type === 'custom' && $data->avatar_file) {
+
+            if ($data->avatarType === 'custom' && $data->avatarFile) {
                 // Usamos ID hex para la carpeta
                 $folderId = bin2hex($customer->getRawOriginal('id'));
-                $avatarSource = $data->avatar_file->store("customers/{$folderId}/avatars", 'public');
-            } elseif ($data->avatar_type === 'icon' && $data->avatar_source) {
-                $avatarSource = $data->avatar_source;
+                $avatarSource = $data->avatarFile->store("customers/{$folderId}/avatars", 'public');
+            } elseif ($data->avatarType === 'icon' && $data->avatarSource) {
+                $avatarSource = $data->avatarSource;
             }
-
-            // 3. Crear Perfil
             $customer->profile()->create([
-                'first_name' => 'Usuario', // O el nombre si lo pedimos
-                'last_name' => '',
-                'avatar_type' => $data->avatar_type,
+                'first_name'    => $data->firstName,
+                'last_name'     => $data->lastName,
+                'latitude'      => $data->latitude,
+                'longitude'     => $data->longitude,
+                'address'       => $data->address,
+                'avatar_type'   => $data->avatarType,
                 'avatar_source' => $avatarSource,
             ]);
-
             // 4. Crear Dirección (CONVERSIÓN CRÍTICA DE BINARIO)
             $binaryBranchId = null;
-            if ($data->branch_id) {
+            if ($data->branchId) {
                 // Si es un Hex válido de 32 caracteres, lo convertimos a BINARIO de 16 bytes
-                if (ctype_xdigit($data->branch_id) && strlen($data->branch_id) === 32) {
-                    $binaryBranchId = hex2bin($data->branch_id);
+                if (ctype_xdigit($data->branchId) && strlen($data->branchId) === 32) {
+                    $binaryBranchId = hex2bin($data->branchId);
                 } else {
-                    $binaryBranchId = $data->branch_id; // Fallback
+                    $binaryBranchId = $data->branchId; // Fallback
                 }
             }
 

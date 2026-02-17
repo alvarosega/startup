@@ -4,16 +4,30 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder; // Importante para el Scope
+use Illuminate\Database\Eloquent\Builder;
+use App\Models\Concerns\HasBinaryUuid;
 
 class Bundle extends Model
 {
-    use SoftDeletes, HasUuids;
+    use SoftDeletes, HasBinaryUuid; // <--- AHORA SÍ LO ENCONTRARÁ
 
+    protected $hidden = ['id', 'branch_id']; // <--- CRÍTICO PARA EVITAR UTF-8 ERROR
+
+    public function toArray()
+    {
+        $array = parent::toArray();
+        $rawId = $this->getRawOriginal('id');
+        $array['id'] = $rawId ? bin2hex($rawId) : null;
+        
+        $rawBranch = $this->getRawOriginal('branch_id');
+        $array['branch_id'] = $rawBranch ? bin2hex($rawBranch) : null;
+        
+        return $array;
+    }
     protected $fillable = [
         'branch_id', // <--- NUEVO
         'name', 
@@ -48,13 +62,10 @@ class Bundle extends Model
         return $this->morphMany(Review::class, 'reviewable');
     }
 
-    // --- SCOPES (Para facilitar consultas) ---
-
-    /**
-     * Filtra los bundles por la sucursal activa automáticamente si se usa.
-     */
-    public function scopeForBranch(Builder $query, int $branchId): void
+    public function scopeForBranch(Builder $query, $branchId): void // Quitar el 'int'
     {
-        $query->where('branch_id', $branchId);
+        // Aseguramos que la consulta use el binario
+        $binaryId = (is_string($branchId) && strlen($branchId) === 32) ? hex2bin($branchId) : $branchId;
+        $query->where('branch_id', $binaryId);
     }
 }
