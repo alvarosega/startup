@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Concerns\HasBinaryUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids; 
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected $fillable = [
         'brand_id', 

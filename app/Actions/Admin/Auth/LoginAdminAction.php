@@ -9,35 +9,20 @@ use Illuminate\Support\Facades\Log;
 
 class LoginAdminAction
 {
-    public function execute(LoginAdminData $data): void
+    // Dentro de LoginAdminAction.php
+    public function execute(LoginAdminData $data): bool
     {
-        Log::info('[AdminLogin] Check Credentials', ['email' => $data->email]);
-
-        // 1. CORRECCIÓN: Guard 'super_admin'
-        if (! Auth::guard('super_admin')->attempt(
-            ['email' => $data->email, 'password' => $data->password],
-            $data->remember
-        )) {
-            Log::error('[AdminLogin] Failed', ['email' => $data->email]);
-            
+        // Laravel manejará el UUID String automáticamente 
+        // al buscar en la tabla 'admins' si el modelo tiene HasUuids.
+        if (!Auth::guard('super_admin')->attempt([
+            'email' => $data->email,
+            'password' => $data->password
+        ], $data->remember)) {
             throw ValidationException::withMessages([
-                'email' => 'Las credenciales no coinciden.',
+                'email' => __('auth.failed'),
             ]);
         }
 
-        // 2. CORRECCIÓN: Guard 'super_admin' para obtener el usuario
-        $admin = Auth::guard('super_admin')->user();
-        
-        if (! $admin->is_active) {
-            Auth::guard('super_admin')->logout();
-            throw ValidationException::withMessages([
-                'email' => 'Cuenta desactivada.',
-            ]);
-        }
-
-        // 3. Update Meta
-        $admin->update(['last_login_at' => now()]);
-        
-        Log::info('[AdminLogin] Success', ['id' => $admin->id]);
+        return true;
     }
 }

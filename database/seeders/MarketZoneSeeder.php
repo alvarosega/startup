@@ -55,13 +55,12 @@ class MarketZoneSeeder extends Seeder
                 $data
             );
 
-            // EXTRACCIÓN BINARIA PURA: Evita el colapso de hex2bin
-            $binaryZoneId = $zone->getRawOriginal('id');
+            $zoneId = $zone->id;
 
             foreach ($keywords as $keyword) {
                 Category::where('name', 'LIKE', "%{$keyword}%")
                     ->whereNull('parent_id')
-                    ->update(['market_zone_id' => $binaryZoneId]);
+                    ->update(['market_zone_id' => $zoneId]);
             }
         }
 
@@ -69,11 +68,11 @@ class MarketZoneSeeder extends Seeder
         $defaultZone = MarketZone::where('slug', 'almacen-despensa')->first();
         
         if ($defaultZone) {
-            $binaryDefaultId = $defaultZone->getRawOriginal('id');
+            $defaultZoneId = $defaultZone->id;
 
             Category::whereNull('market_zone_id')
                 ->whereNull('parent_id')
-                ->update(['market_zone_id' => $binaryDefaultId]);
+                ->update(['market_zone_id' => $defaultZoneId]);
         }
     }
 }

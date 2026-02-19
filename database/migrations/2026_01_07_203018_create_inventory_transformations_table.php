@@ -9,20 +9,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('inventory_transformations', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
 
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches');
 
-            $table->char('admin_id', 16)->charset('binary');
+            $table->uuid('admin_id');
             $table->foreign('admin_id')->references('id')->on('admins');
             
-            $table->char('source_sku_id', 16)->charset('binary');
+            $table->uuid('source_sku_id');
             $table->foreign('source_sku_id')->references('id')->on('skus');
 
             $table->decimal('quantity_removed', 10, 2); 
             
-            $table->char('destination_sku_id', 16)->charset('binary');
+            $table->uuid('destination_sku_id');
             $table->foreign('destination_sku_id')->references('id')->on('skus');
 
             $table->decimal('quantity_added', 10, 2); 

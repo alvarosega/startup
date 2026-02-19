@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\HasBinaryUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Purchase extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected $fillable = [
         'branch_id', 'provider_id', 'user_id', 

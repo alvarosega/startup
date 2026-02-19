@@ -4,7 +4,10 @@ namespace App\Http\Requests\Driver\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules;
-use App\Traits\ValidatesGlobalIdentity; // <--- AÑADIR
+use App\Traits\ValidatesGlobalIdentity; 
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 
 class RegisterRequest extends FormRequest
 {
@@ -20,18 +23,25 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Identidad Global
             'phone' => $this->globalPhoneRules(),
             'email' => $this->globalEmailRules(),
+            'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
             
-            'password'   => ['required', 'confirmed', Rules\Password::defaults()],
+            // POSIBLE PUNTO DE FALLO:
             'first_name' => ['required', 'string', 'max:100'],
-            'last_name'  => ['required', 'string', 'max:100'],
-            
-            // Datos del Vehículo (Basado en tu migración)
-            'license_number' => ['required', 'string', 'unique:driver_details,license_number'],
-            'license_plate'  => ['required', 'string', 'max:10'],
-            'vehicle_type'   => ['required', 'string'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'license_number' => ['required', 'string', 'max:50'], // Quitamos el unique temporalmente para probar
+            'license_plate' => ['required', 'string', 'max:20'],
+            'vehicle_type' => ['required', 'string', 'in:moto,car,truck'],
         ];
+    }
+    protected function failedValidation(Validator $validator)
+    {
+        Log::warning('[DriverRegister] Fallo de validación en el Request', [
+            'errores' => $validator->errors()->toArray(),
+            'input' => $this->except(['password', 'password_confirmation'])
+        ]);
+
+        parent::failedValidation($validator);
     }
 }

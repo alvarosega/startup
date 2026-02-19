@@ -9,11 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('bundles', function (Blueprint $table) {
-            // CORRECCIÓN: ID Binario
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
-            // CORRECCIÓN: branch_id Binario (Antes era foreignId numérico)
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
             
             $table->string('name');

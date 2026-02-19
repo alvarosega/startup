@@ -10,15 +10,15 @@ return new class extends Migration
     {
         // 1. Cabecera de Compras
         Schema::create('purchases', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
             
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches'); 
             
-            $table->char('provider_id', 16)->charset('binary'); // <--- Binario
+            $table->uuid('provider_id');
             $table->foreign('provider_id')->references('id')->on('providers'); 
             
-            $table->char('admin_id', 16)->charset('binary');
+            $table->uuid('admin_id');
             $table->foreign('admin_id')->references('id')->on('admins');
             
             $table->string('document_number')->index();
@@ -36,19 +36,17 @@ return new class extends Migration
 
         // 2. Lotes de Inventario
         Schema::create('inventory_lots', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
             
-            $table->char('purchase_id', 16)->charset('binary')->nullable(); // <--- Binario
+            $table->uuid('purchase_id')->nullable();
             $table->foreign('purchase_id')->references('id')->on('purchases');
             
-            // Transfer ID será referenciado después (en la migración de transfers) o aquí si ya existe
-            // Para evitar errores circulares, lo dejamos nullable y añadimos la FK en la migración de transfers
-            $table->char('transfer_id', 16)->charset('binary')->nullable(); 
+            $table->uuid('transfer_id')->nullable();
             
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches');
             
-            $table->char('sku_id', 16)->charset('binary'); // <--- Binario
+            $table->uuid('sku_id');
             $table->foreign('sku_id')->references('id')->on('skus');
             
             $table->string('lot_code')->unique();

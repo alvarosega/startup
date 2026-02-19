@@ -29,7 +29,8 @@ const form = useForm({
     latitude: -16.5000,
     longitude: -68.1500,
     coverage_polygon: [],
-    is_active: true
+    is_active: true,
+    is_default: false // <--- AGREGAR ESTO
 });
 
 const zoom = ref(13);
@@ -364,7 +365,25 @@ const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.leng
                                     </div>
                                 </BaseCheckbox>
                             </div>
-
+                            <div class="pt-2">
+                                <BaseCheckbox v-model="form.is_default" class="w-full">
+                                    <div class="flex items-center justify-between w-full p-4 border border-border rounded-xl hover:border-primary transition-all bg-card shadow-sm cursor-pointer group"
+                                        :class="{ 'border-primary bg-primary/5': form.is_default }">
+                                        <div class="flex items-center gap-3">
+                                            <div :class="`w-3 h-3 rounded-full ${form.is_default ? 'bg-primary animate-pulse' : 'bg-muted'}`"></div>
+                                            <div>
+                                                <span class="block text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                                                    Establecer como Principal (Default)
+                                                </span>
+                                                <span class="text-xs text-muted-foreground">Fallback para usuarios fuera de cobertura</span>
+                                            </div>
+                                        </div>
+                                        <div :class="`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${form.is_default ? 'border-primary bg-primary text-white' : 'border-muted-foreground'}`">
+                                            <CheckCircle v-if="form.is_default" :size="14" />
+                                        </div>
+                                    </div>
+                                </BaseCheckbox>
+                            </div>
                             <div class="card bg-muted/20 border-dashed border border-border/50">
                                 <div class="card-content p-5">
                                     <h3 class="text-xs font-black text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">

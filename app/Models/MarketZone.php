@@ -2,27 +2,25 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\HasBinaryUuid; // <--- 1. IMPORTAR
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes; // Para el borrado lógico
+use Illuminate\Database\Eloquent\Concerns\HasUuids; // Para el estándar UUID
 
 class MarketZone extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid; 
-    protected $hidden = ['id']; 
+    use HasFactory, SoftDeletes, HasUuids; // Sincronizados
 
-    public function toArray()
-    {
-        $array = parent::toArray();
-        $rawId = $this->getRawOriginal('id');
-        $array['id'] = $rawId ? bin2hex($rawId) : null;
-        return $array;
-    }
-    
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
-        'name', 'slug', 'hex_color', 
-        'svg_id', 'description'
+        'id',
+        'name',
+        'slug',
+        'hex_color',
+        'svg_id',
+        'description'
     ];
 
     public function categories()

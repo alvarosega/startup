@@ -9,11 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('brand_category', function (Blueprint $table) {
-            // CORRECCIÓN: Ambos Binarios
-            $table->char('brand_id', 16)->charset('binary');
+            $table->uuid('brand_id');
             $table->foreign('brand_id')->references('id')->on('brands')->onDelete('cascade');
 
-            $table->char('category_id', 16)->charset('binary');
+            $table->uuid('category_id');
             $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
             
             $table->primary(['brand_id', 'category_id']); 

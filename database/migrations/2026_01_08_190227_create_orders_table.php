@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
             $table->string('code')->unique(); 
             
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->foreign('customer_id')->references('id')->on('customers');
 
-            $table->char('driver_id', 16)->charset('binary')->nullable();
+            $table->uuid('driver_id')->nullable();
             $table->foreign('driver_id')->references('id')->on('drivers');
 
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches');
             
             $table->enum('delivery_type', ['pickup', 'delivery'])->default('pickup');
@@ -36,12 +36,12 @@ return new class extends Migration
         });
     
         Schema::create('order_items', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
             
-            $table->char('order_id', 16)->charset('binary');
+            $table->uuid('order_id');
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             
-            $table->char('sku_id', 16)->charset('binary');
+            $table->uuid('sku_id');
             $table->foreign('sku_id')->references('id')->on('skus');
             
             $table->integer('quantity');

@@ -8,27 +8,28 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Tabla de Zonas
         Schema::create('market_zones', function (Blueprint $table) {
-            // CORRECCIÓN: ID Binario
-            $table->char('id', 16)->charset('binary')->primary();
-            
-            $table->string('name'); 
+            $table->uuid('id')->primary();
+            $table->string('name')->unique();
             $table->string('slug')->unique();
+            
+            // --- AÑADIR ESTOS CAMPOS ---
             $table->string('hex_color')->default('#CCCCCC'); 
             $table->string('svg_id')->nullable(); 
             $table->text('description')->nullable();
+            // ---------------------------
+    
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });
-
-        // 2. Modificar Categorías para pertenecer a una zona
+    
         Schema::table('categories', function (Blueprint $table) {
-            // CORRECCIÓN: Relación Binaria
-            $table->char('market_zone_id', 16)->charset('binary')->nullable();
-            $table->foreign('market_zone_id')->references('id')->on('market_zones')->nullOnDelete();
+            $table->uuid('market_zone_id')->nullable();
+            $table->foreign('market_zone_id')->references('id')->on('market_zones')->onDelete('set null');
         });
     }
+
     public function down(): void
     {
         Schema::table('categories', function (Blueprint $table) {

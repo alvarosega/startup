@@ -9,15 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('bundle_items', function (Blueprint $table) {
-            // CORRECCIÓN: ID Binario
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
-            // CORRECCIÓN: Relación con Bundle (Binaria)
-            $table->char('bundle_id', 16)->charset('binary');
+            $table->uuid('bundle_id');
             $table->foreign('bundle_id')->references('id')->on('bundles')->onDelete('cascade');
             
-            // CORRECCIÓN: Relación con SKU (Binaria)
-            $table->char('sku_id', 16)->charset('binary');
+            $table->uuid('sku_id');
             $table->foreign('sku_id')->references('id')->on('skus')->onDelete('cascade');
             
             $table->integer('quantity')->default(1);

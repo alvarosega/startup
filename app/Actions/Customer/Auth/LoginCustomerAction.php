@@ -9,24 +9,19 @@ use Illuminate\Support\Facades\Log;
 
 class LoginCustomerAction
 {
-    /**
-     * Ejecuta el intento de autenticación contra el guard de Customer.
-     */
-    public function execute(LoginCustomerData $data): void // <--- CORREGIDO
+    public function execute(LoginCustomerData $data): bool
     {
-        Log::info('[LOGIN] Intento de entrada', ['phone' => $data->phone]);
-
-        $attempt = Auth::guard('customer')->attempt(
-            ['phone' => $data->phone, 'password' => $data->password], 
-            $data->remember
-        );
-
-        if (!$attempt) {
-            Log::warning('[LOGIN] Credenciales inválidas', ['phone' => $data->phone]);
-            
+        // IMPORTANTE: El login debe intentar autenticar con el teléfono completo
+        // tal cual se guardó en la DB (+5178710820)
+        if (!Auth::guard('customer')->attempt([
+            'phone'    => $data->phone, 
+            'password' => $data->password
+        ], $data->remember)) {
             throw ValidationException::withMessages([
-                'phone' => 'Las credenciales proporcionadas no son correctas.',
+                'phone' => 'Las credenciales no coinciden con nuestros registros.',
             ]);
         }
+    
+        return true;
     }
 }

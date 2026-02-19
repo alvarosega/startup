@@ -5,40 +5,39 @@ namespace App\Actions\Driver\Auth;
 use App\Models\Driver;
 use App\Models\DriverDetail;
 use App\DTOs\Driver\Auth\RegisterDriverData;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\{DB, Hash, Log};
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 
 class RegisterDriverAction
 {
+    
+
     public function execute(RegisterDriverData $data): Driver
     {
         return DB::transaction(function () use ($data) {
-            // Generar UUID y convertir a binario
-            $uuid = Str::uuid()->toString();
-            $binaryId = hex2bin(str_replace('-', '', $uuid));
-    
-            Log::info('Registrando Driver', ['uuid' => $uuid]);
-    
+            // 1. Crear el Driver (HasUuids generará el string automáticamente)
             $driver = Driver::create([
-                'id'       => $binaryId,
                 'phone'    => $data->phone,
                 'email'    => $data->email,
-                'password' => Hash::make($data->password),
+                'password' => $data->password, // El modelo Driver ya tiene el cast 'hashed'
                 'status'   => 'pending',
             ]);
-    
-            DriverDetail::create([
-                'driver_id'      => $binaryId,
+
+            // 2. Crear los detalles vinculados
+            $driver->details()->create([
                 'first_name'     => $data->firstName,
                 'last_name'      => $data->lastName,
                 'license_number' => $data->licenseNumber,
                 'license_plate'  => $data->licensePlate,
                 'vehicle_type'   => $data->vehicleType,
+                'avatar_type'    => $data->avatarType,
+                'avatar_source'  => $data->avatarSource,
             ]);
-    
-            return $driver->fresh(); // fresh() recarga el modelo desde la DB con los casts aplicados
+
+            // 3. Asignar rol (Spatie)
+            $driver->assignRole('driver');
+
+            return $driver;
         });
     }
 }

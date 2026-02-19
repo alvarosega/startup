@@ -13,12 +13,7 @@ return new class extends Migration
     {
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id(); // El ID del token puede quedarse numérico, es interno de Sanctum.
-            
-            // CORRECCIÓN: Reemplazamos uuidMorphs por definición manual binaria
-            $table->string('tokenable_type');
-            $table->char('tokenable_id', 16)->charset('binary'); // Para coincidir con tus IDs de usuarios
-            $table->index(['tokenable_type', 'tokenable_id']);
-            
+            $table->uuidMorphs('tokenable');
             $table->text('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();

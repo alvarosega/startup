@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             
             // Usuario es UUID
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             
             // CORRECCIÓN CRÍTICA:

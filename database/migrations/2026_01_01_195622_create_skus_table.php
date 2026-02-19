@@ -9,10 +9,10 @@ return new class extends Migration
     public function up(): void {
         Schema::create('skus', function (Blueprint $table) {
             // CORRECCIÓN: ID Binario
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
             // CORRECCIÓN: Product ID Binario
-            $table->char('product_id', 16)->charset('binary');
+            $table->uuid('product_id');
             $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
             
             $table->string('code')->nullable()->unique(); 

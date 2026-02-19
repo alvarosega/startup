@@ -14,19 +14,19 @@ return new class extends Migration
         // (Verificamos si ya existe para evitar errores en ejecuciones manuales raras, aunque el fresh debería borrarla)
         if (!Schema::hasTable('transfers')) {
             Schema::create('transfers', function (Blueprint $table) {
-                $table->char('id', 16)->charset('binary')->primary();
+                $table->uuid('id')->primary();
                 $table->string('code')->unique();
                 
-                $table->char('origin_branch_id', 16)->charset('binary');
+                $table->uuid('origin_branch_id');
                 $table->foreign('origin_branch_id')->references('id')->on('branches');
 
-                $table->char('destination_branch_id', 16)->charset('binary');
+                $table->uuid('destination_branch_id');
                 $table->foreign('destination_branch_id')->references('id')->on('branches');
 
-                $table->char('created_by', 16)->charset('binary');
+                $table->uuid('created_by');
                 $table->foreign('created_by')->references('id')->on('admins');
 
-                $table->char('received_by', 16)->charset('binary')->nullable();
+                $table->uuid('received_by')->nullable();
                 $table->foreign('received_by')->references('id')->on('admins');
                 
                 $table->string('status')->default('in_transit'); 
@@ -40,12 +40,12 @@ return new class extends Migration
         // 2. CREAMOS LOS ITEMS DE TRANSFERENCIA
         if (!Schema::hasTable('transfer_items')) {
             Schema::create('transfer_items', function (Blueprint $table) {
-                $table->char('id', 16)->charset('binary')->primary();
+                $table->uuid('id')->primary();
                 
-                $table->char('transfer_id', 16)->charset('binary');
+                $table->uuid('transfer_id');
                 $table->foreign('transfer_id')->references('id')->on('transfers')->onDelete('cascade');
                 
-                $table->char('sku_id', 16)->charset('binary');
+                $table->uuid('sku_id');
                 $table->foreign('sku_id')->references('id')->on('skus');
 
                 $table->integer('qty_sent');
@@ -59,7 +59,7 @@ return new class extends Migration
         // --- CORRECCIÓN CLAVE: Verificar si la columna ya existe ---
         if (Schema::hasTable('inventory_lots') && !Schema::hasColumn('inventory_lots', 'transfer_id')) {
             Schema::table('inventory_lots', function (Blueprint $table) {
-                $table->char('transfer_id', 16)->charset('binary')->nullable();
+                $table->uuid('transfer_id')->nullable();
                 $table->foreign('transfer_id')->references('id')->on('transfers')->nullOnDelete();
             });
         }

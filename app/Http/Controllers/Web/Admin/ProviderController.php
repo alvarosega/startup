@@ -1,87 +1,101 @@
 <?php
-
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Provider;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
-// Arquitectura
-use App\DTOs\Provider\ProviderData;
-use App\Http\Requests\Provider\StoreProviderRequest;
-use App\Http\Requests\Provider\UpdateProviderRequest;
-use App\Actions\Provider\CreateProvider;
-use App\Actions\Provider\UpdateProvider;
-use App\Http\Resources\ProviderResource;
+// Arquitectura de Capas
+use App\DTOs\Admin\Provider\ProviderData;
+use App\Http\Requests\Admin\Provider\StoreProviderRequest;
+use App\Http\Requests\Admin\Provider\UpdateProviderRequest;
+use App\Actions\Admin\Provider\ListProviders;
+use App\Actions\Admin\Provider\CreateProvider;
+use App\Actions\Admin\Provider\UpdateProvider;
+use App\Actions\Admin\Provider\DeleteProvider;
+use App\Http\Resources\Admin\Provider\ProviderResource;
 
 class ProviderController extends Controller
 {
     use AuthorizesRequests;
-
-    public function index(Request $request)
+    
+    public function index(Request $request, ListProviders $action): Response
     {
         $this->authorize('viewAny', Provider::class);
 
-        $providers = Provider::query()
-            ->when($request->search, function ($query, $search) {
-                $query->where('company_name', 'like', "%{$search}%")
-                      ->orWhere('commercial_name', 'like', "%{$search}%")
-                      ->orWhere('tax_id', 'like', "%{$search}%");
-            })
-            ->orderBy('company_name')
-            ->paginate(10)
-            ->withQueryString();
+        $providers = $action->execute($request->search);
 
         return Inertia::render('Admin/Providers/Index', [
-            'providers' => ProviderResource::collection($providers), // Usamos el Resource
-            'filters' => $request->only(['search']),
-            'can_manage' => auth()->user()->can('create', Provider::class)
+            'providers' => ProviderResource::collection($providers),
+            'filters'   => $request->only(['search']),
+            'can_manage' => $request->user()->can('create', Provider::class)
         ]);
     }
 
-    public function create()
+    /**
+     * Orquestación: Renderiza formulario de creación.
+     */
+    public function create(): Response
     {
         $this->authorize('create', Provider::class);
+
         return Inertia::render('Admin/Providers/Create');
     }
 
-    public function store(StoreProviderRequest $request, CreateProvider $action)
+    /**
+     * Orquestación: Transforma Request en DTO y delega persistencia atómica.
+     */
+    public function store(StoreProviderRequest $request, CreateProvider $action): RedirectResponse
     {
         $this->authorize('create', Provider::class);
-        
+
         $data = ProviderData::fromRequest($request);
         $action->execute($data);
 
-        return redirect()->route('admin.providers.index')->with('success', 'Proveedor creado.');
+        return redirect()->route('admin.providers.index')
+            ->with('message', 'Proveedor registrado exitosamente.');
     }
 
-    public function edit(Provider $provider)
+    /**
+     * Orquestación: Renderiza edición con sanitización via Resource.
+     */
+    public function edit(Provider $provider): Response
     {
         $this->authorize('update', $provider);
-        
-        // FORMA MÁS SEGURA: toArray(request()) devuelve el array puro sin wrappers de 'data'
+
         return Inertia::render('Admin/Providers/Edit', [
-            'provider' => (new ProviderResource($provider))->toArray(request())
+            'provider' => (new ProviderResource($provider))->resolve()
         ]);
     }
 
-    public function update(UpdateProviderRequest $request, Provider $provider, UpdateProvider $action)
+    /**
+     * Orquestación: Actualización vía DTO y Action.
+     */
+    public function update(UpdateProviderRequest $request, Provider $provider, UpdateProvider $action): RedirectResponse
     {
         $this->authorize('update', $provider);
 
         $data = ProviderData::fromRequest($request);
         $action->execute($provider, $data);
 
-        return redirect()->route('admin.providers.index')->with('success', 'Proveedor actualizado.');
+        return redirect()->route('admin.providers.index')
+            ->with('message', 'Proveedor actualizado correctamente.');
     }
 
-    public function destroy(Provider $provider)
+    /**
+     * Orquestación: Eliminación atómica (Soft Delete).
+     */
+    public function destroy(Provider $provider, DeleteProvider $action): RedirectResponse
     {
         $this->authorize('delete', $provider);
-        $provider->delete();
-        
-        return redirect()->route('admin.providers.index')->with('success', 'Proveedor eliminado.');
+
+        $action->execute($provider);
+
+        return redirect()->route('admin.providers.index')
+            ->with('message', 'Proveedor removido del sistema.');
     }
 }

@@ -25,19 +25,17 @@ const steps = [
     { id: 3, title: 'Detalles y Estado', icon: Phone },
 ];
 
-// --- INICIALIZACIÓN DEL FORMULARIO ---
-// Aseguramos tipos de datos correctos al cargar
 const form = useForm({
-    _method: 'PUT', // Importante para actualizaciones en Laravel/Inertia
+    _method: 'PUT',
     name: props.branch.name || '',
     phone: props.branch.phone || '',
     city: props.branch.city || 'La Paz',
     address: props.branch.address || '',
     latitude: parseFloat(props.branch.latitude) || -16.5000,
     longitude: parseFloat(props.branch.longitude) || -68.1500,
-    // Asegurar que el polígono sea un array, incluso si viene null
     coverage_polygon: Array.isArray(props.branch.coverage_polygon) ? props.branch.coverage_polygon : [],
-    is_active: Boolean(props.branch.is_active)
+    is_active: Boolean(props.branch.is_active),
+    is_default: Boolean(props.branch.is_default) // <--- AGREGAR ESTO
 });
 
 const zoom = ref(14);
@@ -268,7 +266,33 @@ const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.leng
                                 </div>
                             </label>
                         </div>
+                        <div class="pt-2">
+                            <label class="flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all hover:bg-muted/30 w-full"
+                                :class="form.is_default ? 'border-primary/50 bg-primary/5' : 'border-border bg-card'">
+                                
+                                <div class="relative flex items-center shrink-0">
+                                    <input type="checkbox" v-model="form.is_default" class="peer sr-only">
+                                    <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </div>
 
+                                <div>
+                                    <span class="block text-sm font-bold text-foreground flex items-center gap-2">
+                                        Marcar como Sucursal por Defecto 
+                                        <span v-if="form.is_default" class="bg-primary text-[8px] text-white px-1.5 py-0.5 rounded-full uppercase">SISTEMA</span>
+                                    </span>
+                                    <span class="text-[10px] text-muted-foreground leading-tight">
+                                        Los usuarios fuera de zona o invitados verán el stock de esta sucursal.
+                                    </span>
+                                </div>
+                            </label>
+                            
+                            <div v-if="form.is_default && !props.branch.is_default" class="mt-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-2 items-start animate-in fade-in zoom-in duration-200">
+                                <AlertTriangle :size="14" class="text-amber-600 shrink-0 mt-0.5"/>
+                                <p class="text-[9px] text-amber-700 dark:text-amber-400 font-medium">
+                                    Atención: Al guardar, cualquier otra sucursal que sea "Default" dejará de serlo automáticamente.
+                                </p>
+                            </div>
+                        </div>
                         <div class="rounded-xl bg-muted/20 border border-border p-4 text-xs space-y-2">
                             <h4 class="font-bold text-foreground mb-2 flex items-center gap-2">
                                 <Layers :size="14"/> Resumen Geográfico

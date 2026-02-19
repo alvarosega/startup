@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Concerns\HasBinaryUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Sku extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected $fillable = [
         'id',
@@ -117,59 +117,28 @@ class Sku extends Model
         $basePrice = $prices->whereNull('branch_id')->first();
         return $basePrice ? (float) $basePrice->final_price : 0.00;
     }
-
-    // Obtener precio para sucursal con fallback a nacional
-    public function getPriceForBranch(?int $branchId = null)
+    // Cambiar ?int por ?string
+    public function getPriceForBranch(?string $branchId = null) 
     {
         if ($branchId) {
-            $branchPrice = $this->prices()
-                ->where('branch_id', $branchId)
-                ->orderBy('id', 'desc')
-                ->first();
-
-            if ($branchPrice) {
-                return $branchPrice;
-            }
+            return $this->prices()->where('branch_id', $branchId)->latest()->first() 
+                ?? $this->prices()->whereNull('branch_id')->latest()->first();
         }
-
-        return $this->prices()
-            ->whereNull('branch_id')
-            ->orderBy('id', 'desc')
-            ->first();
+        return $this->prices()->whereNull('branch_id')->latest()->first();
     }
-    /**
-     * Calcula el precio vigente para una sucursal específica.
-     * Prioridad: Precio Sucursal > Precio Nacional (branch_id null)
-     * Usado por el ShopProductResource.
-     */
-    public function getContextPrice(?int $branchId): float
+
+    public function getContextPrice(?string $branchId): float
     {
-        // Buscamos en la colección ya cargada (eager loaded) para evitar N+1 queries
         $prices = $this->relationLoaded('prices') ? $this->prices : $this->prices()->get();
-
-        $price = $prices->first(function ($p) use ($branchId) {
-            return $p->branch_id == $branchId;
-        }) ?? $prices->first(function ($p) {
-            return $p->branch_id === null;
-        });
-
+        $price = $prices->firstWhere('branch_id', $branchId) ?? $prices->firstWhere('branch_id', null);
         return $price ? (float) $price->final_price : 0.00;
     }
 
-    /**
-     * Calcula el stock disponible para una sucursal específica.
-     * Usado por el ShopProductResource.
-     */
-    public function getContextStock(?int $branchId): int
+    public function getContextStock(?string $branchId): int
     {
         if (!$branchId) return 0;
-
-        // Usamos la colección cargada o consultamos si no existe
         $lots = $this->relationLoaded('inventoryLots') ? $this->inventoryLots : $this->inventoryLots()->where('branch_id', $branchId)->get();
-
-        return (int) $lots
-            ->where('branch_id', $branchId)
-            ->sum(fn($lot) => $lot->quantity - $lot->reserved_quantity);
-    }   
+        return (int) $lots->sum(fn($lot) => $lot->quantity - $lot->reserved_quantity);
+    }
 
 }

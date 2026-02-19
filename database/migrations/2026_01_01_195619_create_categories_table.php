@@ -9,10 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('categories', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
             // CORRECCIÓN: Parent ID Binario
-            $table->char('parent_id', 16)->charset('binary')->nullable();
+            $table->uuid('parent_id')->nullable();
             $table->foreign('parent_id')->references('id')->on('categories')->nullOnDelete();
             
             $table->string('name');

@@ -3,15 +3,11 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Admin; 
-use App\Models\Customer;
-use App\Models\Driver;
-use App\Models\Branch;
+use App\Models\{Admin, Customer, Driver, Branch};
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log; // Importación vital
+use Illuminate\Support\Facades\{DB, Log};
 use App\Http\Requests\Admin\User\StoreUserRequest;
 use Carbon\Carbon;
 
@@ -20,14 +16,12 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $filters = $request->only(['search', 'role_id', 'branch_id']);
-        $currentUser = auth()->user();
-
-        // 1. QUERY STAFF
+        
+        // 1. QUERY STAFF (ADMINS)
         $adminsQuery = DB::table('admins')
             ->select([
                 'admins.id', 'admins.first_name', 'admins.last_name', 'admins.email', 'admins.phone',
                 'admins.branch_id', 'admins.is_active', 'admins.created_at',
-                'admins.last_seen_at', 'admins.last_login_at',
                 'branches.name as branch_name', 
                 'roles.name as role_key', 'roles.display_name as role_label',
                 DB::raw("'admin' as type")
@@ -44,7 +38,6 @@ class UserController extends Controller
             ->select([
                 'customers.id', 'customer_profiles.first_name', 'customer_profiles.last_name', 'customers.email', 'customers.phone',
                 'customers.branch_id', 'customers.is_active', 'customers.created_at',
-                'customers.last_seen_at', 'customers.last_login_at',
                 'branches.name as branch_name',
                 DB::raw("'customer' as role_key"), DB::raw("'Cliente' as role_label"),
                 DB::raw("'customer' as type")
@@ -57,155 +50,72 @@ class UserController extends Controller
             ->select([
                 'drivers.id', 'driver_details.first_name', 'driver_details.last_name', 'drivers.email', 'drivers.phone',
                 DB::raw("NULL as branch_id"), DB::raw("1 as is_active"), 'drivers.created_at',
-                'drivers.last_seen_at', 'drivers.last_login_at',
                 DB::raw("'Logística Global' as branch_name"),
                 DB::raw("'driver' as role_key"), DB::raw("'Conductor' as role_label"),
                 DB::raw("'driver' as type")
             ])
             ->leftJoin('driver_details', 'drivers.id', '=', 'driver_details.driver_id');
 
-        if ($currentUser->hasRole('branch_admin')) {
-            $binId = $currentUser->getRawOriginal('branch_id');
-            $adminsQuery->where('admins.branch_id', $binId);
-            $customersQuery->where('customers.branch_id', $binId);
-            $driversQuery->whereRaw('1 = 0');
+        // APLICACIÓN DE FILTROS GLOBALES (Antes del Union para rendimiento)
+        if ($request->search) {
+            $s = "%{$request->search}%";
+            foreach ([$adminsQuery, $customersQuery, $driversQuery] as $q) {
+                $q->where(function($query) use ($s) {
+                    $query->where('email', 'like', $s)
+                          ->orWhere('phone', 'like', $s)
+                          ->orWhere('first_name', 'like', $s)
+                          ->orWhere('last_name', 'like', $s);
+                });
+            }
         }
 
+        // UNIÓN Y PAGINACIÓN
         $users = $adminsQuery->unionAll($customersQuery)->unionAll($driversQuery)
             ->orderBy('created_at', 'desc')
             ->paginate(15)
-            ->through(function($u) {
-                $lastSeen = $u->last_seen_at ? Carbon::parse($u->last_seen_at) : null;
-                return [
-                    'id' => bin2hex($u->id),
-                    'name' => trim("$u->first_name $u->last_name"),
-                    'email' => $u->email,
-                    'phone' => $u->phone,
-                    'role_label' => $u->role_label,
-                    'type' => $u->type,
-                    'branch' => $u->branch_name,
-                    'is_active' => (bool)$u->is_active,
-                    'status' => [
-                        'online' => $lastSeen && $lastSeen->diffInMinutes(now()) < 5,
-                        'last_seen' => $lastSeen ? $lastSeen->diffForHumans() : 'Nunca',
-                        'last_login' => $u->last_login_at ? Carbon::parse($u->last_login_at)->format('d/m/Y H:i') : 'N/A'
-                    ]
-                ];
-            });
+            ->withQueryString()
+            ->through(fn($u) => [
+                'id'         => $u->id, // YA ES STRING UUID
+                'name'       => trim("$u->first_name $u->last_name"),
+                'email'      => $u->email,
+                'phone'      => $u->phone,
+                'role_key'   => $u->role_key,
+                'role_label' => $u->role_label,
+                'type'       => $u->type,
+                'branch'     => $u->branch_name ?? 'Sin Sucursal',
+                'is_active'  => (bool)$u->is_active,
+            ]);
 
         return Inertia::render('Admin/Users/Index', [
             'users'    => $users,
             'roles'    => Role::whereIn('guard_name', ['super_admin', 'customer', 'driver'])->get(),
-            'branches' => Branch::all()->map(fn($b) => [
-                'id' => bin2hex($b->getRawOriginal('id')), 
-                'name' => $b->name
-            ]),
+            'branches' => Branch::all(['id', 'name']), // Directo, ya son strings
             'filters'  => $filters 
-        ]);
-    }
-
-    public function create(): \Inertia\Response
-    {
-        return Inertia::render('Admin/Users/Create', [
-            'roles' => Role::whereIn('guard_name', ['super_admin', 'customer', 'driver'])
-                ->where('name', '!=', 'super_admin')
-                ->get()
-                ->map(fn($role) => [
-                    'id'   => $role->id,
-                    'name' => $role->name,
-                    'description' => match($role->name) {
-                        'customer' => 'Usuario final que realiza pedidos.',
-                        'driver'   => 'Encargado de logística.',
-                        default    => 'Miembro del staff administrativo.',
-                    }
-                ]),
-            'branches' => Branch::all()->map(fn($b) => [
-                'id'   => bin2hex($b->getRawOriginal('id')),
-                'name' => $b->name
-            ]),
         ]);
     }
 
     public function store(StoreUserRequest $request)
     {
-        Log::info('[UserStore] Inicio de petición', ['email' => $request->email, 'role_id' => $request->role_id]);
-
-        $role = Role::findOrFail($request->role_id);
-        Log::info('[UserStore] Rol detectado', ['name' => $role->name, 'guard' => $role->guard_name]);
-
-        try {
-            return DB::transaction(function () use ($request, $role) {
-                
-                if ($role->name === 'customer') {
-                    Log::info('[UserStore] Procesando Silo Customer');
-                    $customer = Customer::create([
-                        'email'     => $request->email,
-                        'phone'     => $request->phone,
-                        'password'  => $request->password,
-                        'branch_id' => $request->branch_id ? hex2bin($request->branch_id) : null,
-                        'is_active' => true,
-                    ]);
-
-                    $customer->profile()->create([
-                        'first_name' => $request->first_name,
-                        'last_name'  => $request->last_name,
-                        'latitude'   => $request->latitude,
-                        'longitude'  => $request->longitude,
-                        'address'    => $request->address,
-                    ]);
-
-                    $customer->assignRole($role);
-                    $hexId = bin2hex($customer->getRawOriginal('id'));
-                    Log::info('[UserStore] Customer creado con éxito', ['id' => $hexId]);
-                    $msg = 'Cliente creado.';
-
-                } elseif ($role->name === 'driver') {
-                    Log::info('[UserStore] Procesando Silo Driver');
-                    $driver = Driver::create([
-                        'email'    => $request->email,
-                        'phone'    => $request->phone,
-                        'password' => $request->password,
-                        'is_active' => true,
-                    ]);
-
-                    $driver->details()->create([
-                        'first_name' => $request->first_name,
-                        'last_name'  => $request->last_name,
-                    ]);
-
-                    $driver->assignRole($role);
-                    Log::info('[UserStore] Driver creado con éxito');
-                    $msg = 'Conductor creado.';
-
-                } else {
-                    Log::info('[UserStore] Procesando Silo Staff');
-                    $admin = Admin::create([
-                        'first_name' => $request->first_name,
-                        'last_name'  => $request->last_name,
-                        'email'      => $request->email,
-                        'phone'      => $request->phone,
-                        'password'   => $request->password,
-                        'branch_id'  => $request->branch_id ? hex2bin($request->branch_id) : null,
-                        'is_active'  => true,
-                    ]);
-
-                    $admin->assignRole($role);
-                    Log::info('[UserStore] Staff creado con éxito');
-                    $msg = 'Staff creado.';
-                }
-
-                return redirect()->route('admin.users.index')->with('message', $msg);
-            });
-        } catch (\Exception $e) {
-            Log::error('[UserStore] ERROR CRÍTICO', [
-                'message' => $e->getMessage(),
-                'line'    => $e->getLine(),
-                'file'    => $e->getFile()
-            ]);
+        return DB::transaction(function () use ($request) {
+            $role = Role::findOrFail($request->role_id);
             
-            // Relanzamos para que Inertia capture el error, 
-            // pero el log ya guardó la causa real antes del colapso UTF-8.
-            throw $e; 
-        }
+            // ELIMINADO: hex2bin. Usamos el ID de la sucursal tal cual viene (String).
+            $data = $request->validated();
+            $branchId = $data['branch_id'] ?? null;
+
+            if ($role->name === 'customer') {
+                $user = Customer::create([...$data, 'branch_id' => $branchId]);
+                $user->profile()->create($data);
+            } elseif ($role->name === 'driver') {
+                $user = Driver::create($data);
+                $user->details()->create($data);
+            } else {
+                $user = Admin::create([...$data, 'branch_id' => $branchId]);
+            }
+
+            $user->assignRole($role);
+
+            return redirect()->route('admin.users.index')->with('message', 'Usuario creado correctamente.');
+        });
     }
 }

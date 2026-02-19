@@ -12,12 +12,12 @@ return new class extends Migration
         // SILO 1: ADMINS
         // =================================================================================
         Schema::create('admins', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             $table->string('first_name');
             $table->string('last_name');
             $table->string('phone', 20)->nullable();
             
-            $table->char('branch_id', 16)->charset('binary')->nullable()->index();
+            $table->uuid('branch_id')->nullable()->index();
             
             $table->string('email')->unique();
             $table->string('password');
@@ -39,7 +39,7 @@ return new class extends Migration
         // ... (Tablas de tokens admins igual que antes) ...
         Schema::create('admin_tokens', function (Blueprint $table) {
             $table->id(); 
-            $table->char('admin_id', 16)->charset('binary');
+            $table->uuid('admin_id');
             $table->string('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();
@@ -59,7 +59,7 @@ return new class extends Migration
         // SILO 2: DRIVERS (Sin cambios, ya estaba bien)
         // =================================================================================
         Schema::create('drivers', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
             $table->string('password');
@@ -72,23 +72,29 @@ return new class extends Migration
             $table->softDeletes(); 
         });
 
-        // ... (Resto de tablas drivers igual que tu código original) ...
         Schema::create('driver_details', function (Blueprint $table) {
-            $table->char('driver_id', 16)->charset('binary')->primary();
+            $table->uuid('driver_id')->primary();
             $table->string('first_name');
             $table->string('last_name');
-            // Hacemos estos campos nullable para que el "registro rápido" desde Admin no falle
+            
+            // Campos de Vehículo
             $table->string('license_number')->unique()->nullable();
             $table->string('license_plate', 10)->nullable();
             $table->string('vehicle_type')->nullable(); 
+
+            // --- CAMPOS FALTANTES AÑADIDOS ---
+            $table->string('avatar_type')->default('icon'); 
+            $table->string('avatar_source')->default('avatar_1.svg');
+            
             $table->timestamps();
+
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
         });
         
         // ... (driver_tokens, driver_billing_infos, password_reset_codes_drivers igual) ...
         Schema::create('driver_tokens', function (Blueprint $table) {
             $table->id();
-            $table->char('driver_id', 16)->charset('binary');
+            $table->uuid('driver_id');
             $table->string('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();
@@ -100,7 +106,7 @@ return new class extends Migration
 
         Schema::create('driver_billing_infos', function (Blueprint $table) {
             $table->id();
-            $table->char('driver_id', 16)->charset('binary');
+            $table->uuid('driver_id');
             $table->string('nit_number');
             $table->string('business_name');
             $table->timestamps();
@@ -118,10 +124,8 @@ return new class extends Migration
         // SILO 3: CUSTOMERS
         // =================================================================================
         Schema::create('customers', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary();
-            
-            // CORRECCIÓN: branch_id binario
-            $table->char('branch_id', 16)->charset('binary')->nullable()->index();
+            $table->uuid('id')->primary();
+            $table->uuid('branch_id')->nullable()->index();
             
             $table->string('phone', 20)->unique();
             $table->string('country_code', 3)->default('BO');
@@ -139,14 +143,9 @@ return new class extends Migration
         });
 
         Schema::create('customer_profiles', function (Blueprint $table) {
-            $table->char('customer_id', 16)->charset('binary')->primary();
+            $table->uuid('customer_id')->primary();
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
-            
-            // CORRECCIÓN CRÍTICA: Añadimos los campos que el controlador busca
-            $table->decimal('latitude', 10, 8)->nullable();
-            $table->decimal('longitude', 11, 8)->nullable();
-            $table->text('address')->nullable();
         
             $table->date('birth_date')->nullable();
             $table->string('gender', 20)->nullable();
@@ -156,13 +155,9 @@ return new class extends Migration
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
         });
         Schema::create('customer_addresses', function (Blueprint $table) {
-            // CORRECCIÓN: ID Binario para la dirección también
-            $table->char('id', 16)->charset('binary')->primary();
-            
-            $table->char('customer_id', 16)->charset('binary');
-            
-            // CORRECCIÓN: branch_id Binario
-            $table->char('branch_id', 16)->charset('binary')->nullable(); 
+            $table->uuid('id')->primary();
+            $table->uuid('customer_id');
+            $table->uuid('branch_id')->nullable();
             
             $table->string('alias')->nullable(); 
             $table->string('address');
@@ -180,7 +175,7 @@ return new class extends Migration
         // ... (Resto de tablas customer igual) ...
         Schema::create('customer_socials', function (Blueprint $table) {
             $table->id();
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->string('provider_name'); 
             $table->string('provider_id'); 
             $table->json('data_json')->nullable();
@@ -191,7 +186,7 @@ return new class extends Migration
 
         Schema::create('customer_tokens', function (Blueprint $table) {
             $table->id();
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->string('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();
@@ -203,7 +198,7 @@ return new class extends Migration
 
         Schema::create('customer_billing_infos', function (Blueprint $table) {
             $table->id();
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->string('nit_number');
             $table->string('business_name');
             $table->boolean('is_default')->default(false);

@@ -17,18 +17,16 @@ class LoginRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->has('phone')) {
-            // Eliminar espacios, guiones, paréntesis
-            $rawPhone = preg_replace('/[^0-9]/', '', $this->phone);
+            $phone = $this->phone;
             
-            // Agregar prefijo +591 si falta (Lógica de negocio boliviana)
-            if (!str_starts_with($rawPhone, '591') && strlen($rawPhone) >= 8) {
-                $rawPhone = '591' . $rawPhone;
-            }
+            // Eliminamos todo excepto números y el signo +
+            $cleanPhone = preg_replace('/[^\+0-9]/', '', $phone);
+    
+            // Si el usuario olvidó el +, pero el número es largo, 
+            // podrías intentar inferirlo, pero es mejor confiar en VueTelInput.
+            // ELIMINAMOS la lógica de "if !str_starts_with 591"
             
-            // Asegurar formato internacional completo
-            $phone = '+' . $rawPhone;
-
-            $this->merge(['phone' => $phone]);
+            $this->merge(['phone' => $cleanPhone]);
         }
     }
 

@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasBinaryUuid; // <--- 1. IMPORTANTE
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Cart extends Model
 {
-    use HasBinaryUuid; // <--- 2. IMPORTANTE (Faltaba esto)
+    use HasUuids; // <--- 2. IMPORTANTE (Faltaba esto)
 
     protected $table = 'carts';
     protected $fillable = ['session_id', 'user_id', 'branch_id'];

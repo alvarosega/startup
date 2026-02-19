@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
-use App\Models\Concerns\HasBinaryUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Bundle extends Model
 {
-    use SoftDeletes, HasBinaryUuid; // <--- AHORA SÍ LO ENCONTRARÁ
+    use SoftDeletes, HasUuids; // <--- AHORA SÍ LO ENCONTRARÁ
 
     protected $hidden = ['id', 'branch_id']; // <--- CRÍTICO PARA EVITAR UTF-8 ERROR
 

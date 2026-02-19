@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('providers', function (Blueprint $table) {
             // ID BINARIO
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
             $table->string('company_name'); 
             $table->string('commercial_name')->nullable();
@@ -38,10 +38,9 @@ return new class extends Migration
         // Marcas (Brands)
         Schema::create('brands', function (Blueprint $table) {
             // CORRECCIÓN 1: ID propio debe ser Binario (antes era id() numérico)
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
-            // CORRECCIÓN 2: Relación con Provider debe ser Binaria (antes foreignUuid)
-            $table->char('provider_id', 16)->charset('binary')->nullable();
+            $table->uuid('provider_id')->nullable();
             $table->foreign('provider_id')->references('id')->on('providers')->nullOnDelete();
 
             // Identidad

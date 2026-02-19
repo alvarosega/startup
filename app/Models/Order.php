@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\HasUuidv7;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Order extends Model
 {
-    use SoftDeletes,HasUuidv7;
+    use SoftDeletes,HasUuids;
     public $incrementing = false;
     protected $keyType = 'string';
     protected $fillable = [

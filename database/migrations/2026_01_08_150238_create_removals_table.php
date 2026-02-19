@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('removal_requests', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
             $table->string('code')->unique(); 
             
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches');
             
-            $table->char('admin_id', 16)->charset('binary'); 
+            $table->uuid('admin_id'); 
             $table->foreign('admin_id')->references('id')->on('admins');
 
-            $table->char('approved_by', 16)->charset('binary')->nullable(); 
+            $table->uuid('approved_by')->nullable(); 
             $table->foreign('approved_by')->references('id')->on('admins');
             
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
@@ -29,12 +29,12 @@ return new class extends Migration
         });
 
         Schema::create('removal_items', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary(); // <--- Binario
+            $table->uuid('id')->primary();
             
-            $table->char('removal_request_id', 16)->charset('binary');
+            $table->uuid('removal_request_id');
             $table->foreign('removal_request_id')->references('id')->on('removal_requests')->onDelete('cascade');
             
-            $table->char('inventory_lot_id', 16)->charset('binary');
+            $table->uuid('inventory_lot_id');
             $table->foreign('inventory_lot_id')->references('id')->on('inventory_lots');
             
             $table->decimal('quantity', 10, 2); 

@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
-use App\Models\Concerns\HasBinaryUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Price extends Model
 {
-    use HasFactory, SoftDeletes, HasBinaryUuid;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected $fillable = [
         'sku_id', 

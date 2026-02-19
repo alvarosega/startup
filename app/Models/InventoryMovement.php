@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasBinaryUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class InventoryMovement extends Model
 {
-    use HasFactory, HasBinaryUuid;
+    use HasFactory, HasUuids;
     protected $fillable = [
         'branch_id', 'sku_id', 'inventory_lot_id', 'user_id',
         'type', 'quantity', 'unit_cost', 'reference'

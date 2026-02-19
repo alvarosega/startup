@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('customer_legal_logs', function (Blueprint $table) {
             $table->id();
             
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             
             $table->string('document_version', 20)->default('1.0'); // Ej: "TC-2026-V1"
@@ -31,7 +31,7 @@ return new class extends Migration
         Schema::create('driver_legal_logs', function (Blueprint $table) {
             $table->id();
             
-            $table->char('driver_id', 16)->charset('binary');
+            $table->uuid('driver_id');
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
             
             $table->string('document_version', 20)->default('1.0'); // Ej: "DRIVER-CONTRACT-V2"

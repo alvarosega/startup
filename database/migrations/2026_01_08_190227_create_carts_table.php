@@ -10,14 +10,14 @@ return new class extends Migration
     {
         // 1. EL CONTEXTO (La "Cesta")
         Schema::create('carts', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
             $table->string('session_id')->nullable()->index();
             
-            $table->char('customer_id', 16)->charset('binary')->nullable(); 
+            $table->uuid('customer_id')->nullable(); 
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             
-            $table->char('branch_id', 16)->charset('binary');
+            $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
             
             $table->timestamps();
@@ -29,15 +29,13 @@ return new class extends Migration
 
         // 2. EL CONTENIDO
         Schema::create('cart_items', function (Blueprint $table) {
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
-            $table->char('cart_id', 16)->charset('binary');
+            $table->uuid('cart_id');
             $table->foreign('cart_id')->references('id')->on('carts')->onDelete('cascade');
             
-            // --- CORRECCIÓN AQUÍ: sku_id a BINARIO ---
-            $table->char('sku_id', 16)->charset('binary');
+            $table->uuid('sku_id');
             $table->foreign('sku_id')->references('id')->on('skus')->onDelete('cascade');
-            // -----------------------------------------
             
             $table->integer('quantity')->default(1);
             $table->timestamps();

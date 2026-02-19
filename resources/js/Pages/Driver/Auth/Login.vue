@@ -8,13 +8,15 @@ import { LogIn, Lock, Smartphone, UserPlus, ArrowRight, Truck, Info } from 'luci
 
 const form = useForm({
     phone: '',
+    country_code: 'BO',
     password: '',
     remember: false,
 });
 
 const onInput = (phone, phoneObject) => {
-    if (phoneObject?.number) {
-        form.phone = phoneObject.number;
+    if(obj?.number) {
+        form.phone = obj.number; // Guarda el número completo: +5178710820
+        form.country_code = obj.country?.iso2 || 'BO'; // Guarda el ISO: PE, BO, etc.
     }
 };
 

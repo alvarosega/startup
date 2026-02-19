@@ -2,49 +2,28 @@
 
 namespace App\Policies;
 
-use App\Models\User;
+use App\Models\Admin;
 use App\Models\Provider;
 
 class ProviderPolicy
 {
-    // El Super Admin siempre pasa
-    public function before(User $user, $ability)
+    public function viewAny(Admin $admin): bool
     {
-        if ($user->hasRole('super_admin')) {
-            return true;
-        }
+        return $admin->can('manage_catalog');
     }
 
-    // VER LISTA Y DETALLES: Permitido para Gerentes y Jefes
-    public function viewAny(User $user): bool
+    public function create(Admin $admin): bool
     {
-        return $user->hasAnyRole([
-            'logistics_manager', 
-            'finance_manager', 
-            'branch_admin', 
-            'inventory_manager'
-        ]);
+        return $admin->hasRole('super_admin');
     }
 
-    public function view(User $user, Provider $provider): bool
+    public function update(Admin $admin, Provider $provider): bool
     {
-        return $this->viewAny($user);
+        return $admin->hasRole('super_admin');
     }
 
-    // CREAR/EDITAR/BORRAR: EXCLUSIVO de Logística
-    // El Branch Admin retornará FALSE aquí
-    public function create(User $user): bool
+    public function delete(Admin $admin, Provider $provider): bool
     {
-        return $user->hasRole('logistics_manager');
-    }
-
-    public function update(User $user, Provider $provider): bool
-    {
-        return $user->hasRole('logistics_manager');
-    }
-
-    public function delete(User $user, Provider $provider): bool
-    {
-        return $user->hasRole('logistics_manager');
+        return $admin->hasRole('super_admin');
     }
 }

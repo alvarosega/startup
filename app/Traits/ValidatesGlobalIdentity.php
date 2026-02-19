@@ -2,44 +2,42 @@
 
 namespace App\Traits;
 
-use App\Rules\GlobalUniqueMobile;
+use Illuminate\Validation\Rule;
 
 trait ValidatesGlobalIdentity
 {
     /**
-     * Reglas de email únicas en los 3 silos.
-     */
-    protected function globalEmailRules($ignoreId = null): array
-    {
-        return ['required', 'string', 'email', 'max:255', new GlobalUniqueMobile($ignoreId)];
-    }
-
-    /**
-     * Reglas de teléfono únicas en los 3 silos.
-     */
-    protected function globalPhoneRules($ignoreId = null): array
-    {
-        return ['required', 'string', new GlobalUniqueMobile($ignoreId)];
-    }
-
-    /**
-     * ESTA ES LA FUNCIÓN QUE FALTA:
-     * Normaliza los datos antes de que pasen por la validación.
+     * Limpia el teléfono para que sea un string internacional puro (+XXXXXXXX)
      */
     protected function normalizeIdentityData()
     {
-        // Limpiamos espacios en el teléfono para evitar fallos de duplicidad visual
-        if ($this->has('phone') && $this->phone) {
-            $this->merge([
-                'phone' => str_replace([' ', '-', '(', ')'], '', $this->phone)
-            ]);
+        if ($this->has('phone') && !empty($this->phone)) {
+            $phone = $this->phone;
+            
+            // Eliminamos espacios, guiones y aseguramos el signo +
+            $cleanPhone = preg_replace('/[^\+0-9]/', '', $phone);
+            
+            if (!str_starts_with($cleanPhone, '+')) {
+                $cleanPhone = '+' . $cleanPhone;
+            }
+
+            $this->merge(['phone' => $cleanPhone]);
         }
-        
-        // Forzamos el email a minúsculas
-        if ($this->has('email') && $this->email) {
-            $this->merge([
-                'email' => strtolower(trim($this->email))
-            ]);
-        }
+    }
+
+    /**
+     * Reglas para validación de teléfono en los 3 silos
+     */
+    protected function globalPhoneRules()
+    {
+        return ['required', 'string', 'min:8', 'max:20'];
+    }
+
+    /**
+     * Reglas para validación de email en los 3 silos
+     */
+    protected function globalEmailRules()
+    {
+        return ['required', 'email', 'max:255'];
     }
 }

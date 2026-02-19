@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             
             // Relación con CUSTOMERS (Binary)
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             
             $table->integer('amount'); 
@@ -30,11 +30,11 @@ return new class extends Migration
             $table->id();
             
             // El sujeto a verificar es un CUSTOMER
-            $table->char('customer_id', 16)->charset('binary');
+            $table->uuid('customer_id');
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             
             // El revisor es un ADMIN (Internal Staff)
-            $table->char('reviewer_id', 16)->charset('binary')->nullable();
+            $table->uuid('reviewer_id')->nullable();
             $table->foreign('reviewer_id')->references('id')->on('admins');
             
             $table->string('front_ci_path')->nullable();

@@ -11,9 +11,8 @@ import {
     Zap, Facebook, Instagram, Twitter, Phone
 } from 'lucide-vue-next';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
+import GlobalLoader from '@/Components/Base/GlobalLoader.vue';
 
-// ELIMINAMOS: import { useAuthModal } from '@/Composables/useAuthModal';
-// ELIMINAMOS: Las importaciones de LoginForm, RegisterForm, etc.
 
 const props = defineProps({
     isProfileSection: { type: Boolean, default: false }
@@ -63,6 +62,7 @@ const logout = () => {
 const isIndexPage = computed(() => route().current('shop.index'));
 </script>
 <template>
+    <GlobalLoader />
     <div class="h-[100svh] bg-background text-foreground font-sans flex flex-col selection:bg-primary selection:text-primary-foreground overflow-hidden transition-colors duration-300">
         
         <div class="flex-none z-50 relative">

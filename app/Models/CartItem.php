@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasBinaryUuid; // <--- IMPORTANTE
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class CartItem extends Model
 {
-    use HasBinaryUuid; // <--- APLICAR EL BLINDAJE
+    use HasUuids; // <--- APLICAR EL BLINDAJE
 
     protected $table = 'cart_items';
 

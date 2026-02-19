@@ -3,38 +3,52 @@
 namespace App\Http\Controllers\Web\Driver\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\Driver\Auth\LoginRequest;
+use App\Actions\Driver\Auth\LoginDriverAction;
+use App\DTOs\Driver\Auth\LoginDriverData;
 use Inertia\Inertia;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\{Auth, Log};
 
 class LoginController extends Controller
 {
-    public function show()
-    {
-        return Inertia::render('Driver/Auth/Login');
-    }
+    public function show() { return Inertia::render('Driver/Auth/Login'); }
 
-    public function store(Request $request)
+    public function store(LoginRequest $request, LoginDriverAction $action)
     {
-        $request->validate([
-            'phone' => 'required|string',
-            'password' => 'required|string',
-        ]);
+        Log::info('[LoginDriver] Intento de login iniciado', ['phone' => $request->phone]);
 
-        // Intentar autenticar en el silo de conductores
-        if (Auth::guard('driver')->attempt(
-            ['phone' => $request->phone, 'password' => $request->password],
-            $request->remember
-        )) {
+        $data = LoginDriverData::fromRequest($request);
+
+        try {
+            $action->execute($data);
+            
+            // DENTRO DEL TRY, DESPUÉS DE LA EJECUCIÓN DEL ACTION:
+            $user = Auth::guard('driver')->user();
+
+            Log::info('[LoginDriver] Autenticación exitosa', [
+                'id' => $user->id, // Acceso simple al UUID String
+                'email' => $user->email
+            ]);
+
             $request->session()->regenerate();
+            
+            $url = route('driver.dashboard');
+            Log::info('[LoginDriver] Redirigiendo a Dashboard', ['url' => $url]);
 
-            return redirect()->intended(route('driver.dashboard'));
+            return redirect()->intended($url);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('[LoginDriver] Fallo de validación/credenciales', ['errors' => $e->errors()]);
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('[LoginDriver] Error inesperado', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            return back()->withErrors(['phone' => 'Error interno del servidor.']);
         }
-
-        throw ValidationException::withMessages([
-            'phone' => 'Las credenciales no coinciden con nuestros registros de conductores.',
-        ]);
     }
 
     public function destroy(Request $request)
@@ -42,7 +56,6 @@ class LoginController extends Controller
         Auth::guard('driver')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
         return redirect()->route('driver.login');
     }
 }

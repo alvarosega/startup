@@ -11,60 +11,51 @@ use App\DTOs\Driver\Auth\RegisterDriverData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\ValidatesGlobalIdentity;
+use App\Http\Requests\Driver\Auth\ValidateStep1Request;
+use App\Models\Branch;
 
 class RegisterController extends Controller
 {
     use ValidatesGlobalIdentity;
 
-    public function create() 
+    public function create()
     {
-        return Inertia::render('Driver/Auth/Register');
-    }
-
-    public function validateStep1(Request $request)
-    {
-        Log::info('[DriverRegister] Validando Step 1', ['email' => $request->email]);
-
-        // Validación Global: Evita que un Customer se registre como Driver con el mismo correo
-        $request->validate([
-            'phone'    => $this->globalPhoneRules(),
-            'email'    => $this->globalEmailRules(),
-            'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
+        // La vista de registro de conductor no necesita las sucursales.
+        // Devolver un array vacío es lo correcto aquí.
+        return Inertia::render('Driver/Auth/Register', [
+            'activeBranches' => [],
         ]);
-
+    }
+    public function validateStep1(ValidateStep1Request $request)
+    {
+        // Si llega aquí, es porque los datos son únicos y válidos
+        Log::info('[DriverRegister] Step 1 validado con éxito', ['email' => $request->email]);
+        
         return response()->json(['status' => 'success']);
     }
 
     public function store(RegisterRequest $request, RegisterDriverAction $action)
     {
-        // NOTA: No se requiere $request->validate() aquí. RegisterRequest ya lo hizo.
-        
+        Log::info('[DriverRegister] Intento de registro recibido', $request->all());
+    
         try {
-            Log::info('[DriverRegister] Iniciando persistencia');
-
-            // Estandarización: Usar el factory del DTO
             $data = RegisterDriverData::fromRequest($request);
-            
             $driver = $action->execute($data);
-            
+    
+            Log::info('[DriverRegister] Driver creado con éxito', ['id' => $driver->id]);
+    
             Auth::guard('driver')->login($driver);
             $request->session()->regenerate();
-
-            Log::info('[DriverRegister] Éxito', ['id' => bin2hex($driver->getRawOriginal('id'))]);
-
-            return redirect()->route('driver.dashboard')
-                ->with('message', '¡Registro completado! Bienvenido.');
-
+    
+            return redirect()->route('driver.dashboard');
+    
         } catch (\Exception $e) {
-            Log::error('[DriverRegister] Fallo crítico', [
-                'error' => $e->getMessage(),
-                'file'  => $e->getFile(),
-                'line'  => $e->getLine()
+            Log::error('[DriverRegister] Error en el guardado', [
+                'mensaje' => $e->getMessage(),
+                'linea'   => $e->getLine()
             ]);
-
-            return back()->withErrors([
-                'error' => 'No se pudo completar el registro: ' . $e->getMessage()
-            ])->withInput();
+    
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
     }
 }

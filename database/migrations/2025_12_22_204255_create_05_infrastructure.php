@@ -9,21 +9,17 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Sesiones
+        // database/migrations/xxxx_create_sessions_table.php
+
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            
-            // --- CORRECCIÓN DEFINITIVA ---
-            // Usamos string con charset 'binary'. Esto crea un VARCHAR BINARY o VARBINARY en MySQL.
-            // Es indexable y acepta tus datos binarios crudos sin errores de UTF-8.
-            // Longitud 64 es suficiente (tus UUIDs binarios ocupan 16 bytes).
-            $table->string('user_id', 64)->charset('binary')->nullable()->index();
-
+            // Esto crea un CHAR(36) en MySQL, perfecto para "019c6db6-..."
+            $table->uuid('user_id')->nullable()->index(); 
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
-
         // 2. Password Reset
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

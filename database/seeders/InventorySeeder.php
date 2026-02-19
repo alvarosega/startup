@@ -74,7 +74,7 @@ class InventorySeeder extends Seeder
                 ]);
 
                 // 2. Lote Físico
-                $lotCode = sprintf('%s-%s-%s', strtoupper(substr($config['type'], 0, 3)), bin2hex($branch->id), uniqid()); // bin2hex solo para el string del código
+                $lotCode = sprintf('%s-%s-%s', strtoupper(substr($config['type'], 0, 3)), substr($branch->id, 0, 8), uniqid());
 
                 $lot = InventoryLot::create([
                     // CORRECCIÓN: IDs directos

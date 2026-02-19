@@ -52,7 +52,7 @@ return new class extends Migration
             $table->string('model_type');
         
             // --- CORRECCIÓN: BINARY 16 (Para coincidir con Admins, Drivers y Customers) ---
-            $table->char($columnNames['model_morph_key'], 16)->charset('binary'); 
+            $table->uuid($columnNames['model_morph_key']);
             // ---------------------------------------------------------------------------
         
             $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_permissions_model_id_model_type_index');
@@ -77,7 +77,7 @@ return new class extends Migration
             $table->string('model_type');
         
             // --- CORRECCIÓN: BINARY 16 ---
-            $table->char($columnNames['model_morph_key'], 16)->charset('binary');
+            $table->uuid($columnNames['model_morph_key']);
             // -----------------------------
         
             $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_roles_model_id_model_type_index');

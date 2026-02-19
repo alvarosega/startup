@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;  // <--- FALTABA ESTA
-use Illuminate\Support\Facades\Log; // <--- FALTABA ESTA
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
-// Importaciones de modelos
+// Modelos
 use App\Models\Admin;
 use App\Models\Category;
 use App\Models\Provider;
@@ -18,9 +18,8 @@ use App\Models\Brand;
 use App\Models\Product;
 use App\Models\Sku;
 use App\Models\Transfer;
-use App\Models\Branch;
 
-// Importaciones de Policies
+// Policies
 use App\Policies\CategoryPolicy;
 use App\Policies\ProviderPolicy;
 use App\Policies\BrandPolicy;
@@ -34,7 +33,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // --- SOLUCIÓN PARA CLOUD WORKSTATIONS ---
         if (config('app.env') !== 'testing') {
             URL::forceScheme('https');
             URL::forceRootUrl(config('app.url'));
@@ -59,21 +57,29 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Sku::class, SkuPolicy::class);
         Gate::policy(Transfer::class, TransferPolicy::class);
 
-        // --- AUTH PROVIDER CUSTOM ---
+        // --- AUTH PROVIDERS ---
+        // Nota: Generalmente esto no es necesario si config/auth.php está bien, 
+        // pero lo dejamos si te funciona.
         Auth::provider('admins', function ($app, array $config) {
             return new \Illuminate\Auth\EloquentUserProvider($app['hash'], $config['model']);
         });
-
-        // --- CHIVATO DE SQL (DEBUG) ---
-        DB::listen(function ($query) {
-            // Solo loguear consultas a la tabla admins para no saturar el log
-            if (str_contains($query->sql, 'admins')) {
-                Log::info('SQL ADMIN DEBUG:', [
-                    'sql' => $query->sql,
-                    'bindings' => $query->bindings, // ¡Aquí veremos si envía HEX o BINARIO!
-                    'time' => $query->time
-                ]);
-            }
+        Auth::provider('drivers', function ($app, array $config) {
+            return new \Illuminate\Auth\EloquentUserProvider($app['hash'], $config['model']);
         });
+
+        /*// --- DEBUG SQL (LIMPIO) ---
+        // Solo activamos esto en modo debug y SIN lógica binaria
+        if (config('app.debug')) {
+            DB::listen(function ($query) {
+                // Filtramos para no llenar el log, solo lo importante
+                if (str_contains($query->sql, 'admins') || str_contains($query->sql, 'drivers') || str_contains($query->sql, 'sessions')) {
+                    Log::info('SQL AUTH:', [
+                        'sql' => $query->sql,
+                        'bindings' => $query->bindings, // Bindings directos, sin conversión
+                        'time' => $query->time
+                    ]);
+                }
+            });
+        }*/
     }
 }

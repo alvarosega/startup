@@ -48,6 +48,8 @@ use App\Http\Middleware\HandleDriverInertiaRequests;
 use App\Http\Controllers\Web\Driver\Auth\ForgotPasswordController as DriverForgotController;
 use App\Http\Controllers\Web\Driver\Auth\ResetPasswordController as DriverResetController;
 
+use Illuminate\Support\Facades\Http;
+
 $adminPath = env('ADMIN_PATH', 'admin');
 
 // =============================================================================
@@ -213,10 +215,26 @@ Route::post('password/update', [DriverResetController::class, 'reset'])->name('p
 
     // --- APP PRIVADA (AUTH:DRIVER) ---
     Route::middleware(['auth:driver'])->group(function () {
+        // Logout movido aquí por seguridad
         Route::post('logout', [DriverLoginController::class, 'destroy'])->name('logout');
+        
         Route::get('/dashboard', [DriverDashboardController::class, 'index'])->name('dashboard');
         Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
-        Route::get('/profile', [DriverProfileController::class, 'index'])->name('profile.index');
-        Route::patch('/profile', [DriverProfileController::class, 'update'])->name('profile.update');
+        
+        Route::prefix('profile')->name('profile.')->group(function () {
+            Route::get('/', [DriverProfileController::class, 'index'])->name('index');
+            Route::patch('/', [DriverProfileController::class, 'update'])->name('update');
+        });
     });
 });
+
+
+Route::get('/api/geo/reverse', function (Illuminate\Http\Request $request) {
+    return Http::withHeaders(['User-Agent' => 'ElectricLuxury/1.0'])
+        ->get("https://nominatim.openstreetmap.org/reverse", [
+            'format' => 'json',
+            'lat' => $request->lat,
+            'lon' => $request->lng,
+            'accept-language' => 'es'
+        ])->json();
+})->name('geo.reverse');

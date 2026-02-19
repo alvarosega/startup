@@ -9,6 +9,7 @@ readonly class RegisterCustomerData
 {
     public function __construct(
         public string $phone,
+        public string $countryCode,
         public string $email,
         public string $password,
         public string $firstName, // <--- AÑADIR
@@ -24,25 +25,27 @@ readonly class RegisterCustomerData
         public ?UploadedFile $avatarFile,
     ) {}
 
-    public static function fromRequest(Request $request): self
+    public static function fromRequest(\App\Http\Requests\Customer\Auth\RegisterRequest $request): self
     {
-        // Usamos $request->input() si queremos ser menos estrictos, 
-        // pero validated() es lo correcto si el paso 1 está bien.
+        // Usamos $request->validated() para asegurar que solo pasen datos que pasaron el filtro
+        $v = $request->validated();
+    
         return new self(
-            phone:         $request->validated('phone'),
-            email:         $request->validated('email'),
-            password:      $request->validated('password'),
-            firstName:     $request->validated('first_name') ?? 'Usuario', // Fallback de seguridad
-            lastName:      $request->validated('last_name') ?? '',         // Fallback de seguridad
-            address:       $request->validated('address'),
-            alias:         $request->validated('alias') ?? 'Casa',
-            details:       $request->validated('details'),
-            latitude:      (float) $request->validated('latitude'),
-            longitude:     (float) $request->validated('longitude'),
-            branchId:      $request->validated('branch_id'),
-            avatarType:    $request->validated('avatar_type'),
-            avatarSource:  $request->validated('avatar_source'),
-            avatarFile:    $request->file('avatar_file'),
+            phone:       $v['phone'],
+            countryCode: strtoupper($v['country_code']), 
+            email:       $v['email'],
+            password:    $v['password'],
+            firstName:   $v['first_name'],
+            lastName:    $v['last_name'],
+            address:     $v['address'],
+            alias:       $v['alias'] ?? 'Mi Ubicación',
+            details:     $v['details'] ?? null,
+            latitude:    (float) $v['latitude'],
+            longitude:   (float) $v['longitude'],
+            branchId:    $v['branch_id'] ?? null,
+            avatarType:  $v['avatar_type'],
+            avatarSource:$v['avatar_source'] ?? 'avatar_1.svg',
+            avatarFile:  $request->file('avatar_file'),
         );
     }
 }

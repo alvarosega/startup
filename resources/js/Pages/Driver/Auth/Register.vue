@@ -28,7 +28,7 @@ const steps = [
 ];
 
 const form = useForm({
-    phone: '', email: '', password: '', password_confirmation: '', terms: false,
+    phone: '',country_code: 'BO', email: '', password: '', password_confirmation: '', terms: false,
     first_name: '', last_name: '', license_number: '', license_plate: '', vehicle_type: 'moto',
     avatar_type: 'icon', avatar_source: 'avatar_1.svg', avatar_file: null,
     role: 'driver'
@@ -42,8 +42,12 @@ const telOptions = {
 };
 
 const onInput = (phone, obj) => { 
-    if(obj?.number) form.phone = obj.number; 
+    if(obj?.number) {
+        form.phone = obj.number; // Guarda el número completo: +5178710820
+        form.country_code = obj.country?.iso2 || 'BO'; // Guarda el ISO: PE, BO, etc.
+    }
     if (step1Errors.value.phone) delete step1Errors.value.phone;
+    
 };
 
 // --- NAVEGACIÓN ---
@@ -75,9 +79,13 @@ const submit = () => {
     form.post(route('driver.register.store'), { 
         forceFormData: true, 
         preserveScroll: true,
+        onError: (errors) => {
+            // Esto te dirá exactamente qué campo está fallando (ej: license_number)
+            console.error("Errores de validación final:", errors);
+            alert("Error de validación: " + Object.values(errors).flat().join(", "));
+        }
     });
 };
-
 const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
 
 const vehicleTypes = [

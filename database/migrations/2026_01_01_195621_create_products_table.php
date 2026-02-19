@@ -9,13 +9,13 @@ return new class extends Migration
     public function up(): void {
         Schema::create('products', function (Blueprint $table) {
             // CORRECCIÓN: ID Binario
-            $table->char('id', 16)->charset('binary')->primary();
+            $table->uuid('id')->primary();
             
             // CORRECCIÓN: Relaciones Binarias
-            $table->char('brand_id', 16)->charset('binary');
+            $table->uuid('brand_id');
             $table->foreign('brand_id')->references('id')->on('brands');
 
-            $table->char('category_id', 16)->charset('binary');
+            $table->uuid('category_id');
             $table->foreign('category_id')->references('id')->on('categories');
             
             $table->string('name')->unique(); 

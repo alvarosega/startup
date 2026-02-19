@@ -9,29 +9,34 @@ class HandleDriverInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
+
     public function share(Request $request): array
     {
-        $user = auth()->guard('driver')->user();
-    
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $user ? [
-                    // Usamos el ID ya procesado por el modelo
-                    'id' => $user->id, 
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'status' => $user->status,
-                    'name' => $user->details ? $user->details->first_name . ' ' . $user->details->last_name : 'Conductor',
+                'user' => auth()->guard('driver')->user() ? [
+                    'id' => auth()->guard('driver')->user()->id,
+                    'email' => auth()->guard('driver')->user()->email,
                 ] : null,
             ],
-            // Datos específicos que solo necesita la App de Drivers
-            'driver_config' => [
-                'is_verified' => $user?->status === 'verified',
-            ],
-            'flash' => [
-                'message' => fn () => $request->session()->get('message'),
-                'error' => fn () => $request->session()->get('error'),
-            ],
+            // ESTA LÍNEA ES VITAL PARA QUE VUE MUESTRE LOS ERRORES
+            'errors' => function () use ($request) {
+                return $request->session()->get('errors')
+                    ? $request->session()->get('errors')->getBag('default')->getMessages()
+                    : (object) [];
+            },
         ]);
+    }
+
+    private function resolveDriverName($user): string
+    {
+        // Cargamos la relación solo si no está cargada (Eager Loading preventivo)
+        $details = $user->relationLoaded('details') ? $user->details : $user->details()->first();
+        
+        if ($details) {
+            return trim($details->first_name . ' ' . $details->last_name);
+        }
+
+        return 'Conductor';
     }
 }
