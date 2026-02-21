@@ -8,21 +8,15 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('skus', function (Blueprint $table) {
-            // CORRECCIÓN: ID Binario
             $table->uuid('id')->primary();
-            
-            // CORRECCIÓN: Product ID Binario
-            $table->uuid('product_id');
-            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
-            
+            $table->foreignUuid('product_id')->constrained('products')->onDelete('cascade');
             $table->string('code')->nullable()->unique(); 
             $table->string('name'); 
-            $table->decimal('base_price', 10, 2)->default(0);
+            $table->decimal('base_price', 12, 2)->default(0); // Escala financiera corregida
             $table->decimal('weight', 8, 3)->default(0); 
-            $table->decimal('conversion_factor', 8, 2)->default(1); 
+            $table->decimal('conversion_factor', 8, 3)->default(1); // Precisión para stock corregida
             $table->string('image_path')->nullable();
-            
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(true)->index();
             $table->timestamps();
             $table->softDeletes();
         });

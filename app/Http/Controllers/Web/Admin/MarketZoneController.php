@@ -5,59 +5,60 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MarketZone;
 use App\Models\Category;
-use App\Http\Requests\Market\MarketZoneRequest;
-use App\DTOs\MarketZoneDTO;
-use App\Actions\Market\UpsertMarketZoneAction;
+use App\Http\Requests\Admin\Market\MarketZoneRequest;
+use App\DTOs\Admin\MarketZone\MarketZoneDTO;
+use App\Actions\Admin\MarketZone\UpsertMarketZoneAction;
+use App\Http\Resources\Admin\MarketZone\MarketZoneResource;
 use Inertia\Inertia;
-
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class MarketZoneController extends Controller
 {
+    use AuthorizesRequests;
+
     public function index()
     {
-        $zones = MarketZone::withCount('categories')
-            ->latest()
-            ->get();
+        $this->authorize('viewAny', MarketZone::class);
+        
+        // Uso de lógica encapsulada en el modelo (Clean Code)
+        $zones = MarketZone::getAllWithStats();
 
         return Inertia::render('Admin/MarketZones/Index', [
-            'zones' => $zones
-        ]);
-    }
-
-    public function create()
-    {
-        // CORRECCIÓN: Solo traemos las categorías PRINCIPALES (Roots)
-        // Las subcategorías heredarán la lógica de su padre o no se mapean en el nivel macro.
-        $categories = Category::roots()
-            ->orderBy('name')
-            ->get(['id', 'name', 'market_zone_id']);
-
-        return Inertia::render('Admin/MarketZones/Create', [
-            'available_categories' => $categories
+            'zones' => MarketZoneResource::collection($zones)->resolve()
         ]);
     }
 
     public function store(MarketZoneRequest $request, UpsertMarketZoneAction $action)
     {
-        $dto = MarketZoneDTO::fromRequest($request);
-        $action->execute($dto);
+        $this->authorize('create', MarketZone::class);
+        $action->execute(MarketZoneDTO::fromRequest($request));
+    
+        return redirect()->route('admin.market-zones.index')->with('success', 'Zona operativa.');
+    }
 
-        return redirect()->route('admin.market-zones.index')
-            ->with('success', 'Zona creada y categorías principales asignadas.');
+    
+
+    public function create()
+    {
+        $this->authorize('create', MarketZone::class);
+
+        return Inertia::render('Admin/MarketZones/Create', [
+            // MODIFICADO: Uso de método estático del modelo
+            'available_categories' => Category::getRootsForZoneAssignment()
+        ]);
     }
 
     public function edit(MarketZone $marketZone)
     {
-        // 1. Cargar las categorías asignadas (Solo necesitamos ID para el array del form)
+        $this->authorize('update', $marketZone);
+
+        // 1. Cargar relación para el Resource
         $marketZone->load('categories:id,name,market_zone_id');
 
-        // 2. CORRECCIÓN: Solo categorías PRINCIPALES para el selector
-        $categories = Category::roots()
-            ->orderBy('name')
-            ->get(['id', 'name', 'market_zone_id']);
-
         return Inertia::render('Admin/MarketZones/Edit', [
-            'zone' => $marketZone,
-            'available_categories' => $categories
+            // MODIFICADO: Uso de Resource para consistencia
+            'zone' => (new MarketZoneResource($marketZone))->resolve(),
+            // MODIFICADO: Uso de método estático del modelo
+            'available_categories' => Category::getRootsForZoneAssignment()
         ]);
     }
 

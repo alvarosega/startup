@@ -23,6 +23,7 @@ const roles = computed(() => user.value?.roles || []);
 
 // Lógica cruda: Si el rol es admin, tiene acceso total a las secciones
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
+const isAdmin = isSuperAdmin;
 const canManageUsers = isSuperAdmin;
 const canManageDrivers = isSuperAdmin;
 const canManageCatalog = isSuperAdmin;

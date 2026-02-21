@@ -13,7 +13,13 @@ class HandleAdminInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $admin = Auth::guard('super_admin')->user();
-    
+        
+        if ($admin) {
+            // Ejecución de la Ley: Monitoreo en tiempo real
+            // Para rendimiento extremo, considera mover esto a Redis en el futuro
+            $admin->updateQuietly(['last_seen_at' => now()]);
+        }
+
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $admin ? [

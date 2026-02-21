@@ -8,6 +8,7 @@ class RegisterDriverData
 {
     public function __construct(
         public readonly string $phone,
+        public readonly string $countryCode,
         public readonly string $email,
         public readonly string $password,
         public readonly string $firstName,
@@ -27,6 +28,7 @@ class RegisterDriverData
     {
         return new self(
             phone:         $request->validated('phone'),
+            countryCode:   $request->validated('country_code'),
             email:         $request->validated('email'),
             password:      $request->validated('password'),
             firstName:     $request->validated('first_name'),

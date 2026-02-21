@@ -1,27 +1,21 @@
 <?php
-
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Price extends Model
 {
-    use HasFactory, SoftDeletes, HasUuids;
+    use SoftDeletes, HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
-        'sku_id', 
-        'branch_id', 
-        'type',
-        'list_price', 
-        'final_price', 
-        'min_quantity', 
-        'priority',
-        'valid_from',
-        'valid_to'
+        'sku_id', 'branch_id', 'type', 'list_price', 
+        'final_price', 'min_quantity', 'priority', 'valid_from', 'valid_to'
     ];
 
     protected $casts = [
@@ -31,17 +25,6 @@ class Price extends Model
         'valid_to' => 'datetime',
     ];
 
-    // Scope para obtener precios vigentes
-    public function scopeActive(Builder $query)
-    {
-        $now = now();
-        return $query->where('valid_from', '<=', $now)
-                     ->where(function($q) use ($now) {
-                         $q->whereNull('valid_to')
-                           ->orWhere('valid_to', '>=', $now);
-                     });
-    }
-
-    public function sku() { return $this->belongsTo(Sku::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
+    public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
+    public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
 }

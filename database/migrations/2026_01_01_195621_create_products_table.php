@@ -8,24 +8,15 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('products', function (Blueprint $table) {
-            // CORRECCIÓN: ID Binario
             $table->uuid('id')->primary();
-            
-            // CORRECCIÓN: Relaciones Binarias
-            $table->uuid('brand_id');
-            $table->foreign('brand_id')->references('id')->on('brands');
-
-            $table->uuid('category_id');
-            $table->foreign('category_id')->references('id')->on('categories');
-            
+            $table->foreignUuid('brand_id')->constrained('brands');
+            $table->foreignUuid('category_id')->constrained('categories');
             $table->string('name')->unique(); 
             $table->string('slug')->unique();
             $table->text('description')->nullable();
             $table->string('image_path')->nullable();
-            
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_alcoholic')->default(false);
-            
             $table->timestamps();
             $table->softDeletes();
         });

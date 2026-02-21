@@ -1,55 +1,38 @@
 <?php
-
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Brand extends Model
 {
-    use HasFactory, SoftDeletes, HasUuids;
+    use SoftDeletes, HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
-        'provider_id', 'name', 'slug', 'manufacturer', 
-        'origin_country_code', 'image_path', 'website', 'tier',
-        'is_featured', 'is_active', 'sort_order'
+        'provider_id', 'name', 'slug', 'image_path', 
+        'website', 'is_active', 'is_featured', 'sort_order', 'description'
     ];
 
     protected $casts = [
-        'is_active' => 'boolean', 
-        'is_featured' => 'boolean'
+        'is_active' => 'boolean',
+        'is_featured' => 'boolean',
+        'sort_order' => 'integer'
     ];
-    
-    protected $appends = ['image_url'];
-    
-    // Estas son las configuraciones por defecto, puedes omitirlas
-    // public $incrementing = true;
-    // protected $keyType = 'int';
-    
-    public function getImageUrlAttribute()
+
+    // Relación con el silo de proveedores
+    public function provider(): BelongsTo
     {
-        return $this->image_path 
-            ? Storage::url($this->image_path) 
-            : null;
+        return $this->belongsTo(Provider::class);
     }
 
-    // Relaciones
-    public function provider()
+    // Scope para evitar BadMethodCallException en controladores
+    public function scopeActive($query)
     {
-        return $this->belongsTo(Provider::class, 'provider_id', 'id');
-    }
-    
-    public function categories()
-    {
-        return $this->belongsToMany(Category::class, 'brand_category', 'brand_id', 'category_id');
-    }
-    
-    // Relación con productos
-    public function products()
-    {
-        return $this->hasMany(Product::class, 'brand_id', 'id');
+        return $query->where('is_active', true);
     }
 }

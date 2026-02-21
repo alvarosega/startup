@@ -3,132 +3,120 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use App\Models\Brand;
-use App\Models\Category;
-use App\Http\Requests\Product\UpsertProductRequest;
-use App\DTOs\Product\ProductDTO;
-use App\Actions\Product\UpsertProductAction;
-use App\Http\Resources\ProductResource;
-use Illuminate\Http\Request; // Importante para el filtro
+use App\Models\{Product, Brand, Category};
+use App\Http\Requests\Admin\Product\{StoreProductRequest, UpdateProductRequest};
+use App\DTOs\Admin\Product\{CreateProductDTO, UpdateProductDTO};
+use App\Actions\Admin\Product\{CreateProductAction, UpdateProductAction, DeleteProductAction, ListProductsAction};
+use App\Http\Resources\Admin\Product\ProductResource;
+use Illuminate\Http\Request;
+use Inertia\Response as InertiaResponse;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Lista de productos con filtrado profundo.
+     */
+    public function index(Request $request, ListProductsAction $listAction): InertiaResponse
     {
-        // Consulta base
-        $query = Product::with([
-            'brand', 
-            'category',
-            // CRÍTICO: Cargar SKUs con TODOS los campos necesarios, incluyendo image_path
-            'skus'
-        ])->withCount('skus');
-    
-        // Filtro de búsqueda (Buscamos por Producto, Marca o Código de SKU)
-        if ($request->search) {
-            $term = $request->search;
-            $query->where(function($q) use ($term) {
-                $q->where('name', 'like', "%{$term}%")
-                  ->orWhere('description', 'like', "%{$term}%")
-                  ->orWhereHas('brand', fn($q2) => $q2->where('name', 'like', "%{$term}%"))
-                  ->orWhereHas('skus', fn($q3) => $q3->where('code', 'like', "%{$term}%"));
-            });
-        }
-
-        $products = $query->latest()->paginate(15)->withQueryString();
-    
         return Inertia::render('Admin/Products/Index', [
-            'products' => ProductResource::collection($products),
-            'filters' => $request->only(['search'])
+            'filters' => $request->only(['search', 'category', 'brand', 'status']),
+            'products' => ProductResource::collection($listAction->execute($request)),
+            'brands' => Brand::active()->get(['id', 'name']),
+            'categories' => Category::whereNull('parent_id')->active()->get(['id', 'name'])
         ]);
     }
-
-    // ... create, store, edit, update, destroy se mantienen igual ...
+    public function checkName(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $exists = \App\Models\Product::where('name', $request->name)
+            ->whereNull('deleted_at')
+            ->exists();
     
-    public function create()
+        return response()->json(['available' => !$exists]);
+    }
+    /**
+     * MÉTODO CORREGIDO: Renderiza el formulario de creación del maestro.
+     */
+    public function create(): InertiaResponse
     {
         return Inertia::render('Admin/Products/Create', [
-            'brands' => Brand::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'categories' => Category::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'brands' => Brand::active()->get(['id', 'name']),
+            'categories' => Category::whereNull('parent_id')
+                ->with(['children' => fn($q) => $q->active()])
+                ->active()
+                ->get(['id', 'name'])
         ]);
     }
 
-    public function store(UpsertProductRequest $request, UpsertProductAction $action)
+    /**
+     * Persistencia del maestro y redirección al flujo secuencial de SKUs.
+     */
+    public function store(StoreProductRequest $request, CreateProductAction $action): RedirectResponse
     {
-        $action->execute(ProductDTO::fromRequest($request));
-        return redirect()->route('admin.products.index')->with('success', 'Producto creado correctamente.');
-    }
-
-    public function edit(Product $product)
-    {
-        
-        // Carga simple (Ya no necesitamos cargar prices para el SKU)
-        $product->load(['brand:id,name', 'category:id,name', 'skus']);
-        
-        // DEBUG: Ver qué estamos cargando
-        \Log::info('Product loaded for edit:', [
-            'id' => $product->id,
-            'name' => $product->name,
-            'brand_id' => $product->brand_id,
-            'category_id' => $product->category_id,
-            'brand' => $product->brand ? $product->brand->toArray() : null,
-            'skus_count' => $product->skus->count(),
-            'skus' => $product->skus->map(function($sku) {
-                return [
-                    'id' => $sku->id,
-                    'name' => $sku->name,
-                    'code' => $sku->code,
-                    // LEEMOS DIRECTO DE LA COLUMNA NUEVA
-                    'price' => (float) $sku->base_price,
-                ];
-            })->toArray(),
+        Log::info("CATÁLOGO: Iniciando creación de producto maestro", [
+            'user_id' => auth()->id(),
+            'payload' => $request->safe()->except(['image']) // No logueamos binarios
         ]);
-    
-        // Enviar datos planos SIN Resource
-        $productArray = [
-            'id' => $product->id,
-            'name' => $product->name,
-            'brand_id' => (string) $product->brand_id, // IMPORTANTE: convertir a string
-            'category_id' => $product->category_id,
-            'description' => $product->description,
-            'image_url' => $product->image_path ? Storage::url($product->image_path) : null,
-            'is_active' => (bool) $product->is_active,
-            'is_alcoholic' => (bool) $product->is_alcoholic,
-            'brand' => $product->brand ? ['id' => $product->brand->id, 'name' => $product->brand->name] : null,
-            'category' => $product->category ? ['id' => $product->category->id, 'name' => $product->category->name] : null,
-            'skus' => $product->skus->map(function($sku) {
-                return [
-                    'id' => $sku->id,
-                    'name' => $sku->name,
-                    'code' => $sku->code,
-                    // CORRECCIÓN: Leemos directo de la nueva columna base_price
-                    'price' => (float) $sku->base_price,
-                    'conversion_factor' => (float) $sku->conversion_factor,
-                    'weight' => (float) $sku->weight,
-                    'image_url' => $sku->image_path ? Storage::url($sku->image_path) : null,
-                ];
-            })->toArray(),
-        ];
+
+        try {
+            $product = $action->execute(CreateProductDTO::fromRequest($request));
+            
+            Log::info("CATÁLOGO: Producto maestro creado con éxito", ['product_id' => $product->id]);
+
+            return redirect()->route('admin.products.skus.create', $product->id)
+                ->with('success', 'Maestro creado. Configure variantes.');
+
+        } catch (\Exception $e) {
+            Log::error("CATÁLOGO: Fallo en creación de producto", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+    /**
+     * Edición del maestro.
+     */
+    public function edit(Product $product): InertiaResponse
+    {
+        $product->load(['brand', 'category']);
     
         return Inertia::render('Admin/Products/Edit', [
-            'product' => $productArray, // Datos planos en lugar de Resource
-            'brands' => Brand::orderBy('name')->get(['id', 'name']),
-            'categories' => Category::orderBy('name')->get(['id', 'name']),
+            'product' => (new ProductResource($product))->resolve(),
+            'brands' => Brand::active()->get(['id', 'name']),
+            'categories' => Category::whereNull('parent_id')
+                ->with(['children' => fn($q) => $q->active()])
+                ->active()
+                ->get(['id', 'name'])
         ]);
     }
 
-    public function update(UpsertProductRequest $request, Product $product, UpsertProductAction $action)
+    public function update(UpdateProductRequest $request, Product $product, UpdateProductAction $action): RedirectResponse
     {
-        $action->execute(ProductDTO::fromRequest($request), $product);
-        return redirect()->route('admin.products.index')->with('success', 'Producto actualizado.');
+        Log::notice("CATÁLOGO: Intento de actualización de producto", [
+            'product_id' => $product->id,
+            'user_id' => auth()->id()
+        ]);
+
+        $action->execute($product, UpdateProductDTO::fromRequest($request));
+
+        Log::info("CATÁLOGO: Producto actualizado correctamente", ['product_id' => $product->id]);
+
+        return redirect()->route('admin.products.index')
+            ->with('success', 'Catálogo actualizado.');
     }
 
-    public function destroy(Product $product)
+    public function destroy(Product $product, DeleteProductAction $action): RedirectResponse
     {
-        $product->delete();
-        return redirect()->route('admin.products.index')->with('success', 'Producto eliminado.');
+        Log::warning("CATÁLOGO: Ejecutando borrado lógico de producto", [
+            'product_id' => $product->id,
+            'user_id' => auth()->id()
+        ]);
+
+        $action->execute($product);
+
+        return redirect()->route('admin.products.index')->with('warning', 'Eliminado.');
     }
 }

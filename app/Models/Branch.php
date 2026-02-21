@@ -26,5 +26,8 @@ class Branch extends Model
         'is_default' => 'boolean',
     ];
 
-               
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }        
 }

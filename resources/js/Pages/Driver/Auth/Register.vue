@@ -4,19 +4,11 @@ import { useForm, Link, Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
-
-// Componentes Base
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
 import ImageUploader from '@/Components/Maps/ImageUploader.vue'; 
+import { Truck, Bike, Car, User, ArrowRight, ArrowLeft, CheckCircle, Lock, Smartphone, Mail, Shield, Upload, Info } from 'lucide-vue-next';
 
-import { 
-    Truck, Bike, Car, User, FileText, 
-    ArrowRight, ArrowLeft, CheckCircle, Lock, 
-    Smartphone, Mail, Shield, Upload
-} from 'lucide-vue-next';
-
-// --- ESTADO ---
+const props = defineProps({ activeBranches: Array });
 const currentStep = ref(1);
 const step1Errors = ref({});
 const validatingStep1 = ref(false);
@@ -28,32 +20,28 @@ const steps = [
 ];
 
 const form = useForm({
-    phone: '',country_code: 'BO', email: '', password: '', password_confirmation: '', terms: false,
-    first_name: '', last_name: '', license_number: '', license_plate: '', vehicle_type: 'moto',
-    avatar_type: 'icon', avatar_source: 'avatar_1.svg', avatar_file: null,
-    role: 'driver'
+    phone: '', country_code: 'BO', email: '', password: '', password_confirmation: '', 
+    terms: true, first_name: '', last_name: '', license_number: '', license_plate: '', vehicle_type: 'moto',
+    avatar_type: 'icon', avatar_source: 'avatar_1.svg', avatar_file: null, role: 'driver'
 });
 
+// REGLA ESTRICTA: Solo Bolivia
 const telOptions = { 
     mode: 'international', 
     defaultCountry: 'BO', 
-    dropdownOptions: { showSearchBox: true, showFlags: true }, 
-    inputOptions: { placeholder: '77712345', autofocus: true } 
+    onlyCountries: ['BO'], 
+    dropdownOptions: { showSearchBox: false, showFlags: true }, 
+    inputOptions: { placeholder: '77712345' } 
 };
 
 const onInput = (phone, obj) => { 
-    if(obj?.number) {
-        form.phone = obj.number; // Guarda el número completo: +5178710820
-        form.country_code = obj.country?.iso2 || 'BO'; // Guarda el ISO: PE, BO, etc.
-    }
+    form.country_code = 'BO'; 
+    if(obj?.number) form.phone = obj.number; 
     if (step1Errors.value.phone) delete step1Errors.value.phone;
-    
 };
 
-// --- NAVEGACIÓN ---
 const nextStep = async () => {
     if (currentStep.value === 1) {
-        if (!form.terms) return alert('Debes aceptar los términos');
         step1Errors.value = {};
         validatingStep1.value = true;
         try {
@@ -68,26 +56,16 @@ const nextStep = async () => {
             validatingStep1.value = false;
         }
     } else if (currentStep.value === 2) {
-        if (!form.first_name || !form.last_name || !form.license_number || !form.license_plate) {
-            return alert('Completa todos los datos del vehículo.');
-        }
+        if (!form.first_name || !form.last_name || !form.license_number || !form.license_plate) return alert('Completa todos los datos.');
         currentStep.value = 3; 
     }
 };
 
 const submit = () => {
-    form.post(route('driver.register.store'), { 
-        forceFormData: true, 
-        preserveScroll: true,
-        onError: (errors) => {
-            // Esto te dirá exactamente qué campo está fallando (ej: license_number)
-            console.error("Errores de validación final:", errors);
-            alert("Error de validación: " + Object.values(errors).flat().join(", "));
-        }
-    });
+    form.post(route('driver.register.store'), { forceFormData: true, preserveScroll: true });
 };
-const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
 
+const progressPercentage = computed(() => (currentStep.value / steps.length) * 100);
 const vehicleTypes = [
     { id: 'moto', label: 'Moto', icon: Bike },
     { id: 'car', label: 'Auto', icon: Car },
@@ -96,122 +74,110 @@ const vehicleTypes = [
 </script>
 
 <template>
-    <Head title="Registro de Conductor - BoliviaLogistics" />
+    <Head title="Postulación Driver - BoliviaLogistics" />
 
-    <div class="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div class="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[750px]">
+    <div class="min-h-screen bg-background relative flex items-center justify-center p-4 overflow-hidden transition-colors duration-300">
+        <div class="fixed inset-0 z-0">
+            <div class="absolute inset-0 bg-dots opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" />
+        </div>
+
+        <div class="w-full max-w-xl bg-card border border-border rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col h-full max-h-[850px] overflow-hidden">
             
-            <div class="relative pt-8 px-8 pb-4 bg-slate-50 border-b border-slate-200">
-                <div class="absolute top-0 left-0 w-full h-1.5 bg-slate-200">
-                    <div class="h-full bg-amber-500 transition-all duration-500" :style="{ width: progressPercentage + '%' }"></div>
-                </div>
-
-                <div class="flex justify-between items-end">
+            <div class="px-8 pt-8 pb-4 border-b border-border shrink-0 bg-muted/20">
+                <div class="flex justify-between items-end mb-6">
                     <div>
-                        <h2 class="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">
+                        <h2 class="text-3xl font-display font-black text-foreground tracking-tighter italic uppercase leading-none">
                             {{ steps[currentStep - 1].title }}
                         </h2>
-                        <p class="text-xs font-bold text-amber-600 uppercase tracking-widest">Paso {{ currentStep }} de {{ steps.length }}</p>
+                        <p class="text-[10px] uppercase font-bold tracking-[0.2em] text-amber-500 mt-2">Paso {{ currentStep }} / 3</p>
                     </div>
-                    <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg">
                         <component :is="steps[currentStep - 1].icon" :size="24" />
                     </div>
                 </div>
+                <div class="flex items-center gap-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div class="h-full bg-amber-500 transition-all duration-700" :style="{ width: progressPercentage + '%' }"></div>
+                </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-8 scrollbar-thin">
-                <form @submit.prevent="submit" class="h-full flex flex-col">
-                    
-                    <div v-show="currentStep === 1" class="space-y-5 animate-in slide-in-from-right-4">
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
-                                <Smartphone :size="12" /> Número de Celular
+            <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <form @submit.prevent="submit" class="space-y-6">
+                    <div v-show="currentStep === 1" class="space-y-6 animate-in slide-in-from-right-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1 flex items-center gap-2">
+                                <Smartphone :size="14" class="text-amber-500" /> Celular (BO) *
                             </label>
-                            <vue-tel-input v-bind="telOptions" v-model="form.phone" @on-input="onInput" class="custom-tel-input" :class="{'!border-red-500': step1Errors.phone}" />
-                            <p v-if="step1Errors.phone" class="text-[10px] text-red-500 font-bold mt-1 ml-1">{{ step1Errors.phone[0] }}</p>
+                            <vue-tel-input v-bind="telOptions" v-model="form.phone" @on-input="onInput" class="driver-tel-input" :class="{'!border-error': step1Errors.phone}" />
+                            <p v-if="step1Errors.phone" class="text-[10px] text-error font-black mt-1 ml-1 uppercase">{{ step1Errors.phone[0] }}</p>
                         </div>
-
-                        <BaseInput v-model="form.email" type="email" label="Correo Electrónico *" :error="step1Errors.email ? step1Errors.email[0] : ''">
-                            <template #icon><Mail :size="14" /></template>
-                        </BaseInput>
-
+                        <BaseInput v-model="form.email" type="email" label="Correo" :error="step1Errors.email?.[0]" :icon="Mail" />
                         <div class="grid grid-cols-2 gap-4">
-                            <BaseInput v-model="form.password" type="password" label="Contraseña" :error="step1Errors.password ? step1Errors.password[0] : ''"><template #icon><Lock :size="14" /></template></BaseInput>
-                            <BaseInput v-model="form.password_confirmation" type="password" label="Confirmar"><template #icon><Lock :size="14" /></template></BaseInput>
-                        </div>
-
-                        <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                            <BaseCheckbox v-model="form.terms">
-                                <span class="text-xs font-bold text-slate-700">Acepto los <a href="#" class="text-amber-600 underline">Términos de Conductor</a></span>
-                            </BaseCheckbox>
+                            <BaseInput v-model="form.password" type="password" label="Clave" :error="step1Errors.password?.[0]" :icon="Lock" />
+                            <BaseInput v-model="form.password_confirmation" type="password" label="Confirmar" :icon="Lock" />
                         </div>
                     </div>
 
-                    <div v-show="currentStep === 2" class="space-y-6 animate-in slide-in-from-right-4">
+                    <div v-show="currentStep === 2" class="space-y-8 animate-in slide-in-from-right-4">
                         <div class="grid grid-cols-2 gap-4">
-                            <BaseInput v-model="form.first_name" label="Nombres *" />
-                            <BaseInput v-model="form.last_name" label="Apellidos *" />
+                            <BaseInput v-model="form.first_name" label="Nombres" />
+                            <BaseInput v-model="form.last_name" label="Apellidos" />
                         </div>
-
-                        <div class="space-y-3">
-                            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Selecciona tu Vehículo</label>
-                            <div class="grid grid-cols-3 gap-3">
-                                <button v-for="vehicle in vehicleTypes" :key="vehicle.id" type="button" @click="form.vehicle_type = vehicle.id"
-                                    class="flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all"
-                                    :class="form.vehicle_type === vehicle.id ? 'border-amber-500 bg-amber-50 text-amber-600 shadow-inner' : 'border-slate-100 text-slate-400 hover:border-slate-200'">
-                                    <component :is="vehicle.icon" :size="24" />
-                                    <span class="text-[10px] font-black uppercase mt-2">{{ vehicle.label }}</span>
-                                </button>
-                            </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button v-for="v in vehicleTypes" :key="v.id" type="button" @click="form.vehicle_type = v.id"
+                                class="flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all"
+                                :class="form.vehicle_type === v.id ? 'border-amber-500 bg-amber-500/10 text-amber-500 shadow-sm' : 'border-border text-muted-foreground hover:bg-muted'">
+                                <component :is="v.icon" :size="28" />
+                                <span class="text-[9px] font-black uppercase mt-3">{{ v.label }}</span>
+                            </button>
                         </div>
-
-                        <div class="bg-slate-900 p-5 rounded-2xl space-y-4 shadow-xl">
-                            <div class="flex items-center gap-2 text-amber-500 mb-2">
-                                <Shield :size="16" /> <span class="text-[10px] font-black uppercase">Seguridad Vial</span>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <BaseInput v-model="form.license_number" label="Nº Licencia" class="dark-input" />
-                                <BaseInput v-model="form.license_plate" label="Placa" class="dark-input" />
-                            </div>
+                        <div class="bg-muted/50 p-6 rounded-[2rem] grid grid-cols-2 gap-4 border border-border">
+                            <BaseInput v-model="form.license_number" label="Licencia" />
+                            <BaseInput v-model="form.license_plate" label="Placa" />
                         </div>
                     </div>
 
                     <div v-show="currentStep === 3" class="space-y-8 animate-in slide-in-from-right-4 text-center">
-                        <div class="grid grid-cols-3 gap-4 px-4">
+                        <div class="grid grid-cols-3 gap-4 max-w-sm mx-auto">
                             <button v-for="i in 6" :key="i" type="button" @click="() => { form.avatar_type='icon'; form.avatar_source=`avatar_${i}.svg`; }"
-                                class="aspect-square rounded-full border-4 transition-all p-1"
-                                :class="form.avatar_type === 'icon' && form.avatar_source === `avatar_${i}.svg` ? 'border-amber-500 bg-amber-50' : 'border-transparent bg-slate-50'">
+                                class="aspect-square rounded-3xl border-2 transition-all p-2"
+                                :class="form.avatar_type === 'icon' && form.avatar_source === `avatar_${i}.svg` ? 'border-amber-500 bg-amber-500/10 scale-110 shadow-lg' : 'border-transparent bg-muted opacity-40 hover:opacity-100'">
                                 <img :src="`/assets/avatars/avatar_${i}.svg`" class="w-full h-full" />
                             </button>
-                        </div>
-                        <div class="pt-4 border-t border-dashed">
-                            <ImageUploader v-model="form.avatar_file" aspect-ratio="square">
-                                <template #label><span class="text-xs font-black text-amber-600 uppercase underline cursor-pointer">O sube una foto real</span></template>
-                            </ImageUploader>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <div class="p-8 bg-slate-50 border-t border-slate-200 flex gap-4">
-                <button v-if="currentStep > 1" @click="currentStep--" class="btn bg-white border border-slate-200 text-slate-600 flex-1 font-bold">Atrás</button>
-                <Link v-else :href="route('driver.login')" class="btn bg-white border border-slate-200 text-slate-600 flex-1 font-bold flex items-center justify-center">¿Ya tienes cuenta?</Link>
+            <div class="p-8 border-t border-border bg-card/80 backdrop-blur-md shrink-0">
+                <div class="flex gap-4">
+                    <button v-if="currentStep > 1" @click="currentStep--" class="btn btn-outline flex-1 h-14 font-black uppercase text-foreground">Atrás</button>
+                    <Link v-else :href="route('driver.login')" class="btn btn-ghost flex-1 h-14 font-black uppercase text-muted-foreground border border-border">Login</Link>
 
-                <button v-if="currentStep < 3" @click="nextStep" :disabled="validatingStep1" class="btn bg-slate-900 text-white flex-1 font-bold shadow-xl shadow-slate-900/20">
-                    <span v-if="validatingStep1" class="spinner border-white mr-2"></span>
-                    <span v-else class="flex items-center justify-center gap-2 uppercase tracking-widest text-xs">Siguiente <ArrowRight :size="16" /></span>
-                </button>
-                <button v-else @click="submit" :disabled="form.processing" class="btn bg-amber-500 text-white flex-1 font-bold shadow-xl shadow-amber-500/20">
-                    <span v-if="form.processing" class="spinner border-white mr-2"></span>
-                    <span v-else class="flex items-center justify-center gap-2 uppercase tracking-widest text-xs">Finalizar Registro <CheckCircle :size="16" /></span>
-                </button>
+                    <button v-if="currentStep < 3" @click="nextStep" :disabled="validatingStep1" class="btn btn-primary flex-[2] h-14 bg-amber-500 border-none shadow-lg shadow-amber-500/20 text-white">
+                        <span v-if="validatingStep1" class="loading loading-spinner"></span>
+                        <span v-else class="flex items-center gap-2 font-black uppercase italic">Siguiente <ArrowRight :size="18"/></span>
+                    </button>
+
+                    <div v-else class="flex-[2] flex flex-col gap-3">
+                        <button @click="submit" :disabled="form.processing" class="btn btn-primary w-full h-14 bg-amber-500 border-none shadow-lg shadow-amber-500/20 text-white">
+                            <span v-if="form.processing" class="loading loading-spinner"></span>
+                            <span v-else class="flex items-center justify-center gap-2 font-black uppercase italic">Finalizar <CheckCircle :size="20" /></span>
+                        </button>
+                        <p class="text-[9px] text-center text-muted-foreground font-medium leading-tight">
+                            Al registrarse acepta los <span class="text-amber-500 font-black">Términos de Operación</span>.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-.custom-tel-input { @apply w-full rounded-xl border-slate-200 bg-white text-sm h-[48px] border; }
-:deep(.dark-input label) { @apply text-slate-400; }
-:deep(.dark-input input) { @apply bg-slate-800 border-slate-700 text-white focus:border-amber-500; }
+.driver-tel-input { @apply w-full rounded-2xl border-border bg-muted/50 text-foreground text-base h-[52px] border transition-all font-mono; }
+.driver-tel-input:focus-within { @apply border-amber-500 ring-0 bg-background; }
+:deep(.vti__dropdown) { @apply bg-transparent px-3 !important; }
+:deep(.vti__input) { @apply bg-transparent text-foreground !important; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-muted rounded-full; }
 </style>

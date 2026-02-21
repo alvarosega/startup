@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
+
+
 class Category extends Model
 {
     use HasFactory, SoftDeletes, HasUuids;
@@ -62,5 +64,33 @@ class Category extends Model
     public function products()
     {
         return $this->hasMany(Product::class);
+    }
+    public static function getAllForAdminTree()
+    {
+        return self::orderBy('name')->get();
+    }
+
+    public static function getPossibleParents(?string $excludeId = null)
+    {
+        $query = self::roots()->orderBy('name');
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+        return $query->get(['id', 'name']);
+    }
+    public static function getRootsForZoneAssignment()
+    {
+        return self::roots()
+            ->orderBy('name')
+            ->get(['id', 'name', 'market_zone_id']);
+    }
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function marketZone()
+    {
+        return $this->belongsTo(MarketZone::class, 'market_zone_id');
     }
 }

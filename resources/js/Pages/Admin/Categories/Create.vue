@@ -9,21 +9,20 @@ import { ref, computed, watch } from 'vue';
 import { 
     FolderTree, Image as ImageIcon, Settings, 
     ArrowRight, ArrowLeft, Save, AlertCircle, 
-    CheckCircle, Info, Hash, FileText
+    Hash, FileText, Plus, Trash2, Layers
 } from 'lucide-vue-next';
 
 const props = defineProps({
-    parents: Array
+    parents: Array // Solo contiene {id, name}
 });
 
-// --- ESTADO ---
 const currentStep = ref(1);
-const categoryType = ref('parent'); // 'parent' o 'child'
+const categoryType = ref('parent'); 
 
 const steps = [
-    { id: 1, title: 'Jerarquía', icon: FolderTree, fields: ['name', 'external_code', 'parent_id'] },
-    { id: 2, title: 'Contenido', icon: ImageIcon, fields: ['image', 'description', 'seo_title'] },
-    { id: 3, title: 'Ajustes', icon: Settings, fields: ['tax_classification', 'requires_age_check'] },
+    { id: 1, title: 'Jerarquía', icon: FolderTree, fields: ['name', 'parent_id', 'children'] },
+    { id: 2, title: 'Contenido', icon: ImageIcon, fields: ['image', 'description'] },
+    { id: 3, title: 'Ajustes & SEO', icon: Settings, fields: ['tax_classification', 'seo_title'] },
 ];
 
 const form = useForm({
@@ -38,35 +37,41 @@ const form = useForm({
     requires_age_check: false,
     is_active: true,
     is_featured: false,
+    // Lógica jerárquica:
+    children: [] 
 });
 
-// --- LÓGICA ---
+// --- ACCIONES DE SUBCATEGORÍAS ---
+const addChild = () => {
+    form.children.push({ name: '', external_code: '' });
+};
 
-// Resetear parent_id si cambiamos a "Categoría Principal"
+const removeChild = (index) => {
+    form.children.splice(index, 1);
+};
+
+// Resetear estados al cambiar tipo
 watch(categoryType, (val) => {
     if (val === 'parent') {
         form.parent_id = '';
-        form.clearErrors('parent_id');
+    } else {
+        form.children = [];
     }
+    form.clearErrors();
 });
 
 const nextStep = () => {
     form.clearErrors();
-    
-    // Validación manual paso 1
     if (currentStep.value === 1) {
-        let valid = true;
         if (!form.name.trim()) {
             form.setError('name', 'El nombre es obligatorio');
-            valid = false;
+            return;
         }
         if (categoryType.value === 'child' && !form.parent_id) {
-            form.setError('parent_id', 'Debes seleccionar una categoría padre');
-            valid = false;
+            form.setError('parent_id', 'Seleccione un padre');
+            return;
         }
-        if (!valid) return;
     }
-    
     if (currentStep.value < steps.length) currentStep.value++;
 };
 
@@ -79,234 +84,151 @@ const submit = () => {
         forceFormData: true,
         preserveScroll: true,
         onError: (errors) => {
-            // Ir al paso donde ocurrió el error
-            const stepWithError = steps.find(step => step.fields.some(f => errors[f]));
+            const stepWithError = steps.find(step => step.fields.some(f => Object.keys(errors).some(key => key.startsWith(f))));
             if (stepWithError) currentStep.value = stepWithError.id;
         }
     });
 };
 
 const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
-
-const handleStepClick = (stepId) => {
-    // Solo permitir volver atrás, no saltar adelante sin validar
-    if (stepId < currentStep.value) {
-        currentStep.value = stepId;
-    }
-};
 </script>
 
 <template>
     <AdminLayout>
-        <div class="max-w-4xl mx-auto pb-24 md:pb-12">
-            
-            <div class="mb-8 px-4 md:px-0">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h1 class="text-2xl md:text-3xl font-display font-black text-foreground tracking-tight">
-                            Nueva Categoría
-                        </h1>
-                        <p class="text-muted-foreground text-sm mt-1">Configura la estructura del catálogo</p>
-                    </div>
-                    <Link :href="route('admin.categories.index')" 
-                          class="btn btn-ghost btn-sm text-muted-foreground hover:text-error">
-                        Cancelar
-                    </Link>
+        <div class="max-w-4xl mx-auto pb-12">
+            <div class="mb-8 flex justify-between items-end px-4 md:px-0">
+                <div>
+                    <h1 class="text-3xl font-black tracking-tight">Nueva Categoría</h1>
+                    <p class="text-muted-foreground">Arquitectura de catálogo de alto rendimiento</p>
                 </div>
-
-                <StepProgress 
-                    :steps="steps" 
-                    :current-step="currentStep" 
-                    :progress-percentage="progressPercentage"
-                    @step-click="handleStepClick"
-                />
+                <Link :href="route('admin.categories.index')" class="btn btn-ghost text-muted-foreground">Cancelar</Link>
             </div>
 
-            <div class="card overflow-hidden border border-border shadow-xl min-h-[500px] flex flex-col mx-4 md:mx-0">
-                <form class="flex-1 flex flex-col" @submit.prevent>
-                    
-                    <div class="p-6 md:p-8 flex-1 relative">
+            <StepProgress :steps="steps" :current-step="currentStep" :progress-percentage="progressPercentage" />
+
+            <div class="card border border-border bg-card shadow-2xl mt-8">
+                <form @submit.prevent="submit">
+                    <div class="p-8 min-h-[450px]">
                         <Transition name="fade" mode="out-in">
                             
-                            <div v-if="currentStep === 1" key="1" class="space-y-8 animate-in slide-in-from-right-4 fade-in">
-                                
+                            <div v-if="currentStep === 1" key="1" class="space-y-6">
                                 <CategoryTypeSelector v-model="categoryType" />
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="md:col-span-2 space-y-2">
-                                        <label class="form-label text-base">Nombre de la Categoría *</label>
-                                        <input v-model="form.name" type="text" 
-                                               class="form-input text-lg font-bold py-3"
-                                               :class="{'border-error ring-error/20': form.errors.name}"
-                                               placeholder="Ej: Licores Premium" autofocus>
-                                        <p v-if="form.errors.name" class="form-error flex items-center gap-1">
-                                            <AlertCircle :size="14"/> {{ form.errors.name }}
-                                        </p>
+                                    <div class="md:col-span-2">
+                                        <label class="form-label">Nombre Principal</label>
+                                        <input v-model="form.name" type="text" class="form-input text-lg font-bold" placeholder="Ej: Bebidas">
+                                        <p v-if="form.errors.name" class="text-error text-xs mt-1">{{ form.errors.name }}</p>
                                     </div>
 
-                                    <div class="space-y-2">
-                                        <label class="form-label flex items-center gap-2">
-                                            <Hash :size="14" class="text-muted-foreground"/> Código ERP / SKU
-                                        </label>
-                                        <input v-model="form.external_code" type="text" 
-                                               class="form-input font-mono text-sm"
-                                               placeholder="CAT-001">
+                                    <div v-if="categoryType === 'child'" class="md:col-span-2 animate-in fade-in slide-in-from-top-4">
+                                        <label class="form-label text-primary">Asignar a Categoría Padre</label>
+                                        <select v-model="form.parent_id" class="form-input border-primary/40">
+                                            <option value="">-- Seleccionar Padre --</option>
+                                            <option v-for="cat in parents" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                                        </select>
                                     </div>
 
-                                    <div v-if="categoryType === 'child'" 
-                                         class="md:col-span-2 bg-primary/5 p-4 rounded-xl border border-primary/20 animate-in zoom-in-95">
-                                        <label class="form-label text-primary font-bold mb-2 block">Selecciona la Categoría Padre *</label>
-                                        <div class="relative">
-                                            <FolderTree class="absolute left-3 top-1/2 -translate-y-1/2 text-primary/50" :size="18"/>
-                                            <select v-model="form.parent_id" 
-                                                    class="form-input pl-10 w-full bg-background"
-                                                    :class="{'border-error': form.errors.parent_id}">
-                                                <option value="" disabled>-- Seleccionar --</option>
-                                                <option v-for="cat in parents" :key="cat.id" :value="cat.id">
-                                                    {{ cat.name }}
-                                                </option>
-                                            </select>
-                                        </div>
-                                        <p v-if="form.errors.parent_id" class="form-error mt-1">{{ form.errors.parent_id }}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-else-if="currentStep === 2" key="2" class="space-y-8 animate-in slide-in-from-right-4 fade-in">
-                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                    
-                                    <div class="lg:col-span-1 space-y-2">
-                                        <label class="form-label">Imagen de Portada</label>
-                                        <ImageUploader v-model="form.image" class="h-64 w-full" />
-                                        <p v-if="form.errors.image" class="form-error text-center">{{ form.errors.image }}</p>
-                                    </div>
-
-                                    <div class="lg:col-span-2 space-y-6">
-                                        <div class="space-y-2">
-                                            <label class="form-label flex items-center gap-2">
-                                                <FileText :size="14"/> Descripción Corta
+                                    <div v-if="categoryType === 'parent'" class="md:col-span-2 space-y-4 border-t pt-6">
+                                        <div class="flex justify-between items-center">
+                                            <label class="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                                <Layers :size="16"/> Subcategorías Inmediatas
                                             </label>
-                                            <textarea v-model="form.description" rows="4" 
-                                                      class="form-input resize-none leading-relaxed"
-                                                      placeholder="Descripción atractiva para la app..."></textarea>
+                                            <button type="button" @click="addChild" class="btn btn-xs btn-primary">
+                                                <Plus :size="14"/> Añadir Hijo
+                                            </button>
                                         </div>
+                                        
+                                        <div v-if="form.children.length === 0" class="text-center py-8 border-2 border-dashed rounded-xl text-muted-foreground text-sm">
+                                            Opcional: Define subcategorías para crearlas en bloque.
+                                        </div>
+                                        <div v-for="(child, index) in form.children" :key="index" 
+                                                class="p-4 bg-muted/10 border border-border rounded-xl space-y-4 animate-in zoom-in-95">
+                                                
+                                                <div class="flex justify-between items-start">
+                                                    <span class="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded">HIJO #{{ index + 1 }}</span>
+                                                    <button type="button" @click="removeChild(index)" class="text-error hover:bg-error/10 p-1.5 rounded-lg transition-colors">
+                                                        <Trash2 :size="16"/>
+                                                    </button>
+                                                </div>
 
-                                        <div class="bg-muted/30 p-5 rounded-xl border border-border/50">
-                                            <div class="flex items-center gap-2 mb-4">
-                                                <div class="p-1.5 bg-success/10 rounded-md">
-                                                    <Info :size="16" class="text-success"/>
+                                                <div class="flex flex-col md:flex-row gap-4">
+                                                    <div class="w-full md:w-24 h-24 shrink-0">
+                                                        <ImageUploader v-model="child.image" class="h-full w-full rounded-lg" />
+                                                    </div>
+
+                                                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        <div class="space-y-1">
+                                                            <label class="text-[10px] uppercase font-bold text-muted-foreground">Nombre</label>
+                                                            <input v-model="child.name" placeholder="Ej: Subcategoría A" class="form-input text-sm">
+                                                            <p v-if="form.errors[`children.${index}.name`]" class="text-error text-[10px]">{{ form.errors[`children.${index}.name`] }}</p>
+                                                        </div>
+                                                        <div class="space-y-1">
+                                                            <label class="text-[10px] uppercase font-bold text-muted-foreground">Código ERP</label>
+                                                            <input v-model="child.external_code" placeholder="ERP-XXX" class="form-input text-sm font-mono">
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <h3 class="text-xs font-bold text-foreground uppercase tracking-wider">Optimización SEO</h3>
                                             </div>
-                                            
-                                            <div class="space-y-4">
-                                                <div>
-                                                    <label class="text-xs font-medium text-muted-foreground mb-1 block">Meta Título</label>
-                                                    <input v-model="form.seo_title" type="text" class="form-input text-sm h-9" placeholder="Título para buscadores">
-                                                </div>
-                                                <div>
-                                                    <label class="text-xs font-medium text-muted-foreground mb-1 block">Meta Descripción</label>
-                                                    <textarea v-model="form.seo_description" rows="2" class="form-input text-sm resize-none" placeholder="Resumen para buscadores"></textarea>
-                                                </div>
-                                            </div>
-                                        </div>
+
+                                            <button type="button" @click="addChild" 
+                                                    class="w-full py-4 border-2 border-dashed border-primary/20 rounded-xl text-primary/60 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-sm font-bold">
+                                                <Plus :size="18"/> Añadir otra subcategoría
+                                            </button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div v-else key="3" class="space-y-6 animate-in slide-in-from-right-4 fade-in">
-                                
-                                <div class="bg-card border border-border rounded-xl divide-y divide-border overflow-hidden">
-                                    <div class="p-4 bg-muted/20">
-                                        <h3 class="font-bold text-sm text-foreground flex items-center gap-2">
-                                            <Settings :size="16" class="text-primary"/> Configuración de Visibilidad
-                                        </h3>
-                                    </div>
-
-                                    <div class="p-4">
-                                        <BaseCheckbox v-model="form.is_active" class="w-full">
-                                            <div class="flex items-center justify-between group cursor-pointer">
-                                                <div>
-                                                    <span class="block text-sm font-bold text-foreground group-hover:text-primary transition-colors">Categoría Activa</span>
-                                                    <span class="text-xs text-muted-foreground">Visible en catálogo y puntos de venta</span>
-                                                </div>
-                                                <div :class="`w-12 h-6 rounded-full p-1 transition-colors ${form.is_active ? 'bg-success' : 'bg-muted'}`">
-                                                    <div :class="`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${form.is_active ? 'translate-x-6' : 'translate-x-0'}`"></div>
-                                                </div>
-                                            </div>
-                                        </BaseCheckbox>
-                                    </div>
-
-                                    <div class="p-4">
-                                        <BaseCheckbox v-model="form.is_featured" class="w-full">
-                                            <div class="flex items-center justify-between group cursor-pointer">
-                                                <div>
-                                                    <span class="block text-sm font-bold text-foreground group-hover:text-warning transition-colors">Destacada</span>
-                                                    <span class="text-xs text-muted-foreground">Aparecerá en carruseles principales</span>
-                                                </div>
-                                                <div :class="`w-12 h-6 rounded-full p-1 transition-colors ${form.is_featured ? 'bg-warning' : 'bg-muted'}`">
-                                                    <div :class="`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${form.is_featured ? 'translate-x-6' : 'translate-x-0'}`"></div>
-                                                </div>
-                                            </div>
-                                        </BaseCheckbox>
-                                    </div>
-
-                                    <div class="p-4">
-                                        <BaseCheckbox v-model="form.requires_age_check" class="w-full">
-                                            <div class="flex items-center justify-between group cursor-pointer">
-                                                <div>
-                                                    <span class="block text-sm font-bold text-foreground group-hover:text-error transition-colors flex items-center gap-2">
-                                                        Restricción de Edad <AlertCircle :size="14" class="text-error"/>
-                                                    </span>
-                                                    <span class="text-xs text-muted-foreground">Requiere validación +18</span>
-                                                </div>
-                                                <div :class="`w-12 h-6 rounded-full p-1 transition-colors ${form.requires_age_check ? 'bg-error' : 'bg-muted'}`">
-                                                    <div :class="`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${form.requires_age_check ? 'translate-x-6' : 'translate-x-0'}`"></div>
-                                                </div>
-                                            </div>
-                                        </BaseCheckbox>
-                                    </div>
+                            <div v-else-if="currentStep === 2" key="2" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <div class="md:col-span-1">
+                                    <label class="form-label">Imagen Representativa</label>
+                                    <ImageUploader v-model="form.image" class="h-64 shadow-inner" />
                                 </div>
+                                <div class="md:col-span-2 space-y-4">
+                                    <label class="form-label">Descripción Operativa</label>
+                                    <textarea v-model="form.description" rows="8" class="form-input resize-none" placeholder="Detalles internos o comerciales..."></textarea>
+                                </div>
+                            </div>
 
-                                <div class="space-y-2 pt-2">
-                                    <label class="form-label text-xs uppercase tracking-wider text-muted-foreground">Facturación</label>
-                                    <div class="relative">
-                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">ICE:</span>
-                                        <input v-model="form.tax_classification" type="text" 
-                                               class="form-input pl-10 font-mono text-sm uppercase"
-                                               placeholder="ALCOHOL_GENERIC">
+                            <div v-else key="3" class="space-y-8">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div class="space-y-4">
+                                        <h3 class="text-sm font-black uppercase text-muted-foreground border-b pb-2">Configuración Base</h3>
+                                        <BaseCheckbox v-model="form.is_active" label="Categoría Activa" help="Visible en el catálogo público" />
+                                        <BaseCheckbox v-model="form.is_featured" label="Destacar en Home" help="Aparece en carruseles principales" />
+                                        <BaseCheckbox v-model="form.requires_age_check" label="Restricción +18" help="Obliga validación de edad al comprar" />
                                     </div>
-                                    <p class="text-[10px] text-muted-foreground">Código de clasificación para impuestos especiales.</p>
+                                    <div class="space-y-4">
+                                        <h3 class="text-sm font-black uppercase text-muted-foreground border-b pb-2">SEO & Impuestos</h3>
+                                        <div>
+                                            <label class="form-label text-xs">Clasificación Fiscal (ICE/IVA)</label>
+                                            <input v-model="form.tax_classification" type="text" class="form-input font-mono" placeholder="GENERIC_TAX">
+                                        </div>
+                                        <div>
+                                            <label class="form-label text-xs">SEO Title</label>
+                                            <input v-model="form.seo_title" type="text" class="form-input" placeholder="Meta title para buscadores">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                         </Transition>
                     </div>
 
-                    <div class="p-4 bg-background/80 backdrop-blur-md border-t border-border flex justify-between items-center sticky bottom-0 z-10">
-                        <button type="button" @click="prevStep" 
-                                class="btn btn-ghost hover:bg-muted text-muted-foreground"
-                                :class="{'invisible': currentStep === 1}">
-                            <ArrowLeft :size="18" class="mr-2"/> Atrás
+                    <div class="p-6 bg-muted/30 border-t flex justify-between items-center rounded-b-xl">
+                        <button type="button" @click="prevStep" class="btn btn-ghost" :class="{'invisible': currentStep === 1}">
+                            <ArrowLeft :size="18" class="mr-2"/> Anterior
                         </button>
 
-                        <button v-if="currentStep < steps.length" type="button" @click="nextStep"
-                                class="btn btn-primary px-6 shadow-lg shadow-primary/20">
+                        <button v-if="currentStep < steps.length" type="button" @click="nextStep" class="btn btn-primary px-8">
                             Siguiente <ArrowRight :size="18" class="ml-2"/>
                         </button>
 
-                        <button v-else type="button" @click="submit"
-                                :disabled="form.processing"
-                                class="btn btn-primary px-8 shadow-lg shadow-primary/20">
-                            <span v-if="form.processing" class="flex items-center gap-2">
-                                <span class="loading loading-spinner loading-sm"></span> Guardando...
-                            </span>
-                            <span v-else class="flex items-center gap-2">
-                                <Save :size="18"/> Guardar Todo
-                            </span>
+                        <button v-else type="submit" :disabled="form.processing" class="btn btn-primary px-10 shadow-lg shadow-primary/30">
+                            <span v-if="form.processing" class="loading loading-spinner"></span>
+                            <Save v-else :size="18" class="mr-2"/> Finalizar Registro
                         </button>
                     </div>
-
                 </form>
             </div>
         </div>
@@ -314,18 +236,7 @@ const handleStepClick = (stepId) => {
 </template>
 
 <style scoped>
-/* Transiciones fluidas entre pasos */
-.fade-enter-active, .fade-leave-active {
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.fade-enter-from {
-    opacity: 0;
-    transform: translateX(10px);
-}
-.fade-leave-to {
-    opacity: 0;
-    transform: translateX(-10px);
-    position: absolute; /* Evita saltos de layout durante la transición */
-    width: 100%;
-}
+.fade-enter-active, .fade-leave-active { transition: all 0.25s ease; }
+.fade-enter-from { opacity: 0; transform: translateY(10px); }
+.fade-leave-to { opacity: 0; transform: translateY(-10px); }
 </style>

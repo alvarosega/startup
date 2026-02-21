@@ -40,6 +40,7 @@ use App\Http\Controllers\Web\Admin\DriverController;
 
 
 
+
 use App\Http\Controllers\Web\Driver\Auth\LoginController as DriverLoginController;
 use App\Http\Controllers\Web\Driver\Auth\RegisterController as DriverRegisterController;
 use App\Http\Controllers\Web\Driver\DashboardController as DriverDashboardController;
@@ -150,8 +151,15 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
         
             Route::resource('branches', BranchController::class);
             Route::resource('products', ProductController::class);
+            // Rutas Quirúrgicas para SKUs
+            Route::get('products/check-name', [ProductController::class, 'checkName'])->name('products.check-name');
+            Route::get('products/{product}/skus/create', [SkuController::class, 'create'])->name('products.skus.create');
+            Route::post('products/{product}/skus', [SkuController::class, 'store'])->name('products.skus.store');
+            Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
             Route::resource('categories', CategoryController::class);
-            Route::resource('market-zones', MarketZoneController::class);
+            Route::resource('market-zones', MarketZoneController::class)
+                ->names('market-zones')
+                ->parameters(['market-zones' => 'market_zone']);
             Route::resource('bundles', BundleController::class);
             Route::resource('brands', BrandController::class);
             Route::resource('providers', ProviderController::class);

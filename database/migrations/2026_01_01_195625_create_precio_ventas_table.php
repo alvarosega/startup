@@ -9,25 +9,20 @@ return new class extends Migration
     public function up(): void {
         Schema::create('prices', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            $table->uuid('sku_id');
-            $table->foreign('sku_id')->references('id')->on('skus')->onDelete('cascade');
-
-            $table->uuid('branch_id')->nullable();
-            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete(); 
-            
-            $table->string('type')->default('regular')->index(); 
-            $table->decimal('list_price', 10, 2); 
-            $table->decimal('final_price', 10, 2); 
+            $table->foreignUuid('sku_id')->constrained('skus')->onDelete('cascade');
+            $table->foreignUuid('branch_id')->nullable()->constrained('branches')->nullOnDelete(); 
+            $table->string('type')->default('regular'); 
+            $table->decimal('list_price', 12, 2); 
+            $table->decimal('final_price', 12, 2); 
             $table->integer('min_quantity')->default(1); 
             $table->integer('priority')->default(0); 
             $table->timestamp('valid_from')->useCurrent();
             $table->timestamp('valid_to')->nullable(); 
-            
             $table->timestamps();
             $table->softDeletes();
-
-            $table->index(['sku_id', 'branch_id', 'valid_from', 'valid_to']);
+        
+            // ESTRATEGIA DE RENDIMIENTO: Índice de cobertura para resolución de precios por sucursal
+            $table->index(['sku_id', 'branch_id', 'valid_from', 'valid_to', 'priority'], 'idx_price_branch_lookup');
         });
     }
 

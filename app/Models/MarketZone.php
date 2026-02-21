@@ -27,4 +27,10 @@ class MarketZone extends Model
     {
         return $this->hasMany(Category::class);
     }
+    public static function getAllWithStats()
+    {
+        return self::withCount('categories')
+            ->latest()
+            ->get();
+    }
 }

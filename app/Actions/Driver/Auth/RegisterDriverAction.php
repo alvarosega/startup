@@ -19,7 +19,8 @@ class RegisterDriverAction
             $driver = Driver::create([
                 'phone'    => $data->phone,
                 'email'    => $data->email,
-                'password' => $data->password, // El modelo Driver ya tiene el cast 'hashed'
+                'password' => $data->password, 
+                'country_code' => $data->countryCode,
                 'status'   => 'pending',
             ]);
 

@@ -2,7 +2,7 @@
 
 namespace App\Traits;
 
-use Illuminate\Validation\Rule;
+use App\Rules\GlobalUniqueMobile; // <--- OBLIGATORIO
 
 trait ValidatesGlobalIdentity
 {
@@ -13,8 +13,6 @@ trait ValidatesGlobalIdentity
     {
         if ($this->has('phone') && !empty($this->phone)) {
             $phone = $this->phone;
-            
-            // Eliminamos espacios, guiones y aseguramos el signo +
             $cleanPhone = preg_replace('/[^\+0-9]/', '', $phone);
             
             if (!str_starts_with($cleanPhone, '+')) {
@@ -27,17 +25,29 @@ trait ValidatesGlobalIdentity
 
     /**
      * Reglas para validación de teléfono en los 3 silos
+     * ACEPTA $ignoreId para procesos de edición (UPDATE)
      */
-    protected function globalPhoneRules()
+    protected function globalPhoneRules($ignoreId = null) // <--- CORRECCIÓN: Declarar parámetro
     {
-        return ['required', 'string', 'min:8', 'max:20'];
+        return [
+            'required', 
+            'string', 
+            'min:8', 
+            'max:20', 
+            new GlobalUniqueMobile($ignoreId) // <--- Ahora la variable sí existe aquí
+        ];
     }
 
     /**
      * Reglas para validación de email en los 3 silos
      */
-    protected function globalEmailRules()
+    protected function globalEmailRules($ignoreId = null) // <--- CORRECCIÓN: Declarar parámetro
     {
-        return ['required', 'email', 'max:255'];
+        return [
+            'required', 
+            'email', 
+            'max:255', 
+            new GlobalUniqueMobile($ignoreId)
+        ];
     }
 }

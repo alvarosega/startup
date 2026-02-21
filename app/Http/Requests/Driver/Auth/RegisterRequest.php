@@ -20,6 +20,8 @@ class RegisterRequest extends FormRequest
         $this->normalizeIdentityData();
     }
 
+    // app/Http/Requests/Driver/Auth/RegisterRequest.php
+
     public function rules(): array
     {
         return [
@@ -27,10 +29,12 @@ class RegisterRequest extends FormRequest
             'email' => $this->globalEmailRules(),
             'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
             
-            // POSIBLE PUNTO DE FALLO:
+            // REGLA DE BLOQUEO: Solo se permite 'BO'
+            'country_code' => ['required', 'string', 'in:BO'], 
+            
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
-            'license_number' => ['required', 'string', 'max:50'], // Quitamos el unique temporalmente para probar
+            'license_number' => ['required', 'string', 'max:50'],
             'license_plate' => ['required', 'string', 'max:20'],
             'vehicle_type' => ['required', 'string', 'in:moto,car,truck'],
         ];

@@ -72,8 +72,7 @@ class CategorySeeder extends Seeder
                 'requires_age_check' => $catData['adult']
             ]);
 
-            // EXTRACCIÓN QUIRÚRGICA: Obtenemos el binario puro (16 bytes)
-            // No usamos $parent->id porque el Trait lo convertiría a Hex (32 caracteres)
+            
             $parentId = $parent->id;
 
             foreach ($catData['subs'] as $subName) {
