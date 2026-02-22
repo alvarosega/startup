@@ -1,14 +1,15 @@
 // resources/js/Layouts/ShopLayout.vue
 
 <script setup>
-import { computed, ref, watch } from 'vue';
-import { Link, usePage, router } from '@inertiajs/vue3';
+import { computed, ref, watch} from 'vue';
+import { Link, usePage, router} from '@inertiajs/vue3';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import Toast from '@/Components/Base/Toast.vue';
 import { 
     MapPin, ShoppingCart, Menu, X, User, 
     FileText, LogOut, Store, Home, Search, ChevronRight,
-    Zap, Facebook, Instagram, Twitter, Phone
+    Zap, Facebook, Instagram, Twitter, Phone,
+    ShieldCheck // <--- AÑADIR ESTE ICONO
 } from 'lucide-vue-next';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
 import GlobalLoader from '@/Components/Base/GlobalLoader.vue';
@@ -40,8 +41,10 @@ const getAvatar = (u) => {
 };
 
 const customerMenuItems = [
-    { name: 'Mi Cuenta', route: 'profile.index', icon: User }, 
-    { name: 'Mis Pedidos', route: 'orders.history', icon: FileText },
+    { name: 'Mi Perfil', route: 'customer.profile.index', icon: User }, 
+    { name: 'Direcciones', route: 'customer.profile.addresses', icon: MapPin }, // <--- Nueva ruta independiente
+    { name: 'Seguridad', route: 'customer.profile.security', icon: ShieldCheck }, // <--- Nueva ruta independiente
+    { name: 'Mis Pedidos', route: 'customer.orders.history', icon: FileText },
 ];
 
 const socialLinks = [
@@ -77,7 +80,7 @@ const isIndexPage = computed(() => route().current('shop.index'));
                             <span v-if="shopContext.is_fallback" class="ml-1 bg-navy/20 backdrop-blur-sm border border-navy/10 px-1.5 rounded-[2px] text-[9px] font-black">MATRIZ</span>
                         </span>
                     </div>
-                    <Link :href="route('profile.index')" class="flex items-center gap-1 hover:underline underline-offset-2 decoration-2 transition-all opacity-90 hover:opacity-100">
+                    <Link :href="route('customer.profile.index')" class="flex items-center gap-1 hover:underline underline-offset-2 decoration-2 transition-all opacity-90 hover:opacity-100">
                         <MapPin :size="12" /> 
                         <span class="hidden sm:inline font-black">GESTIONAR</span>
                         <span class="sm:hidden font-black">UBICACIÓN</span>

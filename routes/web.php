@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Web\Customer\Auth\LoginController as CustomerLoginController;
 use App\Http\Controllers\Web\Customer\Shop\ShopController;
 use App\Http\Controllers\Web\Customer\Shop\CartController;
-use App\Http\Controllers\Web\Customer\ProfileController;
-use App\Http\Controllers\Web\Customer\AddressController;
+use App\Http\Controllers\Web\Customer\Profiles\ProfileController;
+use App\Http\Controllers\Web\Customer\Profiles\AddressController;
 use App\Http\Controllers\Web\Customer\Auth\RegisterController;
 use App\Http\Controllers\Web\Customer\OrderController as CustomerOrderController;
 use App\Http\Controllers\Web\Customer\Auth\RegisterController as CustomerRegisterController;
@@ -37,8 +37,6 @@ use App\Http\Controllers\Web\Admin\PurchaseController;
 //use App\Http\Controllers\Web\Admin\TransformationController;
 use App\Http\Controllers\Web\Admin\OrderController as AdminOrderController; // Alias para evitar colisión
 use App\Http\Controllers\Web\Admin\DriverController;
-
-
 
 
 use App\Http\Controllers\Web\Driver\Auth\LoginController as DriverLoginController;
@@ -87,21 +85,38 @@ Route::middleware(['inertia.customer'])->group(function () {
     Route::post('logout', [CustomerLoginController::class, 'destroy'])->name('logout');
 
     // --- ZONA PRIVADA CLIENTE (AUTH) ---
-    Route::middleware(['auth:customer'])->group(function () {
-        
-        // Perfil
-        Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
-        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    Route::middleware(['auth:customer', 'inertia.customer'])->prefix('customer')->name('customer.')->group(function () {
 
-        // Direcciones
-        Route::resource('addresses', AddressController::class);
-        Route::patch('/addresses/{address}/default', [App\Http\Controllers\Web\Customer\AddressController::class, 'makeDefault'])
-            ->name('addresses.set-default');
-
-        // Checkout & Pedidos
+        // --- MÓDULO: PERFIL (Páginas Independientes) ---
+        Route::prefix('profile')->name('profile.')->group(function () {
+            
+            // A. VISTA: Información Personal (PersonalInfoPage.vue)
+            Route::get('/', [ProfileController::class, 'index'])->name('index');
+            Route::patch('/', [ProfileController::class, 'update'])->name('update');
+            Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('avatar.update');
+    
+            // B. VISTA: Gestión de Direcciones (AddressesPage.vue)
+            // La ruta GET renderiza la lista y el mapa
+            Route::get('/addresses', [AddressController::class, 'index'])->name('addresses');
+    
+            // C. VISTA: Seguridad (SecurityPage.vue)
+            Route::get('/security', [ProfileController::class, 'security'])->name('security');
+    
+            // --- ACCIONES CRUD DE DIRECCIONES (Lógica de Negocio) ---
+            Route::prefix('addresses')->name('addresses.')->group(function () {
+                Route::post('/', [AddressController::class, 'store'])->name('store');
+                Route::put('/{id}', [AddressController::class, 'update'])->name('update');
+                Route::delete('/{id}', [AddressController::class, 'destroy'])->name('destroy');
+                Route::patch('/{id}/default', [AddressController::class, 'makeDefault'])->name('set-default');
+            });
+        });
+    
+        // --- MÓDULO: OPERACIONES ---
         Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-        Route::get('/my-orders', function() { return Inertia::render('Customer/Orders/Index'); })->name('orders.history');
+        Route::get('/my-orders', function() { 
+            return Inertia::render('Customer/Orders/Index'); 
+        })->name('orders.history');
+    
     });
 
     // --- CARRITO DE COMPRAS (Míxto: Guest + Auth) ---
