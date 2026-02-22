@@ -1,7 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { 
     Plus, Trash2, Calendar, DollarSign, FileText, 
     Factory, MapPin, Save, ArrowLeft, CreditCard,
@@ -72,11 +72,30 @@ const calculateRow = (item) => {
 const grandTotal = computed(() => {
     return form.items.reduce((acc, item) => acc + (item.total_cost_input || 0), 0);
 });
+// ... dentro de tu script setup ...
+
+// Sincroniza el total_amount del formulario con el grandTotal computado
+watch(grandTotal, (newTotal) => {
+    form.total_amount = newTotal;
+}, { immediate: true });
 
 const submit = () => {
-    form.post(route('admin.purchases.store'), {
+    // Transformamos los datos para cumplir con el DTO del Backend (Zero-Trust)
+    form.transform((data) => ({
+        ...data,
+        total_amount: grandTotal.value, // Aseguramos el total final
+        items: data.items.map(item => ({
+            sku_id: item.sku_id,
+            quantity: item.quantity, // Enviamos el valor procesado, no el input
+            unit_cost: item.unit_cost,
+            expiration_date: item.expiration_date,
+            lot_code: item.lot_code || null
+        }))
+    })).post(route('admin.purchases.store'), {
         preserveScroll: true,
-        onError: (e) => console.error(e)
+        onSuccess: () => {
+            // Manejo de éxito
+        }
     });
 };
 </script>

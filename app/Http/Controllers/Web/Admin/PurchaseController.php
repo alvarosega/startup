@@ -16,6 +16,11 @@ use App\Http\Requests\Purchase\StorePurchaseRequest;
 use App\Actions\Purchase\CreatePurchase;
 use App\Http\Resources\PurchaseResource;
 
+use App\Http\Requests\Admin\Inventory\RegisterPurchaseRequest; 
+use App\Actions\Admin\Inventory\RegisterInventoryEntryAction;  
+use App\DTOs\Admin\Inventory\RegisterPurchaseDTO;             
+use App\DTOs\Admin\Inventory\PurchaseItemDTO;                  
+
 class PurchaseController extends Controller
 {
     use AuthorizesRequests;
@@ -25,14 +30,16 @@ class PurchaseController extends Controller
         $this->authorize('viewAny', Purchase::class);
         $user = auth()->user();
 
+        // ... dentro del método index() ...
+
         $query = Purchase::with([
-                'provider', 
-                'branch', 
-                'user', // Simplificado, el Resource maneja el display name
-                'inventoryLots.sku.product'
-            ])
-            ->withCount('inventoryLots')
-            ->orderBy('purchase_date', 'desc');
+            'provider', 
+            'branch', 
+            'admin', // <--- CAMBIAR 'user' por 'admin'
+            'inventoryLots.sku.product'
+        ])
+        ->withCount('inventoryLots')
+        ->orderBy('purchase_date', 'desc');
 
         if ($user->hasRole('branch_admin')) {
             $query->where('branch_id', $user->branch_id);
@@ -83,13 +90,15 @@ class PurchaseController extends Controller
         ]);
     }
 
-    public function store(StorePurchaseRequest $request, CreatePurchase $action)
+    public function store(RegisterPurchaseRequest $request, RegisterInventoryEntryAction $action)
     {
-        $this->authorize('create', Purchase::class);
-        
-        $data = PurchaseData::fromRequest($request);
-        $action->execute($data);
-
-        return redirect()->route('admin.purchases.index')->with('success', 'Compra registrada correctamente.');
+        // El controlador no sabe CÓMO se construye el DTO, solo sabe que lo necesita.
+        $dto = RegisterPurchaseDTO::fromRequest($request);
+    
+        // Ejecución delegada
+        $action->execute($dto);
+    
+        return redirect()->route('admin.purchases.index')
+            ->with('success', 'Ingreso de mercadería procesado correctamente.');
     }
 }

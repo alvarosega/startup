@@ -32,9 +32,9 @@ use App\Http\Controllers\Web\Admin\SkuController;
 use App\Http\Controllers\Web\Admin\PriceController;
 use App\Http\Controllers\Web\Admin\InventoryController;
 use App\Http\Controllers\Web\Admin\PurchaseController;
-use App\Http\Controllers\Web\Admin\TransferController;
-use App\Http\Controllers\Web\Admin\RemovalController;
-use App\Http\Controllers\Web\Admin\TransformationController;
+//use App\Http\Controllers\Web\Admin\TransferController;
+//use App\Http\Controllers\Web\Admin\RemovalController;
+//use App\Http\Controllers\Web\Admin\TransformationController;
 use App\Http\Controllers\Web\Admin\OrderController as AdminOrderController; // Alias para evitar colisión
 use App\Http\Controllers\Web\Admin\DriverController;
 
@@ -177,11 +177,11 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             // Operaciones
             Route::resource('purchases', PurchaseController::class);
             Route::resource('transfers', TransferController::class);
-            Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
+   //         Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
     
             Route::resource('removals', RemovalController::class);
-            Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
-            Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
+       //     Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
+         //   Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
             
             Route::resource('transformations', TransformationController::class);
     

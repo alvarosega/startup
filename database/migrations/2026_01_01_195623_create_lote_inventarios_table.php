@@ -8,22 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Cabecera de Compras
         Schema::create('purchases', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            $table->uuid('branch_id');
-            $table->foreign('branch_id')->references('id')->on('branches'); 
-            
-            $table->uuid('provider_id');
-            $table->foreign('provider_id')->references('id')->on('providers'); 
-            
-            $table->uuid('admin_id');
-            $table->foreign('admin_id')->references('id')->on('admins');
+            $table->foreignUuid('branch_id')->constrained('branches'); 
+            $table->foreignUuid('provider_id')->constrained('providers'); 
+            $table->foreignUuid('admin_id')->constrained('admins');
             
             $table->string('document_number')->index();
             $table->date('purchase_date');
-            
             $table->string('payment_type')->default('CASH'); 
             $table->date('payment_due_date')->nullable(); 
             $table->decimal('total_amount', 12, 2)->default(0);
@@ -34,20 +26,12 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        // 2. Lotes de Inventario
         Schema::create('inventory_lots', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            $table->uuid('purchase_id')->nullable();
-            $table->foreign('purchase_id')->references('id')->on('purchases');
-            
-            $table->uuid('transfer_id')->nullable();
-            
-            $table->uuid('branch_id');
-            $table->foreign('branch_id')->references('id')->on('branches');
-            
-            $table->uuid('sku_id');
-            $table->foreign('sku_id')->references('id')->on('skus');
+            $table->foreignUuid('purchase_id')->nullable()->constrained('purchases');
+            $table->foreignUuid('transfer_id')->nullable(); // Se vincula luego si es necesario
+            $table->foreignUuid('branch_id')->constrained('branches');
+            $table->foreignUuid('sku_id')->constrained('skus');
             
             $table->string('lot_code')->unique();
             $table->integer('quantity');
@@ -55,9 +39,12 @@ return new class extends Migration
             $table->integer('reserved_quantity')->default(0);
             
             $table->decimal('unit_cost', 10, 2);
-            $table->date('expiration_date')->nullable();
+            $table->date('expiration_date')->nullable()->index(); // Indexado para FEFO
             
             $table->timestamps();
+
+            // ÍNDICE DE RENDIMIENTO EXTREMO PARA AGREGACIONES
+            $table->index(['branch_id', 'sku_id', 'quantity', 'unit_cost'], 'idx_inventory_aggregation');
         });
     }
 

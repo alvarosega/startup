@@ -2,35 +2,30 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryMovement extends Model
 {
-    use HasFactory, HasUuids;
+    use HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
-        'branch_id', 'sku_id', 'inventory_lot_id', 'user_id',
-        'type', 'quantity', 'unit_cost', 'reference'
+        'branch_id',
+        'sku_id',
+        'inventory_lot_id',
+        'admin_id', // <--- ESTE ES EL QUE FALTA
+        'type',
+        'quantity',
+        'unit_cost',
+        'reference'
     ];
-    // Dentro de la clase Purchase y InventoryMovement
 
-    // Mutador: Convierte String Hex -> Binario al guardar
-    public function setAdminIdAttribute($value)
-    {
-        if (is_string($value) && ctype_xdigit($value) && strlen($value) === 32) {
-            $this->attributes['admin_id'] = hex2bin($value);
-        } else {
-            $this->attributes['admin_id'] = $value;
-        }
-    }
-
-    // Accesor (Opcional): Para leerlo como String después
-    public function getAdminIdAttribute($value)
-    {
-        if (is_string($value) && !ctype_print($value)) {
-            return bin2hex($value);
-        }
-        return $value;
-    }
+    // Relaciones
+    public function admin(): BelongsTo { return $this->belongsTo(Admin::class); }
+    public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
+    public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
 }

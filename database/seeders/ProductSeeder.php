@@ -3,91 +3,125 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Product;
-use App\Models\Sku;
-use App\Models\Brand;
-use App\Models\Category;
+use App\Models\{Product, Sku, Brand, Category, Branch, Price};
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ProductSeeder extends Seeder
 {
     public function run(): void
     {
+        // 1. Cargamos dependencias necesarias para la matriz
         $subCategories = Category::whereNotNull('parent_id')->get();
+        $branches = Branch::all(); // Necesario para inicializar la matriz de precios
+
+        if ($subCategories->isEmpty()) {
+            $this->command->error('No hay subcategorías. Ejecuta CategorySeeder primero.');
+            return;
+        }
 
         foreach ($subCategories as $category) {
-            $productsData = $this->generateRealProducts($category->name, 4);
+            $productsData = $this->generateRealProducts($category->name, 3);
 
             foreach ($productsData as $prodData) {
-                // Buscamos por Slug para evitar duplicados
-                $slug = Str::slug($prodData['brand']);
-                
-                $brand = Brand::firstOrCreate(
-                    ['slug' => $slug],
-                    ['name' => $prodData['brand']]
-                );
+                DB::transaction(function () use ($prodData, $category, $branches) {
+                    
+                    // 2. Gestión de Marca (Idempotente)
+                    $brand = Brand::updateOrCreate(
+                        ['slug' => Str::slug($prodData['brand'])],
+                        ['name' => $prodData['brand'], 'is_active' => true]
+                    );
 
-                $product = Product::firstOrCreate([
-                    'name' => $prodData['name'] // Ojo: Si hay nombres repetidos en categorías distintas, usará el mismo ID.
-                ], [
-                    'brand_id' => $brand->id,
-                    'category_id' => $category->id,
-                    'slug' => Str::slug($prodData['name']) . '-' . Str::random(4),
-                    'description' => "Producto original " . $prodData['name'],
-                    'is_active' => true,
-                    'is_alcoholic' => $category->requires_age_check ?? false
-                ]);
+                    // 3. Gestión de Producto (Llave: nombre + marca para evitar colisiones)
+                    $product = Product::updateOrCreate(
+                        [
+                            'name' => $prodData['name'],
+                            'brand_id' => $brand->id 
+                        ],
+                        [
+                            'category_id' => $category->id,
+                            'slug' => Str::slug($prodData['name']) . '-' . Str::random(4),
+                            'description' => "Calidad premium garantizada de " . $prodData['brand'],
+                            'is_active' => true,
+                            'is_alcoholic' => $category->is_alcoholic ?? false // Ajustado a tu modelo real
+                        ]
+                    );
 
-                $this->createSkusForProduct($product, $prodData['base_price']);
+                    $this->createSkusAndPrices($product, $prodData['base_price'], $branches);
+                });
             }
         }
     }
 
-    private function createSkusForProduct($product, $basePrice)
+    private function createSkusAndPrices($product, $basePrice, $branches): void
     {
         $variations = [
             ['suffix' => 'Unitario', 'factor' => 1, 'price_mult' => 1.0, 'code_suf' => 'UNI'],
             ['suffix' => 'Pack x6', 'factor' => 6, 'price_mult' => 5.8, 'code_suf' => 'PK6'], 
-            ['suffix' => 'Caja x12', 'factor' => 12, 'price_mult' => 11.5, 'code_suf' => 'C12'],
-            ['suffix' => 'Caja x24', 'factor' => 24, 'price_mult' => 22.0, 'code_suf' => 'C24'],
-            ['suffix' => 'Edición Especial', 'factor' => 1, 'price_mult' => 1.2, 'code_suf' => 'ESP']
+            ['suffix' => 'Caja x12', 'factor' => 12, 'price_mult' => 11.2, 'code_suf' => 'C12'],
         ];
 
         foreach ($variations as $var) {
-            $skuName = $product->name . ' - ' . $var['suffix'];
-            $price = $basePrice * $var['price_mult'];
+            $skuName = "{$product->name} ({$var['suffix']})";
+            $calculatedPrice = $basePrice * $var['price_mult'];
 
-            // Hash determinista
-            $uniqueHash = strtoupper(substr(md5($product->id . $var['suffix']), 0, 8));
-            $skuCode = "SKU-{$var['code_suf']}-{$uniqueHash}";
+            // Hash determinista para el código EAN si no existe
+            $skuCode = "777" . strtoupper(substr(md5($product->id . $var['code_suf']), 0, 10));
 
-            // === CORRECCIÓN AQUÍ ===
-            // Buscamos por 'code' (que es unique) en lugar de 'name'.
-            // Usamos updateOrCreate para actualizar precios si ya existe.
+            // 4. Creación Quirúrgica del SKU
             $sku = Sku::updateOrCreate(
-                [
-                    'code' => $skuCode // 1. Buscamos por la llave ÚNICA
-                ], 
+                ['code' => $skuCode],
                 [
                     'product_id' => $product->id,
                     'name' => $skuName,
-                    'base_price' => (float) $price,
+                    'base_price' => $calculatedPrice,
                     'conversion_factor' => $var['factor'],
-                    'weight' => rand(100, 2000) / 1000,
+                    'weight' => rand(500, 2000) / 1000,
                     'is_active' => true
                 ]
             );
-            
-            // Si usas lógica de precios extra en el modelo
-            if(method_exists($sku, 'updatePrice')) {
-                $sku->updatePrice((float) $price);
+
+            // 5. INICIALIZACIÓN DE MATRIZ DE PRECIOS (Crítico para tu nueva UI)
+            foreach ($branches as $branch) {
+                // Creamos un precio 'regular' para cada sucursal
+                // Algunos con ligero sobreprecio aleatorio para testear la matriz
+                $branchMarkup = rand(0, 5) / 100; 
+                $finalPrice = $calculatedPrice * (1 + $branchMarkup);
+
+                Price::updateOrCreate(
+                    [
+                        'sku_id' => $sku->id,
+                        'branch_id' => $branch->id,
+                        'type' => 'regular'
+                    ],
+                    [
+                        'list_price' => $finalPrice * 1.15, // PVP sugerido 15% arriba
+                        'final_price' => $finalPrice,
+                        'min_quantity' => 1,
+                        'priority' => 1,
+                        'valid_from' => now(),
+                    ]
+                );
+
+                // Sembrar una oferta aleatoria para ver el "Price Stack" en la UI
+                if (rand(1, 10) > 8) {
+                    Price::create([
+                        'sku_id' => $sku->id,
+                        'branch_id' => $branch->id,
+                        'type' => 'offer',
+                        'list_price' => $finalPrice,
+                        'final_price' => $finalPrice * 0.8,
+                        'min_quantity' => 1,
+                        'priority' => 10, // Mayor prioridad para que gane en la UI
+                        'valid_from' => now(),
+                        'valid_to' => now()->addDays(7)
+                    ]);
+                }
             }
         }
     }
 
-    // ... (El resto de tus métodos generateRealProducts y getContextByKeyword siguen igual) ...
-    
-    private function generateRealProducts($categoryName, $qty)
+    private function generateRealProducts($categoryName, $qty): array
     {
         $context = $this->getContextByKeyword($categoryName);
         $products = [];
@@ -95,14 +129,10 @@ class ProductSeeder extends Seeder
         for ($i = 0; $i < $qty; $i++) {
             $brand = $context['brands'][array_rand($context['brands'])];
             $type = $context['types'][array_rand($context['types'])];
-            
-            $variety = ['Clásico', 'Reserva', 'Extra', 'Gold', 'Silver', 'Black', 'Especial', 'Premium', 'Selection'];
-            $varName = $variety[array_rand($variety)];
-
-            $fullName = "$brand $type $varName";
+            $variety = ['Reserva', 'Premium', 'Black Label', 'Gold', 'Extra Fruit', 'Zero', 'Original'];
             
             $products[] = [
-                'name' => $fullName,
+                'name' => "$brand $type " . $variety[array_rand($variety)],
                 'brand' => $brand,
                 'base_price' => rand($context['min'], $context['max'])
             ];
@@ -111,83 +141,16 @@ class ProductSeeder extends Seeder
         return $products;
     }
 
-    private function getContextByKeyword($name)
+    private function getContextByKeyword($name): array
     {
         $n = strtolower($name);
-
-        if (str_contains($n, 'cerveza')) return [
-            'brands' => ['Paceña', 'Huari', 'Ducal', 'Corona', 'Heineken', 'Patagonia'],
-            'types' => ['Pilsener', 'Lager', 'Stout', 'Trigo', 'IPA'],
-            'min' => 10, 'max' => 25
-        ];
-        // ... (resto de tus condiciones) ...
+        if (str_contains($n, 'cerveza')) return ['brands' => ['Paceña', 'Huari', 'Corona'], 'types' => ['Lager', 'Pilsener'], 'min' => 12, 'max' => 20];
+        if (str_contains($n, 'gaseosa')) return ['brands' => ['Coca Cola', 'Pepsi', 'Fanta'], 'types' => ['2L', '500ml', 'Retornable'], 'min' => 7, 'max' => 15];
+        if (str_contains($n, 'whisky')) return ['brands' => ['Johnnie Walker', 'Chivas Regal'], 'types' => ['12 Años', 'Red Label'], 'min' => 180, 'max' => 450];
+        if (str_contains($n, 'ron')) return ['brands' => ['Abuelo', 'Flor de Caña', 'Havana'], 'types' => ['Añejo', '7 Años'], 'min' => 60, 'max' => 120];
+        if (str_contains($n, 'jugo')) return ['brands' => ['Del Valle', 'Tampico'], 'types' => ['Naranja', 'Durazno'], 'min' => 10, 'max' => 18];
+        if (str_contains($n, 'agua')) return ['brands' => ['Vital', 'Villa Santa'], 'types' => ['Sin Gas', 'Con Gas'], 'min' => 6, 'max' => 12];
         
-        // Copia aquí el resto de tu método getContextByKeyword tal cual lo tenías
-        if (str_contains($n, 'singani')) return [
-            'brands' => ['Casa Real', 'Los Parrales', 'Rujero', 'San Pedro'],
-            'types' => ['Etiqueta Negra', 'Gran Singani', 'Tradicional', 'Aniversario'],
-            'min' => 40, 'max' => 150
-        ];
-        if (str_contains($n, 'whisky')) return [
-            'brands' => ['Johnnie Walker', 'Chivas Regal', 'Jack Daniels', 'Buchanans', 'Old Parr'],
-            'types' => ['Red Label', 'Black Label', '12 Años', '18 Años', 'Honey'],
-            'min' => 150, 'max' => 800
-        ];
-        if (str_contains($n, 'ron')) return [
-            'brands' => ['Flor de Caña', 'Havana Club', 'Abuelo', 'Bacardi'],
-            'types' => ['4 Años', '7 Años', 'Gran Reserva', 'Añejo', 'Blanco'],
-            'min' => 50, 'max' => 200
-        ];
-        if (str_contains($n, 'vodka')) return [
-            'brands' => ['Absolut', 'Smirnoff', 'Grey Goose', 'Skyy', 'Stolichnaya'],
-            'types' => ['Blue', 'Raspberry', 'Citron', 'Vainilla', 'Original'],
-            'min' => 60, 'max' => 250
-        ];
-        if (str_contains($n, 'vino')) return [
-            'brands' => ['Kohlberg', 'Aranjuez', 'Campos de Solana', 'Concha y Toro'],
-            'types' => ['Tannat', 'Cabernet', 'Syrah', 'Merlot', 'Chardonnay'],
-            'min' => 35, 'max' => 120
-        ];
-        if (str_contains($n, 'gaseosa') || str_contains($n, 'cola')) return [
-            'brands' => ['Coca Cola', 'Pepsi', 'Sprite', 'Fanta', '7Up'],
-            'types' => ['Original', 'Zero', 'Light', 'Sabor Intenso'],
-            'min' => 8, 'max' => 15
-        ];
-        if (str_contains($n, 'agua')) return [
-            'brands' => ['Vital', 'Villa Santa', 'Naturagua', 'Perrier'],
-            'types' => ['Pura', 'Con Gas', 'Mineral', 'Alcalina'],
-            'min' => 5, 'max' => 12
-        ];
-        if (str_contains($n, 'energizante')) return [
-            'brands' => ['Red Bull', 'Monster', 'Ciclon', 'V220'],
-            'types' => ['Original', 'Sugar Free', 'Tropical', 'Coffee'],
-            'min' => 12, 'max' => 25
-        ];
-        if (str_contains($n, 'jugo') || str_contains($n, 'nectar')) return [
-            'brands' => ['Del Valle', 'Tampico', 'Kris', 'Frux'],
-            'types' => ['Naranja', 'Durazno', 'Manzana', 'Piña'],
-            'min' => 10, 'max' => 20
-        ];
-        if (str_contains($n, 'snack') || str_contains($n, 'papas')) return [
-            'brands' => ['Pringles', 'Lays', 'Kris', 'Doritos'],
-            'types' => ['Original', 'Picante', 'Queso', 'Cebolla'],
-            'min' => 15, 'max' => 30
-        ];
-        if (str_contains($n, 'cigarro') || str_contains($n, 'tabaco')) return [
-            'brands' => ['Marlboro', 'Camel', 'L&M', 'Lucky Strike'],
-            'types' => ['Rojo', 'Gold', 'Ice Blast', 'Double Click'],
-            'min' => 20, 'max' => 40
-        ];
-        if (str_contains($n, 'licores') || str_contains($n, 'crema')) return [
-            'brands' => ['Baileys', 'Amarula', 'Kahlua', 'Frangelico'],
-            'types' => ['Original', 'Chocolate', 'Coffee', 'Cream'],
-            'min' => 100, 'max' => 200
-        ];
-
-        return [
-            'brands' => ['Marca Genérica'],
-            'types' => ['Producto Estándar'],
-            'min' => 10, 'max' => 50
-        ];
+        return ['brands' => ['Marca Genérica'], 'types' => ['Estándar'], 'min' => 10, 'max' => 50];
     }
 }

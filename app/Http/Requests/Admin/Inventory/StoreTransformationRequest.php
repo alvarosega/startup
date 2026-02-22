@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Inventory; // <--- ESTO ES CRÍTICO
+namespace App\Http\Requests\Admin\Inventory;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
