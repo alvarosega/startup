@@ -22,6 +22,7 @@ readonly class RegisterCustomerData
         public ?string $branchId, // <--- CAMBIAR A CamelCase
         public string $avatarType,
         public ?string $avatarSource,
+        public ?string $guestUuid,
         public ?UploadedFile $avatarFile,
     ) {}
 
@@ -45,6 +46,7 @@ readonly class RegisterCustomerData
             branchId:    $v['branch_id'] ?? null,
             avatarType:  $v['avatar_type'],
             avatarSource:$v['avatar_source'] ?? 'avatar_1.svg',
+            guestUuid:    $v['guest_client_uuid'] ?? null,
             avatarFile:  $request->file('avatar_file'),
         );
     }

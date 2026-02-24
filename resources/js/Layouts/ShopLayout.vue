@@ -62,7 +62,8 @@ const logout = () => {
     showMobileDrawer.value = false;
 };
 
-const isIndexPage = computed(() => route().current('shop.index'));
+// BUSCAR Y REEMPLAZAR
+const isIndexPage = computed(() => route().current('customer.shop.index'));
 </script>
 <template>
     <GlobalLoader />
@@ -84,6 +85,16 @@ const isIndexPage = computed(() => route().current('shop.index'));
                         <MapPin :size="12" /> 
                         <span class="hidden sm:inline font-black">GESTIONAR</span>
                         <span class="sm:hidden font-black">UBICACIÓN</span>
+                    </Link>
+
+                    <Link :href="route('customer.profile.addresses')" class="flex items-center gap-1.5 hover:text-white transition-all group">
+                        <MapPin :size="14" class="group-hover:animate-bounce text-primary-foreground" /> 
+                        <div class="flex flex-col items-start leading-none">
+                            <span class="text-[9px] font-black uppercase tracking-tighter opacity-70">Entregar en:</span>
+                            <span class="font-black text-[11px] uppercase truncate max-w-[150px]">
+                                {{ shopContext.branch_name || 'Cargando...' }}
+                            </span>
+                        </div>
                     </Link>
                 </div>
             </div>
@@ -111,7 +122,7 @@ const isIndexPage = computed(() => route().current('shop.index'));
                             </div>
                         </button>
                         
-                        <Link :href="route('shop.index')" class="flex items-center gap-2 group shrink-0 select-none">
+                        <Link :href="route('customer.shop.index')" class="flex items-center gap-2 group shrink-0 select-none">
                             <div class="w-8 h-8 md:w-9 md:h-9 bg-foreground text-background rounded-lg flex items-center justify-center shadow-lg group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
                                 <Zap :size="18" class="fill-current" />
                             </div>
@@ -135,11 +146,12 @@ const isIndexPage = computed(() => route().current('shop.index'));
                             <X v-else :size="20" class="text-error" />
                         </button>
 
-                        <Link :href="route('cart.index')" class="relative btn btn-ghost btn-circle hover:bg-primary/5 transition-all group">
-                            <ShoppingCart :size="22" class="group-hover:text-primary transition-colors" />
-                            <span v-if="cartCount > 0" 
-                                  class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] font-black flex items-center justify-center ring-2 ring-background animate-pulse-subtle shadow-sm">
-                                {{ cartCount }}
+                        <Link :href="route('customer.cart.index')" class="relative group p-2">
+                            <ShoppingBag class="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />
+                            
+                            <span v-if="$page.props.cart_summary?.count > 0" 
+                                class="absolute -top-1 -right-1 w-5 h-5 bg-error text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-background animate-in zoom-in duration-300">
+                                {{ $page.props.cart_summary.count > 9 ? '9+' : $page.props.cart_summary.count }}
                             </span>
                         </Link>
 
@@ -258,7 +270,7 @@ const isIndexPage = computed(() => route().current('shop.index'));
                         </div>
                     </div>
                     <nav class="flex-1 overflow-y-auto p-4 space-y-2">
-                        <Link :href="route('shop.index')" class="flex items-center gap-4 px-4 py-4 text-sm font-bold rounded-xl transition-all border-l-4 border-transparent" :class="route().current('shop.index') ? 'bg-primary/5 text-primary border-primary' : 'text-foreground hover:bg-muted'" @click="showMobileDrawer = false">
+                        <Link :href="route('customer.shop.index')" class="flex items-center gap-4 px-4 py-4 text-sm font-bold rounded-xl transition-all border-l-4 border-transparent" :class="route().current('shop.index') ? 'bg-primary/5 text-primary border-primary' : 'text-foreground hover:bg-muted'" @click="showMobileDrawer = false">
                             <Home :size="22" /> Inicio
                         </Link>
                         <template v-if="user">

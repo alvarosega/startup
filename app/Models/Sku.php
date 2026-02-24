@@ -24,7 +24,33 @@ class Sku extends Model
         'conversion_factor' => 'decimal:3',
         'weight' => 'decimal:3'
     ];
-
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
+    
     public function prices(): HasMany { return $this->hasMany(Price::class); }
+
+    /**
+     * Relación con los lotes de inventario.
+     * Vital para el filtrado de stock por sucursal en el Action.
+     */
+    public function inventoryLots(): HasMany 
+    { 
+        return $this->hasMany(InventoryLot::class, 'sku_id'); 
+    }
+
+    // =================================================================================
+    // ACCESSORS SENIOR
+    // =================================================================================
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? asset('storage/' . $this->image_path) : null;
+    }
+    public static function getAvailableForBundles()
+    {
+        // Eager loading de 'product' es obligatorio para el label del select
+        return self::with('product')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'product_id', 'name', 'base_price']); // Solo columnas necesarias
+    }
 }

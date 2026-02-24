@@ -56,6 +56,11 @@ class Category extends Model
         return $this->belongsTo(Category::class, 'parent_id');
     }
 
+    public function subcategories()
+    {
+        return $this->children(); // Reutiliza la relación existente
+    }
+
     public function children()
     {
         return $this->hasMany(Category::class, 'parent_id');
@@ -93,4 +98,8 @@ class Category extends Model
     {
         return $this->belongsTo(MarketZone::class, 'market_zone_id');
     }
+
+    /*-----------------*/
+
+
 }

@@ -10,13 +10,8 @@ return new class extends Migration
     {
         Schema::create('bundle_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            $table->uuid('bundle_id');
-            $table->foreign('bundle_id')->references('id')->on('bundles')->onDelete('cascade');
-            
-            $table->uuid('sku_id');
-            $table->foreign('sku_id')->references('id')->on('skus')->onDelete('cascade');
-            
+            $table->foreignUuid('bundle_id')->constrained('bundles')->cascadeOnDelete();
+            $table->foreignUuid('sku_id')->constrained('skus')->cascadeOnDelete();
             $table->integer('quantity')->default(1);
             $table->timestamps();
         });

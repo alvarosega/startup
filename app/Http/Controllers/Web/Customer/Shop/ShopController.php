@@ -5,82 +5,83 @@ namespace App\Http\Controllers\Web\Customer\Shop;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 use App\Models\MarketZone;
+use App\Models\Branch;
 use App\Services\ShopContextService;
-use App\DTOs\Shop\CatalogQueryDTO;
-// --- IMPORTACIONES CORREGIDAS ---
-use App\Actions\Customer\Shop\GetShopLandingAction; // <--- Correcto
-use App\Actions\Customer\Shop\GetShopZoneAction;    // <--- Correcto
-use App\Actions\Shop\GetShopCatalogAction; // (Este también debería moverse si quieres ser 100% estricto, pero por ahora déjalo si funciona)
-
-use App\Http\Requests\Shop\AddToCartRequest; 
-use App\DTOs\Shop\AddToCartDTO;
-use App\Actions\Shop\AddItemToCartAction;
-use App\Http\Requests\Shop\BulkAddToCartRequest;
-use App\DTOs\Shop\BulkAddToCartDTO;
-use App\Actions\Shop\AddBulkItemsToCartAction;
-// -------------------------------
-use App\Http\Resources\Shop\ShopProductResource;
+use App\Actions\Customer\Shop\GetShopLandingAction;
+use App\Actions\Customer\Shop\GetShopZoneAction;
+use App\Actions\Customer\Shop\GetShopCatalogAction;
+use App\DTOs\Customer\Shop\CatalogQueryDTO;
+use App\Http\Resources\Customer\Shop\ShopProductResource;
 
 class ShopController extends Controller
 {
-    // app/Http/Controllers/Web/Customer/Shop/ShopController.php
+    public function __construct(
+        protected ShopContextService $contextService
+    ) {}
 
-    public function index(Request $request, ShopContextService $contextService, GetShopCatalogAction $catalogAction, GetShopLandingAction $landingAction) 
+    public function index(Request $request, GetShopCatalogAction $catalogAction, GetShopLandingAction $landingAction): Response
     {
-        $branchId = $contextService->getActiveBranchId();
-        
-        // 1. Fallback simplificado (Ya no es binario)
-        if (!$branchId) {
-            $defaultBranch = \App\Models\Branch::where('is_active', true)->first();
-            // ANTES: $defaultBranch->getRawOriginal('id')
-            $branchId = $defaultBranch ? $defaultBranch->id : null; 
-        }
-
-        // 2. Si después del fallback sigue siendo null (ej. no hay sucursales en DB)
-        // debemos manejarlo para que no explote el Action.
-        if (!$branchId) {
-            return Inertia::render('Shop/Index', [
-                'zonesData' => [],
-                'bundlesData' => [],
-                'error' => 'No hay sucursales activas disponibles.'
-            ]);
-        }
-
-        if ($request->filled('search') || $request->filled('category_id') || $request->input('type') === 'bundles') {
+        // El servicio garantiza un UUID válido o lanza excepción si la DB está vacía
+        $branchId = $this->contextService->getActiveBranchId();
+    
+        if ($request->anyFilled(['search', 'category_id']) || $request->input('type') === 'bundles') {
             $dto = CatalogQueryDTO::fromRequest($request, $branchId);
             $paginator = $catalogAction->execute($dto);
             
-            return Inertia::render('Shop/Index', [
+            return Inertia::render('Customer/Shop/Index', [
                 'products' => ShopProductResource::collection($paginator),
                 'filters'  => $request->only(['search', 'category_id', 'type']),
-                // ANTES: bin2hex($branchId) -> AHORA: directo
-                'context'  => ['branch_id' => $branchId]
+                
             ]);
         } 
-
+    
         $landingData = $landingAction->execute($branchId);
-
-        return Inertia::render('Shop/Index', [
+    
+        return Inertia::render('Customer/Shop/Index', [
             'zonesData'   => $landingData['zones'],
             'bundlesData' => $landingData['bundles'],
-            // ANTES: bin2hex($branchId) -> AHORA: directo
-            'context'     => ['branch_id' => $branchId]
+            
         ]);
     }
 
-    // app/Http/Controllers/Web/Customer/Shop/ShopController.php
-
-    public function showZone(Request $request, MarketZone $zone, ShopContextService $contextService, GetShopZoneAction $zoneAction) 
+    public function showZone(Request $request, MarketZone $zone, GetShopZoneAction $zoneAction): Response 
     {
-        $branchId = $contextService->getActiveBranchId();
+        $branchId = $this->resolveBranchId();
+
+        if (!$branchId) {
+            return redirect()->route('customer.shop.index')
+                ->withErrors(['error' => 'Contexto de tienda no disponible.']);
+        }
+
         $groupedCategories = $zoneAction->execute($zone, $branchId);
 
-        return Inertia::render('Shop/ZoneProducts', [
+        return Inertia::render('Customer/Shop/Zone', [
             'zone'              => $zone,
             'groupedCategories' => $groupedCategories,
-            // ANTES: bin2hex($branchId) -> AHORA: directo
-            'context'           => ['branch_id' => $branchId] 
+            'targetCategory'    => $request->query('category'),
+            'shop_context'      => ['branch_id' => $branchId] 
         ]);
+    }
+
+    /**
+     * Centraliza la resolución de BranchId para evitar TypeErrors.
+     */
+    private function resolveBranchId(): ?string
+    {
+        $branchId = $this->contextService->getActiveBranchId();
+
+        if (!$branchId) {
+            // Fallback a la matriz o primera sucursal activa
+            $branchId = Branch::where('is_active', true)->first()?->id;
+            
+            if ($branchId) {
+                // Persistimos el fallback en el contexto para futuras peticiones
+                $this->contextService->setContext($branchId);
+            }
+        }
+
+        return $branchId;
     }
 }

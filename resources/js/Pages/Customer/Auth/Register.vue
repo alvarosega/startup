@@ -39,7 +39,8 @@ const form = useForm({
     latitude: -16.5000, 
     longitude: -68.1500, 
     branch_id: null, 
-    role: 'client'
+    role: 'client',
+    guest_client_uuid: localStorage.getItem('guest_client_uuid')
 });
 
 // Limpieza de errores al escribir (Reactividad Quirúrgica)

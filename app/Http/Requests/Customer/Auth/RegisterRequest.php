@@ -36,6 +36,7 @@ class RegisterRequest extends FormRequest
             'avatar_file'  => ['nullable', 'image', 'max:2048'],
             'alias'        => ['nullable', 'string'],
             'details'      => ['nullable', 'string'],
+            'guest_client_uuid' => ['nullable', 'string'],
         ];
     }
 }

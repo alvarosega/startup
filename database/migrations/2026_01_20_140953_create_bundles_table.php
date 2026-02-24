@@ -11,21 +11,20 @@ return new class extends Migration
         Schema::create('bundles', function (Blueprint $table) {
             $table->uuid('id')->primary();
             
-            $table->uuid('branch_id');
-            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
+            // Relación con Sucursal
+            $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
             
             $table->string('name');
             $table->string('slug'); 
-            
             $table->text('description')->nullable();
             $table->string('image_path')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(true)->index();
             $table->decimal('fixed_price', 10, 2)->nullable();
             
             $table->softDeletes();
             $table->timestamps();
-
-            $table->index(['branch_id', 'is_active']);
+        
+            // La Ley: Un slug debe ser único por sucursal
             $table->unique(['branch_id', 'slug']); 
         });
     }

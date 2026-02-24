@@ -4,28 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Cart extends Model
 {
-    use HasUuids; // <--- 2. IMPORTANTE (Faltaba esto)
+    use HasUuids;
 
     protected $table = 'carts';
-    protected $fillable = ['session_id', 'user_id', 'branch_id'];
 
-    public function items() { return $this->hasMany(CartItem::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function user() { return $this->belongsTo(User::class); }
+    // Se corrigió user_id por customer_id para alinearlo con la migración
+    protected $fillable = ['session_id', 'customer_id', 'branch_id'];
 
-    // PROTECCIÓN MANUAL PARA LLAVES FORÁNEAS BINARIAS
-    public function getUserIdAttribute($value)
-    {
-        if (is_string($value) && strlen($value) === 16) return bin2hex($value);
-        return $value;
-    }
-
-    public function getBranchIdAttribute($value)
-    {
-        if (is_string($value) && strlen($value) === 16) return bin2hex($value);
-        return $value;
-    }
+    public function items(): HasMany { return $this->hasMany(CartItem::class); }
+    public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
+    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
 }

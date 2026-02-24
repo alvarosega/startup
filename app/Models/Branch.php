@@ -5,7 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Concerns\HasUuids; // <--- IMPRESCINDIBLE
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Support\Facades\Cache;
 
 class Branch extends Model
 {
@@ -29,5 +30,20 @@ class Branch extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
-    }        
+    }   
+    
+    protected static function booted()
+    {
+        static::saving(function ($branch) {
+            // Si esta sucursal se marca como default, desmarcar las demás
+            if ($branch->is_default) {
+                static::where('id', '!=', $branch->id)->update(['is_default' => false]);
+                Cache::forget('shop_default_branch_id');
+            }
+        });
+    }
+    public static function getMinimalList()
+    {
+        return self::orderBy('name')->get(['id', 'name']);
+    }
 }

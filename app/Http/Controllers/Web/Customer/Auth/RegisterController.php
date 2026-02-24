@@ -57,7 +57,13 @@ class RegisterController extends Controller
 
             Auth::guard('customer')->login($customer);
             $request->session()->regenerate();
-
+            if ($request->has('guest_client_uuid')) {
+                $syncAction->execute(new SyncCartDTO(
+                    customerId: Auth::guard('customer')->id(),
+                    guestUuid: $request->input('guest_client_uuid'),
+                    branchId: app(\App\Services\ShopContextService::class)->getActiveBranchId()
+                ));
+            }
             return redirect()->intended('/');
 
         } catch (\Exception $e) {

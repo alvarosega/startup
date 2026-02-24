@@ -28,7 +28,7 @@ watch(() => props.show, async (newVal) => {
         bundle.value = null;
         
         try {
-            const response = await axios.get(route('shop.bundle.show', props.bundleSlug));
+            const response = await axios.get(route('customer.shop.bundle.show', props.bundleSlug));
             bundle.value = response.data.bundle;
             
             items.value = response.data.items.map(item => {
@@ -74,6 +74,9 @@ const totalPrice = computed(() => {
 const form = useForm({ items: [] });
 
 const addToCart = () => {
+    // Recuperar UUID de invitado para sincronización
+    const guestUuid = localStorage.getItem('guest_client_uuid');
+
     const payload = items.value
         .filter(i => i.quantity > 0)
         .map(i => ({ sku_id: i.sku_id, quantity: i.quantity }));

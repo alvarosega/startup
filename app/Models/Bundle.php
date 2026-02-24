@@ -4,38 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\{BelongsToMany, BelongsTo, MorphMany};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Bundle extends Model
 {
-    use SoftDeletes, HasUuids; // <--- AHORA SÍ LO ENCONTRARÁ
+    use SoftDeletes, HasUuids;
 
-    protected $hidden = ['id', 'branch_id']; // <--- CRÍTICO PARA EVITAR UTF-8 ERROR
+    public $incrementing = false;
+    protected $keyType = 'string';
 
-    public function toArray()
-    {
-        $array = parent::toArray();
-        $rawId = $this->getRawOriginal('id');
-        $array['id'] = $rawId ? bin2hex($rawId) : null;
-        
-        $rawBranch = $this->getRawOriginal('branch_id');
-        $array['branch_id'] = $rawBranch ? bin2hex($rawBranch) : null;
-        
-        return $array;
-    }
+    // Regla 3: Ocultar IDs si no son necesarios (UUID Leakage)
+    protected $hidden = ['deleted_at']; 
+
     protected $fillable = [
-        'branch_id', // <--- NUEVO
-        'name', 
-        'slug', 
-        'description', 
-        'image_path', 
-        'is_active', 
-        'fixed_price'
+        'branch_id', 'name', 'slug', 'description', 'image_path', 'is_active', 'fixed_price'
     ];
 
     protected $casts = [
@@ -43,29 +27,34 @@ class Bundle extends Model
         'fixed_price' => 'decimal:2',
     ];
 
-    // --- RELACIONES ---
-
-    public function branch(): BelongsTo
+    public static function getPaginatedForAdmin(array $filters)
     {
-        return $this->belongsTo(Branch::class);
+        return self::with(['branch', 'skus'])
+            ->withCount(['skus'])
+            ->when($filters['search'] ?? null, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
+            ->when($filters['branch_id'] ?? null, fn($q, $b) => $q->where('branch_id', $b))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+    }
+
+    public function branch(): BelongsTo 
+    { 
+        return $this->belongsTo(Branch::class); 
     }
 
     public function skus(): BelongsToMany
     {
         return $this->belongsToMany(Sku::class, 'bundle_items')
-                    ->withPivot('quantity')
+                    ->withPivot('id', 'quantity')
                     ->withTimestamps();
     }
 
-    public function reviews(): MorphMany
-    {
-        return $this->morphMany(Review::class, 'reviewable');
-    }
+    // --- SCOPES SENIOR ---
 
-    public function scopeForBranch(Builder $query, $branchId): void // Quitar el 'int'
+    public function scopeForBranch(Builder $query, string $branchId): void
     {
-        // Aseguramos que la consulta use el binario
-        $binaryId = (is_string($branchId) && strlen($branchId) === 32) ? hex2bin($branchId) : $branchId;
-        $query->where('branch_id', $binaryId);
+        // NO usar hex2bin. La entrada ya es un String UUID.
+        $query->where('branch_id', $branchId);
     }
 }

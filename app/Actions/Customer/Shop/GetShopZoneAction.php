@@ -1,69 +1,55 @@
 <?php
 
-namespace App\Actions\Customer\Shop; // <--- NAMESPACE CORREGIDO
+namespace App\Actions\Customer\Shop;
 
 use App\Models\MarketZone;
 use App\Models\Category;
-use App\Models\Product;
-use App\Http\Resources\Shop\ShopProductResource;
+use App\Http\Resources\Customer\Shop\ShopProductResource;
 
 class GetShopZoneAction
 {
     public function execute(MarketZone $zone, string $branchId): \Illuminate\Support\Collection
     {
-        $rootCategories = Category::where('market_zone_id', $zone->id)
+        // 1. Cargamos el árbol usando 'children' que es el nombre en tu modelo
+        $categories = Category::where('market_zone_id', $zone->id)
             ->whereNull('parent_id')
             ->where('is_active', true)
+            ->with(['children' => function ($q) use ($branchId) { // <--- CAMBIO AQUÍ
+                $q->where('is_active', true)
+                  ->with(['products' => function ($pq) use ($branchId) {
+                      $pq->where('is_active', true)
+                         ->with(['brand', 'skus' => function ($sq) use ($branchId) {
+                             $sq->where('is_active', true)
+                                ->whereHas('inventoryLots', fn($l) => $l->where('branch_id', $branchId)->where('quantity', '>', 0))
+                                ->with(['prices' => fn($pr) => $pr->where('branch_id', $branchId)]);
+                         }]);
+                  }]);
+            }])
             ->orderBy('sort_order')
             ->get();
 
-        return $rootCategories->map(function ($parent) use ($branchId) {
-            
-            $children = Category::where('parent_id', $parent->id)
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get();
+        return $categories->map(function ($parent) use ($branchId) {
+            // 2. Aquí también cambiamos subcategories por children
+            $subcategories = $parent->children->map(function ($child) use ($branchId) {
+                if ($child->products->isEmpty()) return null;
 
-            $subcategoriesData = $children->map(function ($child) use ($branchId) {
-                
-                $products = Product::query()
-                    ->where('category_id', $child->id)
-                    ->where('is_active', true)
-                    ->with([
-                        'brand',
-                        'skus' => function ($q) use ($branchId) {
-                            $q->where('is_active', true)
-                              ->whereHas('inventoryLots', function ($qLot) use ($branchId) {
-                                  $qLot->where('branch_id', $branchId)
-                                       ->where('current_stock', '>', 0);
-                              });
-                        }
-                    ])
-                    ->take(15)
-                    ->get();
-
-                if ($products->isEmpty()) return null;
-
-                $resourceCollection = ShopProductResource::collection($products);
-                $resourceCollection->collection->each(function ($r) use ($branchId) {
-                    $r->setContextBranch($branchId);
-                });
+                $resourceCollection = ShopProductResource::collection($child->products);
+                $resourceCollection->each(fn($r) => $r->setContextBranch($branchId));
 
                 return [
-                    'id' => $child->id,
-                    'name' => $child->name,
+                    'id'       => $child->id,
+                    'name'     => $child->name,
                     'products' => $resourceCollection->resolve()
                 ];
             })->filter()->values();
 
-            if ($subcategoriesData->isEmpty()) return null;
+            if ($subcategories->isEmpty()) return null;
 
             return [
-                'id' => $parent->id,
-                'name' => $parent->name,
-                'subcategories' => $subcategoriesData
+                'id'            => $parent->id,
+                'name'          => $parent->name,
+                'subcategories' => $subcategories // Mantenemos el nombre de la llave para el JSON del frontend
             ];
-
         })->filter()->values();
     }
 }

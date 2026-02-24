@@ -31,7 +31,13 @@ class LoginController extends Controller
             
             // 3. Gestión de sesión
             $request->session()->regenerate();
-            
+            if ($request->has('guest_client_uuid')) {
+                $syncAction->execute(new SyncCartDTO(
+                    customerId: Auth::guard('customer')->id(),
+                    guestUuid: $request->input('guest_client_uuid'),
+                    branchId: app(\App\Services\ShopContextService::class)->getActiveBranchId()
+                ));
+            }
             return redirect()->intended(route('shop.index'));
             
         } catch (\Illuminate\Validation\ValidationException $e) {

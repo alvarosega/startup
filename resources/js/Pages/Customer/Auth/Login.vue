@@ -11,8 +11,8 @@ const form = useForm({
     password: '',
     remember: false,
     device_name: 'Web Browser',
+    guest_client_uuid: localStorage.getItem('guest_id') || localStorage.getItem('guest_client_uuid')
 });
-
 const onInput = (phone, phoneObject) => {
     if (phoneObject?.number) {
         form.phone = phoneObject.number;

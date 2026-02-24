@@ -4,36 +4,48 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CartItem extends Model
 {
-    use HasUuids; // <--- APLICAR EL BLINDAJE
+    use HasUuids;
 
     protected $table = 'cart_items';
 
+    /**
+     * Campos asignables.
+     * Eliminamos 'product_id' porque ahora usamos 'sku_id' como pivote técnico.
+     */
     protected $fillable = [
-        'cart_id', 'product_id', 'quantity', 'price', 'options'
+        'cart_id', 
+        'sku_id', 
+        'quantity'
     ];
 
-    protected $casts = [
-        'options' => 'array',
-        'price' => 'decimal:2',
-    ];
+    // =================================================================================
+    // RELACIONES (DEFINICIÓN ESTRICTA)
+    // =================================================================================
 
-    public function cart() { return $this->belongsTo(Cart::class); }
-    // Asumo que tienes un modelo Product, si no, comenta esta línea
-    public function product() { return $this->belongsTo(Product::class); }
+    /**
+     * El SKU al que pertenece este ítem. 
+     * Esta es la relación que Ziggy y Eloquent no encontraban.
+     */
+    public function sku(): BelongsTo 
+    { 
+        return $this->belongsTo(Sku::class, 'sku_id'); 
+    }
 
-    // BLINDAJE DE FKs
-    public function getCartIdAttribute($value)
-    {
-        if (is_string($value) && strlen($value) === 16) return bin2hex($value);
-        return $value;
+    /**
+     * La cesta de compras padre.
+     */
+    public function cart(): BelongsTo 
+    { 
+        return $this->belongsTo(Cart::class, 'cart_id'); 
     }
-    
-    public function getProductIdAttribute($value)
-    {
-        if (is_string($value) && strlen($value) === 16) return bin2hex($value);
-        return $value;
-    }
+
+    // =================================================================================
+    // ELIMINACIÓN DE ACCESSORS BINARIOS
+    // =================================================================================
+    // Se borraron getCartIdAttribute y getProductIdAttribute. 
+    // Al usar HasUuids, Eloquent maneja los IDs como strings nativos automáticamente.
 }

@@ -4,40 +4,60 @@ namespace App\Services;
 
 use App\Models\Branch;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ShopContextService
 {
-    // CAMBIAR EL MÉTODO getActiveBranchId:
-    public function getActiveBranchId(): mixed // Quitar :int, permitir binario o null
+    /**
+     * Resuelve el ID de la sucursal activa bajo la jerarquía:
+     * 1. Customer->branch_id (Si está logueado y dentro de cobertura)
+     * 2. Session 'shop_branch_id' (Para invitados con ubicación seleccionada)
+     * 3. Sucursal is_default (Fallback global)
+     */
+    public function getActiveBranchId(): string
     {
-        $user = auth()->user();
-        
+        // 1. Intento por Usuario Autenticado
+        $user = Auth::guard('customer')->user();
         if ($user && $user->branch_id) {
-            // Retornamos el binario puro del modelo
-            return $user->getRawOriginal('branch_id'); 
+            return $user->branch_id;
         }
 
-        if (Session::has('shop_branch_id')) {
-            $sessionBranchId = Session::get('shop_branch_id');
-            // Si viene de sesión como Hex, convertir a binario para el servicio
-            return (is_string($sessionBranchId) && strlen($sessionBranchId) === 32) 
-                ? hex2bin($sessionBranchId) 
-                : $sessionBranchId;
+        // 2. Intento por Sesión (Invitados o Clientes sin branch_id aún)
+        $sessionBranchId = Session::get('shop_branch_id');
+        if ($sessionBranchId) {
+            return $sessionBranchId;
         }
 
-        return null; // El fallback debe ser null, no 1
+        // 3. Fallback a Sucursal por Defecto
+        return $this->getDefaultBranchId();
     }
 
-    // CAMBIAR EL MÉTODO setContext:
-    public function setContext(mixed $branchId, mixed $addressId = null): void
+    /**
+     * Obtiene el ID de la sucursal por defecto con caché de 24h.
+     * Si no hay ninguna marcada como default, toma la primera activa.
+     */
+    public function getDefaultBranchId(): string
     {
-        // Guardamos en sesión como HEX para que sea seguro (UTF-8)
-        $hexBranchId = (is_string($branchId) && strlen($branchId) === 16) ? bin2hex($branchId) : $branchId;
-        Session::put('shop_branch_id', $hexBranchId);
-        
+        return Cache::remember('shop_default_branch_id', 86400, function () {
+            $branch = Branch::where('is_default', true)
+                ->where('is_active', true)
+                ->first() 
+                ?? Branch::where('is_active', true)->first();
+
+            if (!$branch) {
+                throw new \Exception("Error Crítico: No existen sucursales activas en el sistema.");
+            }
+
+            return $branch->id;
+        });
+    }
+
+    public function setContext(string $branchId, ?string $addressId = null): void
+    {
+        Session::put('shop_branch_id', $branchId);
         if ($addressId) {
-            $hexAddressId = (is_string($addressId) && strlen($addressId) === 16) ? bin2hex($addressId) : $addressId;
-            Session::put('shop_address_id', $hexAddressId);
+            Session::put('shop_address_id', $addressId);
         }
     }
 }

@@ -39,6 +39,7 @@ class LoginRequest extends FormRequest
             'phone'    => ['required', 'string'],
             'password' => ['required', 'string'],
             'remember' => ['boolean'],
+            'guest_client_uuid' => ['nullable', 'string'],
         ];
     }
 }

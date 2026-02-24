@@ -8,16 +8,23 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\Geo\BranchCoverageService;
+use App\Actions\Customer\Cart\SyncGuestCartAction;
+use App\DTOs\Customer\Cart\SyncCartDTO;
+use App\Services\ShopContextService;
+// ------------------------
+
 
 class RegisterCustomerAction
 {
     public function __construct(
-        protected BranchCoverageService $geoService
+        protected BranchCoverageService $geoService,
+        protected SyncGuestCartAction $syncAction, // <--- INYECCIÓN CORREGIDA
+        protected ShopContextService $shopContext
     ) {}
     public function execute(RegisterCustomerData $data): Customer
     {
-        // Calculamos cobertura una sola vez
-        $assignedBranchId = $this->geoService->identifyBranch($data->latitude, $data->longitude);
+        $identifiedBranch = $this->geoService->identifyBranch($data->latitude, $data->longitude);
+        $assignedBranchId = $identifiedBranch ?? $this->shopContext->getDefaultBranchId();
     
         return DB::transaction(function () use ($data, $assignedBranchId) {
             
@@ -50,8 +57,16 @@ class RegisterCustomerAction
                 'is_default' => true,
             ]);
     
+            // SINCRONIZACIÓN: Ahora usamos el UUID que viene del DTO
+            if ($data->guestUuid) {
+                $this->syncAction->execute(new SyncCartDTO(
+                    customerId: $customer->id,
+                    guestUuid:  $data->guestUuid,
+                    branchId:   $assignedBranchId
+                ));
+            }
+
             $customer->assignRole('customer');
-    
             return $customer;
         });
     }

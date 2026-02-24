@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 // --- CONTROLADORES CUSTOMER ---
 use App\Http\Controllers\Web\Customer\Auth\LoginController as CustomerLoginController;
 use App\Http\Controllers\Web\Customer\Shop\ShopController;
-use App\Http\Controllers\Web\Customer\Shop\CartController;
+use App\Http\Controllers\Web\Customer\Cart\CartController;
 use App\Http\Controllers\Web\Customer\Profiles\ProfileController;
 use App\Http\Controllers\Web\Customer\Profiles\AddressController;
 use App\Http\Controllers\Web\Customer\Auth\RegisterController;
@@ -59,17 +59,26 @@ $adminPath = env('ADMIN_PATH', 'admin');
 
 Route::middleware(['inertia.customer'])->group(function () {
 
-    // --- LANDING PAGE & CATÁLOGO ---
-    Route::get('/', [ShopController::class, 'index'])->name('shop.index');
-    Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('shop.zone');
+    // --- ENVOLVEMOS TODO EN EL NAME 'customer.' PARA ALINEAR CON EL LAYOUT ---
+    Route::name('customer.')->group(function () {
+        
+        // 1. Catálogo
+        Route::get('/', [ShopController::class, 'index'])->name('shop.index');
+        Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('shop.zone');
+
+        // 2. Carrito (MOVER AQUÍ Y ELIMINAR EL OTRO BLOQUE)
+        Route::prefix('cart')->name('cart.')->group(function () {
+            Route::get('/', [CartController::class, 'index'])->name('index'); 
+            Route::post('/add', [CartController::class, 'store'])->name('add');
+            Route::post('/sync', [CartController::class, 'sync'])->name('sync');
+        });
+    });
 
     // --- AUTENTICACIÓN CLIENTE (GUEST) ---
+    // Mantener fuera del grupo de nombre 'customer.' si usas los nombres estándar de Laravel (login, register)
     Route::middleware('guest:customer')->group(function () {
-        // Login
         Route::get('login', [CustomerLoginController::class, 'show'])->name('login');
-        Route::post('login', [CustomerLoginController::class, 'store']); // Ya no se llama 'login.store' sino 'login' post
-    
-        // Registro
+        Route::post('login', [CustomerLoginController::class, 'store']);
         Route::get('register', [CustomerRegisterController::class, 'create'])->name('register');
         Route::post('register', [CustomerRegisterController::class, 'store']);
         Route::post('register/validate-step-1', [CustomerRegisterController::class, 'validateStep1'])->name('register.validate-step-1');
@@ -119,14 +128,7 @@ Route::middleware(['inertia.customer'])->group(function () {
     
     });
 
-    // --- CARRITO DE COMPRAS (Míxto: Guest + Auth) ---
-    Route::prefix('cart')->name('cart.')->group(function () {
-        Route::get('/', [CartController::class, 'index'])->name('index'); 
-        Route::post('/add', [CartController::class, 'store'])->name('add');
-        Route::post('/bulk', [CartController::class, 'bulkStore'])->name('bulk');
-        Route::patch('/{id}', [CartController::class, 'update'])->name('update');
-        Route::delete('/{id}', [CartController::class, 'destroy'])->name('remove');
-    });
+
 
     // --- DEBUGGING (Solo Local) ---
     if (app()->environment('local')) {
@@ -134,7 +136,7 @@ Route::middleware(['inertia.customer'])->group(function () {
              $customer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
              return response()->json([
                  'status' => $customer ? 'LOGUEADO' : 'GUEST',
-                 'id' => $customer?->id ? bin2hex($customer->getRawOriginal('id')) : null
+                 'id' => $customer?->id
              ]);
         });
     }
