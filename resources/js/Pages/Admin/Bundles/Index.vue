@@ -93,8 +93,7 @@ const hasActiveFilters = computed(() => search.value !== '' || branchFilter.valu
                          class="card group bg-card border border-border hover:shadow-lg hover:border-primary/40 transition-all duration-300 overflow-hidden flex flex-col relative">
                         
                         <div class="aspect-video w-full bg-muted/10 relative overflow-hidden">
-                            <img v-if="getImageUrl(bundle.image_path)" 
-                                 :src="getImageUrl(bundle.image_path)" 
+                            <img v-if="bundle.image_url" :src="bundle.image_url"
                                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                             <div v-else class="w-full h-full flex flex-col items-center justify-center text-muted-foreground/30 gap-2">
                                 <Package :size="32" stroke-width="1.5" />
@@ -139,14 +138,14 @@ const hasActiveFilters = computed(() => search.value !== '' || branchFilter.valu
                                     <span class="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Contenido del Pack</span>
                                 </div>
                                 <div class="flex flex-wrap gap-1.5">
-                                    <template v-if="bundle.skus && bundle.skus.length > 0">
-                                        <div v-for="sku in bundle.skus.slice(0, 3)" :key="sku.id" 
-                                             class="px-2 py-1 rounded bg-muted/30 border border-border text-[10px] font-medium flex items-center gap-1">
+                                    <template v-if="bundle.items && bundle.items.length > 0">
+                                        <div v-for="sku in bundle.items.slice(0, 3)" :key="sku.sku_id" 
+                                            class="px-2 py-1 rounded bg-muted/30 border border-border text-[10px] font-medium flex items-center gap-1">
                                             <span class="truncate max-w-[80px]">{{ sku.name }}</span>
-                                            <span class="bg-primary/10 text-primary px-1 rounded-[2px] font-bold">x{{ sku.pivot.quantity }}</span>
+                                            <span class="bg-primary/10 text-primary px-1 rounded-[2px] font-bold">x{{ sku.quantity }}</span>
                                         </div>
-                                        <span v-if="bundle.skus.length > 3" class="px-2 py-1 rounded bg-muted/30 border border-border text-[10px] font-medium text-muted-foreground">
-                                            +{{ bundle.skus.length - 3 }} más
+                                        <span v-if="bundle.items.length > 3" class="px-2 py-1 rounded bg-muted/30 border border-border text-[10px] font-medium text-muted-foreground">
+                                            +{{ bundle.items.length - 3 }} más
                                         </span>
                                     </template>
                                     <span v-else class="text-xs text-muted-foreground italic flex items-center gap-1">

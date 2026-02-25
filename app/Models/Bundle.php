@@ -15,7 +15,6 @@ class Bundle extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    // Regla 3: Ocultar IDs si no son necesarios (UUID Leakage)
     protected $hidden = ['deleted_at']; 
 
     protected $fillable = [
@@ -46,15 +45,14 @@ class Bundle extends Model
     public function skus(): BelongsToMany
     {
         return $this->belongsToMany(Sku::class, 'bundle_items')
-                    ->withPivot('id', 'quantity')
+                    ->using(BundleItem::class)
+                    ->withPivot('quantity') 
                     ->withTimestamps();
     }
 
-    // --- SCOPES SENIOR ---
 
     public function scopeForBranch(Builder $query, string $branchId): void
     {
-        // NO usar hex2bin. La entrada ya es un String UUID.
         $query->where('branch_id', $branchId);
     }
 }

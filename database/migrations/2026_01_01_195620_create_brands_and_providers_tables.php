@@ -32,23 +32,20 @@ return new class extends Migration
         });
         Schema::create('brands', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->foreignUuid('provider_id')->constrained('providers')->cascadeOnDelete();
+            // Vínculo con categoría (1 a 1 en el sentido de la Marca)
+            $table->foreignUuid('category_id')->constrained('categories')->cascadeOnDelete();
             
-            // Relación indispensable para el Seeder y lógica de negocio
-            $table->foreignUuid('provider_id')->nullable()->constrained('providers')->nullOnDelete();
-        
             $table->string('name')->unique();
             $table->string('slug')->unique();
-            
-            // Estandarización: image_path (igual que en Product/Sku) y website
             $table->string('image_path')->nullable();
             $table->string('website')->nullable();
             
-            // Índices de rendimiento
             $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_featured')->default(false);
             $table->integer('sort_order')->default(0);
-            
             $table->text('description')->nullable();
+            
             $table->timestamps();
             $table->softDeletes();
         });

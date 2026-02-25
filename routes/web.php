@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\Customer\OrderController as CustomerOrderController
 use App\Http\Controllers\Web\Customer\Auth\RegisterController as CustomerRegisterController;
 use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Customer\Auth\ResetPasswordController;
+use App\Http\Controllers\Web\Customer\Cart\BundleController as CustomerBundleController;
 //use App\Http\Controllers\Web\Customer\CheckoutController; // Asegúrate de tener este import si usas Checkout
 
 // --- CONTROLADORES ADMIN ---
@@ -25,7 +26,8 @@ use App\Http\Controllers\Web\Admin\BranchController;
 use App\Http\Controllers\Web\Admin\ProductController;
 use App\Http\Controllers\Web\Admin\CategoryController;
 use App\Http\Controllers\Web\Admin\MarketZoneController;
-use App\Http\Controllers\Web\Admin\BundleController;
+use App\Http\Controllers\Web\Admin\BundleController as AdminBundleController;
+
 use App\Http\Controllers\Web\Admin\BrandController;
 use App\Http\Controllers\Web\Admin\ProviderController;
 use App\Http\Controllers\Web\Admin\SkuController;
@@ -71,6 +73,8 @@ Route::middleware(['inertia.customer'])->group(function () {
             Route::get('/', [CartController::class, 'index'])->name('index'); 
             Route::post('/add', [CartController::class, 'store'])->name('add');
             Route::post('/sync', [CartController::class, 'sync'])->name('sync');
+            Route::get('/bundle/{bundle:slug}', [CustomerBundleController::class, 'show'])->name('bundle.show');
+            Route::post('/bundle/add', [CustomerBundleController::class, 'add'])->name('bundle.add');
         });
     });
 
@@ -177,7 +181,7 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             Route::resource('market-zones', MarketZoneController::class)
                 ->names('market-zones')
                 ->parameters(['market-zones' => 'market_zone']);
-            Route::resource('bundles', BundleController::class);
+            Route::resource('bundles', AdminBundleController::class);
             Route::resource('brands', BrandController::class);
             Route::resource('providers', ProviderController::class);
             Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);

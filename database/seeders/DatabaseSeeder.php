@@ -23,14 +23,15 @@ class DatabaseSeeder extends Seeder
 
         // 4. CATÁLOGOS Y OPERACIONES (Mantener si estos modelos existen)
         $this->call([
-             LevelSeeder::class, // Verificar si 'levels' existe en nueva BD
-             ComplianceSeeder::class,
-             ProviderSeeder::class,
-             BrandSeeder::class,
-             CategorySeeder::class,
-             ProductSeeder::class, 
-             InventorySeeder::class
-        ]);
-        $this->call(MarketZoneSeeder::class);
+            LevelSeeder::class,
+            ComplianceSeeder::class,
+            ProviderSeeder::class,
+            BrandSeeder::class,
+            CategorySeeder::class,
+            ProductSeeder::class, // Genera los SKUs necesarios
+            InventorySeeder::class,
+            MarketZoneSeeder::class,
+            BundleSeeder::class, // <--- AÑADIR AQUÍ AL FINAL
+       ]);
     }
 }

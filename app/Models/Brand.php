@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ class Brand extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'provider_id', 'name', 'slug', 'image_path', 
+        'provider_id', 'category_id', 'name', 'slug', 'image_path', 
         'website', 'is_active', 'is_featured', 'sort_order', 'description'
     ];
 
@@ -24,13 +25,20 @@ class Brand extends Model
         'sort_order' => 'integer'
     ];
 
-    // Relación con el silo de proveedores
     public function provider(): BelongsTo
     {
         return $this->belongsTo(Provider::class);
     }
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? asset('storage/' . $this->image_path) : null;
+    }
+    // RELACIÓN CRÍTICA:
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
 
-    // Scope para evitar BadMethodCallException en controladores
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
