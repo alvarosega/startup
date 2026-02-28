@@ -3,9 +3,8 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { computed, onMounted, watch } from 'vue';
 import { 
-    Plus, Trash2, Calendar, DollarSign, FileText, 
-    Factory, MapPin, Save, ArrowLeft, CreditCard,
-    Package, AlertCircle, Calculator
+    Plus, Trash2, Calendar, FileText, Factory, MapPin, 
+    Save, ArrowLeft, CreditCard, Package, ShieldAlert, Zap
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -17,310 +16,224 @@ const props = defineProps({
 const form = useForm({
     branch_id: '',
     provider_id: '',
-    document_number: '',
+    document_number: '', // Ahora es automático
     purchase_date: new Date().toISOString().split('T')[0],
-    payment_type: 'CASH', // CASH, CREDIT
-    payment_due_date: '',
+    payment_type: 'CASH',
+    is_emergency: false, // Switch global de tipo de documento
     notes: '',
-    items: [ createEmptyItem() ]
+    total_amount: 0,
+    items: []
 });
 
-// Autoseleccionar sucursal si solo hay una
-onMounted(() => {
-    if (props.branches.length === 1) {
-        form.branch_id = props.branches[0].id;
-    }
-});
+// Generador de ID corto aleatorio para evitar colisiones en sesión
+const shortId = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+
+// LOGICA: Generación de Documento y Lotes
+const updateAutomatedFields = () => {
+    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const prefixDoc = form.is_emergency ? 'EMG' : 'CMP';
+    
+    // 1. Actualizar Nro Documento de cabecera
+    form.document_number = `${prefixDoc}-${datePart}-${shortId()}`;
+
+    // 2. Sincronizar todos los items al tipo de la cabecera por defecto
+    form.items.forEach(item => {
+        item.is_safety_stock = form.is_emergency;
+        const prefixLot = item.is_safety_stock ? 'RELOT' : 'LOT';
+        item.lot_code = `${prefixLot}-${datePart}-${shortId()}`;
+    });
+};
 
 function createEmptyItem() {
     return { 
         sku_id: '', 
         quantity_input: 1,      
         total_cost_input: 0,    
-        factor: 1,
-        sku_name: '',
         quantity: 1,            
         unit_cost: 0,           
-        expiration_date: null 
+        expiration_date: null,
+        is_safety_stock: form.is_emergency,
+        lot_code: '' 
     };
 }
 
-const addItem = () => form.items.push(createEmptyItem());
+onMounted(() => {
+    if (props.branches.length === 1) form.branch_id = props.branches[0].id;
+    addItem();
+    updateAutomatedFields();
+});
 
-const removeItem = (index) => {
-    if (form.items.length > 1) form.items.splice(index, 1);
-};
+// Vigilar el switch de emergencia para regenerar todo
+watch(() => form.is_emergency, updateAutomatedFields);
 
-const onSkuChange = (item) => {
-    const skuInfo = props.skus.find(s => s.id === item.sku_id);
-    if (skuInfo) {
-        item.factor = skuInfo.factor;
-        item.sku_name = skuInfo.full_name;
-    }
-    calculateRow(item);
+const addItem = () => {
+    const item = createEmptyItem();
+    form.items.push(item);
+    updateAutomatedFields(); // Asigna código al nuevo item
 };
 
 const calculateRow = (item) => {
     item.quantity = item.quantity_input || 0;
-    if (item.quantity > 0 && item.total_cost_input > 0) {
-        item.unit_cost = item.total_cost_input / item.quantity;
-    } else {
-        item.unit_cost = 0;
-    }
+    item.unit_cost = item.quantity > 0 ? (item.total_cost_input / item.quantity) : 0;
 };
 
-const grandTotal = computed(() => {
-    return form.items.reduce((acc, item) => acc + (item.total_cost_input || 0), 0);
-});
-// ... dentro de tu script setup ...
-
-// Sincroniza el total_amount del formulario con el grandTotal computado
-watch(grandTotal, (newTotal) => {
-    form.total_amount = newTotal;
-}, { immediate: true });
+const grandTotal = computed(() => form.items.reduce((acc, item) => acc + (item.total_cost_input || 0), 0));
+watch(grandTotal, (newTotal) => form.total_amount = newTotal);
 
 const submit = () => {
-    // Transformamos los datos para cumplir con el DTO del Backend (Zero-Trust)
     form.transform((data) => ({
         ...data,
-        total_amount: grandTotal.value, // Aseguramos el total final
         items: data.items.map(item => ({
             sku_id: item.sku_id,
-            quantity: item.quantity, // Enviamos el valor procesado, no el input
+            quantity: item.quantity,
             unit_cost: item.unit_cost,
-            expiration_date: item.expiration_date,
-            lot_code: item.lot_code || null
+            is_safety_stock: item.is_safety_stock,
+            lot_code: item.lot_code,
+            expiration_date: item.expiration_date
         }))
-    })).post(route('admin.purchases.store'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            // Manejo de éxito
-        }
-    });
+    })).post(route('admin.purchases.store'));
 };
 </script>
 
 <template>
     <AdminLayout>
-        
-        <div class="max-w-5xl mx-auto pb-40 md:pb-12">
+        <div class="max-w-7xl mx-auto pb-24 px-4">
             
-            <div class="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-4 mb-6 flex flex-col gap-4 shadow-sm transition-all duration-300">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <Link :href="route('admin.purchases.index')" class="btn btn-ghost btn-sm btn-square -ml-2 text-muted-foreground hover:bg-muted">
-                            <ArrowLeft :size="22" />
-                        </Link>
-                        <div>
-                            <h1 class="text-xl font-display font-black text-foreground leading-none tracking-tight">
-                                Registrar Ingreso
-                            </h1>
-                            <p class="text-xs text-muted-foreground mt-1">Nueva Compra</p>
+            <div class="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border py-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-4 w-full md:w-auto">
+                    <Link :href="route('admin.purchases.index')" class="btn btn-ghost btn-sm btn-square text-muted-foreground"><ArrowLeft :size="20" /></Link>
+                    <div>
+                        <h1 class="text-xl font-black text-foreground tracking-tighter">Nueva Operación</h1>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                {{ form.document_number }}
+                            </span>
                         </div>
                     </div>
-                    
-                    <div class="flex flex-col items-end">
-                        <span class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total</span>
-                        <div class="flex items-center text-emerald-500">
-                            <span class="text-xs font-bold mr-1">Bs</span>
-                            <span class="text-xl font-mono font-black tracking-tight">{{ grandTotal.toFixed(2) }}</span>
-                        </div>
-                    </div>
+                </div>
+
+                <div class="flex bg-muted/50 p-1 rounded-xl border border-border w-full md:w-auto">
+                    <button type="button" @click="form.is_emergency = false" 
+                        class="flex-1 md:flex-none px-6 py-2 text-[10px] font-black rounded-lg transition-all flex items-center justify-center gap-2"
+                        :class="!form.is_emergency ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground'">
+                        <Package :size="14"/> COMPRA ORDINARIA
+                    </button>
+                    <button type="button" @click="form.is_emergency = true" 
+                        class="flex-1 md:flex-none px-6 py-2 text-[10px] font-black rounded-lg transition-all flex items-center justify-center gap-2"
+                        :class="form.is_emergency ? 'bg-background text-orange-600 shadow-sm' : 'text-muted-foreground'">
+                        <Zap :size="14"/> STOCK EMERGENCIA
+                    </button>
                 </div>
             </div>
 
-            <form @submit.prevent="submit" class="px-4 md:px-0 space-y-6">
+            <form @submit.prevent="submit" class="space-y-6">
                 
-                <div v-if="form.errors.error" class="bg-error/10 border border-error/20 text-error p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2">
-                    <AlertCircle :size="20"/>
-                    <span class="font-bold text-sm">{{ form.errors.error }}</span>
+                <div v-if="Object.keys(form.errors).length > 0" class="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-start gap-3">
+                    <AlertCircle :size="20" class="text-red-500 shrink-0 mt-0.5" />
+                    <div class="space-y-1">
+                        <h4 class="text-sm font-black text-red-500 uppercase tracking-widest">Error de Validación</h4>
+                        <ul class="text-xs text-red-400 font-medium list-disc pl-4">
+                            <li v-for="(error, key) in form.errors" :key="key">{{ error }}</li>
+                        </ul>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="card p-4 space-y-1" :class="{'border-red-500 bg-red-500/5': form.errors.branch_id}">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground">Sucursal de Destino</label>
+                        <select v-model="form.branch_id" class="form-input w-full h-11 text-sm bg-muted/20">
+                            <option value="" disabled>Seleccione sede...</option>
+                            <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
+                        </select>
+                        <p v-if="form.errors.branch_id" class="text-[9px] text-red-500 font-bold mt-1">{{ form.errors.branch_id }}</p>
+                    </div>
                     
-                    <div class="card bg-card border border-border shadow-sm p-5 space-y-4">
-                        <div class="flex items-center gap-2 mb-2 border-b border-border pb-2">
-                            <Factory :size="16" class="text-primary"/>
-                            <h3 class="text-xs font-black uppercase text-muted-foreground tracking-wider">Logística</h3>
-                        </div>
-
-                        <div class="space-y-3">
-                            <div v-if="branches.length > 1" class="space-y-1">
-                                <label class="text-[10px] font-bold uppercase text-muted-foreground">Sucursal Destino</label>
-                                <div class="relative group">
-                                    <MapPin :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                    <select v-model="form.branch_id" class="form-input w-full pl-9 h-10 text-sm bg-muted/10 cursor-pointer" :class="{'border-error': form.errors.branch_id}">
-                                        <option value="" disabled>Seleccionar...</option>
-                                        <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
-                                    </select>
-                                </div>
-                                <p v-if="form.errors.branch_id" class="form-error">{{ form.errors.branch_id }}</p>
-                            </div>
-
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold uppercase text-muted-foreground">Proveedor</label>
-                                <div class="relative group">
-                                    <Factory :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                    <select v-model="form.provider_id" class="form-input w-full pl-9 h-10 text-sm bg-muted/10 cursor-pointer" :class="{'border-error': form.errors.provider_id}">
-                                        <option value="" disabled>Seleccionar...</option>
-                                        <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.commercial_name }}</option>
-                                    </select>
-                                </div>
-                                <p v-if="form.errors.provider_id" class="form-error">{{ form.errors.provider_id }}</p>
-                            </div>
-                        </div>
+                    <div class="card p-4 space-y-1" :class="{'border-red-500 bg-red-500/5': form.errors.provider_id}">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground">Proveedor Emisor</label>
+                        <select v-model="form.provider_id" class="form-input w-full h-11 text-sm bg-muted/20">
+                            <option value="" disabled>Seleccione proveedor...</option>
+                            <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.commercial_name }}</option>
+                        </select>
+                        <p v-if="form.errors.provider_id" class="text-[9px] text-red-500 font-bold mt-1">{{ form.errors.provider_id }}</p>
                     </div>
-
-                    <div class="card bg-card border border-border shadow-sm p-5 space-y-4">
-                        <div class="flex items-center gap-2 mb-2 border-b border-border pb-2">
-                            <FileText :size="16" class="text-blue-500"/>
-                            <h3 class="text-xs font-black uppercase text-muted-foreground tracking-wider">Documentación</h3>
-                        </div>
-
-                        <div class="space-y-3">
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold uppercase text-muted-foreground">Nro. Factura / Recibo</label>
-                                <div class="relative group">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono font-bold text-xs">#</span>
-                                    <input v-model="form.document_number" type="text" class="form-input w-full pl-8 h-10 text-sm font-mono" :class="{'border-error': form.errors.document_number}" placeholder="000-000">
-                                </div>
-                                <p v-if="form.errors.document_number" class="form-error">{{ form.errors.document_number }}</p>
-                            </div>
-
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold uppercase text-muted-foreground">Fecha Emisión</label>
-                                <div class="relative group">
-                                    <Calendar :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                    <input v-model="form.purchase_date" type="date" class="form-input w-full pl-9 h-10 text-sm">
-                                </div>
-                            </div>
-                        </div>
+                    
+                    <div class="card p-4 space-y-1" :class="{'border-red-500 bg-red-500/5': form.errors.purchase_date}">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground">Fecha de Operación</label>
+                        <input v-model="form.purchase_date" type="date" class="form-input w-full h-11 text-sm bg-muted/20" />
+                        <p v-if="form.errors.purchase_date" class="text-[9px] text-red-500 font-bold mt-1">{{ form.errors.purchase_date }}</p>
                     </div>
-
-                    <div class="card bg-card border border-border shadow-sm p-5 space-y-4">
-                        <div class="flex items-center gap-2 mb-2 border-b border-border pb-2">
-                            <CreditCard :size="16" class="text-emerald-500"/>
-                            <h3 class="text-xs font-black uppercase text-muted-foreground tracking-wider">Pago</h3>
-                        </div>
-
-                        <div class="space-y-3">
-                            <div class="flex p-1 bg-muted/30 rounded-lg border border-border">
-                                <button type="button" @click="form.payment_type = 'CASH'" 
-                                        class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2"
-                                        :class="form.payment_type === 'CASH' ? 'bg-background text-emerald-600 shadow-sm border border-emerald-200' : 'text-muted-foreground hover:text-foreground'">
-                                    <DollarSign :size="12"/> Contado
-                                </button>
-                                <button type="button" @click="form.payment_type = 'CREDIT'" 
-                                        class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2"
-                                        :class="form.payment_type === 'CREDIT' ? 'bg-background text-orange-600 shadow-sm border border-orange-200' : 'text-muted-foreground hover:text-foreground'">
-                                    <Calendar :size="12"/> Crédito
-                                </button>
-                            </div>
-
-                            <div v-if="form.payment_type === 'CREDIT'" class="space-y-1 animate-in slide-in-from-top-2">
-                                <label class="text-[10px] font-bold uppercase text-orange-600">Vencimiento del Pago</label>
-                                <input v-model="form.payment_due_date" type="date" class="form-input w-full h-10 text-sm border-orange-200 focus:border-orange-500 focus:ring-orange-500/20">
-                                <p v-if="form.errors.payment_due_date" class="form-error">{{ form.errors.payment_due_date }}</p>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
 
-                <div class="card bg-card border border-border shadow-sm overflow-hidden flex flex-col">
+                <div class="space-y-4">
+                    <h3 class="text-xs font-black uppercase text-muted-foreground tracking-widest px-1">Artículos en Partida</h3>
                     
-                    <div class="p-4 border-b border-border bg-muted/20 flex justify-between items-center">
-                        <div class="flex items-center gap-2">
-                            <Package :size="18" class="text-primary"/>
-                            <h3 class="font-bold text-foreground text-sm uppercase tracking-wide">Productos</h3>
-                        </div>
-                        <span class="badge badge-outline text-[10px]">{{ form.items.length }} Líneas</span>
-                    </div>
-
-                    <div class="p-5 flex-1 space-y-4">
+                    <div v-for="(item, index) in form.items" :key="index" 
+                        class="card overflow-hidden border-l-4 transition-all hover:shadow-md"
+                        :class="item.is_safety_stock ? 'border-l-orange-500' : 'border-l-primary'">
                         
-                        <div v-for="(item, index) in form.items" :key="index" 
-                             class="flex flex-col md:flex-row gap-4 p-4 rounded-xl border border-border bg-background hover:border-primary/30 transition-colors shadow-sm relative group">
-                            
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-muted group-hover:bg-primary transition-colors"></div>
-                            <span class="absolute top-2 left-2 text-[10px] font-mono text-muted-foreground/50 font-bold">#{{ index + 1 }}</span>
-
-                            <div class="w-full md:flex-1 space-y-1">
-                                <label class="text-[10px] text-muted-foreground font-bold uppercase ml-1">Producto / SKU</label>
-                                <select v-model="item.sku_id" @change="onSkuChange(item)" class="form-input w-full h-10 text-xs bg-muted/10 cursor-pointer">
+                        <div class="p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+                            <div class="lg:col-span-4 space-y-1">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-[9px] font-black uppercase text-muted-foreground" :class="{'text-red-500': form.errors[`items.${index}.sku_id`]}">SKU / Producto</label>
+                                    <span class="text-[9px] font-mono font-bold text-muted-foreground/60">{{ item.lot_code }}</span>
+                                </div>
+                                <select v-model="item.sku_id" class="form-input w-full h-10 text-xs font-medium" :class="{'border-red-500': form.errors[`items.${index}.sku_id`]}">
                                     <option value="" disabled>Seleccionar...</option>
-                                    <option v-for="sku in skus" :key="sku.id" :value="sku.id">
-                                        {{ sku.full_name }} {{ sku.factor > 1 ? '(x'+sku.factor+')' : '' }}
-                                    </option>
+                                    <option v-for="sku in skus" :key="sku.id" :value="sku.id">{{ sku.full_name }}</option>
                                 </select>
                             </div>
 
-                            <div class="grid grid-cols-3 gap-3 w-full md:w-auto">
-                                
+                            <div class="grid grid-cols-2 lg:grid-cols-3 lg:col-span-5 gap-4">
                                 <div class="space-y-1">
-                                    <label class="text-[10px] text-muted-foreground font-bold uppercase text-center block">Cant.</label>
-                                    <input v-model.number="item.quantity_input" @input="calculateRow(item)" type="number" min="1" class="form-input w-full h-10 text-center font-bold text-sm">
+                                    <label class="text-[9px] font-black uppercase text-muted-foreground text-center block" :class="{'text-red-500': form.errors[`items.${index}.quantity`]}">Cant.</label>
+                                    <input v-model.number="item.quantity_input" @input="calculateRow(item)" type="number" class="form-input w-full h-10 text-center font-bold" :class="{'border-red-500': form.errors[`items.${index}.quantity`]}" />
                                 </div>
-
                                 <div class="space-y-1">
-                                    <label class="text-[10px] text-muted-foreground font-bold uppercase text-center block">Costo Total</label>
-                                    <div class="relative">
-                                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">Bs</span>
-                                        <input v-model.number="item.total_cost_input" @input="calculateRow(item)" type="number" step="0.01" class="form-input w-full pl-6 h-10 text-right font-bold text-sm bg-emerald-50/50 border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500/20">
-                                    </div>
+                                    <label class="text-[9px] font-black uppercase text-muted-foreground text-center block">Subtotal (Bs)</label>
+                                    <input v-model.number="item.total_cost_input" @input="calculateRow(item)" type="number" step="0.01" class="form-input w-full h-10 text-center font-black text-emerald-600 bg-emerald-50/10 border-emerald-200" />
                                 </div>
-
-                                <div class="space-y-1">
-                                    <label class="text-[10px] text-muted-foreground font-bold uppercase text-center block opacity-70">Unitario</label>
-                                    <div class="relative">
-                                        <div class="form-input w-full h-10 flex items-center justify-end px-3 bg-muted/30 text-xs font-mono text-muted-foreground border-transparent">
-                                            {{ item.unit_cost.toFixed(2) }}
-                                        </div>
+                                <div class="hidden lg:block space-y-1 opacity-60">
+                                    <label class="text-[9px] font-black uppercase text-muted-foreground text-center block">Costo Unit.</label>
+                                    <div class="h-10 flex items-center justify-center text-xs font-mono border border-dashed rounded-lg">
+                                        {{ item.unit_cost.toFixed(2) }}
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="w-full md:w-32 space-y-1">
-                                <label class="text-[10px] text-muted-foreground font-bold uppercase block">Vencimiento</label>
-                                <input v-model="item.expiration_date" type="date" class="form-input w-full h-10 text-xs">
-                            </div>
-
-                            <div class="flex items-end justify-end md:justify-center">
-                                <button type="button" @click="removeItem(index)" 
-                                        class="btn btn-square btn-ghost h-10 w-10 text-muted-foreground hover:text-error hover:bg-error/10 transition-colors"
-                                        :disabled="form.items.length === 1"
-                                        :class="{'opacity-50 cursor-not-allowed': form.items.length === 1}">
-                                    <Trash2 :size="18"/>
+                            <div class="lg:col-span-3 flex items-center gap-3">
+                                <div class="flex-1 space-y-1">
+                                    <label class="text-[9px] font-black uppercase text-muted-foreground block">Vencimiento</label>
+                                    <input v-model="item.expiration_date" type="date" class="form-input w-full h-10 text-xs" />
+                                </div>
+                                <button type="button" @click="form.items.splice(index, 1)" v-if="form.items.length > 1" class="btn btn-ghost text-red-400 hover:text-red-600 self-end h-10">
+                                    <Trash2 :size="18" />
                                 </button>
                             </div>
-
                         </div>
-
-                        <button type="button" @click="addItem" class="w-full py-3 border-2 border-dashed border-border rounded-xl flex items-center justify-center gap-2 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all group">
-                            <Plus :size="18" class="group-hover:scale-110 transition-transform"/>
-                            <span class="text-sm font-bold">Agregar otro producto</span>
-                        </button>
-
                     </div>
-                </div>
 
-                <div class="space-y-2">
-                    <label class="text-[10px] font-bold uppercase text-muted-foreground">Notas Adicionales</label>
-                    <textarea v-model="form.notes" class="form-input w-full resize-none text-sm h-20" placeholder="Observaciones sobre la recepción o factura..."></textarea>
-                </div>
-
-                <div class="pt-6 border-t border-border flex flex-col md:flex-row justify-end gap-3">
-                    <Link :href="route('admin.purchases.index')" class="btn btn-outline h-12 px-6 font-bold text-muted-foreground w-full md:w-auto order-2 md:order-1">
-                        Cancelar
-                    </Link>
-                    <button type="submit" :disabled="form.processing" class="btn btn-primary h-12 px-8 font-black uppercase tracking-widest shadow-lg shadow-primary/20 w-full md:w-auto order-1 md:order-2 flex items-center justify-center gap-2">
-                        <span v-if="form.processing" class="loading loading-spinner loading-sm"></span>
-                        <span v-else class="flex items-center gap-2">
-                            <Save :size="18"/> Confirmar Ingreso
-                        </span>
+                    <button type="button" @click="addItem" class="w-full py-4 border-2 border-dashed border-border rounded-xl flex items-center justify-center gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all font-black text-xs uppercase tracking-widest">
+                        <Plus :size="18" /> Añadir Línea de Producto
                     </button>
                 </div>
 
+                <div class="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div class="w-full md:max-w-md">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground ml-1">Observaciones de Auditoría</label>
+                        <textarea v-model="form.notes" class="form-input w-full h-20 text-sm mt-1 resize-none" placeholder="Opcional..."></textarea>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        <div class="px-6 py-2 bg-emerald-600/10 rounded-xl border border-emerald-600/20 text-right order-last sm:order-none" :class="{'border-red-500 bg-red-500/10': form.errors.total_amount}">
+                            <span class="text-[9px] font-black text-emerald-600 uppercase block" :class="{'text-red-500': form.errors.total_amount}">Total Final</span>
+                            <span class="text-xl font-mono font-black text-emerald-700" :class="{'text-red-600': form.errors.total_amount}">{{ grandTotal.toFixed(2) }}</span>
+                        </div>
+                        <button type="submit" :disabled="form.processing" class="btn btn-primary h-14 px-12 font-black uppercase tracking-widest shadow-lg shadow-primary/20 flex items-center justify-center gap-3">
+                            <Save :size="20"/> 
+                            {{ form.processing ? 'PROCESANDO...' : 'REGISTRAR INGRESO' }}
+                        </button>
+                    </div>
+                </div>
             </form>
         </div>
     </AdminLayout>

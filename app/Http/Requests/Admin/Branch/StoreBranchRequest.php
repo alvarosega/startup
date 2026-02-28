@@ -27,6 +27,12 @@ class StoreBranchRequest extends FormRequest
             'opening_hours' => ['nullable', 'array'],
             'is_active' => ['boolean'],
             'is_default' => ['boolean'],
+            'delivery_base_fee' => ['required', 'numeric', 'min:0'],
+            'delivery_price_per_km' => ['required', 'numeric', 'min:0'],
+            'surge_multiplier' => ['required', 'numeric', 'min:1'],
+            'min_order_amount' => ['required', 'numeric', 'min:0'],
+            'small_order_fee' => ['required', 'numeric', 'min:0'],
+            'base_service_fee_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
         ];
     }
 }

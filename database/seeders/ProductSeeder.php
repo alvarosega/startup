@@ -65,28 +65,46 @@ class ProductSeeder extends Seeder
     }
     private function createSkusAndPrices($product, $basePrice, $branches): void
     {
+        // Obtenemos el ID del primer administrador para la auditoría inicial
+        $adminId = \App\Models\Admin::first()?->id;
+    
         $variations = [
             ['suffix' => 'Unitario', 'factor' => 1, 'price_mult' => 1.0, 'code_suf' => 'UNI'],
             ['suffix' => 'Pack x6', 'factor' => 6, 'price_mult' => 5.8, 'code_suf' => 'PK6'], 
         ];
-
+    
         foreach ($variations as $var) {
             $skuCode = "777" . strtoupper(substr(md5($product->id . $var['code_suf']), 0, 10));
-
+            $skuBasePrice = $basePrice * $var['price_mult'];
+    
+            // 1. CREACIÓN DEL SKU (Precio Base Referencial)
             $sku = Sku::updateOrCreate(
                 ['code' => $skuCode],
                 [
                     'product_id' => $product->id,
                     'name' => "{$product->name} ({$var['suffix']})",
-                    'base_price' => $basePrice * $var['price_mult'],
+                    'base_price' => $skuBasePrice, // Este es el precio "Base" del SKU
                     'conversion_factor' => $var['factor'],
                     'weight' => rand(500, 2000) / 1000,
                     'is_active' => true
                 ]
             );
-
-            // Sembrar Matriz de Precios
+    
+            // 2. SEMBRADO DE PRECIOS POR SUCURSAL (Lógica de Multiplicadores)
             foreach ($branches as $branch) {
+                $multiplier = 1.0;
+    
+                // Aplicamos multiplicadores según el nombre de la sucursal
+                if (str_contains($branch->name, 'La Paz')) {
+                    $multiplier = 1.0;  // Precio Base
+                } elseif (str_contains($branch->name, 'Cochabamba')) {
+                    $multiplier = 2.0;  // El Doble
+                } elseif (str_contains($branch->name, 'Santa Cruz')) {
+                    $multiplier = 10.0; // 10 Veces más
+                }
+    
+                $branchFinalPrice = $sku->base_price * $multiplier;
+    
                 Price::updateOrCreate(
                     [
                         'sku_id' => $sku->id,
@@ -94,11 +112,13 @@ class ProductSeeder extends Seeder
                         'type' => 'regular'
                     ],
                     [
-                        'list_price' => $sku->base_price * 1.15,
-                        'final_price' => $sku->base_price,
+                        'list_price' => $branchFinalPrice, // Usamos el mismo para este ejemplo
+                        'final_price' => $branchFinalPrice,
                         'min_quantity' => 1,
                         'priority' => 1,
-                        'valid_from' => now(),
+                        'valid_from' => '2026-01-01 08:00:00',
+                        'created_by_id' => $adminId,
+                        'updated_by_id' => $adminId,
                     ]
                 );
             }

@@ -5,7 +5,7 @@ import 'vue-tel-input/vue-tel-input.css';
 import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue'; 
 import BaseInput from '@/Components/Base/BaseInput.vue'; 
 import { LogIn, Lock, Smartphone, UserPlus, ArrowRight, Truck } from 'lucide-vue-next';
-
+import ShopLayout from '@/Layouts/ShopLayout.vue';
 const form = useForm({
     phone: '',
     password: '',
@@ -30,7 +30,7 @@ const submit = () => {
 
 <template>
     <Head title="Ingresar - Electric Luxury Logistics" />
-
+    <ShopLayout> <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
     <div class="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-4">
         
         <div class="fixed inset-0 z-0">
@@ -139,6 +139,8 @@ const submit = () => {
             </div>
         </div>
     </div>
+</div>
+</ShopLayout>
 </template>
 
 <style scoped>

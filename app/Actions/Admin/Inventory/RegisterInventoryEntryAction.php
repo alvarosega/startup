@@ -2,67 +2,88 @@
 
 namespace App\Actions\Admin\Inventory;
 
-use App\DTOs\Admin\Inventory\RegisterPurchaseDTO;
 use App\Models\{Purchase, InventoryLot, InventoryMovement};
+use App\DTOs\Admin\Inventory\RegisterPurchaseDTO;
 use Illuminate\Support\Facades\{DB, Log};
+use Illuminate\Support\Str;
 use Exception;
 
 class RegisterInventoryEntryAction
 {
     public function execute(RegisterPurchaseDTO $dto): Purchase
     {
-        Log::info("Iniciando registro de compra: Doc #{$dto->document_number}");
+        Log::info('--- INICIANDO TRANSACCIÓN DE INGRESO DE INVENTARIO ---', [
+            'admin_id'  => $dto->admin_id,
+            'branch_id' => $dto->branch_id,
+            'is_emergency' => $dto->is_emergency
+        ]);
 
         try {
             return DB::transaction(function () use ($dto) {
-                // 1. Crear Cabecera
+                // 1. Foliación Inmutable (Servidor manda)
+                $prefix = $dto->is_emergency ? 'EMG' : 'CMP';
+                $docNumber = "{$prefix}-" . now()->format('ymd') . "-" . strtoupper(Str::random(4));
+
+                Log::info("Generando documento inmutable: {$docNumber}");
+
                 $purchase = Purchase::create([
                     'branch_id'       => $dto->branch_id,
                     'provider_id'     => $dto->provider_id,
                     'admin_id'        => $dto->admin_id,
-                    'document_number' => $dto->document_number,
+                    'document_number' => $docNumber,
                     'purchase_date'   => $dto->purchase_date,
                     'payment_type'    => $dto->payment_type,
-                    'payment_due_date'=> $dto->payment_due_date,
                     'total_amount'    => $dto->total_amount,
                     'notes'           => $dto->notes,
                     'status'          => 'COMPLETED',
                 ]);
 
-                // 2. Crear Lotes y Movimientos
-                foreach ($dto->items as $index => $item) {
+                foreach ($dto->items as $item) {
+                    // 2. Lote con Código RELOT/LOT automático
+                    $lotPrefix = $dto->is_emergency ? 'RELOT' : 'LOT';
+                    $lotCode = "{$lotPrefix}-" . now()->format('ymd') . "-" . strtoupper(Str::random(5));
+
                     $lot = InventoryLot::create([
                         'purchase_id'      => $purchase->id,
                         'branch_id'        => $dto->branch_id,
-                        'sku_id'           => $item->sku_id,
-                        'lot_code'         => $item->lot_code ?? 'LOT-' . strtoupper(now()->format('ymdHis')) . "-{$index}",
-                        'quantity'         => $item->quantity,
-                        'initial_quantity' => $item->quantity,
-                        'unit_cost'        => $item->unit_cost,
-                        'expiration_date'  => $item->expiration_date,
+                        'sku_id'           => $item['sku_id'],
+                        'lot_code'         => $lotCode,
+                        'quantity'         => $item['quantity'],
+                        'initial_quantity' => $item['quantity'],
+                        'is_safety_stock'  => $dto->is_emergency,
+                        'unit_cost'        => $item['unit_cost'],
+                        'expiration_date'  => $item['expiration_date'] ?? null,
                     ]);
 
+                    // 3. Kardex: Trazabilidad total
                     InventoryMovement::create([
                         'branch_id'        => $dto->branch_id,
-                        'sku_id'           => $item->sku_id,
+                        'sku_id'           => $item['sku_id'],
                         'inventory_lot_id' => $lot->id,
                         'admin_id'         => $dto->admin_id,
                         'type'             => 'ENTRY_PURCHASE',
-                        'quantity'         => $item->quantity,
-                        'unit_cost'        => $item->unit_cost,
-                        'reference'        => "Compra #{$dto->document_number}",
+                        'quantity'         => $item['quantity'],
+                        'unit_cost'        => $item['unit_cost'],
+                        'reference'        => "Ingreso Automatizado #{$docNumber}",
                     ]);
+
+                    Log::info("Lote {$lotCode} registrado y contabilizado en Kardex.");
                 }
 
-                Log::info("Compra registrada exitosamente: ID {$purchase->id}");
+                Log::info("Transacción completada con éxito. Compra ID: {$purchase->id}");
                 return $purchase;
             });
+
         } catch (Exception $e) {
             Log::error("Fallo crítico en RegisterInventoryEntryAction: " . $e->getMessage(), [
-                'document' => $dto->document_number,
-                'trace' => $e->getTraceAsString()
+                'dto'  => (array) $dto,
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
-            throw $e; // Re-lanzar para que Laravel lo maneje o el front lo vea
+
+            // Re-lanzar la excepción. El controlador o el manejador global de excepciones 
+            // debe interceptarla para devolver una respuesta HTTP correcta (422 o 500).
+            throw $e; 
         }
     }
 }

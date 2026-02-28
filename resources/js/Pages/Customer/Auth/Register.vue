@@ -5,6 +5,7 @@ import axios from 'axios';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import ShopLayout from '@/Layouts/ShopLayout.vue';
 import ClientLocationPicker from '@/Components/Maps/ClientLocationPicker.vue';
 import { 
     MapPin, UserPlus, Smartphone, Lock, Mail, 
@@ -121,7 +122,7 @@ const submit = () => {
 
 <template>
     <Head title="Registro de Cliente - Electric Luxury" />
-    
+    <ShopLayout> <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
     <div class="min-h-screen bg-background relative flex items-center justify-center p-4 overflow-hidden">
         
         <div class="fixed inset-0 z-0">
@@ -260,8 +261,9 @@ const submit = () => {
             </div>
         </div>
     </div>
-</template>
-
+</div>
+    </ShopLayout>
+</template> 
 <style scoped>
 .custom-tel-input { 
     @apply w-full rounded-2xl border-input bg-background/50 text-base h-[52px] transition-all duration-300 border font-bold;

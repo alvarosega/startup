@@ -1,11 +1,18 @@
-<?php
+<?php 
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
-    public $timestamps = false; // No necesitamos created_at en items fijos
+    use HasUuids;
+
+    public $timestamps = false;
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'order_id', 'sku_id', 'quantity', 'unit_price', 'subtotal'
@@ -16,5 +23,13 @@ class OrderItem extends Model
         'subtotal' => 'decimal:2'
     ];
 
-    public function sku() { return $this->belongsTo(Sku::class); }
+    public function order(): BelongsTo 
+    { 
+        return $this->belongsTo(Order::class); 
+    }
+
+    public function sku(): BelongsTo 
+    { 
+        return $this->belongsTo(Sku::class); 
+    }
 }

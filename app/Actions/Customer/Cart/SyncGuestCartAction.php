@@ -2,9 +2,7 @@
 
 namespace App\Actions\Customer\Cart;
 
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\InventoryLot;
+use App\Models\{Cart, CartItem, InventoryLot};
 use App\DTOs\Customer\Cart\SyncCartDTO;
 use Illuminate\Support\Facades\DB;
 
@@ -13,8 +11,8 @@ class SyncGuestCartAction
     public function execute(SyncCartDTO $dto): void
     {
         DB::transaction(function () use ($dto) {
-            // 1. Localizar carritos (Asegura que el nombre sea guestUuid)
-            $guestCart = Cart::where('session_id', $dto->guestUuid) 
+            $guestCart = Cart::where('session_id', $dto->guestUuid)
+                ->where('branch_id', $dto->branchId)
                 ->whereNull('customer_id')
                 ->with('items')
                 ->first();
@@ -22,20 +20,17 @@ class SyncGuestCartAction
             if (!$guestCart) return;
 
             $customerCart = Cart::firstOrCreate(
-                ['customer_id' => $dto->customerId],
-                ['branch_id' => $dto->branchId]
+                ['customer_id' => $dto->customerId, 'branch_id' => $dto->branchId]
             );
 
-            // 2. Procesar Items (Merge & Re-validation)
             foreach ($guestCart->items as $item) {
-                // Validar Stock Real en la sucursal destino
+                // Cálculo de stock real estricto
                 $stockAvailable = InventoryLot::where('branch_id', $dto->branchId)
                     ->where('sku_id', $item->sku_id)
+                    ->where('is_safety_stock', false) // <--- FILTRO APLICADO
                     ->sum(DB::raw('quantity - reserved_quantity'));
 
-                if ($stockAvailable <= 0) {
-                    continue; // Omitir si no hay stock en la sucursal del cliente
-                }
+                if ($stockAvailable <= 0) continue;
 
                 $finalQuantity = min($item->quantity, $stockAvailable);
 
@@ -45,6 +40,7 @@ class SyncGuestCartAction
 
                 if ($existingItem) {
                     $existingItem->increment('quantity', $finalQuantity);
+                    $item->delete();
                 } else {
                     $item->update([
                         'cart_id' => $customerCart->id,
@@ -53,13 +49,7 @@ class SyncGuestCartAction
                 }
             }
 
-            // 3. Limpieza de rastro Zero-Trust
-            $guestCart->forceDelete(); 
-            
-            // 4. Alinear sucursal si hubo cambio
-            if ($customerCart->branch_id !== $dto->branchId) {
-                $customerCart->update(['branch_id' => $dto->branchId]);
-            }
+            $guestCart->forceDelete();
         });
     }
 }

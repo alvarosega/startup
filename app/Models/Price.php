@@ -15,7 +15,8 @@ class Price extends Model
 
     protected $fillable = [
         'sku_id', 'branch_id', 'type', 'list_price', 
-        'final_price', 'min_quantity', 'priority', 'valid_from', 'valid_to'
+        'final_price', 'min_quantity', 'priority', 'valid_from', 'valid_to',
+        'created_by_id', 'updated_by_id' // <--- NUEVOS CAMPOS
     ];
 
     protected $casts = [
@@ -27,4 +28,12 @@ class Price extends Model
 
     public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
     public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
+    // Relaciones para auditoría
+    public function creator(): BelongsTo { 
+        return $this->belongsTo(Admin::class, 'created_by_id'); 
+    }
+
+    public function updater(): BelongsTo { 
+        return $this->belongsTo(Admin::class, 'updated_by_id'); 
+    }
 }

@@ -7,7 +7,7 @@ use App\Models\Order;
 use Inertia\Inertia;
 
 // NUEVOS NAMESPACES (Dominio Order)
-use App\Http\Requests\Order\UpdateOrderStatusRequest;
+use App\Http\Requests\Admin\Order\UpdateOrderStatusRequest;
 use App\DTOs\Order\UpdateOrderStatusDTO;
 use App\Actions\Order\UpdateOrderStatusAction;
 

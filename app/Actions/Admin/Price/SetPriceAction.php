@@ -2,33 +2,41 @@
 namespace App\Actions\Admin\Price;
 
 use App\Models\Price;
-use App\DTOs\Admin\Price\PriceDTO;
+use App\DTOs\Admin\Price\CreatePriceDTO;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
-class SetPriceAction
+class StorePriceAction
 {
-    public function execute(PriceDTO $data): Price
+    public function execute(CreatePriceDTO $dto): void
     {
-        return DB::transaction(function () use ($data) {
-            // 1. Invalidar precios previos del mismo tipo en la misma sucursal
-            // si se solapan en tiempo (Regla de negocio para evitar ambigüedad)
-            Price::where('sku_id', $data->skuId)
-                ->where('branch_id', $data->branchId)
-                ->where('type', $data->type)
-                ->whereNull('valid_to')
-                ->update(['valid_to' => $data->validFrom]);
+        DB::transaction(function () use ($dto) {
+            // 1. Buscamos si existe una regla activa del mismo tipo
+            $existing = Price::where('sku_id', $dto->skuId)
+                ->where('branch_id', $dto->branchId)
+                ->where('type', $dto->type)
+                ->whereNull('deleted_at')
+                ->first();
 
-            // 2. Crear nuevo registro de precio
-            return Price::create([
-                'sku_id'       => $data->skuId,
-                'branch_id'    => $data->branchId,
-                'list_price'   => $data->listPrice,
-                'final_price'  => $data->finalPrice,
-                'type'         => $data->type,
-                'min_quantity' => $data->minQuantity,
-                'priority'     => $data->priority,
-                'valid_from'   => $data->validFrom,
-                'valid_to'     => $data->validTo,
+            // 2. Si existe, lo anulamos (SoftDelete) para mantener el historial
+            if ($existing) {
+                $existing->update(['updated_by_id' => Auth::id()]);
+                $existing->delete();
+            }
+
+            // 3. Creamos el nuevo registro con la autoría
+            Price::create([
+                'sku_id'         => $dto->skuId,
+                'branch_id'      => $dto->branchId,
+                'type'           => $dto->type,
+                'final_price'    => $dto->finalPrice,
+                'list_price'     => $dto->listPrice ?? $dto->finalPrice,
+                'min_quantity'   => $dto->minQuantity,
+                'priority'       => $dto->priority,
+                'valid_from'     => $dto->validFrom,
+                'valid_to'       => $dto->validTo,
+                'created_by_id'  => Auth::id(),
+                'updated_by_id'  => Auth::id(),
             ]);
         });
     }

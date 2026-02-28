@@ -1,200 +1,183 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
 import { 
-    ChevronDown, User, MapPin, 
-    FileText, Package, Factory,
-    CreditCard, AlertCircle, CheckCircle2,
-    Calendar, DollarSign, Plus
+    ChevronDown, MapPin, Package, Factory, 
+    ShieldAlert, Plus, ListFilter, CreditCard, User, Clock
 } from 'lucide-vue-next';
 
 const props = defineProps({ 
-    purchases: Object,
-    is_branch_admin: Boolean 
+    purchases: Object, 
+    branches: Array,
+    filters: Object 
 });
 
 const expandedRows = ref([]);
+const branchFilter = ref(props.filters.branch_id || '');
+const typeFilter = ref(props.filters.type || '');
 
-const toggleRow = (id) => {
-    if (expandedRows.value.includes(id)) {
-        expandedRows.value = expandedRows.value.filter(rowId => rowId !== id);
-    } else {
-        expandedRows.value.push(id);
-    }
+const shouldShowBranchHeader = (index) => {
+    const data = props.purchases?.data;
+    if (!data || !data[index]) return false;
+    if (index === 0) return true;
+    return data[index]?.branch_id !== data[index - 1]?.branch_id;
 };
 
-const formatDate = (date) => new Date(date).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
-const formatMoney = (amount) => new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(amount);
-
-// Helpers de usuario seguros
-const getUserInitials = (userObj) => {
-    if (!userObj) return 'SY';
-    if (userObj.profile && userObj.profile.first_name) {
-        return userObj.profile.first_name.substring(0, 2).toUpperCase();
-    }
-    return (userObj.email || userObj.phone || '??').substring(0, 2).toUpperCase();
+const applyFilters = () => {
+    router.get(route('admin.purchases.index'), {
+        branch_id: branchFilter.value,
+        type: typeFilter.value
+    }, { preserveState: true, replace: true });
 };
 
-const getUserName = (userObj) => {
-    if (!userObj) return 'Sistema';
-    if (userObj.name && userObj.name !== 'Usuario') return userObj.name;
-    return userObj.email || userObj.phone;
-};
+watch([branchFilter, typeFilter], applyFilters);
+
+const formatMoney = (val) => new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(val);
 </script>
 
 <template>
     <AdminLayout>
-        
-        <div class="pb-40 md:pb-12 min-h-screen flex flex-col">
+        <div class="max-w-7xl mx-auto pb-20">
+            
+            <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-foreground">Historial de Ingresos</h1>
+                    <p class="text-xs text-muted-foreground uppercase font-bold">Auditoría Transaccional de Compras</p>
+                </div>
 
-            <div class="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-4 mb-6 flex flex-col gap-4 shadow-sm transition-all duration-300">
-                <div class="flex justify-between items-end">
-                    <div>
-                        <h1 class="text-2xl md:text-3xl font-display font-black text-foreground tracking-tighter flex items-center gap-2">
-                            Ingresos
-                            <span class="text-xs font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border">
-                                {{ purchases.total }}
-                            </span>
-                        </h1>
-                        <p class="text-xs text-muted-foreground font-medium mt-0.5">Gestión de abastecimiento y costos.</p>
+                <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                    <div class="flex items-center bg-card border rounded-xl px-3 h-11 shadow-sm">
+                        <MapPin :size="16" class="text-muted-foreground mr-2"/>
+                        <select v-model="branchFilter" class="bg-transparent border-none text-xs font-bold focus:ring-0">
+                            <option value="">Todas las Sedes</option>
+                            <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
+                        </select>
                     </div>
+
+                    <div class="flex items-center bg-card border rounded-xl px-3 h-11 shadow-sm">
+                        <ListFilter :size="16" class="text-muted-foreground mr-2"/>
+                        <select v-model="typeFilter" class="bg-transparent border-none text-xs font-bold focus:ring-0">
+                            <option value="">Todos los Tipos</option>
+                            <option value="LOT">Ordinarios (LOT)</option>
+                            <option value="RELOT">Emergencia (RELOT)</option>
+                        </select>
+                    </div>
+
+                    <Link :href="route('admin.purchases.create')" class="btn btn-primary h-11 px-6 shadow-lg shadow-primary/20">
+                        <Plus :size="18" /> <span class="hidden sm:inline">Nuevo Registro</span>
+                    </Link>
                 </div>
             </div>
 
-            <div class="px-4 md:px-0 max-w-7xl mx-auto w-full space-y-4">
-                
-                <div v-for="p in purchases.data" :key="p.id" 
-                     class="card group bg-card border border-border hover:border-primary/40 transition-all duration-300 overflow-hidden relative">
+            <div class="space-y-8">
+                <template v-for="(p, index) in purchases.data" :key="p.id">
                     
-                    <div @click="toggleRow(p.id)" class="p-4 cursor-pointer relative z-10 bg-gradient-to-r from-transparent to-muted/5 hover:to-primary/5 transition-colors">
-                        
-                        <div class="absolute left-0 top-0 bottom-0 w-1 transition-colors duration-300"
-                             :class="p.payment_type === 'CREDIT' ? 'bg-orange-500' : 'bg-emerald-500'"></div>
+                    <div v-if="shouldShowBranchHeader(index)" class="flex items-center gap-4 pt-4">
+                        <div class="h-px flex-1 bg-border"></div>
+                        <div class="flex items-center gap-2 px-4 py-1 rounded-full bg-muted border font-black text-[10px] uppercase tracking-widest text-muted-foreground">
+                            <MapPin :size="12"/> {{ p.branch_name }}
+                        </div>
+                        <div class="h-px flex-1 bg-border"></div>
+                    </div>
 
-                        <div class="flex justify-between items-start gap-4">
+                    <div class="card group bg-card border hover:border-primary/40 transition-all overflow-hidden">
+                        <div @click="expandedRows.includes(p.id) ? expandedRows = expandedRows.filter(id => id !== p.id) : expandedRows.push(p.id)" 
+                             class="p-5 cursor-pointer flex flex-col md:flex-row justify-between items-center gap-4">
                             
-                            <div class="flex flex-col gap-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-mono font-bold text-xs text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded border border-border">
-                                        #{{ p.document_number }}
-                                    </span>
-                                    <span class="text-[10px] font-bold uppercase tracking-wider" 
-                                          :class="p.payment_type === 'CREDIT' ? 'text-orange-500' : 'text-emerald-500'">
-                                        {{ p.payment_type === 'CREDIT' ? 'Crédito' : 'Contado' }}
-                                    </span>
+                            <div class="flex items-center gap-4 w-full md:w-auto">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center border transition-colors shrink-0"
+                                     :class="p.is_safety ? 'bg-orange-500/10 border-orange-500/20 text-orange-600' : 'bg-primary/10 border-primary/20 text-primary'">
+                                    <ShieldAlert v-if="p.is_safety" :size="20"/>
+                                    <Package v-else :size="20"/>
                                 </div>
-                                <h3 class="font-bold text-foreground text-base leading-tight">
-                                    {{ p.provider ? p.provider.commercial_name : 'Proveedor Desconocido' }}
-                                </h3>
-                                <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                    <Calendar :size="12"/> {{ formatDate(p.purchase_date) }}
-                                    <span v-if="!is_branch_admin" class="flex items-center gap-1 ml-2 text-primary">
-                                        <MapPin :size="12"/> {{ p.branch ? p.branch.name : '---' }}
-                                    </span>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono font-black text-sm tracking-tighter">{{ p.document_number }}</span>
+                                        <span v-if="p.is_safety" class="text-[8px] font-black bg-orange-500 text-white px-1.5 py-0.5 rounded">EMERGENCIA</span>
+                                        <span class="text-[8px] font-black bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{{ p.status }}</span>
+                                    </div>
+                                    <p class="text-xs font-bold text-foreground uppercase tracking-wide flex items-center gap-1 mt-1">
+                                        <Factory :size="12" class="text-muted-foreground"/> {{ p.provider_name }}
+                                    </p>
+                                    <p class="text-[9px] font-bold text-muted-foreground flex items-center gap-1 mt-0.5">
+                                        <User :size="10"/> {{ p.admin_name }}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div class="text-right flex flex-col items-end justify-between h-full gap-2">
-                                <div class="font-mono font-black text-lg text-foreground tracking-tight">
-                                    {{ formatMoney(p.total_amount) }}
+                            <div class="flex flex-wrap items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                                <div v-if="p.payment_type === 'CREDIT'" class="text-center md:text-right bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg">
+                                    <p class="text-[9px] font-black text-red-600 uppercase flex items-center gap-1"><Clock :size="10"/> Vence</p>
+                                    <p class="text-xs font-bold text-red-700">{{ p.payment_due_date || 'No definida' }}</p>
                                 </div>
-                                <div class="bg-muted/30 p-1.5 rounded-full text-muted-foreground transition-transform duration-300"
-                                     :class="{'rotate-180 text-primary bg-primary/10': expandedRows.includes(p.id)}">
-                                    <ChevronDown :size="16" stroke-width="2.5"/>
+                                <div v-else class="text-center md:text-right bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
+                                    <p class="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1"><CreditCard :size="10"/> Contado</p>
+                                    <p class="text-xs font-bold text-emerald-700">Pagado</p>
                                 </div>
+
+                                <div class="text-center md:text-right">
+                                    <p class="text-[10px] font-black text-muted-foreground uppercase">Fecha Ingreso</p>
+                                    <p class="text-xs font-bold">{{ p.purchase_date }}</p>
+                                </div>
+                                <div class="text-center md:text-right">
+                                    <p class="text-[10px] font-black text-muted-foreground uppercase">Monto Transacción</p>
+                                    <p class="text-sm font-black text-foreground">{{ formatMoney(p.total_amount) }}</p>
+                                </div>
+                                <ChevronDown :size="20" class="text-muted-foreground transition-transform" :class="{'rotate-180': expandedRows.includes(p.id)}"/>
+                            </div>
+                        </div>
+
+                        <div v-if="expandedRows.includes(p.id)" class="border-t bg-muted/5 p-6 animate-in slide-in-from-top-2">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border/50">
+                                        <th class="pb-3 px-2">Código Lote</th>
+                                        <th class="pb-3">Producto / SKU</th>
+                                        <th class="pb-3 text-center">Caducidad</th>
+                                        <th class="pb-3 text-center">Cant. Original</th>
+                                        <th class="pb-3 text-center">Disponible</th>
+                                        <th class="pb-3 text-right">Costo Unit.</th>
+                                        <th class="pb-3 text-right">Valor Lote</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in p.details" :key="item.id" class="border-b border-border/30 last:border-0 hover:bg-muted/10 transition-colors">
+                                        <td class="py-3 px-2 font-mono text-[10px] font-bold text-muted-foreground">{{ item.lot_code }}</td>
+                                        <td class="py-3">
+                                            <p class="text-xs font-black text-foreground">{{ item.sku_name }}</p>
+                                            <p class="text-[9px] font-mono text-muted-foreground">EAN: {{ item.sku_code }}</p>
+                                        </td>
+                                        <td class="py-3 text-center text-xs font-bold text-muted-foreground">
+                                            {{ item.expiration_date || 'N/A' }}
+                                        </td>
+                                        <td class="py-3 text-center">
+                                            <span class="text-[10px] font-bold text-muted-foreground">{{ item.initial_quantity }}</span>
+                                        </td>
+                                        <td class="py-3 text-center">
+                                            <span class="text-xs font-black px-2 py-0.5 rounded border" 
+                                                  :class="item.current_quantity === 0 ? 'bg-red-500/10 border-red-500/20 text-red-600' : 'bg-background'">
+                                                {{ item.current_quantity }}
+                                            </span>
+                                            <p v-if="item.reserved_quantity > 0" class="text-[8px] text-orange-500 font-bold mt-0.5">{{ item.reserved_quantity }} Reservados</p>
+                                        </td>
+                                        <td class="py-3 text-right text-xs font-mono text-muted-foreground">{{ formatMoney(item.unit_cost) }}</td>
+                                        <td class="py-3 text-right text-xs font-black text-foreground">{{ formatMoney(item.initial_quantity * item.unit_cost) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div v-if="p.notes" class="mt-4 p-3 rounded-lg bg-background border border-dashed text-[10px] text-muted-foreground italic">
+                                Observaciones: "{{ p.notes }}"
                             </div>
                         </div>
                     </div>
-
-                    <div v-if="expandedRows.includes(p.id)" class="border-t border-border/50 bg-muted/10 animate-in slide-in-from-top-2 fade-in duration-200">
-                        <div class="p-4 space-y-4">
-                            
-                            <div class="flex flex-wrap gap-3 text-xs border-b border-border/50 pb-3">
-                                <div class="flex items-center gap-2 bg-background px-2 py-1 rounded border border-border shadow-sm">
-                                    <div class="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-[8px] text-white font-bold">
-                                        {{ getUserInitials(p.user) }}
-                                    </div>
-                                    <span class="text-muted-foreground">{{ getUserName(p.user) }}</span>
-                                </div>
-                                
-                                <div v-if="p.payment_type === 'CREDIT'" class="flex items-center gap-2 bg-orange-500/10 px-2 py-1 rounded border border-orange-500/20 text-orange-600 font-bold">
-                                    <AlertCircle :size="12"/> Vence: {{ formatDate(p.payment_due_date) }}
-                                </div>
-
-                                <div v-if="p.notes" class="w-full mt-1 text-muted-foreground italic flex items-start gap-1">
-                                    <FileText :size="12" class="mt-0.5 shrink-0"/> "{{ p.notes }}"
-                                </div>
-                            </div>
-
-                            <div>
-                                <h4 class="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2 flex items-center gap-1">
-                                    <Package :size="12"/> Items Ingresados
-                                </h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <div v-for="lot in p.inventory_lots" :key="lot.id" 
-                                         class="bg-background border border-border p-2.5 rounded-lg shadow-sm flex justify-between items-center group/item hover:border-primary/30 transition-colors">
-                                        <div class="overflow-hidden">
-                                            <p class="font-bold text-xs text-foreground truncate max-w-[150px]" :title="lot.sku?.product?.name">
-                                                {{ lot.sku?.product?.name }}
-                                            </p>
-                                            <div class="flex items-center gap-1 mt-0.5">
-                                                <span class="text-[9px] bg-muted px-1 rounded text-muted-foreground font-mono">{{ lot.sku?.code }}</span>
-                                                <span class="text-[9px] text-muted-foreground">Lote: {{ lot.lot_code }}</span>
-                                            </div>
-                                        </div>
-                                        <div class="text-right pl-2 border-l border-border ml-2">
-                                            <span class="block font-mono font-bold text-sm text-foreground">{{ lot.initial_quantity }} <span class="text-[9px] uppercase font-normal text-muted-foreground">Und</span></span>
-                                            <span class="block text-[10px] text-emerald-600 font-medium">{{ formatMoney(lot.unit_cost) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="purchases.data.length === 0" class="flex flex-col items-center justify-center py-20 text-center opacity-70">
-                    <div class="w-20 h-20 bg-muted/20 rounded-full flex items-center justify-center mb-4 border border-dashed border-border">
-                        <Package :size="32" class="text-muted-foreground/50" />
-                    </div>
-                    <h3 class="text-lg font-bold text-foreground">Sin Compras</h3>
-                    <p class="text-sm text-muted-foreground mt-1">No se han registrado ingresos aún.</p>
-                </div>
-
+                </template>
             </div>
 
-            <div v-if="purchases.links && purchases.links.length > 3" class="mt-8 flex justify-center px-4">
-                <div class="flex gap-1 overflow-x-auto max-w-full pb-2 no-scrollbar mask-gradient-x">
-                    <template v-for="(link, k) in purchases.links" :key="k">
-                        <Link v-if="link.url" :href="link.url" v-html="link.label"
-                              class="min-w-[36px] h-9 flex items-center justify-center rounded-lg text-xs font-bold border transition-all active:scale-95"
-                              :class="link.active 
-                                ? 'bg-primary text-primary-foreground border-primary shadow-md' 
-                                : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'" />
-                        <span v-else v-html="link.label" 
-                              class="min-w-[36px] h-9 flex items-center justify-center rounded-lg text-xs text-muted-foreground/30 border border-transparent" />
-                    </template>
-                </div>
+            <div v-if="purchases.data.length === 0" class="py-20 text-center border-2 border-dashed rounded-3xl opacity-50">
+                <Package :size="48" class="mx-auto text-muted-foreground mb-4"/>
+                <p class="font-black text-muted-foreground uppercase tracking-widest">Sin transacciones registradas</p>
             </div>
-
-            <Teleport to="body">
-                <Link :href="route('admin.purchases.create')" 
-                      class="fixed bottom-24 right-4 md:right-8 z-[9999] group predictive-aura">
-                    <div class="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,240,255,0.4)] flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-active:scale-95 border-2 border-white/10 relative overflow-hidden">
-                        <div class="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <Plus :size="28" stroke-width="3" class="group-hover:rotate-90 transition-transform duration-300"/>
-                    </div>
-                    <span class="sr-only">Registrar Compra</span>
-                </Link>
-            </Teleport>
-
         </div>
     </AdminLayout>
 </template>
-
-<style scoped>
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-</style>

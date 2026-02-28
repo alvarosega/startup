@@ -2,7 +2,7 @@
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { Mail, ArrowLeft, Send, ShieldQuestion } from 'lucide-vue-next';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-
+import ShopLayout from '@/Layouts/ShopLayout.vue';
 const form = useForm({ email: '' });
 
 const submit = () => {
@@ -14,7 +14,7 @@ const submit = () => {
 
 <template>
     <Head title="Recuperar Acceso - Electric Luxury" />
-
+    <ShopLayout> <div class="flex-1 relative flex items-center justify-center p-4 py-12 overflow-hidden">
     <div class="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-4">
         
         <div class="fixed inset-0 z-0">
@@ -78,4 +78,6 @@ const submit = () => {
             </div>
         </div>
     </div>
+</div>
+</ShopLayout>
 </template>

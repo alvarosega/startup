@@ -5,6 +5,8 @@ import 'vue-tel-input/vue-tel-input.css';
 import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue'; 
 import BaseInput from '@/Components/Base/BaseInput.vue'; 
 import { LogIn, Lock, Smartphone, ArrowRight, Truck, ShieldAlert } from 'lucide-vue-next';
+import ShopLayout from '@/Layouts/ShopLayout.vue';
+
 
 const form = useForm({
     phone: '',
@@ -37,7 +39,7 @@ const submit = () => {
 
 <template>
     <Head title="Terminal de Mando - Driver Access" />
-
+    <ShopLayout> <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
     <div class="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-4 transition-colors duration-300">
         <div class="fixed inset-0 z-0">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.03)_0%,transparent_70%)]" />
@@ -91,11 +93,21 @@ const submit = () => {
                                 Iniciar Turno <ArrowRight :size="20" class="group-hover:translate-x-2 transition-transform" />
                             </span>
                         </button>
+                        <div class="mt-10 pt-8 border-t border-border/50">
+                            <p class="text-sm text-muted-foreground text-center font-medium">
+                                ¿Aún no eres parte de la flota? 
+                                <Link :href="route('driver.register')" class="font-black text-amber-600 hover:underline underline-offset-4 ml-1">
+                                    Postúlate aquí
+                                </Link>
+                            </p>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+</div>
+</ShopLayout>
 </template>
 
 <style scoped>

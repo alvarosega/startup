@@ -1,11 +1,9 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { 
-    Search, Tag, X, Save, Store, DollarSign, Percent, 
-    ChevronRight, Package, Barcode, AlertOctagon, 
-    History, Zap, Plus, Trash2, Calendar, Users, ShoppingBag
+    Search, X, Save, Edit2, Trash2, Check, Package, Clock, User
 } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
@@ -15,231 +13,165 @@ const props = defineProps({
     filters: Object
 });
 
-// --- ESTADO ---
 const search = ref(props.filters.search || '');
-const selectedBranchId = ref(props.filters.branch_id || '');
 const isDrawerOpen = ref(false);
 const activeSku = ref(null);
 const activeBranchId = ref(null);
+const editingType = ref(null); // Controla qué fila de la matriz se está editando
 
-// --- FORMULARIO PARA NUEVA REGLA ---
 const form = useForm({
-    sku_id: '', branch_id: '', final_price: 0, list_price: 0,
-    type: 'regular', min_quantity: 1, priority: 0,
-    valid_from: new Date().toISOString().slice(0, 10),
-    valid_to: null,
+    sku_id: '', branch_id: '', type: '', final_price: 0,
+    min_quantity: 1, priority: 0, valid_from: '', valid_to: null,
 });
 
-// --- LÓGICA DE REGLAS ACTIVAS ---
-const activePrices = computed(() => {
-    if (!activeSku.value || !activeBranchId.value) return [];
-    return activeSku.value.prices_matrix?.[activeBranchId.value] || [];
-});
+const getPricesForBranch = (sku, branchId) => sku.prices_matrix?.[branchId] || [];
+const getRegularPrice = (sku, branchId) => getPricesForBranch(sku, branchId).find(p => p.type === 'regular');
+const priceTypes = ['regular', 'offer', 'member', 'wholesale', 'liquidation', 'staff'];
 
-// --- ACCIONES ---
-const openPriceManager = (sku, branchId) => {
+const openManager = (sku, branchId) => {
     activeSku.value = sku;
     activeBranchId.value = branchId;
-    
-    // Resetear form para nueva regla
-    form.sku_id = sku.id;
-    form.branch_id = branchId;
-    form.final_price = sku.base_price;
-    form.list_price = (sku.base_price * 1.15).toFixed(2);
-    form.type = 'regular';
-    
+    editingType.value = null;
     isDrawerOpen.value = true;
 };
 
-const editExistingPrice = (price) => {
-    form.final_price = price.final_price;
-    form.list_price = price.list_price;
-    form.type = price.type;
-    form.priority = price.priority;
-    form.min_quantity = price.min_quantity;
-    form.valid_from = price.valid_from?.split('T')[0] || '';
-    form.valid_to = price.valid_to?.split('T')[0] || null;
+const startEdit = (type) => {
+    editingType.value = type;
+    const existing = getPricesForBranch(activeSku.value, activeBranchId.value).find(p => p.type === type);
+    
+    form.sku_id = activeSku.value.id;
+    form.branch_id = activeBranchId.value;
+    form.type = type;
+    form.final_price = existing?.final_price || activeSku.value.base_price;
+    form.min_quantity = existing?.min_quantity || (type === 'wholesale' ? 6 : 1);
+    form.priority = existing?.priority || 0;
+    form.valid_from = existing?.valid_from?.split('T')[0] || new Date().toISOString().slice(0, 10);
+    form.valid_to = existing?.valid_to?.split('T')[0] || null;
 };
 
-const submitNewRule = () => {
+const saveInline = () => {
     form.post(route('admin.prices.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            // No cerramos el drawer para permitir añadir más reglas (Socio, Mayorista, etc)
-            form.reset('final_price', 'list_price', 'type', 'priority', 'min_quantity');
+            editingType.value = null;
+            // El backend refresca los datos automáticamente vía Inertia
         }
     });
 };
-
-// --- FILTROS ---
-watch([search, selectedBranchId], debounce(() => {
-    router.get(route('admin.prices.index'), { search: search.value, branch_id: selectedBranchId.value }, { preserveState: true });
-}, 500));
 </script>
 
 <template>
     <AdminLayout>
-        <Head title="Price Command Center" />
+        <Head title="Control de Precios Auditoría" />
 
-        <div class="max-w-[1600px] mx-auto space-y-6 pb-20">
-            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-card p-6 rounded-3xl border border-border shadow-sm">
-                <div>
-                    <h1 class="text-3xl font-black uppercase tracking-tighter">Price <span class="text-primary">Master</span></h1>
-                    <p class="text-[10px] font-black uppercase text-muted-foreground tracking-widest mt-1">Gestión Multicapa por Sucursal</p>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                    <input v-model="search" type="text" placeholder="Buscar..." class="form-input bg-muted/40 border-none rounded-2xl w-full sm:w-64">
-                    <select v-model="selectedBranchId" class="form-input bg-primary text-primary-foreground font-black uppercase text-[10px] rounded-2xl border-none px-6">
-                        <option value="">Todas las Sucursales</option>
-                        <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
-                    </select>
+        <div class="max-w-[1600px] mx-auto space-y-6 pb-10 px-4">
+            <div class="flex justify-between items-center bg-card p-6 rounded-3xl border border-border">
+                <h1 class="text-2xl font-black uppercase italic tracking-tighter">Price <span class="text-primary">Audit</span></h1>
+                <div class="relative w-96">
+                    <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
+                    <input v-model="search" type="text" placeholder="EAN o Producto..." class="form-input pl-12 h-12 bg-muted/20 border-none rounded-2xl w-full">
                 </div>
             </div>
 
-            <div class="bg-card border border-border rounded-3xl shadow-xl overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border">
-                                <th class="px-6 py-5 sticky left-0 z-20 bg-card border-r border-border min-w-[300px]">Producto</th>
-                                <th v-for="branch in (selectedBranchId ? branches.filter(b => b.id === selectedBranchId) : branches)" :key="branch.id" class="px-6 py-5 text-center min-w-[200px]">
-                                    {{ branch.name }}
-                                </th>
+            <div class="bg-card border border-border rounded-[2rem] overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border">
+                            <th class="px-8 py-5 border-r border-border min-w-[300px]">Producto</th>
+                            <th v-for="branch in branches" :key="branch.id" class="px-6 py-5 text-center">{{ branch.name }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border/50">
+                        <template v-for="product in products.data" :key="product.id">
+                            <tr v-for="sku in product.skus" :key="sku.id" class="hover:bg-muted/5 transition-all cursor-pointer" @click="openManager(sku, activeBranchId || branches[0].id)">
+                                <td class="px-8 py-4 border-r border-border font-bold text-xs uppercase">{{ sku.name }}</td>
+                                <td v-for="branch in branches" :key="branch.id" class="px-4 py-4 text-center">
+                                    <span class="font-mono font-black text-sm">
+                                        {{ getRegularPrice(sku, branch.id) ? '$' + getRegularPrice(sku, branch.id).final_price : '---' }}
+                                    </span>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border/50">
-                            <template v-for="product in products.data" :key="product.id">
-                                <tr v-for="sku in product.skus" :key="sku.id" class="group hover:bg-muted/5">
-                                    <td class="px-6 py-4 sticky left-0 z-10 bg-card group-hover:bg-muted/5 border-r border-border font-bold text-xs uppercase">
-                                        {{ sku.name }}
-                                        <div class="text-[9px] font-mono text-muted-foreground">{{ sku.code }}</div>
-                                    </td>
-                                    
-                                    <td v-for="branch in (selectedBranchId ? branches.filter(b => b.id === selectedBranchId) : branches)" :key="branch.id" class="px-4 py-4 text-center">
-                                        <div @click="openPriceManager(sku, branch.id)" class="p-3 rounded-2xl border border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all">
-                                            <div v-if="sku.prices_matrix?.[branch.id]" class="space-y-1">
-                                                <div class="text-sm font-black text-foreground">${{ sku.prices_matrix[branch.id][0].final_price }}</div>
-                                                <div class="flex justify-center gap-1">
-                                                    <div v-for="p in sku.prices_matrix[branch.id]" :key="p.id" 
-                                                         class="w-2 h-2 rounded-full" 
-                                                         :class="{
-                                                            'bg-green-500': p.type === 'regular',
-                                                            'bg-orange-500': p.type === 'offer',
-                                                            'bg-blue-500': p.type === 'member',
-                                                            'bg-purple-500': p.type === 'wholesale'
-                                                         }" :title="p.type"></div>
-                                                </div>
-                                            </div>
-                                            <div v-else class="text-[10px] text-muted-foreground/30 italic uppercase font-bold">Sin asignar</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
+                        </template>
+                    </tbody>
+                </table>
             </div>
         </div>
 
         <Transition name="slide">
             <div v-if="isDrawerOpen" class="fixed inset-0 z-[60] flex justify-end">
-                <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isDrawerOpen = false"></div>
-                <div class="relative w-full max-w-lg bg-card h-full shadow-2xl flex flex-col border-l border-border">
+                <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isDrawerOpen = false"></div>
+                <div class="relative w-full max-w-4xl bg-background h-full shadow-2xl flex flex-col border-l border-border">
                     
-                    <div class="p-8 border-b border-border">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h2 class="text-2xl font-black uppercase tracking-tighter">Gestor de Precios</h2>
-                                <p class="text-xs text-primary font-bold uppercase mt-1">Sucursal: {{ branches.find(b => b.id === activeBranchId)?.name }}</p>
-                            </div>
-                            <button @click="isDrawerOpen = false" class="p-2 rounded-full hover:bg-muted"><X /></button>
+                    <div class="p-8 border-b border-border flex justify-between items-center bg-muted/5">
+                        <div>
+                            <h2 class="text-2xl font-black uppercase tracking-tighter italic">Gestor Quirúrgico</h2>
+                            <p class="text-xs font-bold text-primary uppercase">{{ activeSku?.name }}</p>
                         </div>
+                        <button @click="isDrawerOpen = false" class="p-2 hover:bg-muted rounded-full"><X /></button>
                     </div>
 
-                    <div class="p-8 bg-muted/20 border-b border-border">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-4">Reglas de Precio Activas</label>
-                        <div class="space-y-3">
-                            <div v-if="activePrices.length === 0" class="text-xs font-bold text-muted-foreground italic p-4 border border-dashed border-border rounded-2xl text-center">
-                                No hay reglas configuradas para esta sucursal.
-                            </div>
-                            <div v-for="price in activePrices" :key="price.id" 
-                                 class="bg-card border border-border p-4 rounded-2xl flex justify-between items-center group hover:border-primary transition-all">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center" 
-                                         :class="{
-                                            'bg-green-100 text-green-600': price.type === 'regular',
-                                            'bg-orange-100 text-orange-600': price.type === 'offer',
-                                            'bg-blue-100 text-blue-600': price.type === 'member',
-                                            'bg-purple-100 text-purple-600': price.type === 'wholesale'
-                                         }">
-                                        <DollarSign v-if="price.type === 'regular'" :size="18"/>
-                                        <Percent v-else-if="price.type === 'offer'" :size="18"/>
-                                        <Users v-else-if="price.type === 'member'" :size="18"/>
-                                        <ShoppingBag v-else :size="18"/>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-black uppercase">{{ price.type }}</p>
-                                        <p class="text-lg font-mono font-black">${{ price.final_price }}</p>
-                                    </div>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button @click="editExistingPrice(price)" class="btn btn-ghost btn-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Editar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="flex-1 overflow-auto p-8 custom-scrollbar">
+                        <table class="w-full text-[11px] border-collapse">
+                            <thead class="text-muted-foreground font-black uppercase tracking-widest border-b border-border">
+                                <tr>
+                                    <th class="py-4 pr-4">Tipo de Precio</th>
+                                    <th class="py-4 px-4 text-center">Valor ($)</th>
+                                    <th class="py-4 px-4 text-center">Min Qty</th>
+                                    <th class="py-4 px-4 text-center">Prioridad</th>
+                                    <th class="py-4 px-4 text-center">Vigencia</th>
+                                    <th class="py-4 px-4 text-center">Auditoría</th>
+                                    <th class="py-4 pl-4 text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border/40">
+                                <tr v-for="type in priceTypes" :key="type" class="group">
+                                    <td class="py-4 pr-4 font-black uppercase text-primary/80">{{ type }}</td>
+                                    
+                                    <template v-if="editingType === type">
+                                        <td class="py-4 px-2"><input v-model="form.final_price" type="number" step="0.01" class="w-20 text-center font-mono font-black border-primary rounded-lg bg-primary/5"></td>
+                                        <td class="py-4 px-2"><input v-model="form.min_quantity" type="number" class="w-14 text-center border-border rounded-lg"></td>
+                                        <td class="py-4 px-2"><input v-model="form.priority" type="number" class="w-14 text-center border-border rounded-lg"></td>
+                                        <td class="py-4 px-2"><input v-model="form.valid_to" type="date" class="w-28 text-[9px] border-border rounded-lg"></td>
+                                        <td class="py-4 px-2 text-center text-muted-foreground italic">Editando...</td>
+                                        <td class="py-4 pl-4 text-right">
+                                            <button @click="saveInline" class="p-2 bg-success text-white rounded-lg hover:scale-105 transition-all"><Check :size="14"/></button>
+                                        </td>
+                                    </template>
 
-                    <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                        <div class="mb-6">
-                            <h4 class="text-sm font-black uppercase tracking-tight mb-4 flex items-center gap-2">
-                                <Plus class="text-primary" :size="16" /> Configurar Nueva Regla
-                            </h4>
-                            <div class="grid grid-cols-2 gap-4 bg-muted/30 p-2 rounded-2xl">
-                                <button v-for="t in ['regular', 'offer', 'member', 'wholesale', 'liquidation', 'staff']" 
-                                        :key="t" @click="form.type = t"
-                                        class="py-2 text-[9px] font-black uppercase rounded-xl transition-all"
-                                        :class="form.type === t ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:bg-muted'">
-                                    {{ t }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-6 mb-8">
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Precio Final</label>
-                                <input v-model.number="form.final_price" type="number" step="0.01" class="form-input w-full h-12 text-lg font-black bg-muted/40 border-none rounded-2xl">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cantidad Mínima</label>
-                                <input v-model.number="form.min_quantity" type="number" class="form-input w-full h-12 font-bold bg-muted/40 border-none rounded-2xl">
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                <Calendar :size="14" /> Periodo de Validez
-                            </label>
-                            <div class="flex items-center gap-4">
-                                <input v-model="form.valid_from" type="date" class="form-input flex-1 h-11 bg-muted/40 border-none rounded-2xl text-xs">
-                                <ArrowRight :size="16" class="text-muted-foreground" />
-                                <input v-model="form.valid_to" type="date" class="form-input flex-1 h-11 bg-muted/40 border-none rounded-2xl text-xs">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="p-8 border-t border-border bg-card">
-                        <button @click="submitNewRule" :disabled="form.processing" 
-                                class="w-full btn btn-primary py-7 rounded-2xl shadow-xl shadow-primary/20 uppercase font-black tracking-widest">
-                            {{ form.processing ? 'Guardando...' : 'Guardar Regla de Precio' }}
-                        </button>
+                                    <template v-else>
+                                        <td class="py-4 px-4 text-center font-mono font-black text-sm">
+                                            {{ getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type)?.final_price || '---' }}
+                                        </td>
+                                        <td class="py-4 px-4 text-center font-bold">
+                                            {{ getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type)?.min_quantity || '---' }}
+                                        </td>
+                                        <td class="py-4 px-4 text-center text-muted-foreground">
+                                            {{ getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type)?.priority || '0' }}
+                                        </td>
+                                        <td class="py-4 px-4 text-center">
+                                            <span v-if="getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type)?.valid_to" class="flex items-center justify-center gap-1 text-orange-500 font-bold">
+                                                <Clock :size="10" /> {{ getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type).valid_to.split('T')[0] }}
+                                            </span>
+                                            <span v-else class="text-muted-foreground/30 italic">Perpetuo</span>
+                                        </td>
+                                        <td class="py-4 px-4 text-center">
+                                            <div v-if="getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type)" class="flex flex-col items-center">
+                                                <span class="text-[8px] uppercase font-black text-muted-foreground flex items-center gap-1">
+                                                    <User :size="8"/> {{ getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type).updater?.name || 'Sistema' }}
+                                                </span>
+                                                <span class="text-[7px] text-muted-foreground/50">{{ getPricesForBranch(activeSku, activeBranchId).find(p => p.type === type).updated_at.split('T')[0] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 pl-4 text-right">
+                                            <button @click="startEdit(type)" class="p-2 hover:bg-primary/10 text-primary rounded-lg transition-colors"><Edit2 :size="14" /></button>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </Transition>
     </AdminLayout>
 </template>
-
-<style scoped>
-.slide-enter-active, .slide-leave-active { transition: transform 0.3s ease-in-out; }
-.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
-</style>

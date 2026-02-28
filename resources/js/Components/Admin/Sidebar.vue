@@ -95,11 +95,11 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
                 <div v-else class="section-divider"></div>
                 
                 <SidebarLink :href="route('admin.purchases.index')" :active="$page.url.includes('/purchases')" :collapsed="isCollapsed"><template #icon><ShoppingCart :size="20" /></template>Ingresos</SidebarLink>
-                <SidebarLink :href="route('admin.inventory.index')" :active="$page.url.includes('/inventory')" :collapsed="isCollapsed"><template #icon><Package :size="20" /></template>Kardex</SidebarLink>
+                <SidebarLink :href="route('admin.inventory.index')" :active="$page.url.includes('/inventory')" :collapsed="isCollapsed"><template #icon><Package :size="20" /></template>Stock</SidebarLink>
                 <SidebarLink :href="route('admin.transfers.index')" :active="$page.url.includes('/transfers')" :collapsed="isCollapsed"><template #icon><Truck :size="20" /></template>Transferencias</SidebarLink>
                 <SidebarLink :href="route('admin.removals.index')" :active="$page.url.includes('/removals')" :collapsed="isCollapsed"><template #icon><AlertTriangle :size="20" /></template>Bajas</SidebarLink>
                 <SidebarLink :href="route('admin.transformations.index')" :active="$page.url.includes('/transformations')" :collapsed="isCollapsed"><template #icon><RefreshCw :size="20" /></template>Transformaciones</SidebarLink>
-                <SidebarLink :href="route('admin.orders.kanban')" :active="$page.url.includes('/orders/kanban')" :collapsed="isCollapsed"><template #icon><ClipboardList :size="20" /></template>Kanban</SidebarLink>
+                <SidebarLink :href="route('admin.orders.index')" :active="$page.url.includes('/orders/index')" :collapsed="isCollapsed"><template #icon><ClipboardList :size="20" /></template>Orders</SidebarLink>
             </template>
 
             <template v-if="canManageCatalog">
@@ -152,7 +152,7 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
 
             <div class="flex-1 overflow-y-auto">
                  <div v-if="activeMobileMenu === 'inv'" class="grid grid-cols-3 gap-4">
-                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="mobile-item"><div class="mobile-icon"><Package /></div><span>Kardex</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="mobile-item"><div class="mobile-icon"><Package /></div><span>Stock</span></Link>
                     <Link @click="closeMobileMenu" :href="route('admin.products.index')" class="mobile-item"><div class="mobile-icon"><Tag /></div><span>Prod.</span></Link>
                     <Link @click="closeMobileMenu" :href="route('admin.categories.index')" class="mobile-item"><div class="mobile-icon"><FolderTree /></div><span>Categ.</span></Link>
                 </div>
@@ -160,7 +160,7 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
                 <div v-if="activeMobileMenu === 'mov'" class="grid grid-cols-3 gap-4">
                     <Link @click="closeMobileMenu" :href="route('admin.transfers.index')" class="mobile-item"><div class="mobile-icon"><ArrowLeftRight /></div><span>Transf.</span></Link>
                     <Link @click="closeMobileMenu" :href="route('admin.removals.index')" class="mobile-item"><div class="mobile-icon"><AlertTriangle /></div><span>Bajas</span></Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.orders.kanban')" class="mobile-item"><div class="mobile-icon"><ClipboardList /></div><span>Kanban</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.orders.index')" class="mobile-item"><div class="mobile-icon"><ClipboardList /></div><span>Ordenes</span></Link>
                 </div>
 
                 <div v-if="activeMobileMenu === 'ges'" class="space-y-6">

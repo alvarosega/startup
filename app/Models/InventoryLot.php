@@ -20,11 +20,14 @@ class InventoryLot extends Model
         'lot_code',
         'quantity',
         'initial_quantity',
-        'unit_cost',
+        'reserved_quantity', 
+        'is_safety_stock',  
+        'unit_cost', 
         'expiration_date'
     ];
 
     protected $casts = [
+        'is_safety_stock' => 'boolean',
         'expiration_date' => 'date',
         'unit_cost' => 'decimal:2',
         'quantity' => 'integer',

@@ -16,8 +16,7 @@ use App\Http\Controllers\Web\Customer\Auth\RegisterController as CustomerRegiste
 use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Customer\Auth\ResetPasswordController;
 use App\Http\Controllers\Web\Customer\Cart\BundleController as CustomerBundleController;
-//use App\Http\Controllers\Web\Customer\CheckoutController; // Asegúrate de tener este import si usas Checkout
-
+use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 // --- CONTROLADORES ADMIN ---
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
@@ -37,7 +36,7 @@ use App\Http\Controllers\Web\Admin\PurchaseController;
 //use App\Http\Controllers\Web\Admin\TransferController;
 //use App\Http\Controllers\Web\Admin\RemovalController;
 //use App\Http\Controllers\Web\Admin\TransformationController;
-use App\Http\Controllers\Web\Admin\OrderController as AdminOrderController; // Alias para evitar colisión
+use App\Http\Controllers\Web\Admin\Order\OrderController;
 use App\Http\Controllers\Web\Admin\DriverController;
 
 
@@ -69,10 +68,16 @@ Route::middleware(['inertia.customer'])->group(function () {
         Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('shop.zone');
 
         // 2. Carrito (MOVER AQUÍ Y ELIMINAR EL OTRO BLOQUE)
+
         Route::prefix('cart')->name('cart.')->group(function () {
             Route::get('/', [CartController::class, 'index'])->name('index'); 
             Route::post('/add', [CartController::class, 'store'])->name('add');
             Route::post('/sync', [CartController::class, 'sync'])->name('sync');
+            
+            // --- RUTAS FALTANTES AÑADIDAS ---
+            Route::patch('/{id}', [CartController::class, 'update'])->name('update'); // Para updateQuantity
+            Route::delete('/{id}', [CartController::class, 'remove'])->name('remove'); // Para removeItem
+            
             Route::get('/bundle/{bundle:slug}', [CustomerBundleController::class, 'show'])->name('bundle.show');
             Route::post('/bundle/add', [CustomerBundleController::class, 'add'])->name('bundle.add');
         });
@@ -124,11 +129,19 @@ Route::middleware(['inertia.customer'])->group(function () {
             });
         });
     
-        // --- MÓDULO: OPERACIONES ---
         Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-        Route::get('/my-orders', function() { 
-            return Inertia::render('Customer/Orders/Index'); 
-        })->name('orders.history');
+        Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+        Route::prefix('orders')->name('orders.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'index'])->name('history');// El listado general (customer.orders.history)
+            
+            // Vista de detalle y pago
+            Route::get('/{id}', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'show'])
+                ->name('show'); // customer.orders.show
+                
+            // Acción de subir comprobante
+            Route::post('/{id}/proof', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'uploadProof'])
+                ->name('upload-proof'); // customer.orders.upload-proof
+        });
     
     });
 
@@ -206,10 +219,16 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             
             Route::resource('transformations', TransformationController::class);
     
-            // Pedidos (Admin View)
-            Route::get('orders/kanban', [AdminOrderController::class, 'index'])->name('orders.kanban');
-            Route::patch('orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
-        
+            Route::prefix('orders')->name('orders.')->group(function () {
+                Route::get('/', [OrderController::class, 'index'])->name('index'); // Ahora sí es admin.orders.index
+                
+                // Motor Financiero
+                Route::post('/{id}/approve-payment', [OrderController::class, 'approvePayment'])->name('approve-payment');
+                Route::post('/{id}/reject-payment', [OrderController::class, 'rejectPayment'])->name('reject-payment');
+                
+                // Motor Logístico
+                Route::post('/{id}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
+            });
         });
 
 

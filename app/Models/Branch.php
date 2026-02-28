@@ -17,7 +17,10 @@ class Branch extends Model
 
     protected $fillable = [
         'id', 'name', 'phone', 'city', 'address', 
-        'coverage_polygon', 'opening_hours', 'is_active', 'is_default', 'latitude', 'longitude'
+        'coverage_polygon', 'opening_hours', 'is_active', 'is_default', 'latitude', 'longitude',
+        // Nuevas variables logísticas
+        'delivery_base_fee', 'delivery_price_per_km', 'surge_multiplier',
+        'min_order_amount', 'small_order_fee', 'base_service_fee_percentage'
     ];
 
     protected $casts = [
@@ -25,6 +28,15 @@ class Branch extends Model
         'opening_hours' => 'array',
         'coverage_polygon' => 'array',
         'is_default' => 'boolean',
+        // Casteo estricto a flotantes para evitar strings en cálculos matemáticos
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'delivery_base_fee' => 'float',
+        'delivery_price_per_km' => 'float',
+        'surge_multiplier' => 'float',
+        'min_order_amount' => 'float',
+        'small_order_fee' => 'float',
+        'base_service_fee_percentage' => 'float',
     ];
 
     public function scopeActive($query)
@@ -42,6 +54,7 @@ class Branch extends Model
             }
         });
     }
+
     public static function getMinimalList()
     {
         return self::orderBy('name')->get(['id', 'name']);

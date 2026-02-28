@@ -1,4 +1,5 @@
 <?php
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -17,12 +18,20 @@ class BranchSeeder extends Seeder
                 'phone' => '22445566',
                 'latitude' => -16.508356,
                 'longitude' => -68.126282,
-                'is_default' => true, // Esta será el fallback del sistema
+                'is_default' => true,
+                // Topografía compleja (La Paz): Envíos más caros
+                'delivery_base_fee' => 7.00,
+                'delivery_price_per_km' => 2.50,
+                'surge_multiplier' => 1.00,
+                'min_order_amount' => 45.00,
+                'small_order_fee' => 6.00,
+                'base_service_fee_percentage' => 5.00,
+                // Polígono ampliado (aprox 6km a la redonda desde el centro)
                 'coverage_polygon' => [
-                    [-16.500000, -68.135000], 
-                    [-16.500000, -68.115000],
-                    [-16.520000, -68.115000], 
-                    [-16.520000, -68.135000],
+                    [-16.450000, -68.170000], 
+                    [-16.450000, -68.080000],
+                    [-16.560000, -68.080000], 
+                    [-16.560000, -68.170000],
                 ],
             ],
             [
@@ -33,11 +42,19 @@ class BranchSeeder extends Seeder
                 'latitude' => -17.769000,
                 'longitude' => -63.195000,
                 'is_default' => false,
+                // Topografía plana (Santa Cruz): Envíos ligeramente más baratos por km
+                'delivery_base_fee' => 5.00,
+                'delivery_price_per_km' => 1.80,
+                'surge_multiplier' => 1.00,
+                'min_order_amount' => 40.00,
+                'small_order_fee' => 5.00,
+                'base_service_fee_percentage' => 5.00,
+                // Polígono ampliado
                 'coverage_polygon' => [
-                    [-17.760000, -63.200000],
-                    [-17.760000, -63.190000],
-                    [-17.780000, -63.190000],
-                    [-17.780000, -63.200000],
+                    [-17.700000, -63.250000],
+                    [-17.700000, -63.130000],
+                    [-17.840000, -63.130000],
+                    [-17.840000, -63.250000],
                 ],
             ],
             [
@@ -48,17 +65,23 @@ class BranchSeeder extends Seeder
                 'latitude' => -17.370000,
                 'longitude' => -66.160000,
                 'is_default' => false,
+                'delivery_base_fee' => 6.00,
+                'delivery_price_per_km' => 2.00,
+                'surge_multiplier' => 1.00,
+                'min_order_amount' => 35.00,
+                'small_order_fee' => 5.00,
+                'base_service_fee_percentage' => 5.00,
+                // Polígono ampliado
                 'coverage_polygon' => [
-                    [-17.360000, -66.170000],
-                    [-17.360000, -66.150000],
-                    [-17.380000, -66.150000],
-                    [-17.380000, -66.170000],
+                    [-17.310000, -66.220000],
+                    [-17.310000, -66.100000],
+                    [-17.430000, -66.100000],
+                    [-17.430000, -66.220000],
                 ],
             ],
         ];
 
         foreach ($branches as $branch) {
-            // Usamos transaction para asegurar que el HasUuids genere el ID correctamente
             DB::transaction(function () use ($branch) {
                 Branch::updateOrCreate(
                     ['name' => $branch['name']], 
@@ -71,6 +94,13 @@ class BranchSeeder extends Seeder
                         'coverage_polygon' => $branch['coverage_polygon'],
                         'is_default' => $branch['is_default'],
                         'is_active' => true,
+                        // Logsítica
+                        'delivery_base_fee' => $branch['delivery_base_fee'],
+                        'delivery_price_per_km' => $branch['delivery_price_per_km'],
+                        'surge_multiplier' => $branch['surge_multiplier'],
+                        'min_order_amount' => $branch['min_order_amount'],
+                        'small_order_fee' => $branch['small_order_fee'],
+                        'base_service_fee_percentage' => $branch['base_service_fee_percentage'],
                         'opening_hours' => [
                             ['day' => 'L-V', 'range' => '08:00 - 18:00'],
                             ['day' => 'S', 'range' => '09:00 - 13:00']

@@ -8,17 +8,22 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-
-// Arquitectura Core
 use App\Services\ShopContextService;
-use App\Actions\Customer\Cart\SyncGuestCartAction;
-use App\Actions\Customer\Cart\AddItemToCartAction;
 use App\DTOs\Customer\Cart\SyncCartDTO;
 use App\DTOs\Customer\Cart\AddToCartDTO;
 use App\Http\Requests\Customer\Cart\AddToCartRequest;
 use App\Models\Cart;
 use App\Http\Resources\Customer\Cart\CartItemResource;
 use App\Http\Resources\Customer\Cart\CartResource;
+use App\Models\CartItem; 
+use App\Models\InventoryLot;
+use App\Actions\Customer\Cart\{
+    GetCustomerCartAction,
+    UpdateCartItemAction,
+    RemoveCartItemAction,
+    SyncGuestCartAction,
+    AddItemToCartAction
+};
 
 
 class CartController extends Controller
@@ -27,31 +32,40 @@ class CartController extends Controller
         protected ShopContextService $contextService
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, GetCustomerCartAction $getCartAction): Response
     {
-        $branchId = $this->contextService->getActiveBranchId();
-        $customerId = auth('customer')->id();
         $guestUuid = $request->query('guest_id') ?? $request->header('X-Guest-UUID');
-    
-        $cart = Cart::query()
-            ->where('branch_id', $branchId)
-            ->where(function ($query) use ($customerId, $guestUuid) {
-                $customerId ? $query->where('customer_id', $customerId) 
-                            : $query->where('session_id', $guestUuid);
-            })
-            ->with([
-                'items.sku.product', 
-                'items.sku.prices' => fn($q) => $q->where('branch_id', $branchId),
-                'items.sku.inventoryLots' => fn($q) => $q->where('branch_id', $branchId)
-            ])
-            ->first();
+        
+        $cart = $getCartAction->execute($guestUuid);
     
         return Inertia::render('Customer/Cart/Index', [
-            // resolve() elimina la llave 'data' exterior
             'cart' => $cart ? (new CartResource($cart))->resolve() : null
         ]);
     }
 
+    public function update(Request $request, string $id, UpdateCartItemAction $action): RedirectResponse
+    {
+        $request->validate(['quantity' => 'required|integer|min:1']);
+        
+        $branchId = $this->contextService->getActiveBranchId();
+
+        try {
+            $action->execute($id, $request->quantity, $branchId);
+            return back()->with('success', 'Cantidad actualizada.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['cart' => $e->getMessage()]);
+        }
+    }
+
+    public function remove(string $id, RemoveCartItemAction $action): RedirectResponse
+    {
+        try {
+            $action->execute($id);
+            return back()->with('success', 'Producto eliminado.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['cart' => 'No se pudo eliminar el producto.']);
+        }
+    }
     public function sync(Request $request, SyncGuestCartAction $action): RedirectResponse
     {
         $branchId = $this->contextService->getActiveBranchId();

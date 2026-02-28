@@ -15,7 +15,7 @@ class StorePriceRequest extends FormRequest
             'branch_id'    => ['required', 'uuid', 'exists:branches,id'],
             'type'         => ['required', 'string', Rule::in(['regular', 'offer', 'member', 'wholesale', 'liquidation', 'staff'])],
             'list_price'   => ['required', 'numeric', 'min:0'],
-            'final_price'  => ['required', 'numeric', 'min:0', 'lte:list_price'],
+            'final_price'  => ['required', 'numeric', 'min:0'],
             'min_quantity' => ['required', 'integer', 'min:1'],
             'priority'     => ['required', 'integer', 'min:0'],
             'valid_from'   => ['required', 'date'],

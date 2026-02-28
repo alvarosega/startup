@@ -14,7 +14,11 @@ class AddToCartRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sku_id'            => ['required', 'string', 'exists:skus,id'],
+            'sku_id' => [
+                'required', 
+                'string', 
+                'exists:skus,id,is_active,1' // Solo permite SKUs activos
+            ], 
             'quantity'          => ['required', 'integer', 'min:1'],
             'guest_client_uuid' => ['nullable', 'string', 'uuid'],
         ];

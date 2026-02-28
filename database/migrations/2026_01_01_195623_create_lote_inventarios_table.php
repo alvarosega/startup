@@ -37,6 +37,8 @@ return new class extends Migration
             $table->integer('quantity');
             $table->integer('initial_quantity');
             $table->integer('reserved_quantity')->default(0);
+            $table->boolean('is_safety_stock')->default(false)->index();
+            
             
             $table->decimal('unit_cost', 10, 2);
             $table->date('expiration_date')->nullable()->index(); // Indexado para FEFO
@@ -44,7 +46,7 @@ return new class extends Migration
             $table->timestamps();
 
             // ÍNDICE DE RENDIMIENTO EXTREMO PARA AGREGACIONES
-            $table->index(['branch_id', 'sku_id', 'quantity', 'unit_cost'], 'idx_inventory_aggregation');
+            $table->index(['branch_id', 'sku_id', 'is_safety_stock', 'quantity', 'unit_cost'], 'idx_inventory_aggregation');
         });
     }
 

@@ -9,7 +9,6 @@ return new class extends Migration {
     public function up(): void 
     {
         Schema::create('branches', function (Blueprint $table) {
-            // CORRECCIÓN TÉCNICA: CHAR(36) / UUID NATIVO
             $table->uuid('id')->primary();
             
             $table->string('name')->unique(); 
@@ -22,6 +21,15 @@ return new class extends Migration {
     
             $table->json('coverage_polygon')->nullable();
             $table->json('opening_hours')->nullable();
+            
+            // --- CONFIGURACIÓN LOGÍSTICA Y FINANCIERA ---
+            $table->decimal('delivery_base_fee', 8, 2)->default(0.00);
+            $table->decimal('delivery_price_per_km', 8, 2)->default(0.00);
+            $table->decimal('surge_multiplier', 4, 2)->default(1.00);
+            $table->decimal('min_order_amount', 8, 2)->default(0.00);
+            $table->decimal('small_order_fee', 8, 2)->default(0.00);
+            $table->decimal('base_service_fee_percentage', 5, 2)->default(0.00);
+            // -------------------------------------------
             
             $table->boolean('is_default')->default(false)->index();
             $table->boolean('is_active')->default(true);

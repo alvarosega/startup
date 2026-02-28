@@ -21,7 +21,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Nueva Contraseña - Electric Luxury" />
+    <Head title="Nueva Contraseña - Electric Luxury"/>
     
     <div class="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-4">
         

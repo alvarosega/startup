@@ -3,57 +3,43 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Actions\Admin\Inventory\GetConsolidatedInventoryAction;
-use App\Actions\Admin\Inventory\RegisterInventoryEntryAction;
-use App\DTOs\Admin\Inventory\InventoryFilterDTO;
-use App\DTOs\Admin\Inventory\RegisterPurchaseDTO;
-use App\DTOs\Admin\Inventory\PurchaseItemDTO;
-use App\Http\Requests\Admin\Inventory\RegisterPurchaseRequest;
-use App\Http\Resources\Admin\Inventory\InventoryResource; // <--- NUEVO
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
+// Arquitectura Estricta
+use App\DTOs\Admin\Inventory\StockFilterDTO;
+use App\Actions\Admin\Inventory\GetConsolidatedStockAction;
+use App\Actions\Admin\Inventory\GetPurchaseFormDataAction; // Reutilizamos para el selector de sucursales
+use App\Http\Resources\Admin\Inventory\InventoryResource;
 
 class InventoryController extends Controller
 {
-    public function index(Request $request, GetConsolidatedInventoryAction $action): Response
-    {
-        $filters = new InventoryFilterDTO(
-            search: $request->query('search'),
-            branch_id: $request->query('branch_id'),
-            per_page: 25
-        );
+    use AuthorizesRequests;
 
-        $inventory = $action->execute($filters);
+    public function index(
+        Request $request, 
+        GetConsolidatedStockAction $action,
+        GetPurchaseFormDataAction $formDataAction // Reciclamos esta Action para no duplicar código
+    ) {
+        // Asumimos que tienes una policy, o usamos el middleware de Spatie
+        // $this->authorize('viewAny', InventoryLot::class); 
 
-        return Inertia::render('Admin/Inventory/Index', [
-            // Usamos el Resource para limpiar la data
-            'inventory' => InventoryResource::collection($inventory),
-            'branches' => Branch::active()->select('id', 'name')->get(),
-            'filters' => [
-                'search' => $filters->search,
-                'branch_id' => $filters->branch_id
-            ]
+        $user = auth('super_admin')->user();
+        
+        $dto = StockFilterDTO::fromRequest($request);
+        
+        // Inyectamos el branch_id del usuario para cumplir con el Silo de Seguridad
+        $stock = $action->execute($dto, $user->branch_id);
+
+        return Inertia::render('Admin/Inventory/Stock/Index', [
+            'stock'    => InventoryResource::collection($stock),
+            'filters'  => [
+                'branch_id' => $dto->branch_id,
+                'search'    => $dto->search
+            ],
+            // Si el admin está anclado a una sucursal, no necesita el selector
+            'branches' => $user->branch_id ? [] : $formDataAction->getBranchesForFilter() 
         ]);
-    }
-
-    public function store(RegisterPurchaseRequest $request, RegisterInventoryEntryAction $action)
-    {
-        $dto = new RegisterPurchaseDTO(
-            branch_id:       $request->branch_id,
-            provider_id:     $request->provider_id,
-            admin_id:        auth('super_admin')->id(), 
-            document_number: $request->document_number,
-            purchase_date:   $request->purchase_date,
-            payment_type:    $request->payment_type,
-            total_amount:    $request->total_amount,
-            notes:           $request->notes,
-            items:           array_map(fn($i) => new PurchaseItemDTO(...$i), $request->items)
-        );
-
-        $action->execute($dto);
-
-        return back()->with('success', 'Operación exitosa.');
     }
 }

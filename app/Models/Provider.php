@@ -39,7 +39,10 @@ class Provider extends Model
         'min_order_value' => 'decimal:2',
         'credit_limit' => 'decimal:2',
     ];
-
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
     public function brands()
     {
         return $this->hasMany(Brand::class);

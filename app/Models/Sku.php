@@ -5,6 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Sku extends Model
 {
@@ -24,17 +25,38 @@ class Sku extends Model
         'conversion_factor' => 'decimal:3',
         'weight' => 'decimal:3'
     ];
-    public function product(): BelongsTo { return $this->belongsTo(Product::class); }
-    
-    public function prices(): HasMany { return $this->hasMany(Price::class); }
 
-    /**
-     * Relación con los lotes de inventario.
-     * Vital para el filtrado de stock por sucursal en el Action.
-     */
-    public function inventoryLots(): HasMany 
-    { 
-        return $this->hasMany(InventoryLot::class, 'sku_id'); 
+    public function product() { return $this->belongsTo(Product::class); }
+    public function prices() { return $this->hasMany(Price::class); }
+    public function inventoryLots() { return $this->hasMany(InventoryLot::class); }
+    public function currentPrices(): HasMany
+    {
+        return $this->prices()
+            ->where(function ($q) {
+                $q->whereNull('valid_from')->orWhere('valid_from', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('valid_to')->orWhere('valid_to', '>=', now());
+            })
+            ->orderBy('priority', 'asc') // Prioridad 1 gana
+            ->orderBy('min_quantity', 'desc'); // A igualdad de prioridad, preferir escalas mayores (opcional)
+    }
+    protected function displayPrice(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if (!$this->relationLoaded('currentPrices')) {
+                    return $this->base_price;
+                }
+
+                $price = $this->currentPrices
+                    ->where('min_quantity', '<=', 1)
+                    ->first();
+
+                // Aseguramos que devuelva el valor numérico
+                return $price ? $price->final_price : $this->base_price;
+            }
+        );
     }
 
     // =================================================================================

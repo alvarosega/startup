@@ -3,53 +3,64 @@
 namespace App\Actions\Customer\Shop;
 
 use App\Models\MarketZone;
-use App\Models\Category;
-use App\Http\Resources\Customer\Shop\ShopProductResource;
+use App\Models\Product;
 
 class GetShopZoneAction
 {
-    public function execute(MarketZone $zone, string $branchId): \Illuminate\Support\Collection
+    public function __construct(
+        protected GetShopSkusAction $getSkusAction
+    ) {}
+
+    public function execute(MarketZone $zone, string $branchId): array
     {
-        // 1. Cargamos el árbol usando 'children' que es el nombre en tu modelo
-        $categories = Category::where('market_zone_id', $zone->id)
-            ->whereNull('parent_id')
-            ->where('is_active', true)
-            ->with(['children' => function ($q) use ($branchId) { // <--- CAMBIO AQUÍ
-                $q->where('is_active', true)
-                  ->with(['products' => function ($pq) use ($branchId) {
-                      $pq->where('is_active', true)
-                         ->with(['brand', 'skus' => function ($sq) use ($branchId) {
-                             $sq->where('is_active', true)
-                                ->whereHas('inventoryLots', fn($l) => $l->where('branch_id', $branchId)->where('quantity', '>', 0))
-                                ->with(['prices' => fn($pr) => $pr->where('branch_id', $branchId)]);
-                         }]);
-                  }]);
-            }])
-            ->orderBy('sort_order')
-            ->get();
+        // 1. Carga la jerarquía de categorías
+        $zone->load(['aisles.children']);
 
-        return $categories->map(function ($parent) use ($branchId) {
-            // 2. Aquí también cambiamos subcategories por children
-            $subcategories = $parent->children->map(function ($child) use ($branchId) {
-                if ($child->products->isEmpty()) return null;
+        // 2. Recolecta IDs de todas las categorías (Padres e Hijas)
+        $categoryIds = $zone->aisles->flatMap(function ($aisle) {
+            return collect([$aisle->id])->concat($aisle->children->pluck('id'));
+        })->unique()->toArray();
 
-                $resourceCollection = ShopProductResource::collection($child->products);
-                $resourceCollection->each(fn($r) => $r->setContextBranch($branchId));
+        // 3. Obtiene solo los productos que pertenecen a estas categorías
+        $productIds = Product::whereIn('category_id', $categoryIds)->pluck('id')->toArray();
 
-                return [
-                    'id'       => $child->id,
-                    'name'     => $child->name,
-                    'products' => $resourceCollection->resolve()
-                ];
-            })->filter()->values();
+        // 4. Obtiene los SKUs con el stock y precios ya filtrados por la sub-action
+        $skus = $this->getSkusAction->execute($productIds);
 
-            if ($subcategories->isEmpty()) return null;
+        // 5. Agrupación Jerárquica: Pasillo -> Subcategoría -> SKU
+        $structuredData = $skus->groupBy(function ($sku) {
+            // Agrupar por el Pasillo (Padre)
+            return $sku->product->category->parent_id ?? $sku->product->category_id;
+        })->map(function ($skusInAisle) {
+            $first = $skusInAisle->first();
+            $aisle = $first->product->category->parent ?? $first->product->category;
 
             return [
-                'id'            => $parent->id,
-                'name'          => $parent->name,
-                'subcategories' => $subcategories // Mantenemos el nombre de la llave para el JSON del frontend
+                'id'   => $aisle->id,
+                'name' => $aisle->name,
+                'subcategories' => $skusInAisle->groupBy('product.category_id')
+                    ->map(function ($skusInSub) {
+                        $sub = $skusInSub->first()->product->category;
+                        return [
+                            'id'       => $sub->id,
+                            'name'     => $sub->name,
+                            'products' => $skusInSub->map(fn($sku) => [
+                                'id'              => $sku->id,
+                                'name'            => "{$sku->product->name} {$sku->name}",
+                                'price'           => $sku->display_price,
+                                'image_url'       => $sku->image_url ?? $sku->product->image_url,
+                                'available_stock' => (int) $sku->available_stock, // Forzar entero
+                                'stock_status'    => $sku->stock_status, // 'in_stock' o 'out_of_stock'
+                                'variants'        => [$sku], 
+                            ])->values()
+                        ];
+                    })->values()
             ];
-        })->filter()->values();
+        })->values();
+
+        return [
+            'zone'              => $zone,
+            'groupedCategories' => $structuredData
+        ];
     }
 }

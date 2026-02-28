@@ -39,4 +39,9 @@ class PriceController extends Controller
         // 3. Respuesta (Capa de Presentación)
         return back()->with('success', 'Estrategia de precio actualizada correctamente.');
     }
+    public function destroy(string $price, DeletePriceAction $action)
+    {
+        $action->execute($price);
+        return back()->with('success', 'Regla de precio eliminada.');
+    }
 }

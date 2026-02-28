@@ -17,15 +17,16 @@ class InventoryMovement extends Model
         'branch_id',
         'sku_id',
         'inventory_lot_id',
-        'admin_id', // <--- ESTE ES EL QUE FALTA
+        'admin_id', 
         'type',
         'quantity',
         'unit_cost',
         'reference'
     ];
 
-    // Relaciones
     public function admin(): BelongsTo { return $this->belongsTo(Admin::class); }
     public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
     public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
+    // RELACIÓN FALTANTE Y CRÍTICA
+    public function lot(): BelongsTo { return $this->belongsTo(InventoryLot::class, 'inventory_lot_id'); }
 }

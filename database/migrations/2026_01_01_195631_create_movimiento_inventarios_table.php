@@ -10,25 +10,26 @@ return new class extends Migration
     {
         Schema::create('inventory_movements', function (Blueprint $table) {
             $table->uuid('id')->primary();
-
-            $table->uuid('branch_id');
-            $table->foreign('branch_id')->references('id')->on('branches');
-
-            $table->uuid('sku_id');
-            $table->foreign('sku_id')->references('id')->on('skus');
-
-            $table->uuid('inventory_lot_id');
-            $table->foreign('inventory_lot_id')->references('id')->on('inventory_lots');
-
-            $table->uuid('admin_id');
-            $table->foreign('admin_id')->references('id')->on('admins');
             
-            $table->string('type'); 
-            $table->integer('quantity'); 
+            // Sintaxis moderna, atómica y segura para UUIDs
+            $table->foreignUuid('branch_id')->constrained('branches');
+            $table->foreignUuid('sku_id')->constrained('skus');
+            $table->foreignUuid('inventory_lot_id')->constrained('inventory_lots');
+            
+            // Polymorphic / Nullable fallback: Si una venta la hace el sistema por el cliente, 
+            // puede que admin_id sea null. Lo dejaremos obligatorio por ahora, asumiendo 
+            // que siempre hay un admin de sucursal despachando.
+            $table->foreignUuid('admin_id')->constrained('admins');
+            
+            $table->string('type'); // ENTRY_PURCHASE, OUT_SALE, IN_RETURN, RESERVE, ADJUSTMENT
+            $table->integer('quantity'); // Las salidas serán valores negativos (-5)
             $table->decimal('unit_cost', 10, 2); 
-            $table->string('reference')->nullable(); 
+            $table->string('reference')->nullable(); // Ej: "Venta #ORD-5829"
             
             $table->timestamps();
+            
+            // Índice para consultas de Kardex ultrarrápidas
+            $table->index(['branch_id', 'sku_id', 'created_at']);
         });
     }
 

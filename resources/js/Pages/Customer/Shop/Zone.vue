@@ -33,12 +33,11 @@ const selectedProduct = ref(null);
 const currentIndex = ref(0);
 const quantity = ref(1);
 
-const activeSku = computed(() => selectedProduct.value?.variants?.[currentIndex.value]);
+const activeSku = computed(() => selectedProduct.value);
 
 const addToCart = () => {
-    if (!activeSku.value) return;
-
-    // CAMBIO: de 'customer.cart.store' a 'customer.cart.add'
+    if (!activeSku.value || activeSku.value.available_stock <= 0) return; // Validación extra
+    
     router.post(route('customer.cart.add'), { 
         sku_id: activeSku.value.id,
         quantity: quantity.value,
@@ -86,8 +85,14 @@ const goBack = () => router.visit(route('customer.shop.index'));
                         <h3 class="text-sm font-bold opacity-50 uppercase mb-4">{{ sub.name }}</h3>
                         <div class="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
                             <div v-for="product in sub.products" :key="product.id" 
-                                 @click="openProductModal(product)"
-                                 class="shrink-0 w-40 bg-card rounded-2xl border border-border/10 p-4 cursor-pointer">
+                                @click="product.available_stock > 0 ? openProductModal(product) : null"
+                                class="shrink-0 w-40 bg-card rounded-2xl border border-border/10 p-4 relative"
+                                :class="{ 'opacity-50 grayscale cursor-not-allowed': product.available_stock <= 0 }">
+                                
+                                <div v-if="product.available_stock <= 0" class="absolute inset-0 z-10 flex items-center justify-center">
+                                    <span class="bg-destructive text-destructive-foreground text-[10px] font-black uppercase px-2 py-1 rounded-full">Agotado</span>
+                                </div>
+
                                 <img :src="product.image_url" class="w-full aspect-square object-contain mb-3">
                                 <h4 class="text-xs font-black uppercase truncate">{{ product.name }}</h4>
                                 <div class="mt-2 text-primary font-bold">Bs {{ product.price }}</div>
@@ -110,9 +115,17 @@ const goBack = () => router.visit(route('customer.shop.index'));
                     <div class="flex-1 text-center font-mono text-xl">{{ quantity }}</div>
                     <button @click="increaseQty" class="w-12 h-12 rounded-xl bg-muted flex items-center justify-center"><Plus /></button>
                 </div>
-
-                <button @click="addToCart" class="w-full py-4 bg-primary text-black font-black uppercase rounded-xl flex items-center justify-center gap-2">
-                    <ShoppingCart /> Agregar al Pedido
+                <button 
+                    @click="addToCart" 
+                    :disabled="activeSku?.available_stock <= 0"
+                    class="w-full py-4 font-black uppercase rounded-xl flex items-center justify-center gap-2 transition-all"
+                    :class="activeSku?.available_stock > 0 
+                        ? 'bg-primary text-black' 
+                        : 'bg-muted text-muted-foreground cursor-not-allowed'"
+                >
+                    <ShoppingCart v-if="activeSku?.available_stock > 0" />
+                    <PackageX v-else />
+                    {{ activeSku?.available_stock > 0 ? 'Agregar al Pedido' : 'Sin Existencias' }}
                 </button>
             </div>
         </div>
