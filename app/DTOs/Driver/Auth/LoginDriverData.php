@@ -2,22 +2,20 @@
 
 namespace App\DTOs\Driver\Auth;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Driver\Auth\LoginRequest;
 
 readonly class LoginDriverData
 {
     public function __construct(
         public string $phone,
         public string $password,
-        public bool $remember = false
     ) {}
 
-    public static function fromRequest(Request $request): self
+    public static function fromRequest(LoginRequest $request): self
     {
         return new self(
-            phone:    $request->validated('phone'),
+            phone: $request->validated('phone'),
             password: $request->validated('password'),
-            remember: (bool) $request->validated('remember', false)
         );
     }
 }

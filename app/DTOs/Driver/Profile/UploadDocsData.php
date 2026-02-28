@@ -1,18 +1,19 @@
 <?php
 
-namespace App\DTOs\Driver;
+namespace App\DTOs\Driver\Profile;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 
-class DriverDocumentsData
+readonly class UploadDocsData
 {
     public function __construct(
-        public readonly ?UploadedFile $ciFront,
-        public readonly ?UploadedFile $licensePhoto,
-        public readonly ?UploadedFile $vehiclePhoto,
+        public ?UploadedFile $ciFront,
+        public ?UploadedFile $licensePhoto,
+        public ?UploadedFile $vehiclePhoto,
     ) {}
 
-    public static function fromRequest($request): self
+    public static function fromRequest(Request $request): self
     {
         return new self(
             ciFront: $request->file('ci_front'),

@@ -3,59 +3,42 @@
 namespace App\Http\Controllers\Web\Driver\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Actions\Driver\Auth\RegisterDriverAction;
 use App\Http\Requests\Driver\Auth\RegisterRequest;
 use App\DTOs\Driver\Auth\RegisterDriverData;
-use Illuminate\Support\Facades\Log;
+use App\Actions\Driver\Auth\RegisterDriverAction;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Traits\ValidatesGlobalIdentity;
-use App\Http\Requests\Driver\Auth\ValidateStep1Request;
-use App\Models\Branch;
+use Inertia\Inertia;
 
 class RegisterController extends Controller
 {
-    use ValidatesGlobalIdentity;
-
     public function create()
     {
-        // La vista de registro de conductor no necesita las sucursales.
-        // Devolver un array vacío es lo correcto aquí.
-        return Inertia::render('Driver/Auth/Register', [
-            'activeBranches' => [],
-        ]);
+        return Inertia::render('Driver/Auth/Register');
     }
-    public function validateStep1(ValidateStep1Request $request)
+
+    // Validador temporal para el Paso 1 (Frontend multipaso)
+    public function validateStep1(Request $request)
     {
-        // Si llega aquí, es porque los datos son únicos y válidos
-        Log::info('[DriverRegister] Step 1 validado con éxito', ['email' => $request->email]);
+        // Se inyecta la lógica de validación parcial si la usas, o delegar al Request principal
+        $request->validate([
+            'phone'    => ['required', 'string'],
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'min:8', 'confirmed'],
+        ]);
         
-        return response()->json(['status' => 'success']);
+        return response()->json(['success' => true]);
     }
 
     public function store(RegisterRequest $request, RegisterDriverAction $action)
     {
-        Log::info('[DriverRegister] Intento de registro recibido', $request->all());
-    
-        try {
-            $data = RegisterDriverData::fromRequest($request);
-            $driver = $action->execute($data);
-    
-            Log::info('[DriverRegister] Driver creado con éxito', ['id' => $driver->id]);
-    
-            Auth::guard('driver')->login($driver);
-            $request->session()->regenerate();
-    
-            return redirect()->route('driver.dashboard');
-    
-        } catch (\Exception $e) {
-            Log::error('[DriverRegister] Error en el guardado', [
-                'mensaje' => $e->getMessage(),
-                'linea'   => $e->getLine()
-            ]);
-    
-            return back()->withErrors(['error' => $e->getMessage()])->withInput();
-        }
+        $data = RegisterDriverData::fromRequest($request);
+        
+        $driver = $action->execute($data);
+
+        // Login automático tras registro exitoso
+        Auth::guard('driver')->login($driver);
+
+        return redirect()->route('driver.dashboard');
     }
 }

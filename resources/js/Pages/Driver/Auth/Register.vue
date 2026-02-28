@@ -5,10 +5,8 @@ import axios from 'axios';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import ImageUploader from '@/Components/Maps/ImageUploader.vue'; 
-import { Truck, Bike, Car, User, ArrowRight, ArrowLeft, CheckCircle, Lock, Smartphone, Mail, Shield, Upload, Info } from 'lucide-vue-next';
+import { Truck, Bike, Car, User, ArrowRight, CheckCircle, Lock, Smartphone, Mail } from 'lucide-vue-next';
 
-const props = defineProps({ activeBranches: Array });
 const currentStep = ref(1);
 const step1Errors = ref({});
 const validatingStep1 = ref(false);
@@ -19,13 +17,21 @@ const steps = [
     { id: 3, title: 'Avatar', icon: User },
 ];
 
+// Eliminados campos basura (role, terms, country_code). Strict Layering Frontend.
 const form = useForm({
-    phone: '', country_code: 'BO', email: '', password: '', password_confirmation: '', 
-    terms: true, first_name: '', last_name: '', license_number: '', license_plate: '', vehicle_type: 'moto',
-    avatar_type: 'icon', avatar_source: 'avatar_1.svg', avatar_file: null, role: 'driver'
+    phone: '', 
+    email: '', 
+    password: '', 
+    password_confirmation: '', 
+    first_name: '', 
+    last_name: '', 
+    license_number: '', 
+    license_plate: '', 
+    vehicle_type: 'moto',
+    avatar_type: 'icon', 
+    avatar_source: 'avatar_1.svg'
 });
 
-// REGLA ESTRICTA: Solo Bolivia
 const telOptions = { 
     mode: 'international', 
     defaultCountry: 'BO', 
@@ -35,7 +41,6 @@ const telOptions = {
 };
 
 const onInput = (phone, obj) => { 
-    form.country_code = 'BO'; 
     if(obj?.number) form.phone = obj.number; 
     if (step1Errors.value.phone) delete step1Errors.value.phone;
 };
@@ -46,23 +51,31 @@ const nextStep = async () => {
         validatingStep1.value = true;
         try {
             await axios.post(route('driver.register.validate-step-1'), {
-                phone: form.phone, email: form.email,
-                password: form.password, password_confirmation: form.password_confirmation
+                phone: form.phone, 
+                email: form.email,
+                password: form.password, 
+                password_confirmation: form.password_confirmation
             });
             currentStep.value = 2; 
         } catch (error) {
-            if (error.response?.status === 422) step1Errors.value = error.response.data.errors;
+            if (error.response?.status === 422) {
+                step1Errors.value = error.response.data.errors;
+            }
         } finally {
             validatingStep1.value = false;
         }
     } else if (currentStep.value === 2) {
-        if (!form.first_name || !form.last_name || !form.license_number || !form.license_plate) return alert('Completa todos los datos.');
+        if (!form.first_name || !form.last_name || !form.license_number || !form.license_plate) {
+            return alert('Complete todos los campos obligatorios del perfil.');
+        }
         currentStep.value = 3; 
     }
 };
 
 const submit = () => {
-    form.post(route('driver.register.store'), { forceFormData: true, preserveScroll: true });
+    form.post(route('driver.register.store'), { 
+        preserveScroll: true 
+    });
 };
 
 const progressPercentage = computed(() => (currentStep.value / steps.length) * 100);
@@ -74,12 +87,10 @@ const vehicleTypes = [
 </script>
 
 <template>
-    <Head title="Postulación Driver - BoliviaLogistics" />
+    <Head title="Postulación Driver - Terminal" />
 
-    <div class="min-h-screen bg-background relative flex items-center justify-center p-4 overflow-hidden transition-colors duration-300">
-        <div class="fixed inset-0 z-0">
-            <div class="absolute inset-0 bg-dots opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" />
-        </div>
+    <div class="min-h-screen bg-background relative flex items-center justify-center p-4 overflow-hidden">
+        <div class="fixed inset-0 z-0 bg-dots opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" />
 
         <div class="w-full max-w-xl bg-card border border-border rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col h-full max-h-[850px] overflow-hidden">
             
@@ -150,16 +161,16 @@ const vehicleTypes = [
 
             <div class="p-8 border-t border-border bg-card/80 backdrop-blur-md shrink-0">
                 <div class="flex gap-4">
-                    <button v-if="currentStep > 1" @click="currentStep--" class="btn btn-outline flex-1 h-14 font-black uppercase text-foreground">Atrás</button>
-                    <Link v-else :href="route('driver.login')" class="btn btn-ghost flex-1 h-14 font-black uppercase text-muted-foreground border border-border">Login</Link>
+                    <button v-if="currentStep > 1" @click="currentStep--" class="btn btn-outline flex-1 h-14 font-black uppercase text-foreground rounded-2xl">Atrás</button>
+                    <Link v-else :href="route('driver.login')" class="btn btn-ghost flex-1 h-14 font-black uppercase text-muted-foreground border border-border rounded-2xl flex items-center justify-center">Login</Link>
 
-                    <button v-if="currentStep < 3" @click="nextStep" :disabled="validatingStep1" class="btn btn-primary flex-[2] h-14 bg-amber-500 border-none shadow-lg shadow-amber-500/20 text-white">
+                    <button v-if="currentStep < 3" @click="nextStep" :disabled="validatingStep1" class="btn flex-[2] h-14 bg-amber-500 hover:bg-amber-600 border-none shadow-lg shadow-amber-500/20 text-white rounded-2xl">
                         <span v-if="validatingStep1" class="loading loading-spinner"></span>
                         <span v-else class="flex items-center gap-2 font-black uppercase italic">Siguiente <ArrowRight :size="18"/></span>
                     </button>
 
                     <div v-else class="flex-[2] flex flex-col gap-3">
-                        <button @click="submit" :disabled="form.processing" class="btn btn-primary w-full h-14 bg-amber-500 border-none shadow-lg shadow-amber-500/20 text-white">
+                        <button @click="submit" :disabled="form.processing" class="btn w-full h-14 bg-amber-500 hover:bg-amber-600 border-none shadow-lg shadow-amber-500/20 text-white rounded-2xl">
                             <span v-if="form.processing" class="loading loading-spinner"></span>
                             <span v-else class="flex items-center justify-center gap-2 font-black uppercase italic">Finalizar <CheckCircle :size="20" /></span>
                         </button>

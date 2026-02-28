@@ -43,7 +43,7 @@ use App\Http\Controllers\Web\Admin\DriverController;
 use App\Http\Controllers\Web\Driver\Auth\LoginController as DriverLoginController;
 use App\Http\Controllers\Web\Driver\Auth\RegisterController as DriverRegisterController;
 use App\Http\Controllers\Web\Driver\DashboardController as DriverDashboardController;
-use App\Http\Controllers\Web\Driver\ProfileController as DriverProfileController;
+use App\Http\Controllers\Web\Driver\Profile\DriverProfileController;
 use App\Http\Middleware\HandleDriverInertiaRequests;
 use App\Http\Controllers\Web\Driver\Auth\ForgotPasswordController as DriverForgotController;
 use App\Http\Controllers\Web\Driver\Auth\ResetPasswordController as DriverResetController;
@@ -235,47 +235,47 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
     });
 });
 
-// routes/web.php
+// =============================================================================
+// GRUPO 3: DRIVERS (Middleware: inertia.driver)
+// =============================================================================
 
-// MODIFICACIÓN: Añadir middleware 'inertia.driver' al grupo
 Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(function () {
 
+    // --- ACCESO PÚBLICO (GUEST) ---
     Route::middleware('guest:driver')->group(function () {
-        // --- ESTA ES LA RUTA QUE FALTA ---
-        Route::get('register', [DriverRegisterController::class, 'create'])
-            ->name('register'); 
-
+        
+        Route::get('register', [DriverRegisterController::class, 'create'])->name('register'); 
+        Route::post('register/validate-step-1', [DriverRegisterController::class, 'validateStep1'])->name('register.validate-step-1');
+        Route::post('register/store', [DriverRegisterController::class, 'store'])->name('register.store');
+        
         Route::get('login', [DriverLoginController::class, 'show'])->name('login');
-        Route::post('login', [DriverLoginController::class, 'store']);
+        Route::post('login', [DriverLoginController::class, 'store']); // El post no necesita nombre si hereda el url
         
-        Route::post('register/validate-step-1', [DriverRegisterController::class, 'validateStep1'])
-            ->name('register.validate-step-1');
-        
-        Route::post('register/store', [DriverRegisterController::class, 'store'])
-            ->name('register.store');
         Route::get('password/forgot', [DriverForgotController::class, 'showLinkRequestForm'])->name('password.request');
         Route::post('password/email', [DriverForgotController::class, 'sendResetCode'])->name('password.email');
-        
         Route::get('password/reset/{email}', [DriverResetController::class, 'showResetForm'])->name('password.reset');
-Route::post('password/update', [DriverResetController::class, 'reset'])->name('password.update');
-        
+        Route::post('password/update', [DriverResetController::class, 'reset'])->name('password.update');
     });
 
     // --- APP PRIVADA (AUTH:DRIVER) ---
     Route::middleware(['auth:driver'])->group(function () {
-        // Logout movido aquí por seguridad
+        
+        // CUIDADO AQUÍ: El nombre base del grupo ya es 'driver.', 
+        // por lo tanto ->name('dashboard') genera la ruta 'driver.dashboard'.
+        // Nunca pongas ->name('driver.dashboard') aquí adentro.
+        
+        Route::get('/dashboard', [DriverProfileController::class, 'index'])->name('dashboard');
+        
+        Route::post('/upload-docs', [DriverProfileController::class, 'uploadDocs'])->name('upload-docs');
+        Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
         Route::post('logout', [DriverLoginController::class, 'destroy'])->name('logout');
         
-        Route::get('/dashboard', [DriverDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
-        
         Route::prefix('profile')->name('profile.')->group(function () {
-            Route::get('/', [DriverProfileController::class, 'index'])->name('index');
-            Route::patch('/', [DriverProfileController::class, 'update'])->name('update');
+            Route::get('/', [DriverProfileController::class, 'index'])->name('index'); // driver.profile.index
+            Route::patch('/', [DriverProfileController::class, 'update'])->name('update'); // driver.profile.update
         });
     });
 });
-
 
 Route::get('/api/geo/reverse', function (Illuminate\Http\Request $request) {
     return Http::withHeaders(['User-Agent' => 'ElectricLuxury/1.0'])

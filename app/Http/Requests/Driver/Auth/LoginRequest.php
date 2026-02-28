@@ -3,16 +3,28 @@
 namespace App\Http\Requests\Driver\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Traits\ValidatesGlobalIdentity;
 
 class LoginRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    use ValidatesGlobalIdentity;
 
-    public function rules(): array {
+    public function authorize(): bool 
+    { 
+        return true; 
+    }
+
+    protected function prepareForValidation(): void
+    {
+        // Normaliza el teléfono (+XXXXXXXX) antes de intentar autenticar
+        $this->normalizeIdentityData();
+    }
+
+    public function rules(): array
+    {
         return [
-            'phone'    => ['required', 'string'],
+            'phone' => ['required', 'string'],
             'password' => ['required', 'string'],
-            'remember' => ['boolean'],
         ];
     }
 }

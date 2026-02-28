@@ -2,21 +2,27 @@
 
 namespace App\Actions\Driver\Auth;
 
-use Illuminate\Support\Facades\{DB, Mail};
+use App\DTOs\Driver\Auth\SendResetCodeData;
 use App\Mail\Driver\DriverResetCodeMail;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class SendResetCodeAction
 {
-    public function execute(string $email): void
+    public function execute(SendResetCodeData $data): void
     {
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $code = strtoupper(Str::random(6)); // Convertido a mayúsculas para mejor legibilidad
 
         DB::table('password_reset_codes_drivers')->updateOrInsert(
-            ['email' => $email],
-            ['token' => $code, 'created_at' => Carbon::now()]
+            ['email' => $data->email],
+            [
+                'token' => $code,
+                'created_at' => now(),
+            ]
         );
 
-        Mail::to($email)->send(new DriverResetCodeMail($code));
+        // Envío del correo usando tu clase Mailable
+        Mail::to($data->email)->send(new DriverResetCodeMail($code));
     }
 }

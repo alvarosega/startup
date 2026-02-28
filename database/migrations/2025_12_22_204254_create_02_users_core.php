@@ -64,8 +64,12 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
             $table->string('status')->default('pending'); 
-            $table->decimal('current_lat', 10, 8)->nullable();
-            $table->decimal('current_lng', 11, 8)->nullable();
+            
+            // ELIMINADOS: current_lat, current_lng (Movidos a Redis)
+            // AÑADIDOS: Estados atómicos
+            $table->boolean('is_online')->default(false);
+            $table->boolean('is_available')->default(false);
+            
             $table->timestamp('last_login_at')->nullable(); 
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
@@ -73,7 +77,7 @@ return new class extends Migration
         });
 
         Schema::create('driver_details', function (Blueprint $table) {
-            $table->uuid('driver_id')->primary();
+            $table->uuid('driver_id')->primary(); // PK es el mismo UUID del driver
             $table->string('first_name');
             $table->string('last_name');
             
@@ -82,13 +86,45 @@ return new class extends Migration
             $table->string('license_plate', 10)->nullable();
             $table->string('vehicle_type')->nullable(); 
 
-            // --- CAMPOS FALTANTES AÑADIDOS ---
+            // Campos de Interfaz
             $table->string('avatar_type')->default('icon'); 
             $table->string('avatar_source')->default('avatar_1.svg');
             
+            // CONSOLIDACIÓN: Campos de verificación documental (Ex DriverProfile)
+            $table->string('verification_status')->default('pending'); // pending, verified, rejected
+            $table->text('rejection_reason')->nullable();
+            $table->string('ci_front_path')->nullable();
+            $table->string('license_photo_path')->nullable();
+            $table->string('vehicle_photo_path')->nullable();
+
             $table->timestamps();
 
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
+        });
+        Schema::create('branch_driver', function (Blueprint $table) {
+            $table->uuid('branch_id');
+            $table->uuid('driver_id');
+            $table->timestamps();
+            
+            // Llave primaria compuesta para evitar duplicados a nivel de DB
+            $table->primary(['branch_id', 'driver_id']);
+            
+            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
+            $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
+        });
+
+        // NUEVA TABLA: Historial GPS de alto rendimiento (Append-only)
+        Schema::create('driver_location_logs', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('driver_id')->index();
+            $table->uuid('order_id')->nullable()->index(); // Nulo si estaba solo navegando
+            $table->decimal('latitude', 10, 8);
+            $table->decimal('longitude', 11, 8);
+            $table->timestamp('created_at')->useCurrent();
+            
+            $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
+            // Asumiendo que orders se crea después, de lo contrario mover esta llave foránea
+            // $table->foreign('order_id')->references('id')->on('orders')->nullOnDelete();
         });
         
         // ... (driver_tokens, driver_billing_infos, password_reset_codes_drivers igual) ...

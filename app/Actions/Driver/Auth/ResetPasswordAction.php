@@ -2,31 +2,35 @@
 
 namespace App\Actions\Driver\Auth;
 
+use App\DTOs\Driver\Auth\ResetPasswordData;
 use App\Models\Driver;
-use Illuminate\Support\Facades\{DB, Hash};
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
 
 class ResetPasswordAction
 {
-    public function execute(string $email, string $code, string $password): void
+    public function execute(ResetPasswordData $data): void
     {
-        $record = DB::table('password_reset_codes_drivers')
-            ->where('email', $email)
-            ->where('token', $code)
+        $resetRecord = DB::table('password_reset_codes_drivers')
+            ->where('email', $data->email)
+            ->where('token', $data->code)
             ->first();
 
-        if (!$record || Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
+        if (! $resetRecord) {
             throw ValidationException::withMessages([
-                'code' => 'El código de seguridad es incorrecto o ha expirado.',
+                'code' => 'El código proporcionado es inválido o ha expirado.',
             ]);
         }
 
-        $driver = Driver::where('email', $email)->firstOrFail();
-        $driver->update([
-            'password' => Hash::make($password)
-        ]);
+        DB::transaction(function () use ($data) {
+            // Se instancia el modelo para forzar la ejecución del cast 'hashed'
+            $driver = Driver::where('email', $data->email)->firstOrFail();
+            
+            $driver->update([
+                'password' => $data->password, 
+            ]);
 
-        DB::table('password_reset_codes_drivers')->where('email', $email)->delete();
+            DB::table('password_reset_codes_drivers')->where('email', $data->email)->delete();
+        });
     }
 }

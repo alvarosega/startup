@@ -2,33 +2,25 @@
 
 namespace App\DTOs\Driver\Auth;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Driver\Auth\RegisterRequest;
 
-class RegisterDriverData
+readonly class RegisterDriverData
 {
     public function __construct(
-        public readonly string $phone,
-        public readonly string $countryCode,
-        public readonly string $email,
-        public readonly string $password,
-        public readonly string $firstName,
-        public readonly string $lastName,
-        public readonly string $licenseNumber,
-        public readonly string $licensePlate,
-        public readonly string $vehicleType,
-        public readonly string $avatarType = 'icon',
-        public readonly string $avatarSource = 'avatar_1.svg',
-        public readonly ?\Illuminate\Http\UploadedFile $avatarFile = null,
+        public string $phone,
+        public string $email,
+        public string $password,
+        public string $firstName,
+        public string $lastName,
+        public string $licenseNumber,
+        public string $licensePlate,
+        public string $vehicleType,
     ) {}
 
-    /**
-     * Crea una instancia del DTO a partir del Request validado.
-     */
-    public static function fromRequest(Request $request): self
+    public static function fromRequest(RegisterRequest $request): self
     {
         return new self(
             phone:         $request->validated('phone'),
-            countryCode:   $request->validated('country_code'),
             email:         $request->validated('email'),
             password:      $request->validated('password'),
             firstName:     $request->validated('first_name'),
@@ -36,9 +28,6 @@ class RegisterDriverData
             licenseNumber: $request->validated('license_number'),
             licensePlate:  $request->validated('license_plate'),
             vehicleType:   $request->validated('vehicle_type'),
-            avatarType:    $request->input('avatar_type', 'icon'),
-            avatarSource:  $request->input('avatar_source', 'avatar_1.svg'),
-            avatarFile:    $request->file('avatar_file'),
         );
     }
 }

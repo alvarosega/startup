@@ -9,32 +9,32 @@ class HandleDriverInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
-
     public function share(Request $request): array
     {
+        // Instanciación única del usuario autenticado en el silo correspondiente
+        $user = $request->user('driver');
+
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => auth()->guard('driver')->user() ? [
-                    'id' => auth()->guard('driver')->user()->id,
-                    'email' => auth()->guard('driver')->user()->email,
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $this->resolveDriverName($user),
                 ] : null,
             ],
-            // ESTA LÍNEA ES VITAL PARA QUE VUE MUESTRE LOS ERRORES
             'errors' => function () use ($request) {
-                return $request->session()->get('errors')
-                    ? $request->session()->get('errors')->getBag('default')->getMessages()
-                    : (object) [];
+                $errors = $request->session()->get('errors');
+                return $errors ? $errors->getBag('default')->getMessages() : (object) [];
             },
         ]);
     }
 
     private function resolveDriverName($user): string
     {
-        // Cargamos la relación solo si no está cargada (Eager Loading preventivo)
-        $details = $user->relationLoaded('details') ? $user->details : $user->details()->first();
-        
-        if ($details) {
-            return trim($details->first_name . ' ' . $details->last_name);
+        // Rendimiento Extremo: Solo retorna el nombre si el controlador hizo Eager Loading.
+        // Queda estrictamente prohibido disparar queries en esta capa.
+        if ($user->relationLoaded('details') && $user->details) {
+            return trim($user->details->first_name . ' ' . $user->details->last_name);
         }
 
         return 'Conductor';

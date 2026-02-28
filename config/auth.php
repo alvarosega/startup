@@ -2,22 +2,12 @@
 
 return [
 
-    // 1. DEFAULTS (Generalmente es 'web')
     'defaults' => [
-        'guard' => 'web',           // Por defecto, somos 'web' (Customer)
+        'guard' => 'customer',           // Por defecto, somos 'web' (Customer)
         'passwords' => 'customers', // La recuperación por defecto busca en customers
     ],
 
-    // 2. GUARDS (Aquí definimos los dos mundos)
     'guards' => [
-        // El guard para usuarios normales (Tienda)
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'customers',
-        ],
-
-        // --- ESTO ES LO QUE PROBABLEMENTE TE FALTA ---
-        // El guard para el Administrador
         'super_admin' => [
             'driver' => 'session',
             'provider' => 'admins', // <--- Apunta al provider de abajo
