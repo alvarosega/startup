@@ -9,7 +9,7 @@ class GetPaginatedDriversAction
 {
     public function execute(array $filters): LengthAwarePaginator
     {
-        return Driver::with('details')
+        return Driver::with(['details', 'branch']) // <-- CORRECCIÓN: Agregar 'branch'
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('phone', 'like', "%{$search}%")

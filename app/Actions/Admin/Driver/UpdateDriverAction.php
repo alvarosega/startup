@@ -11,11 +11,14 @@ class UpdateDriverAction
     public function execute(Driver $driver, UpdateDriverData $data): void
     {
         DB::transaction(function () use ($driver, $data) {
-            // TRADUCCIÓN: Del booleano al string real de la base de datos
+            
+            // 1. Actualización de la tabla principal 'drivers'
             $driver->update([
-                'status' => $data->isActive ? 'active' : 'inactive',
+                'branch_id' => $data->branchId, // <-- CORRECCIÓN: Pertenece a esta tabla
+                'status'    => $data->isActive ? 'active' : 'inactive',
             ]);
 
+            // 2. Actualización de la tabla relacionada 'driver_details'
             $driver->details()->update([
                 'first_name'          => $data->firstName,
                 'last_name'           => $data->lastName,

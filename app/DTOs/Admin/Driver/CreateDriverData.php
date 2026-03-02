@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 readonly class CreateDriverData
 {
     public function __construct(
+        public ?string $branchId,
         public string $firstName,
         public string $lastName,
         public string $phone,
@@ -19,6 +20,7 @@ readonly class CreateDriverData
     public static function fromRequest(Request $request): self
     {
         return new self(
+            branchId: $request->validated('branch_id'),
             firstName: $request->validated('first_name'),
             lastName: $request->validated('last_name'),
             phone: $request->validated('phone'),

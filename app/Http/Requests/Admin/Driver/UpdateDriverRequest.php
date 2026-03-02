@@ -14,6 +14,7 @@ class UpdateDriverRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'branch_id'      => ['nullable', 'uuid', 'exists:branches,id'],
             'first_name'           => ['required', 'string', 'max:100'],
             'last_name'            => ['required', 'string', 'max:100'],
             'license_number'       => ['required', 'string', 'max:50'],

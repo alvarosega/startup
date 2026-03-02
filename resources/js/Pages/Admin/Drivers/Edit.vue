@@ -1,15 +1,17 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { Save, ArrowLeft, ShieldCheck, User, Truck, FileImage, ExternalLink, AlertTriangle, CheckCircle2 } from 'lucide-vue-next';
+import { Save, ArrowLeft, ShieldCheck, User, Truck, FileImage, ExternalLink, AlertTriangle, CheckCircle2, Building2 } from 'lucide-vue-next';
 
 const props = defineProps({ 
-    driver: Object 
+    driver: Object,
+    branches: Array // <-- AÑADIR ESTA PROP
 });
 
 // El DTO (UpdateDriverData) y el Request solo permiten estos campos exactos.
 // El teléfono y el email son inmutables en esta vista por seguridad de identidad global.
 const form = useForm({
+    branch_id: props.driver.branch_id || '',
     first_name: props.driver.details?.first_name || '',
     last_name: props.driver.details?.last_name || '',
     license_number: props.driver.details?.license_number || '',
@@ -113,13 +115,25 @@ const getImageUrl = (path) => path ? `/storage/${path}` : null;
                                 </div>
                             </div>
 
-                            <div class="space-y-1 mt-4">
-                                <label class="text-xs font-bold text-gray-600 uppercase flex items-center gap-1"><Truck :size="12"/> Logística</label>
-                                <select v-model="form.vehicle_type" class="w-full text-sm border-gray-300 rounded-md focus:ring-black focus:border-black">
-                                    <option value="moto">Motocicleta</option>
-                                    <option value="car">Automóvil</option>
-                                    <option value="truck">Camión de Carga</option>
-                                </select>
+                            <div class="grid grid-cols-2 gap-4 mt-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-gray-600 uppercase flex items-center gap-1"><Truck :size="12"/> Vehículo</label>
+                                    <select v-model="form.vehicle_type" class="w-full text-sm border-gray-300 rounded-md focus:ring-black focus:border-black">
+                                        <option value="moto">Motocicleta</option>
+                                        <option value="car">Automóvil</option>
+                                        <option value="truck">Camión de Carga</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-gray-600 uppercase flex items-center gap-1"><Building2 :size="12"/> Base / Sucursal</label>
+                                    <select v-model="form.branch_id" class="w-full text-sm border-gray-300 rounded-md focus:ring-black focus:border-black">
+                                        <option value="">Sin base asignada</option>
+                                        <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                                            {{ branch.name }}
+                                        </option>
+                                    </select>
+                                    <p v-if="form.errors.branch_id" class="text-[10px] text-red-500">{{ form.errors.branch_id }}</p>
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">

@@ -1,11 +1,12 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { Save, ArrowLeft, UserPlus, Truck, ShieldCheck } from 'lucide-vue-next';
+import { Save, ArrowLeft, UserPlus, Truck, ShieldCheck, Building2 } from 'lucide-vue-next';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 
 const form = useForm({
+    branch_id: '',
     first_name: '',
     last_name: '',
     phone: '',
@@ -14,7 +15,9 @@ const form = useForm({
     license_plate: '',
     vehicle_type: 'moto',
 });
-
+const props = defineProps({
+    branches: Array
+});
 // REGLA ESTRICTA: Solo Bolivia
 const telOptions = { 
     mode: 'international', 
@@ -73,6 +76,16 @@ const submit = () => {
                             <label class="block text-sm font-medium text-gray-700">Apellidos</label>
                             <input v-model="form.last_name" type="text" class="w-full border rounded-lg px-4 py-2 focus:ring-black focus:border-black" />
                             <p v-if="form.errors.last_name" class="text-xs text-red-500">{{ form.errors.last_name }}</p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700 flex items-center gap-1"><Building2 :size="14"/> Base (Sucursal)</label>
+                            <select v-model="form.branch_id" class="w-full border rounded-lg px-4 py-2 focus:ring-black focus:border-black">
+                                <option value="" disabled>Seleccione una base</option>
+                                <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                                    {{ branch.name }}
+                                </option>
+                            </select>
+                            <p v-if="form.errors.branch_id" class="text-xs text-red-500">{{ form.errors.branch_id }}</p>
                         </div>
                     </div>
                 </div>

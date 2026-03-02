@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Driver extends Authenticatable
@@ -21,6 +21,7 @@ class Driver extends Authenticatable
     protected $keyType = 'string';
     
     protected $fillable = [
+        'branch_id',
         'phone', 
         'email', 
         'password', 
@@ -47,11 +48,10 @@ class Driver extends Authenticatable
         return $this->hasOne(DriverDetail::class, 'driver_id', 'id'); 
     }
 
-    public function branches(): BelongsToMany
+    public function branch(): BelongsTo
     {
-        return $this->belongsToMany(Branch::class, 'branch_driver', 'driver_id', 'branch_id')->withTimestamps();
+        return $this->belongsTo(Branch::class, 'branch_id', 'id');
     }
-
     public function locationLogs(): HasMany
     {
         return $this->hasMany(DriverLocationLog::class, 'driver_id', 'id');

@@ -7,7 +7,7 @@ import {
     RefreshCw, Tag, Layers, Factory, LogOut,
     ChevronLeft, Banknote, Gift, ClipboardList,
     Settings, X, Building2, FolderTree, UserCog, Map, 
-    ArrowLeftRight, ArrowDownToLine, Store, Home
+    ArrowLeftRight, ArrowDownToLine, Store, Home, Radar
 } from 'lucide-vue-next';
 
 const emit = defineEmits(['toggle-collapse']);
@@ -100,6 +100,10 @@ watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
                 <SidebarLink :href="route('admin.removals.index')" :active="$page.url.includes('/removals')" :collapsed="isCollapsed"><template #icon><AlertTriangle :size="20" /></template>Bajas</SidebarLink>
                 <SidebarLink :href="route('admin.transformations.index')" :active="$page.url.includes('/transformations')" :collapsed="isCollapsed"><template #icon><RefreshCw :size="20" /></template>Transformaciones</SidebarLink>
                 <SidebarLink :href="route('admin.orders.index')" :active="$page.url.includes('/orders/index')" :collapsed="isCollapsed"><template #icon><ClipboardList :size="20" /></template>Orders</SidebarLink>
+                <SidebarLink :href="route('admin.logistics.monitor')" :active="$page.url.startsWith('/adm/logistics/monitor')" :collapsed="isCollapsed">
+                    <template #icon><Radar :size="20" class="text-green-500 animate-pulse" /></template>
+                    Radar (En Vivo)
+                </SidebarLink>
             </template>
 
             <template v-if="canManageCatalog">

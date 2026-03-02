@@ -14,6 +14,7 @@ use App\Actions\Admin\Driver\GetPaginatedDriversAction;
 use App\Http\Resources\Admin\Driver\DriverResource;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Actions\Admin\Branch\GetActiveBranchesListAction;
 
 class DriverController extends Controller
 {
@@ -33,10 +34,21 @@ class DriverController extends Controller
             'pending_count' => $pendingCount
         ]);
     }
-
-    public function create()
+    public function create(GetActiveBranchesListAction $getBranchesAction)
     {
-        return Inertia::render('Admin/Drivers/Create');
+        return Inertia::render('Admin/Drivers/Create', [
+            'branches' => $getBranchesAction->execute()
+        ]);
+    }
+
+    public function edit(string $id, GetActiveBranchesListAction $getBranchesAction)
+    {
+        $driver = Driver::with(['details', 'branch'])->findOrFail($id);
+        
+        return Inertia::render('Admin/Drivers/Edit', [
+            'driver'   => (new DriverResource($driver))->resolve(),
+            'branches' => $getBranchesAction->execute()
+        ]);
     }
 
     public function store(CreateDriverRequest $request, CreateDriverAction $action)
@@ -49,15 +61,7 @@ class DriverController extends Controller
             ->with('success', 'Conductor registrado exitosamente.');
     }
 
-    public function edit(string $id)
-    {
-        $driver = Driver::with('details')->findOrFail($id);
-        
-        return Inertia::render('Admin/Drivers/Edit', [
-            // EL FIX: resolve() extrae el array crudo, eliminando el envoltorio 'data' inyectado por Laravel.
-            'driver' => (new DriverResource($driver))->resolve()
-        ]);
-    }
+
 
     public function update(UpdateDriverRequest $request, string $id, UpdateDriverAction $action)
     {

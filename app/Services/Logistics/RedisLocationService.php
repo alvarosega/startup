@@ -28,7 +28,34 @@ class RedisLocationService
             now()->timestamp
         );
     }
+    public function getLocation(string $driverId): ?array
+    {
+        $statusKey = self::STATUS_PREFIX . $driverId . ':status';
+        
+        // Extraemos todos los campos del Hash
+        $data = Redis::hgetall($statusKey);
 
+        // Si el Hash no existe o está vacío (llave expirada o conductor nunca reportó)
+        if (empty($data) || !isset($data['lat']) || !isset($data['lng'])) {
+            return null;
+        }
+
+        return [
+            'lat' => (float) $data['lat'],
+            'lng' => (float) $data['lng'],
+            'last_seen' => $data['last_seen'] ?? null,
+            'is_online' => (bool) ($data['is_online'] ?? false),
+        ];
+    }
+/**
+     * Elimina el rastro del conductor al finalizar su turno.
+     */
+    public function removeLocation(string $driverId): void
+    {
+        $statusKey = self::STATUS_PREFIX . $driverId . ':status';
+        Redis::del($statusKey);
+        Redis::zrem(self::GEO_KEY, $driverId);
+    }
     /**
      * Busca conductores disponibles en un radio de X km.
      */

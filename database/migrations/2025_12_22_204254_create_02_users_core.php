@@ -60,13 +60,13 @@ return new class extends Migration
         // =================================================================================
         Schema::create('drivers', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            
+            $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
             $table->string('password');
             $table->string('status')->default('pending'); 
             
-            // ELIMINADOS: current_lat, current_lng (Movidos a Redis)
-            // AÑADIDOS: Estados atómicos
             $table->boolean('is_online')->default(false);
             $table->boolean('is_available')->default(false);
             
@@ -74,8 +74,9 @@ return new class extends Migration
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
             $table->softDeletes(); 
-        });
 
+            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
+        });
         Schema::create('driver_details', function (Blueprint $table) {
             $table->uuid('driver_id')->primary(); // PK es el mismo UUID del driver
             $table->string('first_name');
@@ -101,18 +102,6 @@ return new class extends Migration
 
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
         });
-        Schema::create('branch_driver', function (Blueprint $table) {
-            $table->uuid('branch_id');
-            $table->uuid('driver_id');
-            $table->timestamps();
-            
-            // Llave primaria compuesta para evitar duplicados a nivel de DB
-            $table->primary(['branch_id', 'driver_id']);
-            
-            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
-            $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
-        });
-
         // NUEVA TABLA: Historial GPS de alto rendimiento (Append-only)
         Schema::create('driver_location_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();

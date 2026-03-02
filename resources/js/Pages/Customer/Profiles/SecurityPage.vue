@@ -1,7 +1,6 @@
 <script setup>
 import { Head } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
-import AddressManager from './Partials/AddressManager.vue'; // Opcional: mover la lógica a un partial
 
 const props = defineProps({
     addresses: Array,

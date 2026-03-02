@@ -11,7 +11,8 @@ readonly class CheckoutCartDTO
         public string $customerId,
         public string $deliveryType, 
         public ?string $addressId,
-        public string $paymentType // <--- AÑADIDO ESTRICTAMENTE
+        public string $paymentType 
+        
     ) {}
 
     public static function fromRequest(CheckoutRequest $request, string $branchId, string $customerId): self

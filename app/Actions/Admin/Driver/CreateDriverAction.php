@@ -13,6 +13,7 @@ class CreateDriverAction
     {
         return DB::transaction(function () use ($data) {
             $driver = Driver::create([
+                'branch_id'    => $data->branchId,
                 'phone'        => $data->phone,
                 'email'        => 'driver_' . Str::random(8) . '@system.local',
                 'password'     => $data->password,

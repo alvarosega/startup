@@ -47,6 +47,8 @@ use App\Http\Controllers\Web\Driver\Profile\DriverProfileController;
 use App\Http\Middleware\HandleDriverInertiaRequests;
 use App\Http\Controllers\Web\Driver\Auth\ForgotPasswordController as DriverForgotController;
 use App\Http\Controllers\Web\Driver\Auth\ResetPasswordController as DriverResetController;
+use App\Http\Controllers\Web\Driver\Location\TelemetryController;
+use App\Http\Controllers\Web\Driver\DashboardController;
 
 use Illuminate\Support\Facades\Http;
 
@@ -216,7 +218,7 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             Route::resource('removals', RemovalController::class);
        //     Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
          //   Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
-            
+            Route::get('/logistics/monitor', [\App\Http\Controllers\Web\Admin\Logistics\MonitorController::class, 'index'])->name('logistics.monitor');
             Route::resource('transformations', TransformationController::class);
     
             Route::prefix('orders')->name('orders.')->group(function () {
@@ -255,6 +257,7 @@ Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(
         Route::post('password/email', [DriverForgotController::class, 'sendResetCode'])->name('password.email');
         Route::get('password/reset/{email}', [DriverResetController::class, 'showResetForm'])->name('password.reset');
         Route::post('password/update', [DriverResetController::class, 'reset'])->name('password.update');
+        
     });
 
     // --- APP PRIVADA (AUTH:DRIVER) ---
@@ -263,8 +266,8 @@ Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(
         // CUIDADO AQUÍ: El nombre base del grupo ya es 'driver.', 
         // por lo tanto ->name('dashboard') genera la ruta 'driver.dashboard'.
         // Nunca pongas ->name('driver.dashboard') aquí adentro.
-        
-        Route::get('/dashboard', [DriverProfileController::class, 'index'])->name('dashboard');
+        Route::post('/telemetry/update', [TelemetryController::class, 'update'])->name('telemetry.update');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         
         Route::post('/upload-docs', [DriverProfileController::class, 'uploadDocs'])->name('upload-docs');
         Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
@@ -274,6 +277,7 @@ Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(
             Route::get('/', [DriverProfileController::class, 'index'])->name('index'); // driver.profile.index
             Route::patch('/', [DriverProfileController::class, 'update'])->name('update'); // driver.profile.update
         });
+        Route::post('/status/toggle', [DashboardController::class, 'toggleStatus'])->name('status.toggle');
     });
 });
 

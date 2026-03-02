@@ -78,6 +78,12 @@ const getStatusColor = (driver) => {
                     <h3 class="font-semibold text-gray-900 truncate max-w-[150px]">{{ driver.full_name }}</h3>
                     <p class="text-xs text-gray-500 font-mono">{{ driver.license_plate }}</p>
                   </div>
+                  <div class="flex items-center gap-2 mt-1">
+                        <p class="text-[10px] text-gray-500 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ driver.license_plate }}</p>
+                        <p class="text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1" :class="driver.branch ? 'text-blue-600 bg-blue-50' : 'text-gray-500 bg-gray-100'">
+                            <Building2 :size="10" /> {{ driver.branch ? driver.branch.name : 'Sin base asignada' }}
+                        </p>
+                    </div>
                 </div>
                 
                 <span v-if="!driver.is_verified" class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 uppercase">

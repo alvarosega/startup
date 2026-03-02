@@ -55,6 +55,11 @@ class CheckoutCartAction
             $deliveryData = [];
             
             if ($dto->deliveryType === 'delivery') {
+                dd([
+                    'STATUS' => 'INTERCEPCIÓN DE DATOS GEOGRÁFICOS',
+                    'delivery_type' => $dto->deliveryType,
+                    'json_payload' => $deliveryData
+                ]);
                 $address = CustomerAddress::where('id', $dto->addressId)
                     ->where('customer_id', $customer->id)
                     ->first();
@@ -68,12 +73,13 @@ class CheckoutCartAction
                 $deliveryFee = $logistics['delivery_fee'];
                 $serviceFee = $logistics['service_fee'];
                 
-                // Guardamos un snapshot inmutable de dónde enviar
+
+                
                 $deliveryData = [
                     'address_id' => $address->id,
                     'address' => $address->address,
-                    'latitude' => $address->latitude,
-                    'longitude' => $address->longitude,
+                    'lat' => $address->latitude,   // CORRECCIÓN: 'lat' en lugar de 'latitude'
+                    'lng' => $address->longitude,  // CORRECCIÓN: 'lng' en lugar de 'longitude'
                     'reference' => $address->reference,
                     'distance_km' => $logistics['distance_km']
                 ];

@@ -9,11 +9,10 @@
     pkgs.php82Packages.composer
     pkgs.nodejs_20  # Volvemos a Node 20 (el estándar actual)
     pkgs.mysql80
+    pkgs.redis
+    pkgs.php82Extensions.redis
   ];
-  services.mysql = {
-    enable = true;
-    package = pkgs.mysql80;
-  };
+  services.redis.enable = true;
   # Sets environment variables in the workspace
   env = {};
   idx = {
