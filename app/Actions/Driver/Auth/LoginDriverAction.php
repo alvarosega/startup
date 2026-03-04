@@ -4,7 +4,6 @@ namespace App\Actions\Driver\Auth;
 
 use App\DTOs\Driver\Auth\LoginDriverData;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class LoginDriverAction
@@ -19,28 +18,16 @@ class LoginDriverAction
             'password' => $data->password,
         ];
 
-        // 1. Aislamiento de Acceso: Autenticación estricta en el guard 'driver'
+        // 1. Autenticación estricta en el guard 'driver'
         if (! Auth::guard('driver')->attempt($credentials)) {
             throw ValidationException::withMessages([
                 'phone' => 'Las credenciales proporcionadas no coinciden con nuestros registros.',
             ]);
         }
 
-        // 2. Seguridad Zero-Trust: Política de Sesión Única
-        $this->revokeOtherSessions();
-    }
-
-    /**
-     * Destruye matemáticamente cualquier otra sesión activa para este UUID.
-     */
-    private function revokeOtherSessions(): void
-    {
-        $driverId = Auth::guard('driver')->id();
-        $currentSessionId = session()->getId();
-
-        DB::table('sessions')
-            ->where('user_id', $driverId)
-            ->where('id', '!=', $currentSessionId)
-            ->delete();
+        // 2. Política de Sesión Única (Nativa de Laravel)
+        // Invalida todas las sesiones excepto la actual. 
+        // Requiere que el middleware AuthenticateSession esté activo.
+        Auth::guard('driver')->logoutOtherDevices($data->password);
     }
 }

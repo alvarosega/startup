@@ -55,11 +55,6 @@ class CheckoutCartAction
             $deliveryData = [];
             
             if ($dto->deliveryType === 'delivery') {
-                dd([
-                    'STATUS' => 'INTERCEPCIÓN DE DATOS GEOGRÁFICOS',
-                    'delivery_type' => $dto->deliveryType,
-                    'json_payload' => $deliveryData
-                ]);
                 $address = CustomerAddress::where('id', $dto->addressId)
                     ->where('customer_id', $customer->id)
                     ->first();
@@ -73,13 +68,11 @@ class CheckoutCartAction
                 $deliveryFee = $logistics['delivery_fee'];
                 $serviceFee = $logistics['service_fee'];
                 
-
-                
                 $deliveryData = [
                     'address_id' => $address->id,
                     'address' => $address->address,
-                    'lat' => $address->latitude,   // CORRECCIÓN: 'lat' en lugar de 'latitude'
-                    'lng' => $address->longitude,  // CORRECCIÓN: 'lng' en lugar de 'longitude'
+                    'lat' => $address->latitude,
+                    'lng' => $address->longitude,
                     'reference' => $address->reference,
                     'distance_km' => $logistics['distance_km']
                 ];
@@ -93,36 +86,22 @@ class CheckoutCartAction
 
             $totalAmount = round($subtotalProducts + $deliveryFee + $serviceFee, 2);
 
-            // 4. MÁQUINA FINANCIERA (Partición de Pagos Duros)
-            if ($dto->paymentType === 'partial') {
-                // Ley Inmutable: 100% Logística + 30% Productos
-                $advanceAmount = round($deliveryFee + $serviceFee + ($subtotalProducts * 0.30), 2);
-            } else {
-                // Fallback Seguro a Total
-                $advanceAmount = $totalAmount;
-            }
-            
-            $balanceAmount = round($totalAmount - $advanceAmount, 2);
-
-            // 5. Inicialización de Orden Financieramente Precisa
+            // 4. Inicialización de Orden Financieramente Precisa (100% Total)
             $order = Order::create([
                 'id' => Str::uuid()->toString(),
                 'code' => 'ORD-' . strtoupper(base_convert(time(), 10, 36)) . '-' . strtoupper(Str::random(4)),
                 'customer_id' => $customer->id,
                 'branch_id' => $cart->branch_id,
                 'delivery_type' => $dto->deliveryType,
-                'delivery_data' => empty($deliveryData) ? null : $deliveryData, // Blindaje SQL
+                'delivery_data' => empty($deliveryData) ? null : $deliveryData,
                 'delivery_fee' => $deliveryFee,
                 'service_fee' => $serviceFee,
                 'total_amount' => $totalAmount,
-                'payment_type' => $dto->paymentType === 'partial' ? 'partial' : 'total',
-                'advance_amount' => $advanceAmount,
-                'balance_amount' => $balanceAmount,
-                'status' => 'pending_payment', // Nuevo Estado
+                'status' => 'pending_payment', 
                 'reservation_expires_at' => now()->addMinutes(10),
             ]);
 
-            // 6. Procesamiento de Items y Bloqueo de Inventario (FEFO)
+            // 5. Procesamiento de Items y Bloqueo de Inventario (FEFO)
             foreach ($itemsData as $item) {
                 $lots = InventoryLot::where('sku_id', $item['sku_id'])
                     ->where('branch_id', $dto->branchId)
@@ -159,7 +138,7 @@ class CheckoutCartAction
                 ]);
             }
 
-            // 7. Destrucción del Carrito Atómico
+            // 6. Destrucción del Carrito Atómico
             $cart->items()->delete();
             $cart->delete();
 

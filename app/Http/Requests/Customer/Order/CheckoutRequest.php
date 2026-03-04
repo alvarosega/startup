@@ -27,8 +27,6 @@ class CheckoutRequest extends FormRequest
                 }),
             ],
 
-            // 2. Capa Financiera
-            'payment_type' => ['required', 'string', Rule::in(['total', 'partial'])],
         ];
     }
 
@@ -40,7 +38,6 @@ class CheckoutRequest extends FormRequest
             'address_id.required_if' => 'Debes seleccionar una dirección para el envío a domicilio.',
             'address_id.exists' => 'La dirección seleccionada no es válida o no te pertenece.',
             'payment_type.required' => 'Debes elegir tu modalidad de pago (Total o Parcial).',
-            'payment_type.in' => 'La modalidad de pago seleccionada es inválida.',
         ];
     }
 }

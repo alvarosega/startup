@@ -28,8 +28,11 @@ class UploadDocsAction
             $details->vehicle_photo_path = $data->vehiclePhoto->store($path, 'public');
         }
 
-        // Si sube documentos, el estado vuelve a pendiente de revisión obligatoriamente
-        $details->verification_status = 'pending';
+        // 1. Guardamos las rutas en la tabla hija
         $details->save();
+
+        // 2. Guardamos el estado unificado en la tabla padre (drivers)
+        $driver->status = 'pending';
+        $driver->save();
     }
 }

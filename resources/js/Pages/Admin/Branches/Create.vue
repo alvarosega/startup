@@ -2,7 +2,6 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, onMounted, computed, nextTick } from 'vue';
-import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
 import { 
     Store, MapPin, Phone, Navigation, Save, 
     ArrowLeft, ArrowRight, Trash2, RotateCcw, CheckCircle, 
@@ -83,14 +82,14 @@ const clearPolygon = () => form.coverage_polygon = [];
 const nextStep = () => {
     if (currentStep.value === 1) {
         if (!form.name.trim()) {
-            alert('El nombre de la sucursal es obligatorio');
+            alert('SYS_ERR: El identificador (Nombre) de la base es obligatorio.');
             return;
         }
         setTimeout(() => mapRef.value?.leafletObject?.invalidateSize(), 100);
     }
     if (currentStep.value === 2) {
         if (form.coverage_polygon.length > 0 && form.coverage_polygon.length < 3) {
-            alert("Debes marcar al menos 3 puntos para cerrar el área.");
+            alert("SYS_ERR: Triangulación incompleta. Requiere al menos 3 vectores.");
             return;
         }
     }
@@ -100,10 +99,25 @@ const nextStep = () => {
 const prevStep = () => {
     if (currentStep.value > 1) currentStep.value--;
 };
+const jumpToStepWithError = (errors) => {
+    const fieldMapping = {
+        1: ['name', 'city'],
+        2: ['latitude', 'longitude', 'coverage_polygon'],
+        3: ['phone', 'address'],
+        4: ['delivery_base_fee', 'delivery_price_per_km', 'surge_multiplier', 'min_order_amount', 'small_order_fee', 'base_service_fee_percentage']
+    };
 
+    for (let stepId = 1; stepId <= 4; stepId++) {
+        if (fieldMapping[stepId].some(field => errors[field])) {
+            currentStep.value = stepId;
+            break;
+        }
+    }
+};
 const submit = () => {
     if (!form.name.trim()) {
-        alert('El nombre de la sucursal es obligatorio');
+        alert('SYS_ERR: El identificador de la base es obligatorio.');
+        currentStep.value = 1;
         return;
     }
     
@@ -112,8 +126,7 @@ const submit = () => {
         onSuccess: () => form.reset(),
         onError: (errors) => {
             console.error('Fallo de Validación:', errors);
-            const errorMessages = Object.values(errors).join('\n- ');
-            alert("No se pudo crear por los siguientes errores:\n\n- " + errorMessages);
+            jumpToStepWithError(errors);
         }
     });
 };
@@ -123,92 +136,90 @@ const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.leng
 
 <template>
     <AdminLayout>
+        
         <template #header>
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div class="animate-slide-up">
-                    <div class="flex items-center gap-4 mb-3">
-                        <div class="avatar avatar-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-lg">
-                            <Store :size="24" />
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2 pb-4 border-b border-border/50">
+                <div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-background border border-primary flex items-center justify-center shadow-[inset_0_0_15px_hsl(var(--primary)/0.2)]">
+                            <Store :size="24" class="icon-glow text-primary" />
                         </div>
                         <div>
-                            <h1 class="text-3xl lg:text-4xl font-display font-black text-foreground tracking-tight">
-                                Nueva Sucursal
+                            <h1 class="text-2xl font-display font-black text-primary uppercase tracking-widest glitch-text drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)] leading-none">
+                                Inicializar Base
                             </h1>
-                            <p class="text-muted-foreground font-medium text-sm mt-1">
-                                Configura un punto de venta y su zona de reparto
+                            <p class="text-xs text-muted-foreground font-mono font-bold tracking-widest uppercase mt-1">
+                                Configuración Táctica y Zona de Alcance
                             </p>
                         </div>
                     </div>
                 </div>
                 
-                <Link :href="route('admin.branches.index')" class="btn btn-outline btn-md">
-                    Cancelar
+                <Link :href="route('admin.branches.index')" class="btn btn-outline border-border hover:border-destructive hover:text-destructive hover:shadow-neon-destructive">
+                    Abortar
                 </Link>
             </div>
         </template>
 
-        <div class="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto py-6">
+            
             <div class="mb-10">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span class="text-sm font-bold text-primary">{{ currentStep }}/{{ steps.length }}</span>
+                <div class="flex justify-between items-end mb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="px-2 py-1 bg-primary/10 border border-primary/50 text-primary font-mono font-black text-sm shadow-[inset_0_0_8px_hsl(var(--primary)/0.3)]">
+                            SEQ 0{{ currentStep }}
                         </div>
-                        <span class="text-sm font-bold text-foreground">
+                        <span class="text-sm font-display font-black uppercase tracking-widest text-foreground glitch-text">
                             {{ steps[currentStep - 1].title }}
                         </span>
                     </div>
-                    <div class="text-sm text-muted-foreground font-medium">
-                        Paso {{ currentStep }} de {{ steps.length }}
+                    <div class="text-[10px] font-mono text-muted-foreground font-bold tracking-widest uppercase">
+                        Proceso {{ currentStep }}/{{ steps.length }}
                     </div>
                 </div>
-                <div class="h-2 bg-muted rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-base ease-smooth"
+                
+                <div class="h-[2px] bg-border w-full relative">
+                    <div class="absolute top-0 left-0 h-full bg-primary shadow-neon-primary transition-all duration-500 ease-out"
                          :style="{ width: `${progressPercentage}%` }">
                     </div>
                 </div>
             </div>
 
-            <div class="card min-h-[500px] flex flex-col shadow-xl border border-border/60">
-                <div class="card-header border-b border-border/50 bg-muted/5">
-                    <div class="flex items-center justify-center gap-8 py-2">
-                        <div v-for="step in steps" :key="step.id" 
-                             class="flex flex-col items-center gap-2 cursor-pointer group"
-                             @click="currentStep >= step.id ? currentStep = step.id : null">
-                            <div :class="[
-                                'w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all',
-                                currentStep === step.id 
-                                    ? 'border-primary bg-primary text-primary-foreground scale-110 shadow-md' 
-                                    : currentStep > step.id 
-                                        ? 'border-success bg-success text-white' 
-                                        : 'border-border bg-muted text-muted-foreground'
-                            ]">
-                                <CheckCircle v-if="currentStep > step.id" :size="20" />
-                                <component v-else :is="step.icon" :size="18" />
-                            </div>
-                            <span :class="[
-                                'text-xs font-bold uppercase tracking-wider transition-colors',
-                                currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'
-                            ]">
+            <div class="bg-background border border-border relative shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                
+                <div class="flex items-center justify-between md:justify-start border-b border-border bg-background">
+                    <div v-for="step in steps" :key="step.id" 
+                         class="flex-1 md:flex-none flex items-center justify-center p-3 border-r border-border cursor-pointer transition-colors duration-300 hover:bg-primary/5"
+                         :class="{ 'bg-primary/10 border-b-2 border-b-primary shadow-[inset_0_-5px_15px_hsl(var(--primary)/0.1)]': currentStep === step.id }"
+                         @click="currentStep >= step.id ? currentStep = step.id : null">
+                        
+                        <div class="flex items-center gap-2">
+                            <CheckCircle v-if="currentStep > step.id" :size="16" class="text-success" />
+                            <span v-else class="font-mono font-bold text-[10px]" :class="currentStep === step.id ? 'text-primary' : 'text-muted-foreground'">
+                                [ 0{{ step.id }} ]
+                            </span>
+                            <span class="hidden md:inline-block text-[10px] font-display font-black uppercase tracking-widest"
+                                  :class="currentStep >= step.id ? 'text-foreground glitch-text' : 'text-muted-foreground'">
                                 {{ step.title }}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <div class="card-content flex-1 p-6 relative">
+                <div class="p-6 md:p-8 bg-scanlines min-h-[450px] relative">
+                    
                     <div v-if="currentStep === 1" class="animate-in fade-in slide-in-from-left-4">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div class="space-y-6">
                                 <div>
-                                    <label class="form-label">Nombre Sucursal *</label>
-                                    <input v-model="form.name" type="text" class="form-input font-bold" placeholder="Ej: Zona Sur" required />
-                                    <p v-if="form.errors.name" class="form-error">{{ form.errors.name }}</p>
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Identificador Operativo *</label>
+                                    <input v-model="form.name" type="text" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all" placeholder="Ej: SECTOR SUR" required />
+                                    <p v-if="form.errors.name" class="text-[10px] text-destructive font-mono mt-1 uppercase">{{ form.errors.name }}</p>
                                 </div>
                                 
                                 <div>
-                                    <label class="form-label">Ciudad Base *</label>
-                                    <select v-model="form.city" class="form-input">
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Nodo Principal (Ciudad) *</label>
+                                    <select v-model="form.city" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all">
                                         <option>La Paz</option>
                                         <option>El Alto</option>
                                         <option>Cochabamba</option>
@@ -217,20 +228,25 @@ const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.leng
                                     </select>
                                 </div>
                                 
-                                <div class="alert alert-info">
-                                    <Navigation :size="16" />
-                                    <span class="text-sm">Arrastra el pin en el mapa para ubicar la tienda exacta.</span>
+                                <div class="p-4 border border-primary/50 bg-primary/5 flex items-start gap-3 shadow-[inset_0_0_10px_hsl(var(--primary)/0.1)]">
+                                    <Navigation :size="16" class="text-primary mt-0.5 shrink-0 icon-glow" />
+                                    <span class="text-xs font-mono text-foreground uppercase tracking-wider leading-relaxed">Traslada el vector de posición en el mapa para anclar las coordenadas físicas de la base.</span>
                                 </div>
                             </div>
                             
                             <div class="lg:col-span-2">
-                                <div class="rounded-xl overflow-hidden border border-border h-[400px] relative shadow-inner">
-                                    <l-map ref="mapRef" v-model:zoom="zoom" :center="center" :use-global-leaflet="false" :options="{ zoomControl: false }" @ready="onMapReady" class="h-full w-full">
+                                <div class="border border-primary/50 h-[400px] relative shadow-[0_0_20px_hsl(var(--primary)/0.1)] bg-background">
+                                    <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary z-10 pointer-events-none"></div>
+                                    <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary z-10 pointer-events-none"></div>
+                                    <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary z-10 pointer-events-none"></div>
+                                    <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary z-10 pointer-events-none"></div>
+                                    
+                                    <l-map ref="mapRef" v-model:zoom="zoom" :center="center" :use-global-leaflet="false" :options="{ zoomControl: false }" @ready="onMapReady" class="h-full w-full z-0">
                                         <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' layer-type="base" name="OpenStreetMap" />
                                         <l-control-zoom position="bottomright" />
                                         <l-marker :lat-lng="[form.latitude, form.longitude]" draggable @dragend="onMarkerDrag">
                                             <l-tooltip :options="{ permanent: true, direction: 'top', offset: [0, -20] }">
-                                                📍 {{ form.name || 'Aquí' }}
+                                                <span class="font-mono font-bold text-xs uppercase tracking-widest text-primary">{{ form.name || 'TARGET_LOC' }}</span>
                                             </l-tooltip>
                                         </l-marker>
                                     </l-map>
@@ -240,179 +256,164 @@ const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.leng
                     </div>
 
                     <div v-else-if="currentStep === 2" class="h-[450px] relative animate-in fade-in zoom-in duration-300">
-                        <div class="absolute top-4 left-4 right-4 z-[500] glass p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg border border-white/20">
+                        
+                        <div class="absolute top-0 left-0 w-full z-[500] bg-background border-b border-primary flex flex-col md:flex-row justify-between items-center p-3 shadow-neon-primary">
                             <div>
-                                <h2 class="font-bold text-foreground text-sm flex items-center gap-2">
-                                    <MapPin :size="16" class="text-success" /> Dibuja la Zona de Reparto
+                                <h2 class="font-display font-black text-primary text-sm uppercase tracking-widest flex items-center gap-2 glitch-text">
+                                    <MapPin :size="16" class="icon-glow" /> Perímetro Operativo
                                 </h2>
-                                <p class="text-xs text-muted-foreground">
-                                    Haz clic en el mapa para añadir vértices. (Puntos: {{ form.coverage_polygon.length }})
+                                <p class="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-1">
+                                    Input Táctico para Vértices. (Vectores Registrados: <span class="text-primary">{{ form.coverage_polygon.length }}</span>)
                                 </p>
                             </div>
-                            <div class="flex gap-2 w-full md:w-auto">
-                                <button type="button" @click="undoLastPoint" :disabled="form.coverage_polygon.length === 0" class="btn btn-outline btn-sm flex-1 md:flex-none flex items-center justify-center gap-1">
-                                    <RotateCcw :size="12" /> Deshacer
+                            <div class="flex gap-2 w-full md:w-auto mt-3 md:mt-0">
+                                <button type="button" @click="undoLastPoint" :disabled="form.coverage_polygon.length === 0" class="btn btn-outline flex-1 md:flex-none py-2 px-4 text-[10px]">
+                                    <RotateCcw :size="12" class="icon-glow" /> Revertir Vector
                                 </button>
-                                <button type="button" @click="clearPolygon" :disabled="form.coverage_polygon.length === 0" class="btn btn-error btn-sm flex-1 md:flex-none flex items-center justify-center gap-1">
-                                    <Trash2 :size="12" /> Limpiar
+                                <button type="button" @click="clearPolygon" :disabled="form.coverage_polygon.length === 0" class="btn btn-destructive flex-1 md:flex-none py-2 px-4 text-[10px]">
+                                    <Trash2 :size="12" /> Purgar Área
                                 </button>
                             </div>
                         </div>
 
-                        <div class="h-full rounded-xl overflow-hidden border border-border">
-                            <l-map ref="mapRef" v-model:zoom="zoom" :center="center" :use-global-leaflet="false" :options="{ zoomControl: false }" @click="onMapClick" @ready="onMapReady" class="h-full w-full">
+                        <div class="h-full border border-border bg-background pt-[70px] md:pt-[60px]">
+                            <l-map ref="mapRef" v-model:zoom="zoom" :center="center" :use-global-leaflet="false" :options="{ zoomControl: false }" @click="onMapClick" @ready="onMapReady" class="h-full w-full z-0">
                                 <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
                                 <l-control-zoom position="bottomright" />
                                 <l-marker :lat-lng="[form.latitude, form.longitude]">
-                                    <l-tooltip :options="{ permanent: true, direction: 'top' }">🏠 Tienda</l-tooltip>
+                                    <l-tooltip :options="{ permanent: true, direction: 'top' }">
+                                        <span class="font-mono font-bold text-[10px] text-primary">BASE_ALPHA</span>
+                                    </l-tooltip>
                                 </l-marker>
-                                <l-circle-marker v-for="(point, index) in form.coverage_polygon" :key="index" :lat-lng="point" :radius="5" color="#000000" fill-color="#000000" :fill-opacity="1" :weight="2" />
-                                <l-polygon v-if="form.coverage_polygon.length > 0" :lat-lngs="form.coverage_polygon" color="#374151" fill-color="#374151" :fill="true" :fill-opacity="0.5" :weight="3" />
+                                <l-circle-marker v-for="(point, index) in form.coverage_polygon" :key="index" :lat-lng="point" :radius="4" color="hsl(var(--primary))" fill-color="hsl(var(--background))" :fill-opacity="1" :weight="2" />
+                                <l-polygon v-if="form.coverage_polygon.length > 0" :lat-lngs="form.coverage_polygon" color="hsl(var(--primary))" fill-color="hsl(var(--primary))" :fill="true" :fill-opacity="0.2" :weight="2" />
                             </l-map>
                         </div>
                     </div>
 
                     <div v-else-if="currentStep === 3" class="animate-in fade-in slide-in-from-right-4">
                         <div class="max-w-2xl mx-auto w-full space-y-6">
+                            
                             <div>
-                                <label class="form-label">Teléfono de Contacto</label>
-                                <input v-model="form.phone" type="text" class="form-input" placeholder="Ej: 70012345" />
+                                <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Canal de Comunicación (Teléfono)</label>
+                                <input v-model="form.phone" type="text" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all" placeholder="Ej: 70012345" />
                             </div>
 
                             <div>
-                                <label class="form-label">Dirección Física Completa</label>
-                                <textarea v-model="form.address" rows="3" class="form-input resize-none" placeholder="Dirección completa de la sucursal..."></textarea>
+                                <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Coordenadas Físicas (Dirección)</label>
+                                <textarea v-model="form.address" rows="3" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all resize-none" placeholder="Dirección completa del nodo..."></textarea>
                             </div>
 
-                            <div class="pt-2">
-                                <BaseCheckbox v-model="form.is_active" class="w-full">
-                                    <div class="flex items-center justify-between w-full p-4 border border-border rounded-xl hover:border-primary transition-all bg-card shadow-sm cursor-pointer group">
-                                        <div class="flex items-center gap-3">
-                                            <div :class="`w-3 h-3 rounded-full ${form.is_active ? 'bg-success animate-pulse' : 'bg-muted'}`"></div>
-                                            <div>
-                                                <span class="block text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                                                    {{ form.is_active ? 'Sucursal Operativa' : 'Sucursal Inactiva' }}
-                                                </span>
-                                                <span class="text-xs text-muted-foreground">Visible para pedidos</span>
-                                            </div>
-                                        </div>
-                                        <div :class="`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${form.is_active ? 'border-primary bg-primary text-white' : 'border-muted-foreground'}`">
-                                            <CheckCircle v-if="form.is_active" :size="14" />
-                                        </div>
+                            <div class="pt-4 space-y-4">
+                                
+                                <div @click="form.is_active = !form.is_active" 
+                                    class="flex items-center justify-between w-full p-4 border transition-all cursor-pointer select-none bg-background"
+                                    :class="form.is_active ? 'border-primary shadow-[inset_0_0_20px_hsl(var(--primary)/0.1)] shadow-neon-primary' : 'border-border hover:border-primary/50'">
+                                    <div class="flex flex-col">
+                                        <span class="font-mono font-bold text-sm tracking-widest uppercase transition-colors"
+                                            :class="form.is_active ? 'text-primary glitch-text' : 'text-muted-foreground'">
+                                            {{ form.is_active ? '[ SYS_ONLINE ]' : '[ SYS_OFFLINE ]' }}
+                                        </span>
+                                        <span class="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Estado de transmisión de la base</span>
                                     </div>
-                                </BaseCheckbox>
-                            </div>
-                            <div class="pt-2">
-                                <BaseCheckbox v-model="form.is_default" class="w-full">
-                                    <div class="flex items-center justify-between w-full p-4 border border-border rounded-xl hover:border-primary transition-all bg-card shadow-sm cursor-pointer group" :class="{ 'border-primary bg-primary/5': form.is_default }">
-                                        <div class="flex items-center gap-3">
-                                            <div :class="`w-3 h-3 rounded-full ${form.is_default ? 'bg-primary animate-pulse' : 'bg-muted'}`"></div>
-                                            <div>
-                                                <span class="block text-sm font-bold text-foreground group-hover:text-primary transition-colors">Establecer como Principal (Default)</span>
-                                                <span class="text-xs text-muted-foreground">Fallback para usuarios fuera de cobertura</span>
-                                            </div>
-                                        </div>
-                                        <div :class="`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${form.is_default ? 'border-primary bg-primary text-white' : 'border-muted-foreground'}`">
-                                            <CheckCircle v-if="form.is_default" :size="14" />
-                                        </div>
+                                    <div class="w-12 h-6 border flex items-center p-1 transition-all"
+                                        :class="form.is_active ? 'border-primary bg-primary/20 justify-end' : 'border-border bg-muted justify-start'">
+                                        <div class="w-4 h-4 transition-all"
+                                            :class="form.is_active ? 'bg-primary shadow-[0_0_10px_hsl(var(--primary))]' : 'bg-muted-foreground'"></div>
                                     </div>
-                                </BaseCheckbox>
-                            </div>
-                            <div class="card bg-muted/20 border-dashed border border-border/50">
-                                <div class="card-content p-5">
-                                    <h3 class="text-xs font-black text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-                                        <Info :size="14"/> Resumen
-                                    </h3>
-                                    <ul class="space-y-3 text-sm">
-                                        <li class="flex justify-between border-b border-border/50 pb-2">
-                                            <span class="text-muted-foreground">Nombre:</span>
-                                            <span class="font-bold text-foreground">{{ form.name || 'No definido' }}</span>
-                                        </li>
-                                        <li class="flex justify-between border-b border-border/50 pb-2">
-                                            <span class="text-muted-foreground">Ubicación:</span>
-                                            <span class="font-mono text-xs bg-background px-2 py-1 rounded border border-border">
-                                                {{ form.latitude.toFixed(4) }}, {{ form.longitude.toFixed(4) }}
-                                            </span>
-                                        </li>
-                                        <li class="flex justify-between items-center pt-1">
-                                            <span class="text-muted-foreground">Cobertura:</span>
-                                            <span class="font-bold flex items-center gap-1" :class="form.coverage_polygon.length > 0 ? 'text-success' : 'text-warning'">
-                                                <Layers :size="14"/>
-                                                {{ form.coverage_polygon.length > 0 ? 'Definida' : 'Sin cobertura' }}
-                                            </span>
-                                        </li>
-                                    </ul>
                                 </div>
+
+                                <div @click="form.is_default = !form.is_default" 
+                                    class="flex items-center justify-between w-full p-4 border transition-all cursor-pointer select-none bg-background mt-4"
+                                    :class="form.is_default ? 'border-secondary shadow-[inset_0_0_20px_hsl(var(--secondary)/0.1)] shadow-neon-secondary' : 'border-border hover:border-secondary/50'">
+                                    <div class="flex flex-col">
+                                        <span class="font-mono font-bold text-sm tracking-widest uppercase transition-colors"
+                                            :class="form.is_default ? 'text-secondary glitch-text' : 'text-muted-foreground'">
+                                            {{ form.is_default ? '[ NODE_MASTER ]' : '[ NODE_SLAVE ]' }}
+                                        </span>
+                                        <span class="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Protocolo de asignación por defecto</span>
+                                    </div>
+                                    <div class="w-12 h-6 border flex items-center p-1 transition-all"
+                                        :class="form.is_default ? 'border-secondary bg-secondary/20 justify-end' : 'border-border bg-muted justify-start'">
+                                        <div class="w-4 h-4 transition-all"
+                                            :class="form.is_default ? 'bg-secondary shadow-[0_0_10px_hsl(var(--secondary))]' : 'bg-muted-foreground'"></div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>
 
-                    <div v-else-if="currentStep === 4" class="p-6 md:p-8 animate-in fade-in slide-in-from-right-4">
+                    <div v-else-if="currentStep === 4" class="animate-in fade-in slide-in-from-right-4">
                         <div class="max-w-3xl mx-auto w-full space-y-6">
                             
-                            <div class="bg-primary/5 p-4 rounded-xl border border-primary/20 flex gap-3 mb-6">
-                                <Calculator :size="24" class="text-primary shrink-0"/>
+                            <div class="bg-background border border-primary p-4 flex gap-4 shadow-neon-primary">
+                                <Calculator :size="24" class="text-primary shrink-0 icon-glow mt-1"/>
                                 <div>
-                                    <h3 class="font-bold text-sm text-foreground">Configuración Logística y Tarifas</h3>
-                                    <p class="text-xs text-muted-foreground mt-1">
-                                        Estos parámetros controlan el algoritmo de precios dinámicos para esta sucursal.
+                                    <h3 class="font-display font-black text-sm text-primary uppercase tracking-widest glitch-text">Algoritmo de Tarifas</h3>
+                                    <p class="text-[10px] font-mono text-muted-foreground mt-1 uppercase tracking-widest">
+                                        Calibración de la matriz de precios dinámicos.
                                     </p>
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="form-label text-xs">Tarifa Base de Envío (Bs)</label>
-                                    <input v-model="form.delivery_base_fee" type="number" step="0.5" min="0" class="form-input font-mono bg-background" />
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Tarifa Base (Bs)</label>
+                                    <input v-model="form.delivery_base_fee" type="number" step="0.5" min="0" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all" />
                                 </div>
                                 <div>
-                                    <label class="form-label text-xs">Costo por Kilómetro (Bs)</label>
-                                    <input v-model="form.delivery_price_per_km" type="number" step="0.1" min="0" class="form-input font-mono bg-background" />
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Costo x KM (Bs)</label>
+                                    <input v-model="form.delivery_price_per_km" type="number" step="0.1" min="0" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all" />
                                 </div>
                                 <div>
-                                    <label class="form-label text-xs text-warning flex items-center gap-1">Multiplicador de Demanda</label>
-                                    <input v-model="form.surge_multiplier" type="number" step="0.1" min="1.0" class="form-input font-mono font-bold text-warning border-warning/30 focus:border-warning" />
-                                    <span class="text-[9px] text-muted-foreground mt-1 block">Normal = 1.0 | Lluvia/Saturación = 1.5+</span>
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-warning mb-2">Multiplicador Demanda</label>
+                                    <input v-model="form.surge_multiplier" type="number" step="0.1" min="1.0" class="w-full bg-background border border-warning/50 text-warning px-4 py-3 font-mono text-sm focus:border-warning focus:shadow-[0_0_15px_hsl(var(--warning))] outline-none transition-all" />
+                                    <span class="text-[9px] font-mono text-muted-foreground mt-1 block uppercase">Normal = 1.0 | Saturación = 1.5+</span>
                                 </div>
                                 <div>
-                                    <label class="form-label text-xs">Umbral Ticket Bajo (Bs)</label>
-                                    <input v-model="form.min_order_amount" type="number" step="1" min="0" class="form-input font-mono bg-background" />
-                                    <span class="text-[9px] text-muted-foreground mt-1 block">Subtotal mínimo sin penalización.</span>
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Umbral Ticket Bajo (Bs)</label>
+                                    <input v-model="form.min_order_amount" type="number" step="1" min="0" class="w-full bg-background border border-border px-4 py-3 text-foreground font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all" />
+                                    <span class="text-[9px] font-mono text-muted-foreground mt-1 block uppercase">Subtotal mínimo evadiendo penalización.</span>
                                 </div>
                                 <div>
-                                    <label class="form-label text-xs text-destructive">Multa Ticket Bajo (Bs)</label>
-                                    <input v-model="form.small_order_fee" type="number" step="0.5" min="0" class="form-input font-mono text-destructive border-destructive/30 focus:border-destructive" />
-                                    <span class="text-[9px] text-muted-foreground mt-1 block">Se cobra si no superan el umbral.</span>
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-destructive mb-2">Multa Ticket Bajo (Bs)</label>
+                                    <input v-model="form.small_order_fee" type="number" step="0.5" min="0" class="w-full bg-background border border-destructive/50 text-destructive px-4 py-3 font-mono text-sm focus:border-destructive focus:shadow-neon-destructive outline-none transition-all" />
+                                    <span class="text-[9px] font-mono text-muted-foreground mt-1 block uppercase">Penalización al usuario.</span>
                                 </div>
                                 <div>
-                                    <label class="form-label text-xs text-primary">Tarifa Servicio Plataforma (%)</label>
-                                    <input v-model="form.base_service_fee_percentage" type="number" step="0.1" min="0" max="100" class="form-input font-mono text-primary border-primary/30 focus:border-primary" />
-                                    <span class="text-[9px] text-muted-foreground mt-1 block">Porcentaje sobre el subtotal de productos.</span>
+                                    <label class="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-2">Fee Plataforma (%)</label>
+                                    <input v-model="form.base_service_fee_percentage" type="number" step="0.1" min="0" max="100" class="w-full bg-background border border-secondary/50 text-secondary px-4 py-3 font-mono text-sm focus:border-secondary focus:shadow-neon-secondary outline-none transition-all" />
+                                    <span class="text-[9px] font-mono text-muted-foreground mt-1 block uppercase">Retención de costos de operación.</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card-footer border-t border-border/50 p-4 bg-muted/5">
-                    <div class="flex justify-between items-center">
-                        <button type="button" @click="prevStep" :disabled="currentStep === 1" class="btn btn-ghost hover:bg-background gap-2 text-muted-foreground transition-all" :class="{ 'opacity-0 pointer-events-none': currentStep === 1 }">
-                            <ArrowLeft :size="18" />
-                            <span>Atrás</span>
-                        </button>
+                <div class="border-t border-border bg-background p-4 flex justify-between items-center relative z-10">
+                    <button type="button" @click="prevStep" :disabled="currentStep === 1" class="btn btn-outline" :class="{ 'opacity-0 pointer-events-none': currentStep === 1 }">
+                        <ArrowLeft :size="16" class="mr-2" /> REBOBINAR
+                    </button>
 
-                        <button v-if="currentStep < steps.length" type="button" @click="nextStep" class="btn btn-primary btn-md shadow-lg shadow-primary/20 flex items-center gap-2 group px-6">
-                            <span>Siguiente</span>
-                            <ArrowRight :size="16" class="transition-transform duration-fast group-hover:translate-x-1" />
-                        </button>
-                        
-                        <button v-else @click="submit" :disabled="form.processing" class="btn btn-primary btn-md shadow-lg shadow-primary/20 flex items-center gap-2 px-8">
-                            <Save :size="18" />
-                            <span>{{ form.processing ? 'Creando...' : 'Crear Sucursal' }}</span>
-                        </button>
-                    </div>
+                    <button v-if="currentStep < steps.length" type="button" @click="nextStep" class="btn btn-primary group px-8">
+                        AVANZAR <ArrowRight :size="16" class="ml-2 transition-transform duration-150 group-hover:translate-x-2" />
+                    </button>
+                    
+                    <button v-else @click="submit" :disabled="form.processing" class="btn btn-primary px-8 border-destructive hover:border-destructive hover:shadow-neon-destructive bg-destructive/10 text-destructive hover:text-destructive-foreground hover:bg-destructive">
+                        <Save :size="16" class="mr-2" />
+                        {{ form.processing ? 'EJECUTANDO...' : 'INICIALIZAR SISTEMA' }}
+                    </button>
                 </div>
             </div>
+
         </div>
     </AdminLayout>
 </template>
+
+<style scoped>
+/* Ocultar el checkbox nativo dentro del componente BaseCheckbox si aplica */
+.hidden-checkbox-wrapper :deep(input[type="checkbox"]) {
+    display: none;
+}
+</style>

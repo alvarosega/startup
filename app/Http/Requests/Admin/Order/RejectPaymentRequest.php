@@ -2,7 +2,6 @@
 namespace App\Http\Requests\Admin\Order;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class RejectPaymentRequest extends FormRequest
 {
@@ -11,7 +10,6 @@ class RejectPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['required', 'string', Rule::in(['advance', 'balance'])],
             'rejection_reason' => ['required', 'string', 'min:10', 'max:255'],
         ];
     }

@@ -13,23 +13,21 @@ class CreateDriverAction
     {
         return DB::transaction(function () use ($data) {
             $driver = Driver::create([
-                'branch_id'    => $data->branchId,
-                'phone'        => $data->phone,
-                'email'        => 'driver_' . Str::random(8) . '@system.local',
-                'password'     => $data->password,
-                // CORRECCIÓN: Usar la columna status real
-                'status'       => 'active', 
-                'is_online'    => false,
-                'is_available' => false,
+                'branch_id' => $data->branchId,
+                'phone'     => $data->phone,
+                'email'     => 'driver_' . Str::random(8) . '@system.local',
+                'password'  => $data->password,
+                'status'    => 'active', // Al crearlo el admin, nace activo
+                'is_online' => false,
             ]);
 
             $driver->details()->create([
-                'first_name'          => $data->firstName,
-                'last_name'           => $data->lastName,
-                'license_number'      => $data->licenseNumber,
-                'license_plate'       => $data->licensePlate,
-                'vehicle_type'        => $data->vehicleType,
-                'verification_status' => 'verified',
+                'first_name'     => $data->firstName,
+                'last_name'      => $data->lastName,
+                'license_number' => $data->licenseNumber,
+                'license_plate'  => $data->licensePlate,
+                'vehicle_type'   => $data->vehicleType,
+                // ELIMINADO: 'verification_status'
             ]);
 
             return $driver;

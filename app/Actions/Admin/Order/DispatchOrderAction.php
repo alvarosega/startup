@@ -8,16 +8,17 @@ class DispatchOrderAction
 {
     public function execute(string $orderId): void
     {
-        $order = Order::where('id', $orderId)->firstOrFail();
-
+        $order = Order::findOrFail($orderId);
+        
         if ($order->status !== 'preparing') {
-            throw new Exception('La orden debe estar en preparación para ser despachada.');
+             throw new Exception('La orden debe estar preparada antes de ser despachada.');
         }
 
-        $order->update([
-            'status' => 'dispatched'
-        ]);
+        // Importante: No debe avanzar a dispatched si no existe un Driver asignado (Opcional pero recomendable).
+        if (!$order->driver_id && $order->delivery_type === 'delivery') {
+             throw new Exception('No hay un conductor asigando a esta orden todavía.');
+        }
         
-        // Aquí en el futuro se emitiría un evento para notificar al Silo Driver (Uber Light)
+        $order->update(['status' => 'dispatched']);
     }
 }

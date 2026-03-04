@@ -9,21 +9,31 @@ use App\Actions\Driver\Auth\RegisterDriverAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Traits\ValidatesGlobalIdentity;
 
 class RegisterController extends Controller
 {
+    use ValidatesGlobalIdentity;
     public function create()
     {
         return Inertia::render('Driver/Auth/Register');
     }
 
-    // Validador temporal para el Paso 1 (Frontend multipaso)
     public function validateStep1(Request $request)
     {
-        // Se inyecta la lógica de validación parcial si la usas, o delegar al Request principal
+        // Normalizamos el teléfono manualmente antes de validar (Igual que en el FormRequest)
+        if ($request->has('phone') && !empty($request->phone)) {
+            $cleanPhone = preg_replace('/[^\+0-9]/', '', $request->phone);
+            if (!str_starts_with($cleanPhone, '+')) {
+                $cleanPhone = '+' . $cleanPhone;
+            }
+            $request->merge(['phone' => $cleanPhone]);
+        }
+
+        // Usamos las reglas de oro del Trait
         $request->validate([
-            'phone'    => ['required', 'string'],
-            'email'    => ['required', 'email'],
+            'phone'    => $this->globalPhoneRules(), // <--- AHORA SÍ REVISA LA DB
+            'email'    => $this->globalEmailRules(), // <--- AHORA SÍ REVISA LA DB
             'password' => ['required', 'min:8', 'confirmed'],
         ]);
         
@@ -32,13 +42,17 @@ class RegisterController extends Controller
 
     public function store(RegisterRequest $request, RegisterDriverAction $action)
     {
-        $data = RegisterDriverData::fromRequest($request);
-        
-        $driver = $action->execute($data);
+        try {
+            $data = RegisterDriverData::fromRequest($request);
+            $driver = $action->execute($data);
 
-        // Login automático tras registro exitoso
-        Auth::guard('driver')->login($driver);
+            Auth::guard('driver')->login($driver);
 
-        return redirect()->route('driver.dashboard');
+            return redirect()->route('driver.dashboard');
+            
+        } catch (\Exception $e) {
+            // Protección contra fallos silenciosos de base de datos
+            return back()->withErrors(['phone' => 'Error interno: ' . $e->getMessage()])->withInput();
+        }
     }
 }

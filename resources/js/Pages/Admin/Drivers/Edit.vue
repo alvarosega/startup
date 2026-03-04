@@ -7,9 +7,6 @@ const props = defineProps({
     driver: Object,
     branches: Array // <-- AÑADIR ESTA PROP
 });
-
-// El DTO (UpdateDriverData) y el Request solo permiten estos campos exactos.
-// El teléfono y el email son inmutables en esta vista por seguridad de identidad global.
 const form = useForm({
     branch_id: props.driver.branch_id || '',
     first_name: props.driver.details?.first_name || '',
@@ -17,10 +14,14 @@ const form = useForm({
     license_number: props.driver.details?.license_number || '',
     license_plate: props.driver.details?.license_plate || '',
     vehicle_type: props.driver.details?.vehicle_type || 'moto',
-    is_identity_verified: props.driver.details?.verification_status === 'verified',
-    is_active: !!props.driver.is_active
+    
+    // MAPEO DESDE LA COLUMNA STATUS
+    // Identidad verificada es true solo si el status es 'active'
+    is_identity_verified: props.driver.status === 'active',
+    
+    // La cuenta está activa a menos que el status sea 'inactive'
+    is_active: props.driver.status !== 'inactive'
 });
-
 const submit = () => {
     form.put(route('admin.drivers.update', props.driver.id), {
         preserveScroll: true,

@@ -143,6 +143,8 @@ Route::middleware(['inertia.customer'])->group(function () {
             // Acción de subir comprobante
             Route::post('/{id}/proof', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'uploadProof'])
                 ->name('upload-proof'); // customer.orders.upload-proof
+            Route::get('/{id}/track', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'track'])->name('track');
+            Route::get('/{id}/telemetry', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'getTelemetry'])->name('telemetry');
         });
     
     });
@@ -268,7 +270,10 @@ Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(
         // Nunca pongas ->name('driver.dashboard') aquí adentro.
         Route::post('/telemetry/update', [TelemetryController::class, 'update'])->name('telemetry.update');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        
+        Route::get('/orders/poll', [DashboardController::class, 'pollPendingOrders'])->name('orders.poll');
+        Route::post('/orders/{id}/take', [DashboardController::class, 'takeOrder'])->name('orders.take');
+        Route::post('/orders/{id}/arrived', [DashboardController::class, 'markAsArrived'])->name('orders.arrived');
+        Route::post('/orders/{id}/complete', [DashboardController::class, 'completeOrder'])->name('orders.complete');
         Route::post('/upload-docs', [DriverProfileController::class, 'uploadDocs'])->name('upload-docs');
         Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
         Route::post('logout', [DriverLoginController::class, 'destroy'])->name('logout');

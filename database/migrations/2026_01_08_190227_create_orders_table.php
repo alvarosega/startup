@@ -20,38 +20,26 @@ return new class extends Migration {
             $table->enum('delivery_type', ['pickup', 'delivery'])->default('pickup');
             $table->json('delivery_data')->nullable(); 
             
-            // ESTADO LOGÍSTICO (Dónde está el paquete)
+            // ESTADO UNIFICADO
             $table->enum('status', [
-                'pending_payment', // Esperando el pago (Total o Anticipo)
-                'preparing',       // Pago inicial aprobado, tienda preparando
-                'dispatched',      // En camino (Delivery) o Listo en Tienda (PickUp)
+                'pending_payment', // Esperando comprobante
+                'under_review',    // Comprobante subido, esperando admin
+                'preparing',       // Pago aprobado, tienda preparando
+                'dispatched',      // En camino o Listo en Tienda
+                'arrived',         // <--- NUEVO: Conductor en puerta
+                'delivery_failed', // <--- NUEVO: Fallo en entrega (Sin PIN, etc)
                 'completed',       // Entregado al cliente
                 'expired',         // Timeout de 10 min superado
                 'cancelled'        // Cancelado manualmente
             ])->default('pending_payment')->index(); 
-            
+            $table->string('delivery_otp', 4)->nullable(); // <--- NUEVO: PIN de 4 dígitos
             $table->timestamp('reservation_expires_at')->nullable()->index(); 
-            
-            // 4. LEDGER FINANCIERO ESTRICTO
+
+            // 4. FINANZAS Y COMPROBANTE ÚNICO
             $table->decimal('delivery_fee', 10, 2)->default(0);
             $table->decimal('service_fee', 10, 2)->default(0);
             $table->decimal('total_amount', 12, 2); 
-            
-            $table->enum('payment_type', ['total', 'partial']);
-            $table->decimal('advance_amount', 12, 2)->default(0); // Anticipo (o Total si aplica)
-            $table->decimal('balance_amount', 12, 2)->default(0); // Saldo pendiente
-            
-            // COMPROBANTE 1 (Adelanto o Pago Total)
-            $table->string('advance_proof')->nullable(); 
-            $table->enum('advance_status', [
-                'pending', 'under_review', 'approved', 'rejected'
-            ])->default('pending');
-
-            // COMPROBANTE 2 (Saldo Restante en Tránsito/Puerta)
-            $table->string('balance_proof')->nullable(); 
-            $table->enum('balance_status', [
-                'none', 'pending', 'under_review', 'approved', 'rejected'
-            ])->default('none');
+            $table->string('proof_of_payment')->nullable();
 
             // 5. AUDITORÍA Y CONTROL
             $table->string('bank_reference')->nullable(); // Para el Admin

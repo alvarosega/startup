@@ -1,40 +1,26 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
-import SidebarLink from '@/Components/Admin/SidebarLink.vue';
 import { 
     LayoutDashboard, ShoppingCart, Package, Truck, AlertTriangle, 
     RefreshCw, Tag, Layers, Factory, LogOut,
-    ChevronLeft, Banknote, Gift, ClipboardList,
-    Settings, X, Building2, FolderTree, UserCog, Map, 
-    ArrowLeftRight, ArrowDownToLine, Store, Home, Radar
+    Banknote, Gift, ClipboardList, Settings, X, 
+    Building2, FolderTree, UserCog, Map, 
+    ArrowLeftRight, Store, Home, Radar
 } from 'lucide-vue-next';
 
-const emit = defineEmits(['toggle-collapse']);
-
-// --- ESTADO ---
-const isCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
 const activeMobileMenu = ref(null);
 
-// --- AUTORIZACIÓN UNIFICADA (ROL: admin) ---
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
 
-// Lógica cruda: Si el rol es admin, tiene acceso total a las secciones
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
 const isAdmin = isSuperAdmin;
 const canManageUsers = isSuperAdmin;
 const canManageDrivers = isSuperAdmin;
 const canManageCatalog = isSuperAdmin;
 const canManageStock = isSuperAdmin;
-
-// --- MÉTODOS ---
-const toggleSidebar = () => {
-    isCollapsed.value = !isCollapsed.value;
-    localStorage.setItem('sidebarCollapsed', isCollapsed.value);
-    emit('toggle-collapse', isCollapsed.value);
-};
 
 const toggleMobileMenu = (menu) => {
     activeMobileMenu.value = activeMobileMenu.value === menu ? null : menu;
@@ -43,199 +29,232 @@ const toggleMobileMenu = (menu) => {
 const closeMobileMenu = () => {
     activeMobileMenu.value = null;
 };
-
-watch(isCollapsed, (val) => emit('toggle-collapse', val), { immediate: true });
 </script>
 
 <template>
-    <aside 
-        class="hidden md:flex flex-col fixed h-full z-30 bg-card border-r border-border/60 shadow-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] will-change-[width]"
-        :class="isCollapsed ? 'w-[72px]' : 'w-[260px]'"
-    >
-        <div class="h-16 flex items-center px-4 border-b border-border/40 shrink-0 relative overflow-hidden bg-muted/10 backdrop-blur-sm">
-            <div class="flex items-center gap-3 transition-all duration-300 absolute left-5"
-                 :class="isCollapsed ? 'opacity-0 translate-x-[-10px] pointer-events-none' : 'opacity-100 translate-x-0 delay-75'">
-                <div class="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20">
-                    <Factory :size="16" /> 
-                </div>
-                <div class="flex flex-col justify-center">
-                    <span class="font-display font-black text-sm tracking-wide text-foreground leading-none">
-                        BOLIVIA<span class="text-primary">LOGISTICS</span>
-                    </span>
-                    <span class="text-[9px] text-muted-foreground font-medium tracking-wider uppercase leading-none mt-0.5">
-                        Enterprise v2.0
-                    </span>
-                </div>
-            </div>
+<aside class="hidden md:block fixed top-0 left-0 h-full z-50 w-[250px] pointer-events-none">
+        
+    <div class="absolute inset-y-0 left-0 w-[72px] bg-background pointer-events-auto shadow-[5px_0_20px_rgba(0,0,0,0.4)]"></div>
 
-            <div class="absolute inset-0 flex items-center justify-center transition-all duration-300 z-20 pointer-events-none"
-                 :class="isCollapsed ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'">
-                <div class="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-black text-xs shadow-lg">
-                    BL
-                </div>
-            </div>
-
-            <button @click="toggleSidebar" 
-                    class="ml-auto z-30 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-                    :class="isCollapsed ? 'hidden' : 'block'">
-                <ChevronLeft :size="18" />
-            </button>
-            
-            <button v-if="isCollapsed" @click="toggleSidebar" class="absolute inset-0 z-40 w-full h-full cursor-pointer opacity-0"></button>
+        <div class="absolute top-0 left-0 w-[72px] h-16 flex items-center justify-center z-50 pointer-events-auto">
+            <span class="font-display font-black text-2xl text-primary drop-shadow-[0_0_10px_hsl(var(--primary))] glitch-text">DU</span>
         </div>
 
-        <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-            <SidebarLink :href="route('admin.dashboard')" :active="$page.url.startsWith('/adm/dashboard')" :collapsed="isCollapsed">
-                <template #icon><LayoutDashboard :size="20" /></template>
-                Dashboard
-            </SidebarLink>
+        <div class="absolute top-16 bottom-0 left-0 w-[250px] overflow-y-auto overflow-x-hidden pointer-events-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             
-            <template v-if="canManageStock">
-                <div v-if="!isCollapsed" class="section-header">Operaciones</div>
-                <div v-else class="section-divider"></div>
+            <nav class="flex flex-col py-6 gap-6 w-[72px] pointer-events-auto">
                 
-                <SidebarLink :href="route('admin.purchases.index')" :active="$page.url.includes('/purchases')" :collapsed="isCollapsed"><template #icon><ShoppingCart :size="20" /></template>Ingresos</SidebarLink>
-                <SidebarLink :href="route('admin.inventory.index')" :active="$page.url.includes('/inventory')" :collapsed="isCollapsed"><template #icon><Package :size="20" /></template>Stock</SidebarLink>
-                <SidebarLink :href="route('admin.transfers.index')" :active="$page.url.includes('/transfers')" :collapsed="isCollapsed"><template #icon><Truck :size="20" /></template>Transferencias</SidebarLink>
-                <SidebarLink :href="route('admin.removals.index')" :active="$page.url.includes('/removals')" :collapsed="isCollapsed"><template #icon><AlertTriangle :size="20" /></template>Bajas</SidebarLink>
-                <SidebarLink :href="route('admin.transformations.index')" :active="$page.url.includes('/transformations')" :collapsed="isCollapsed"><template #icon><RefreshCw :size="20" /></template>Transformaciones</SidebarLink>
-                <SidebarLink :href="route('admin.orders.index')" :active="$page.url.includes('/orders/index')" :collapsed="isCollapsed"><template #icon><ClipboardList :size="20" /></template>Orders</SidebarLink>
-                <SidebarLink :href="route('admin.logistics.monitor')" :active="$page.url.startsWith('/adm/logistics/monitor')" :collapsed="isCollapsed">
-                    <template #icon><Radar :size="20" class="text-green-500 animate-pulse" /></template>
-                    Radar (En Vivo)
-                </SidebarLink>
-            </template>
+                <Link :href="route('admin.dashboard')" class="group relative flex items-center justify-center w-full outline-none">
+                    <LayoutDashboard :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                    <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">
+                        Dashboard
+                    </span>
+                </Link>
 
-            <template v-if="canManageCatalog">
-                <div v-if="!isCollapsed" class="section-header">Catálogo</div>
-                <div v-else class="section-divider"></div>
+                <template v-if="canManageStock">
+                    <div class="w-6 border-t border-border/40 mx-auto my-1"></div>
+                    
+                    <Link :href="route('admin.purchases.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <ShoppingCart :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Ingresos</span>
+                    </Link>
+                    
+                    <Link :href="route('admin.inventory.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Package :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Stock Base</span>
+                    </Link>
+
+                    <Link :href="route('admin.transfers.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Truck :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Transferencias</span>
+                    </Link>
+
+                    <Link :href="route('admin.removals.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <AlertTriangle :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Bajas</span>
+                    </Link>
+
+                    <Link :href="route('admin.transformations.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <RefreshCw :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Transformaciones</span>
+                    </Link>
+
+                    <Link :href="route('admin.orders.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <ClipboardList :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Órdenes</span>
+                    </Link>
+
+                    <Link :href="route('admin.logistics.monitor')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Radar :size="24" class="icon-glow text-primary drop-shadow-[0_0_8px_hsl(var(--primary))] transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Radar (Vivo)</span>
+                    </Link>
+                </template>
+
+                <template v-if="canManageCatalog">
+                    <div class="w-6 border-t border-border/40 mx-auto my-1"></div>
+                    
+                    <Link :href="route('admin.products.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Tag :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Productos</span>
+                    </Link>
+                    
+                    <Link :href="route('admin.market-zones.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Map :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Zonas</span>
+                    </Link>
+
+                    <Link :href="route('admin.bundles.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Gift :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Packs</span>
+                    </Link>
+
+                    <Link :href="route('admin.prices.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Banknote :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Precios</span>
+                    </Link>
+
+                    <Link :href="route('admin.brands.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Layers :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Marcas</span>
+                    </Link>
+
+                    <Link :href="route('admin.categories.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <FolderTree :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Categorías</span>
+                    </Link>
+
+                    <Link :href="route('admin.providers.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Factory :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Proveedores</span>
+                    </Link>
+                </template>
+
+                <template v-if="canManageUsers">
+                    <div class="w-6 border-t border-border/40 mx-auto my-1"></div>
+                    
+                    <Link :href="route('admin.branches.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Building2 :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Sucursales</span>
+                    </Link>
+                    
+                    <Link :href="route('admin.drivers.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <Truck :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Conductores</span>
+                    </Link>
+
+                    <Link :href="route('admin.users.index')" class="group relative flex items-center justify-center w-full outline-none">
+                        <UserCog :size="24" class="icon-glow text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                        <span class="absolute left-[80px] px-3 py-2 bg-background/95 backdrop-blur-md border border-primary shadow-neon-primary font-display font-black text-[10px] tracking-widest text-primary uppercase glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">Equipo</span>
+                    </Link>
+                </template>
                 
-                <SidebarLink :href="route('admin.products.index')" :active="$page.url.includes('/products')" :collapsed="isCollapsed"><template #icon><Tag :size="20" /></template>Productos</SidebarLink>
-                <SidebarLink :href="route('admin.market-zones.index')" :active="$page.url.includes('/market-zones')" :collapsed="isCollapsed"><template #icon><Map :size="20" /></template>Zonas</SidebarLink>
-                <SidebarLink :href="route('admin.bundles.index')" :active="$page.url.includes('/bundles')" :collapsed="isCollapsed"><template #icon><Gift :size="20" /></template>Packs</SidebarLink>
-                <SidebarLink :href="route('admin.prices.index')" :active="$page.url.includes('/prices')" :collapsed="isCollapsed"><template #icon><Banknote :size="20" /></template>Precios</SidebarLink>
-                <SidebarLink :href="route('admin.brands.index')" :active="$page.url.includes('/brands')" :collapsed="isCollapsed"><template #icon><Layers :size="18" /></template>Marcas</SidebarLink>
-                <SidebarLink :href="route('admin.categories.index')" :active="$page.url.includes('/categories')" :collapsed="isCollapsed"><template #icon><FolderTree :size="18" /></template>Categorías</SidebarLink>
-                <SidebarLink :href="route('admin.providers.index')" :active="$page.url.includes('/providers')" :collapsed="isCollapsed"><template #icon><Factory :size="18" /></template>Proveedores</SidebarLink>
-            </template>
+                <div class="pb-12"></div>
+            </nav>
+        </div>
 
-            <template v-if="canManageUsers">
-                <div v-if="!isCollapsed" class="section-header">Gestión</div>
-                <div v-else class="section-divider"></div>
-                
-                <SidebarLink :href="route('admin.branches.index')" :active="$page.url.includes('/branches')" :collapsed="isCollapsed"><template #icon><Building2 :size="20" /></template>Sucursales</SidebarLink>
-                <SidebarLink :href="route('admin.drivers.index')" :active="$page.url.includes('/drivers')" :collapsed="isCollapsed"><template #icon><Truck :size="20" /></template>Conductores</SidebarLink>
-                <SidebarLink :href="route('admin.users.index')" :active="$page.url.includes('/users')" :collapsed="isCollapsed"><template #icon><UserCog :size="20" /></template>Equipo</SidebarLink>
-            </template>
-        </nav>
-
-        <div class="p-4 border-t border-border/40 bg-muted/10 shrink-0">
-            <Link :href="route('admin.logout')" method="post" as="button" 
-                class="group flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background p-2 text-sm font-medium transition-all hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
-                :class="isCollapsed ? 'aspect-square p-0' : ''">
-                <LogOut :size="16" />
-                <span v-if="!isCollapsed">Cerrar Sesión</span>
+        <div class="absolute bottom-0 left-0 w-[72px] h-16 border-t border-border bg-background z-50 pointer-events-auto">
+            <Link :href="route('admin.logout')" method="post" as="button" class="group relative flex items-center justify-center h-full w-full outline-none">
+                <LogOut :size="24" class="icon-glow text-destructive drop-shadow-[0_0_8px_hsl(var(--destructive))]" />
+                <span class="absolute left-[80px] px-3 py-2 bg-destructive/10 backdrop-blur-md border border-destructive shadow-neon-destructive font-display uppercase font-black text-[10px] tracking-widest text-destructive glitch-text whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">
+                    Cerrar Sesión
+                </span>
             </Link>
         </div>
     </aside>
 
     <div class="md:hidden">
-        <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"></div>
+        <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-background/90 z-40 cursor-pointer backdrop-blur-sm"></div>
 
-        <div v-if="activeMobileMenu" class="fixed bottom-[90px] left-4 right-4 bg-card/95 backdrop-blur-xl z-50 p-6 rounded-3xl shadow-2xl border border-border/50 flex flex-col max-h-[60vh]">
-            <div class="w-12 h-1.5 rounded-full bg-muted-foreground/20 mx-auto mb-6 shrink-0"></div>
-                
-            <div class="flex justify-between items-center mb-6 pb-4 border-b border-border/50 shrink-0">
-                <h3 class="font-black text-xl text-foreground flex items-center gap-3">
-                    <span v-if="activeMobileMenu === 'inv'" class="flex items-center gap-2 text-primary"><Package /> Stock</span>
-                    <span v-else-if="activeMobileMenu === 'mov'" class="flex items-center gap-2 text-primary"><ArrowLeftRight /> Flujos</span>
-                    <span v-else class="flex items-center gap-2 text-primary"><Settings /> Gestión</span>
+        <div v-if="activeMobileMenu" class="fixed bottom-[90px] left-4 right-4 bg-background/95 backdrop-blur-xl z-50 p-6 flex flex-col max-h-[70vh] shadow-[0_0_30px_rgba(0,0,0,0.5),0_0_1px_1px_hsl(var(--primary)/0.2)]">
+            
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-border shrink-0 bg-background/50">
+                <h3 class="font-display font-black text-lg text-foreground uppercase flex items-center gap-3">
+                    <span v-if="activeMobileMenu === 'inv'" class="flex items-center gap-2 text-primary"><Package size="20" class="icon-glow" /> <span class="glitch-text">Stock</span></span>
+                    <span v-else-if="activeMobileMenu === 'mov'" class="flex items-center gap-2 text-primary"><ArrowLeftRight size="20" class="icon-glow" /> <span class="glitch-text">Flujos</span></span>
+                    <span v-else-if="activeMobileMenu === 'com'" class="flex items-center gap-2 text-primary"><Store size="20" class="icon-glow" /> <span class="glitch-text">Catálogo</span></span>
+                    <span v-else class="flex items-center gap-2 text-primary"><Settings size="20" class="icon-glow" /> <span class="glitch-text">Gestión</span></span>
                 </h3>
-                <button @click="closeMobileMenu" class="p-2 rounded-full bg-muted/50"><X :size="20"/></button>
+                <button @click="closeMobileMenu" class="btn btn-outline p-2 group border-border hover:border-primary hover:shadow-neon-primary transition-colors"><X :size="16" class="icon-glow group-hover:text-primary" /></button>
             </div>
 
-            <div class="flex-1 overflow-y-auto">
-                 <div v-if="activeMobileMenu === 'inv'" class="grid grid-cols-3 gap-4">
-                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="mobile-item"><div class="mobile-icon"><Package /></div><span>Stock</span></Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.products.index')" class="mobile-item"><div class="mobile-icon"><Tag /></div><span>Prod.</span></Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.categories.index')" class="mobile-item"><div class="mobile-icon"><FolderTree /></div><span>Categ.</span></Link>
+            <div class="flex-1 overflow-y-auto pr-2 scrollbar-thin">
+                 <div v-if="activeMobileMenu === 'inv'" class="grid grid-cols-2 gap-3">
+                    <Link @click="closeMobileMenu" :href="route('admin.purchases.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><ShoppingCart size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Ingresos</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Package size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Stock Base</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.transformations.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><RefreshCw size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Transform.</span></Link>
                 </div>
 
-                <div v-if="activeMobileMenu === 'mov'" class="grid grid-cols-3 gap-4">
-                    <Link @click="closeMobileMenu" :href="route('admin.transfers.index')" class="mobile-item"><div class="mobile-icon"><ArrowLeftRight /></div><span>Transf.</span></Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.removals.index')" class="mobile-item"><div class="mobile-icon"><AlertTriangle /></div><span>Bajas</span></Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.orders.index')" class="mobile-item"><div class="mobile-icon"><ClipboardList /></div><span>Ordenes</span></Link>
+                <div v-if="activeMobileMenu === 'mov'" class="grid grid-cols-2 gap-3">
+                    <Link @click="closeMobileMenu" :href="route('admin.transfers.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Truck size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Transf.</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.removals.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><AlertTriangle size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Bajas</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.orders.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><ClipboardList size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Ordenes</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.logistics.monitor')" class="card bg-background/80 border border-primary p-3 flex flex-col items-center justify-center gap-2 group hover:shadow-neon-primary transition-colors"><Radar size="20" class="icon-glow text-primary drop-shadow-[0_0_8px_hsl(var(--primary))]" /><span class="font-mono text-[10px] font-bold uppercase text-center text-primary glitch-text drop-shadow-[0_0_8px_hsl(var(--primary))]">Radar</span></Link>
                 </div>
 
-                <div v-if="activeMobileMenu === 'ges'" class="space-y-6">
-                    <div class="grid grid-cols-3 gap-4">
-                        <Link @click="closeMobileMenu" :href="route('admin.users.index')" class="mobile-item"><div class="mobile-icon"><UserCog /></div><span>Equipo</span></Link>
-                        <Link @click="closeMobileMenu" :href="route('admin.branches.index')" class="mobile-item"><div class="mobile-icon"><Building2 /></div><span>Sucurs.</span></Link>
-                        <Link @click="closeMobileMenu" :href="route('admin.drivers.index')" class="mobile-item"><div class="mobile-icon"><Truck /></div><span>Drivers</span></Link>
+                <div v-if="activeMobileMenu === 'com'" class="grid grid-cols-2 gap-3">
+                    <Link @click="closeMobileMenu" :href="route('admin.products.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Tag size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Prod.</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.market-zones.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Map size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Zonas</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.bundles.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Gift size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Packs</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.prices.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Banknote size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Precios</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.brands.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Layers size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Marcas</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.categories.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><FolderTree size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Categ.</span></Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.providers.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Factory size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Prov.</span></Link>
+                </div>
+
+                <div v-if="activeMobileMenu === 'ges'" class="flex flex-col gap-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <Link @click="closeMobileMenu" :href="route('admin.users.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><UserCog size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Equipo</span></Link>
+                        <Link @click="closeMobileMenu" :href="route('admin.branches.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Building2 size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Sucursales</span></Link>
+                        <Link @click="closeMobileMenu" :href="route('admin.drivers.index')" class="card bg-background/80 border border-border p-3 flex flex-col items-center justify-center gap-2 group hover:border-primary hover:shadow-neon-primary transition-colors"><Truck size="20" class="icon-glow" /><span class="font-mono text-[10px] font-bold uppercase text-center glitch-text text-foreground group-hover:text-primary">Drivers</span></Link>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-border">
+                        <Link :href="route('admin.logout')" method="post" as="button" class="btn btn-destructive w-full flex items-center justify-center gap-2 group">
+                            <LogOut :size="16" class="icon-glow" />
+                            <span class="font-display uppercase font-black text-xs glitch-text">Cerrar Sesión</span>
+                        </Link>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[80px] bg-card/90 backdrop-blur-xl border-t border-border z-40 pb-safe grid grid-cols-5 px-2">
-        <button @click="toggleMobileMenu('ges')" v-if="isAdmin" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'ges'}">
-            <div class="icon-wrapper"><Settings :size="22" /></div>
-            <span class="label">Gestión</span>
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[80px] bg-background/95 backdrop-blur-lg z-40 grid grid-cols-5 px-1 items-center shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
+        
+        <button tabindex="0" @click="toggleMobileMenu('ges')" v-if="isAdmin" class="group relative flex flex-col items-center justify-center h-full outline-none focus:outline-none w-full">
+            <Settings size="20" class="icon-glow text-muted-foreground group-focus:text-primary group-hover:text-primary transition-colors" />
+            <div class="absolute -top-14 left-1/2 -translate-x-1/2 opacity-0 invisible group-focus:opacity-100 group-focus:visible group-focus:-translate-y-2 transition-all duration-200 bg-transparent border-primary shadow-neon-primary px-3 py-2 z-50 pointer-events-none">
+                <span class="font-display font-black text-[10px] text-primary uppercase tracking-widest whitespace-nowrap glitch-text">Gestión</span>
+            </div>
         </button>
-        <button @click="toggleMobileMenu('inv')" v-if="isAdmin" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'inv'}">
-            <div class="icon-wrapper"><Package :size="22" /></div>
-            <span class="label">Stock</span>
+        
+        <button tabindex="0" @click="toggleMobileMenu('inv')" v-if="isAdmin" class="group relative flex flex-col items-center justify-center h-full outline-none focus:outline-none w-full">
+            <Package size="20" class="icon-glow text-muted-foreground group-focus:text-primary group-hover:text-primary transition-colors" />
+            <div class="absolute -top-14 left-1/2 -translate-x-1/2 opacity-0 invisible group-focus:opacity-100 group-focus:visible group-focus:-translate-y-2 transition-all duration-200 bbg-transparent border-primary shadow-neon-primary px-3 py-2 z-50 pointer-events-none">
+                <span class="font-display font-black text-[10px] text-primary uppercase tracking-widest whitespace-nowrap glitch-text">Stock</span>
+            </div>
         </button>
         
         <div class="flex items-start justify-center -mt-6 relative z-50">
-            <Link :href="route('admin.dashboard')" @click="closeMobileMenu"
-                  class="flex items-center justify-center w-16 h-16 rounded-full bg-primary text-primary-foreground border-[4px] border-background shadow-lg"
-            >
-                <Home :size="26" />
+            <Link :href="route('admin.dashboard')" @click="closeMobileMenu" class="w-14 h-14 bg-transparent border-primary flex items-center justify-center group hover:shadow-neon-primary transition-colors focus:shadow-neon-primary focus:bg-primary/20 outline-none">
+                <div class="w-10 h-10 bg-primary/20 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground group-focus:bg-primary group-focus:text-primary-foreground transition-colors">
+                    <Home size="24" class="icon-glow" />
+                </div>
             </Link>
         </div>
 
-        <button @click="toggleMobileMenu('mov')" v-if="isAdmin" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'mov'}">
-            <div class="icon-wrapper"><ArrowLeftRight :size="22" /></div>
-            <span class="label">Flujos</span>
+        <button tabindex="0" @click="toggleMobileMenu('mov')" v-if="isAdmin" class="group relative flex flex-col items-center justify-center h-full outline-none focus:outline-none w-full">
+            <ArrowLeftRight size="20" class="icon-glow text-muted-foreground group-focus:text-primary group-hover:text-primary transition-colors" />
+            <div class="absolute -top-14 left-1/2 -translate-x-1/2 opacity-0 invisible group-focus:opacity-100 group-focus:visible group-focus:-translate-y-2 transition-all duration-200 bg-transparent border-primary shadow-neon-primary px-3 py-2 z-50 pointer-events-none">
+                <span class="font-display font-black text-[10px] text-primary uppercase tracking-widest whitespace-nowrap glitch-text">Flujos</span>
+            </div>
         </button>
-        <button @click="toggleMobileMenu('com')" v-if="isAdmin" class="mobile-nav-btn" :class="{'active': activeMobileMenu === 'com'}">
-            <div class="icon-wrapper"><Store :size="22" /></div>
-            <span class="label">Catálogo</span>
+        
+        <button tabindex="0" @click="toggleMobileMenu('com')" v-if="isAdmin" class="group relative flex flex-col items-center justify-center h-full outline-none focus:outline-none w-full">
+            <Store size="20" class="icon-glow text-muted-foreground group-focus:text-primary group-hover:text-primary transition-colors" />
+            <div class="absolute -top-14 left-1/2 -translate-x-1/2 opacity-0 invisible group-focus:opacity-100 group-focus:visible group-focus:-translate-y-2 transition-all duration-200 bg-transparent border-primary shadow-neon-primary px-3 py-2 z-50 pointer-events-none">
+                <span class="font-display font-black text-[10px] text-primary uppercase tracking-widest whitespace-nowrap glitch-text">Catálogo</span>
+            </div>
         </button>
     </nav>
 </template>
-
-<style scoped>
-.section-header {
-    @apply mt-6 mb-2 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-80;
-}
-.section-divider {
-    @apply my-4 border-t border-border/40 mx-2;
-}
-.mobile-item {
-    @apply flex flex-col items-center justify-center gap-2 p-2 transition-all active:scale-95;
-}
-.mobile-icon {
-    @apply w-14 h-14 rounded-2xl flex items-center justify-center bg-muted/50 text-foreground border border-border;
-}
-.mobile-item span {
-    @apply text-[11px] text-muted-foreground font-medium text-center;
-}
-.mobile-nav-btn {
-    @apply flex flex-col items-center justify-center gap-1 h-full text-muted-foreground transition-all duration-200 pt-2;
-}
-.mobile-nav-btn.active {
-    @apply text-primary;
-}
-.mobile-nav-btn.active .icon-wrapper {
-    @apply bg-primary/10 -translate-y-1;
-}
-.mobile-nav-btn .label {
-    @apply text-[10px] font-medium;
-}
-.pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-}
-</style>

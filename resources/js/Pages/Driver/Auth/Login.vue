@@ -39,7 +39,11 @@ const submit = () => {
 
 <template>
     <Head title="Terminal de Mando - Driver Access" />
-    <ShopLayout> 
+    <ShopLayout> <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
+        <div class="absolute inset-0 z-0 pointer-events-none">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.03)_0%,transparent_70%)]" />
+                <div class="absolute inset-0 bg-dots opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" />
+            </div>
         <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
             <div class="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-700">
                 <div class="bg-card backdrop-blur-xl border border-border rounded-[2.5rem] shadow-2xl overflow-hidden">
@@ -102,14 +106,7 @@ const submit = () => {
                 </div>
             </div>
         </div>
-    </ShopLayout>
+    </div>
+</ShopLayout>
 </template>
 
-<style scoped>
-.driver-tel-input { 
-    @apply w-full rounded-2xl border-border bg-muted/50 text-foreground text-base h-[56px] border transition-all duration-300 font-mono;
-}
-.driver-tel-input:focus-within { @apply border-amber-500 ring-0 bg-background; }
-:deep(.vti__dropdown) { @apply bg-transparent px-3 !important; border-radius: 1.25rem 0 0 1.25rem !important; }
-:deep(.vti__input) { @apply bg-transparent text-foreground !important; }
-</style>

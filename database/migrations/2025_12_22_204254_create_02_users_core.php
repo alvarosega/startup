@@ -92,7 +92,6 @@ return new class extends Migration
             $table->string('avatar_source')->default('avatar_1.svg');
             
             // CONSOLIDACIÓN: Campos de verificación documental (Ex DriverProfile)
-            $table->string('verification_status')->default('pending'); // pending, verified, rejected
             $table->text('rejection_reason')->nullable();
             $table->string('ci_front_path')->nullable();
             $table->string('license_photo_path')->nullable();

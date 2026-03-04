@@ -1,136 +1,53 @@
-/* resources/css/root.css - EL CORAZÓN DEL SISTEMA */
+/* resources/css/root.css - ARQUITECTURA TÁCTICA Y TELEMETRÍA */
+
 :root {
-  /* ===== VARIABLES DE MARCA: ELECTRIC LUXURY ===== */
-  /* Azul Eléctrico (#00F0FF) para innovación */
-  --brand-hue: 184;
+  /* NÚCLEO NARANJA PELIGRO */
+  --brand-hue: 20;
   --brand-saturation: 100%;
-  --brand-lightness: 50%;   
-  /* Navy Bancario (#0A192F) para solidez y texto sobre neón */
-  --navy-hue: 216;
-  --navy-saturation: 65%;
-  --navy-lightness: 11%;
+  --brand-lightness: 50%; 
+
+  /* FÍSICA Y GEOMETRÍA */
+  --cut-size: 16px;
+  --border-weight: 1px;
   
-  /* Paleta derivada AUTOMÁTICAMENTE */
+  /* GRID DE CALIBRACIÓN */
+  --grid-size: 20px;
+  --grid-opacity: 0.05;
+
+  /* MODO CLARO (LABORATORIO/CLÍNICO) */
+  --background: 0 0% 100%; /* Blanco puro */
+  --foreground: 0 0% 10%; /* Grafito oscuro */
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 10%;
+  --border: 0 0% 15%; /* Líneas estructurales negras/grises */
+  --input: 0 0% 98%;
+  
   --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
-  /* IMPORTANTE: El texto sobre el botón Neón debe ser oscuro (Navy) para legibilidad */
-  --primary-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
+  --primary-foreground: 0 0% 0%;
   
-  --primary-light: var(--brand-hue) calc(var(--brand-saturation) * 0.8) calc(var(--brand-lightness) * 1.3);
-  --primary-dark: var(--brand-hue) calc(var(--brand-saturation) * 1.2) calc(var(--brand-lightness) * 0.4);
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 100%;
   
-  --secondary: var(--navy-hue) var(--navy-saturation) calc(var(--navy-lightness) * 1.5);
-  --secondary-foreground: 0 0% 98%;
-  
-  --accent: 300 100% 50%; /* Magenta Neón para competencia/detalles */
-  --accent-foreground: 0 0% 98%;
-  
-  /* Colores semánticos competitivos */
-  --success: 150 100% 50%; /* Verde Neón */
-  --success-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
-  
-  --warning: 45 100% 50%;
-  --warning-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
-  
-  --error: 331 100% 50%; /* Hyper Magenta para errores */
-  --error-foreground: 0 0% 98%;
-  
-  --info: 190 100% 50%;
-  --info-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
-  
-  /* ===== TEMA CLARO: PURE WHITE + NEON GLOW ===== */
-  --background: 0 0% 100%;
-  /* Texto principal en Navy oscuro para "Solidez Bancaria" */
-  --foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
-  
-  --card: 0 0% 100%;
-  --card-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
-  
-  --popover: 0 0% 100%;
-  --popover-foreground: var(--navy-hue) var(--navy-saturation) var(--navy-lightness);
-  
-  --muted: 220 14% 96%;
-  --muted-foreground: 216 20% 45%;
-  
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
-  
-  /* ===== SISTEMA DE SOMBRAS (CON TOQUE NEÓN) ===== */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 240, 255, 0.1);
-  --shadow-md: 0 4px 12px rgba(10, 25, 47, 0.08), 0 0 15px rgba(0, 240, 255, 0.15); /* Glow sutil */
-  --shadow-lg: 0 12px 32px rgba(10, 25, 47, 0.12), 0 0 30px rgba(0, 240, 255, 0.2);
-  --shadow-xl: 0 20px 40px rgba(10, 25, 47, 0.15), 0 0 50px rgba(0, 240, 255, 0.25);
-  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.04);
-  
-  /* ===== SISTEMA DE ANIMACIONES ===== */
-  --ease-elastic: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-smooth: cubic-bezier(0.45, 0, 0.15, 1);
-  --duration-instant: 120ms;
-  --duration-fast: 200ms;
-  --duration-base: 300ms;
-  --duration-slow: 500ms;
-  
-  /* ===== RADIOS ===== */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
-  --radius-full: 9999px;
-  
-  /* ===== TIPOGRAFÍA ===== */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Plus Jakarta Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  
-  /* ===== ESPACIADO ===== */
-  --space-unit: 0.25rem;
-  --space-0: 0;
-  --space-1: calc(1 * var(--space-unit));
-  --space-2: calc(2 * var(--space-unit));
-  --space-3: calc(3 * var(--space-unit));
-  --space-4: calc(4 * var(--space-unit));
-  --space-6: calc(6 * var(--space-unit));
-  --space-8: calc(8 * var(--space-unit));
-  --space-12: calc(12 * var(--space-unit));
-  --space-16: calc(16 * var(--space-unit));
-  --space-20: calc(20 * var(--space-unit));
-  --space-24: calc(24 * var(--space-unit));
+  --scanline-opacity: 0.02;
 }
 
-/* ===== TEMA OSCURO: OBSIDIAN INK ===== */
 .dark {
-  /* Fondo Obsidian Ink (Negro azulado profundo) */
-  --background: 220 40% 2%; 
-  --foreground: 0 0% 98%;
+  /* MODO OSCURO (TERMINAL ABISAL) */
+  --background: 0 0% 0%; /* Negro absoluto */
+  --foreground: 0 0% 100%; /* Blanco puro */
   
-  /* Tarjetas un poco más claras para profundidad */
-  --card: 216 65% 6%;
-  --card-foreground: 0 0% 98%;
+  --card: 0 0% 2%; 
+  --card-foreground: 0 0% 100%;
   
-  --popover: 216 65% 6%;
-  --popover-foreground: 0 0% 98%;
+  --border: 0 0% 25%; /* Líneas de contención grises */
+  --input: 0 0% 2%;
   
-  --muted: 216 30% 12%;
-  --muted-foreground: 216 20% 70%;
+  --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
+  --primary-foreground: 0 0% 0%; 
   
-  --border: 216 40% 15%;
-  --input: 216 40% 15%;
-  --ring: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
-  
-  /* Sombras Neón para Dark Mode */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 5px rgba(0, 240, 255, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 240, 255, 0.15);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 240, 255, 0.2);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 60px rgba(0, 240, 255, 0.25);
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 100%;
+
+  --grid-opacity: 0.15;
+  --scanline-opacity: 0.05;
 }
-
-/* ===== CLASES DE MARCA (white-labeling) ===== */
-.brand-bolivia { --brand-hue: 172; }
-.brand-peru { --brand-hue: 30; --brand-saturation: 80%; }
-.brand-chile { --brand-hue: 210; --brand-saturation: 75%; --brand-lightness: 45%; }
-.brand-argentina { --brand-hue: 210; --brand-saturation: 90%; --brand-lightness: 60%; }
-
-.brand-vibrant { --brand-saturation: 85%; }
-.brand-subtle { --brand-saturation: 45%; }
-.brand-light { --brand-lightness: 65%; }
-.brand-dark { --brand-lightness: 35%; }

@@ -17,12 +17,10 @@ const props = defineProps({
 
 // --- ESTADOS REACTIVOS ---
 const deliveryType = ref('pickup'); 
-const paymentType = ref('total'); // Por defecto el camino feliz
 
 const form = useForm({
     delivery_type: 'pickup',
     address_id: null,
-    payment_type: 'total'
 });
 
 // --- LÓGICA DE ESCENARIOS Y COBERTURA ---
@@ -31,6 +29,7 @@ const canDoDelivery = computed(() => props.addresses.length > 0);
 if (canDoDelivery.value && props.default_address_id) {
     form.address_id = props.default_address_id;
     deliveryType.value = 'delivery'; 
+    form.delivery_type = 'delivery'; // <-- AÑADE ESTA LÍNEA EXACTA
 }
 
 watch(deliveryType, (newVal) => {
@@ -38,14 +37,11 @@ watch(deliveryType, (newVal) => {
     if (newVal === 'delivery' && !form.address_id && canDoDelivery.value) {
         form.address_id = props.addresses[0].id;
     }
-    if (newVal === 'pickup') form.address_id = null;
+    if (newVal === 'pickup') {
+        form.address_id = null; // Limpiar rastro
+    }
 });
 
-watch(paymentType, (newVal) => {
-    form.payment_type = newVal;
-});
-
-// --- MOTOR FINANCIERO FRONTEND ---
 const currentLogistics = computed(() => {
     if (deliveryType.value === 'pickup') return props.pickup_logistics;
     if (form.address_id) {
@@ -60,23 +56,11 @@ const logisticsTotal = computed(() => currentLogistics.value?.total_logistics ||
 
 const finalTotal = computed(() => subtotalProducts.value + logisticsTotal.value);
 
-// Lógica dura idéntica al Backend: 100% Logística + 30% Productos
-const advanceAmount = computed(() => {
-    if (paymentType.value === 'total') return finalTotal.value;
-    return logisticsTotal.value + (subtotalProducts.value * 0.30);
-});
-
-const balanceAmount = computed(() => {
-    return finalTotal.value - advanceAmount.value;
-});
-
-// --- SUBMIT ---
 const submit = () => {
     if (deliveryType.value === 'delivery' && !form.address_id) return;
     form.post(route('customer.checkout.store')); 
 };
 </script>
-
 <template>
     <ShopLayout>
         <div class="container mx-auto px-4 py-8 pb-48 lg:pb-12">
@@ -162,63 +146,6 @@ const submit = () => {
                         </div>
                     </section>
 
-                    <section class="bg-card rounded-3xl border border-border p-6 shadow-sm">
-                        <h2 class="font-bold text-foreground text-xs uppercase tracking-widest mb-6 flex items-center gap-2 opacity-60">
-                            03. Modalidad de Pago
-                        </h2>
-                        
-                        <div class="space-y-4">
-                            <label class="cursor-pointer relative block">
-                                <input type="radio" v-model="paymentType" value="total" class="peer hidden">
-                                <div class="border-2 rounded-2xl p-5 transition-all duration-300 peer-checked:border-success peer-checked:bg-success/5 border-border bg-background hover:border-success/40">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors border-muted-foreground peer-checked:border-success">
-                                                <div class="w-2.5 h-2.5 rounded-full bg-success opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                                            </div>
-                                            <span class="font-black text-sm text-foreground">Pago Total (Recomendado)</span>
-                                        </div>
-                                        <span class="text-[10px] font-black text-success bg-success/10 px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1">
-                                            <ShieldCheck :size="12"/> Garantía 100%
-                                        </span>
-                                    </div>
-                                    <div class="pl-9">
-                                        <p class="text-xs text-muted-foreground leading-relaxed">
-                                            Paga el total ahora. Cuentas con nuestra <strong class="text-foreground">Garantía de Reembolso Inmediato</strong> si ocurre algún inconveniente con la entrega. Sin demoras en la puerta.
-                                        </p>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="cursor-pointer relative block">
-                                <input type="radio" v-model="paymentType" value="partial" class="peer hidden">
-                                <div class="border-2 rounded-2xl p-5 transition-all duration-300 peer-checked:border-warning peer-checked:bg-warning/5 border-border bg-background">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors border-muted-foreground peer-checked:border-warning">
-                                                <div class="w-2.5 h-2.5 rounded-full bg-warning opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                                            </div>
-                                            <span class="font-black text-sm text-foreground">Anticipo de Reserva</span>
-                                        </div>
-                                        <span class="text-[10px] font-black text-warning uppercase tracking-wider flex items-center gap-1">
-                                            <Split :size="12"/> 2 Pasos
-                                        </span>
-                                    </div>
-                                    <div class="pl-9">
-                                        <p class="text-xs text-muted-foreground leading-relaxed">
-                                            Paga solo los costos de envío y el <strong class="text-foreground">30% de los productos</strong> hoy (Bs {{ advanceAmount.toFixed(2) }}). 
-                                        </p>
-                                        <div v-if="paymentType === 'partial'" class="mt-3 p-3 bg-warning/10 rounded-xl border border-warning/20 flex gap-2 animate-in fade-in">
-                                            <AlertTriangle class="text-warning shrink-0" :size="16" />
-                                            <p class="text-[10px] font-bold text-warning-foreground">
-                                                IMPORTANTE: Deberás subir un SEGUNDO comprobante con el saldo (Bs {{ balanceAmount.toFixed(2) }}) cuando el conductor esté en camino. La entrega no se realizará hasta que el administrador valide el segundo pago.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </section>
                 </div>
 
                 <div class="lg:col-span-1">
@@ -256,26 +183,11 @@ const submit = () => {
 
                             <div class="h-px bg-border my-2"></div>
                             
-                            <div v-if="paymentType === 'total'" class="flex justify-between items-end">
+                            <div class="flex justify-between items-end">
                                 <span class="font-black text-foreground text-lg">TOTAL AHORA</span>
                                 <span class="font-black text-4xl text-primary tracking-tighter shadow-glow">
                                     Bs {{ finalTotal.toFixed(2) }}
                                 </span>
-                            </div>
-
-                            <div v-else class="space-y-3">
-                                <div class="flex justify-between items-end opacity-50">
-                                    <span class="font-bold text-foreground text-xs uppercase tracking-wider">Total Orden</span>
-                                    <span class="font-black text-lg text-foreground tracking-tighter">Bs {{ finalTotal.toFixed(2) }}</span>
-                                </div>
-                                <div class="flex justify-between items-end border-l-4 border-warning pl-3">
-                                    <span class="font-black text-warning text-sm uppercase">Anticipo Hoy</span>
-                                    <span class="font-black text-3xl text-warning tracking-tighter">Bs {{ advanceAmount.toFixed(2) }}</span>
-                                </div>
-                                <div class="flex justify-between items-end border-l-4 border-muted pl-3">
-                                    <span class="font-bold text-muted-foreground text-[10px] uppercase">Saldo en Ruta</span>
-                                    <span class="font-bold text-sm text-muted-foreground">Bs {{ balanceAmount.toFixed(2) }}</span>
-                                </div>
                             </div>
                         </div>
 
@@ -289,7 +201,7 @@ const submit = () => {
                         <button @click="submit" :disabled="form.processing || (deliveryType === 'delivery' && !form.address_id)" 
                             class="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-black py-5 rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2 transition-all active:scale-[0.95] disabled:opacity-50 disabled:grayscale uppercase">
                             <span v-if="form.processing" class="flex items-center gap-2"><Loader2 class="animate-spin" :size="20"/> Reservando...</span>
-                            <span v-else class="flex items-center gap-2">Pagar Bs {{ advanceAmount.toFixed(2) }} <ArrowRight :size="20"/></span>
+                            <span v-else class="flex items-center gap-2">Pagar Bs {{ finalTotal.toFixed(2) }} <ArrowRight :size="20"/></span>
                         </button>
                     </div>
                 </div>
@@ -298,7 +210,6 @@ const submit = () => {
         </div>
     </ShopLayout>
 </template>
-
 <style scoped>
 .shadow-glow { text-shadow: 0 0 15px rgba(var(--primary-rgb), 0.3); }
 </style>

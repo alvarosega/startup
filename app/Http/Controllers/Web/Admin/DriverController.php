@@ -15,6 +15,7 @@ use App\Http\Resources\Admin\Driver\DriverResource;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Actions\Admin\Branch\GetActiveBranchesListAction;
+use App\Models\Branch;
 
 class DriverController extends Controller
 {
@@ -41,13 +42,13 @@ class DriverController extends Controller
         ]);
     }
 
-    public function edit(string $id, GetActiveBranchesListAction $getBranchesAction)
+    public function edit(Driver $driver)
     {
-        $driver = Driver::with(['details', 'branch'])->findOrFail($id);
+        $driver->load('details'); //
         
         return Inertia::render('Admin/Drivers/Edit', [
-            'driver'   => (new DriverResource($driver))->resolve(),
-            'branches' => $getBranchesAction->execute()
+            'driver' => $driver, // Esto incluye el campo 'status'
+            'branches' => Branch::all(['id', 'name'])
         ]);
     }
 

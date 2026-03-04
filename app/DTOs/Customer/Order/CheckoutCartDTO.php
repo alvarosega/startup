@@ -10,9 +10,7 @@ readonly class CheckoutCartDTO
         public string $branchId,
         public string $customerId,
         public string $deliveryType, 
-        public ?string $addressId,
-        public string $paymentType 
-        
+        public ?string $addressId
     ) {}
 
     public static function fromRequest(CheckoutRequest $request, string $branchId, string $customerId): self
@@ -21,8 +19,7 @@ readonly class CheckoutCartDTO
             branchId: $branchId,
             customerId: $customerId,
             deliveryType: $request->validated('delivery_type'), 
-            addressId: $request->validated('address_id'),
-            paymentType: $request->validated('payment_type') // <--- ASIGNACIÓN
+            addressId: $request->validated('address_id')
         );
     }
 }

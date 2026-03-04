@@ -10,7 +10,6 @@ readonly class UploadOrderProofDTO
     public function __construct(
         public string $customerId,
         public string $orderId,
-        public string $type, // <--- NUEVO
         public UploadedFile $proofFile
     ) {}
 
@@ -19,7 +18,6 @@ readonly class UploadOrderProofDTO
         return new self(
             customerId: $customerId,
             orderId: $orderId,
-            type: $request->validated('type'), // <--- ASIGNACIÓN
             proofFile: $request->file('proof')
         );
     }

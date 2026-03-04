@@ -13,6 +13,9 @@ class StoreBranchRequest extends FormRequest
     {
         return true; // Autorización manejada en Controller/Policy
     }
+    protected function prepareForValidation(): void {
+        $this->normalizeIdentityData(); // Indispensable para el Trait
+    }
 
     public function rules(): array
     {

@@ -15,16 +15,13 @@ class Order extends Model
     // EL ESCUDO DE ASIGNACIÓN MASIVA ACTUALIZADO
     protected $fillable = [
         'code', 'customer_id', 'branch_id', 'driver_id',
-        'delivery_type', 'delivery_data', 'status', 'reservation_expires_at',
+        'delivery_type', 'delivery_data', 'status', 'delivery_otp', 'reservation_expires_at',
         
         // Ledger Financiero
+        // Ledger Financiero y Comprobante
         'delivery_fee', 'service_fee', 'total_amount',
-        'payment_type', 'advance_amount', 'balance_amount',
-        
-        // Ledger de Comprobantes Duales
-        'advance_proof', 'advance_status', 
-        'balance_proof', 'balance_status',
-        
+        'proof_of_payment',
+                
         // Auditoría
         'bank_reference', 'rejection_reason', 'reviewed_at'
     ];

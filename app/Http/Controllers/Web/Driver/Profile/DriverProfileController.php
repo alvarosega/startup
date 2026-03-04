@@ -14,43 +14,31 @@ class DriverProfileController extends Controller
     public function index()
     {
         $driver = Auth::guard('driver')->user();
-        $driver->load('details');
+        $driver->load(['details', 'branch']);
 
-        $status = $driver->details->verification_status ?? 'pending';
+        // Utilizamos el estado principal del conductor como fuente de verdad
+        $status = $driver->status; 
         
-        // Validación estricta de documentos requeridos
+        // Verificamos si los documentos ya existen en el registro
         $hasDocs = !empty($driver->details->ci_front_path) && !empty($driver->details->license_photo_path);
 
-        // Si está verificado, entra a la operación real.
-        if ($status === 'verified') {
-            return Inertia::render('Driver/Dashboard', [
-                'driver'        => $driver,
-                'pendingOrders' => [] 
-            ]);
-        }
-
-        // Si no está verificado, se queda atrapado en la pantalla de revisión.
-        return Inertia::render('Driver/Verification', [
+        // SIEMPRE retornamos la misma vista. El frontend decidirá qué pintar basado en las variables.
+        return Inertia::render('Driver/Profile/Index', [
             'driver'  => $driver,
             'status'  => $status,
             'hasDocs' => $hasDocs
         ]);
     }
-    /**
-     * Orquesta la subida de documentos.
-     */
+
     public function uploadDocs(UploadDocsRequest $request, UploadDocsAction $action)
     {
-        // 1. Obtener la entidad autenticada matemáticamente segura
         $driver = Auth::guard('driver')->user();
-
-        // 2. Transformación a DTO inmutable
         $data = UploadDocsData::fromRequest($request);
-
-        // 3. Ejecución de lógica de negocio y guardado en disco
         $action->execute($data, $driver);
 
-        // 4. Retorno HTTP
+        // Cambiamos el estado a 'pending' (o 'under_review' según tu lógica) para indicar que subió docs
+        $driver->update(['status' => 'pending']); 
+
         return back()->with('success', 'Documentos enviados a revisión.');
     }
 }

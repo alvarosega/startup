@@ -24,7 +24,6 @@ class OrderController extends Controller
         try {
             $dto = new ReviewPaymentDTO(
                 orderId: $id,
-                type: $request->validated('type'),
                 bankReference: $request->validated('bank_reference')
             );
             $action->execute($dto);
@@ -39,7 +38,6 @@ class OrderController extends Controller
         try {
             $dto = new ReviewPaymentDTO(
                 orderId: $id,
-                type: $request->validated('type'),
                 rejectionReason: $request->validated('rejection_reason')
             );
             $action->execute($dto);
@@ -48,7 +46,6 @@ class OrderController extends Controller
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
-
     public function dispatchOrder(string $id, DispatchOrderAction $action): RedirectResponse
     {
         try {

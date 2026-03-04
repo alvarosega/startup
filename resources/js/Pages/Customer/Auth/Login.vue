@@ -142,32 +142,3 @@ const submit = () => {
 </div>
 </ShopLayout>
 </template>
-
-<style scoped>
-/* PERSONALIZACIÓN QUIRÚRGICA DEL INPUT TELEFÓNICO */
-.custom-tel-input { 
-    @apply w-full rounded-xl border-input bg-background/50 text-base h-[52px] transition-all duration-300 border font-bold;
-}
-
-.custom-tel-input:focus-within { 
-    @apply border-primary ring-0 shadow-[0_0_20px_rgba(0,240,255,0.15)];
-}
-
-:deep(.vti__dropdown) { 
-    @apply bg-transparent px-3 hover:bg-muted transition-colors !important;
-    border-radius: 0.75rem 0 0 0.75rem !important; 
-}
-
-:deep(.vti__input) { 
-    @apply bg-transparent placeholder:text-muted-foreground/40 !important;
-    border-radius: 0 0.75rem 0.75rem 0 !important; 
-}
-
-:deep(.vti__dropdown-list) {
-    @apply bg-card border-border shadow-2xl rounded-xl z-50 !important;
-}
-
-:deep(.vti__dropdown-item.highlighted) {
-    @apply bg-primary/10 text-navy !important;
-}
-</style>
