@@ -17,19 +17,23 @@ use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Customer\Auth\ResetPasswordController;
 use App\Http\Controllers\Web\Customer\Cart\BundleController as CustomerBundleController;
 use App\Http\Controllers\Web\Customer\Order\CheckoutController;
+use App\Http\Controllers\Web\Customer\Shop\ShopLandingController;
+use App\Http\Controllers\Web\Customer\Shop\ShopCatalogController;
+use App\Http\Controllers\Web\Customer\Shop\ShopZoneController;
+
 // --- CONTROLADORES ADMIN ---
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\UserController;
+use App\Http\Controllers\Web\Admin\User\UserController;
 use App\Http\Controllers\Web\Admin\BranchController;
-use App\Http\Controllers\Web\Admin\ProductController;
-use App\Http\Controllers\Web\Admin\CategoryController;
+use App\Http\Controllers\Web\Admin\Product\ProductController;
+use App\Http\Controllers\Web\Admin\Category\CategoryController;
 use App\Http\Controllers\Web\Admin\MarketZoneController;
-use App\Http\Controllers\Web\Admin\BundleController as AdminBundleController;
+use App\Http\Controllers\Web\Admin\Bundle\BundleController as AdminBundleController;
 
 use App\Http\Controllers\Web\Admin\BrandController;
 use App\Http\Controllers\Web\Admin\ProviderController;
-use App\Http\Controllers\Web\Admin\SkuController;
+use App\Http\Controllers\Web\Admin\Sku\SkuController;
 use App\Http\Controllers\Web\Admin\PriceController;
 use App\Http\Controllers\Web\Admin\InventoryController;
 use App\Http\Controllers\Web\Admin\PurchaseController;
@@ -37,7 +41,7 @@ use App\Http\Controllers\Web\Admin\PurchaseController;
 //use App\Http\Controllers\Web\Admin\RemovalController;
 //use App\Http\Controllers\Web\Admin\TransformationController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
-use App\Http\Controllers\Web\Admin\DriverController;
+use App\Http\Controllers\Web\Admin\Driver\DriverController;
 
 
 use App\Http\Controllers\Web\Driver\Auth\LoginController as DriverLoginController;
@@ -185,6 +189,7 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
         // --- RECURSOS ---
         Route::middleware('role:super_admin,super_admin')->group(function () {
             Route::resource('users', UserController::class);
+            Route::post('users/identify-branch', [UserController::class, 'identifyBranch'])->name('users.identify-branch');
             Route::resource('drivers', DriverController::class);
         
             Route::resource('branches', BranchController::class);

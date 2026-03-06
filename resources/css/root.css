@@ -1,50 +1,69 @@
-/* resources/css/root.css - ARQUITECTURA TÁCTICA Y TELEMETRÍA */
+/* resources/css/root.css - ARQUITECTURA NEÓN */
 
 :root {
-  /* NÚCLEO NARANJA PELIGRO */
-  --brand-hue: 20;
+  /* PALETA NEÓN FRÍA (Blade Runner) */
+  --cyan: 180 100% 50%;      /* #00ffff */
+  --magenta: 300 100% 50%;   /* #ff00ff */
+  --blue: 210 100% 50%;      /* #007bff */
+  --electric-blue: 200 100% 50%; /* #00aaff */
+
+  /* NÚCLEO DE COLOR PRINCIPAL (usaremos cyan como base) */
+  --brand-hue: 180;
   --brand-saturation: 100%;
-  --brand-lightness: 50%; 
+  --brand-lightness: 50%;
 
   /* FÍSICA Y GEOMETRÍA */
-  --cut-size: 16px;
+  --cut-size: 0px;           /* Eliminamos esquinas recortadas */
   --border-weight: 1px;
-  
+  --neon-blur: 8px;           /* Desenfoque para efecto neón */
+
   /* GRID DE CALIBRACIÓN */
   --grid-size: 20px;
   --grid-opacity: 0.05;
 
-  /* MODO CLARO (LABORATORIO/CLÍNICO) */
-  --background: 0 0% 100%; /* Blanco puro */
-  --foreground: 0 0% 10%; /* Grafito oscuro */
-  --card: 0 0% 98%;
+  /* MODO CLARO (Clean, con toques de neón) */
+  --background: 0 0% 98%;      /* Casi blanco */
+  --foreground: 0 0% 10%;      /* Casi negro */
+  --card: 0 0% 100%;
   --card-foreground: 0 0% 10%;
-  --border: 0 0% 15%; /* Líneas estructurales negras/grises */
+  --border: 0 0% 85%;          /* Gris suave */
   --input: 0 0% 98%;
-  
+
   --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   --primary-foreground: 0 0% 0%;
-  
+
+  --secondary: var(--magenta);
+  --secondary-foreground: 0 0% 100%;
+
+  --accent: var(--electric-blue);
+  --accent-foreground: 0 0% 0%;
+
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
-  
+
   --scanline-opacity: 0.02;
 }
 
 .dark {
-  /* MODO OSCURO (TERMINAL ABISAL) */
-  --background: 0 0% 0%; /* Negro absoluto */
-  --foreground: 0 0% 100%; /* Blanco puro */
-  
-  --card: 0 0% 2%; 
+  /* MODO OSCURO (Abisal con neones intensos) */
+  --background: 0 0% 0%;       /* Negro absoluto */
+  --foreground: 0 0% 100%;     /* Blanco puro */
+
+  --card: 0 0% 5%;             /* Gris muy oscuro */
   --card-foreground: 0 0% 100%;
-  
-  --border: 0 0% 25%; /* Líneas de contención grises */
-  --input: 0 0% 2%;
-  
+
+  --border: 0 0% 20%;          /* Líneas de contención sutiles */
+  --input: 0 0% 5%;
+
   --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
-  --primary-foreground: 0 0% 0%; 
-  
+  --primary-foreground: 0 0% 0%;
+
+  --secondary: var(--magenta);
+  --secondary-foreground: 0 0% 100%;
+
+  --accent: var(--electric-blue);
+  --accent-foreground: 0 0% 0%;
+
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
 

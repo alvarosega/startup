@@ -12,11 +12,14 @@ class StoreCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'market_zone_id' => ['required', 'exists:market_zones,id'],
             'parent_id' => ['nullable', 'exists:categories,id'], // Check UUID
             'external_code' => ['nullable', 'string', 'max:50', 'unique:categories,external_code'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
             'description' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:2048'],
+            'icon'           => ['nullable', 'image', 'max:1024'], // AÑADIR
+            'bg_color'       => ['nullable', 'string', 'max:7'],
             'children' => ['nullable', 'array'],
             'children.*.name' => ['required', 'string', 'max:255'],
             'children.*.external_code' => ['nullable', 'string', 'max:50'],

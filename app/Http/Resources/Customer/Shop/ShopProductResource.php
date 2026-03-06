@@ -4,6 +4,7 @@ namespace App\Http\Resources\Customer\Shop;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage; // Importación obligatoria
 
 class ShopProductResource extends JsonResource
 {
@@ -17,17 +18,17 @@ class ShopProductResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        // Buscamos la variante principal (o la primera activa)
         $mainVariant = $this->skus->first();
-        
-        // Resolvemos el precio para la sucursal en contexto
         $priceData = $mainVariant?->prices->first();
 
         return [
             'id'        => $this->id,
             'name'      => $this->name,
             'brand'     => $this->brand?->name,
-            'image_url' => $this->image_url, // Asumiendo accessor en modelo Product
+            // Aplicación del fallback en el Producto
+            'image_url' => $this->image_path 
+                ? Storage::disk('public')->url($this->image_path)
+                : asset('assets/img/placeholder.png'),
             'has_stock' => $mainVariant?->skus_count > 0 || $mainVariant?->inventoryLots->sum('quantity') > 0,
             'price'     => $priceData ? (float) $priceData->final_price : 0,
             'variants'  => $this->skus->map(function ($sku) {
@@ -37,7 +38,10 @@ class ShopProductResource extends JsonResource
                     'name'      => $sku->name,
                     'code'      => $sku->code,
                     'price'     => $skuPrice ? (float) $skuPrice->final_price : 0,
-                    'image_url' => $sku->image_url,
+                    // Aplicación del fallback en la Variante (SKU)
+                    'image_url' => $sku->image_path 
+                        ? Storage::disk('public')->url($sku->image_path)
+                        : asset('assets/img/placeholder.png'),
                     'has_stock' => $sku->inventoryLots->sum('quantity') > 0
                 ];
             }),

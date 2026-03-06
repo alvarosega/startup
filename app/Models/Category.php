@@ -70,9 +70,14 @@ class Category extends Model
     {
         return $this->hasMany(Product::class);
     }
-    public static function getAllForAdminTree()
+    public static function getAllForAdminTree(array $filters = [])
     {
-        return self::orderBy('name')->get();
+        return self::with(['parent', 'marketZone'])
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%");
+            })
+            ->orderBy('sort_order')
+            ->get();
     }
 
     public static function getPossibleParents(?string $excludeId = null)

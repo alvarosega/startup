@@ -18,12 +18,14 @@ class Bundle extends Model
     protected $hidden = ['deleted_at']; 
 
     protected $fillable = [
-        'branch_id', 'name', 'slug', 'description', 'image_path', 'is_active', 'fixed_price'
+        'branch_id', 'name', 'slug', 'description', 'image_path', 'is_active', 'fixed_price', 'start_at', 'end_at'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'fixed_price' => 'decimal:2',
+        'starts_at'   => 'datetime', 
+        'ends_at'     => 'datetime',
     ];
 
     public static function getPaginatedForAdmin(array $filters)

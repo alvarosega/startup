@@ -241,21 +241,3 @@ const getError = (field) => {
     </ShopLayout>
 </template>
 
-<style scoped>
-.driver-tel-input { 
-    @apply w-full rounded-2xl border-border bg-muted/50 text-foreground text-base h-[52px] border transition-all duration-300 font-mono; 
-}
-.driver-tel-input:focus-within { 
-    @apply border-amber-500 ring-0 shadow-[0_0_20px_rgba(245,158,11,0.1)]; 
-}
-:deep(.vti__dropdown) { 
-    @apply bg-transparent px-3 !important; 
-    border-radius: 1rem 0 0 1rem !important;
-}
-:deep(.vti__input) { 
-    @apply bg-transparent text-foreground !important; 
-}
-
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-muted-foreground/20 rounded-full; }
-</style>

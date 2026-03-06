@@ -47,4 +47,12 @@ class MarketZone extends Model
             ->latest()
             ->get();
     }
+
+    public static function getMinimalList()
+    {
+        // Rendimiento Extremo: Solo cargamos lo estrictamente necesario para el selector
+        return self::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'hex_color']);
+    }
 }

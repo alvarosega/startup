@@ -16,15 +16,30 @@ class BundleResource extends JsonResource
             'name'        => $this->name,
             'slug'        => $this->slug,
             'description' => $this->description,
-            'fixed_price' => $this->fixed_price,
-            'is_active'   => $this->is_active,
-            'image_url'   => $this->image_path ? Storage::disk('public')->url($this->image_path) : null,
+            
+            // Cast numérico para evitar errores de cálculo en Vue
+            'fixed_price' => $this->fixed_price ? (float) $this->fixed_price : null,
+            'is_active'   => (bool) $this->is_active,
+            'starts_at' => $this->starts_at instanceof \Carbon\Carbon 
+                ? $this->starts_at->toIso8601String() 
+                : null,
+
+            'ends_at'   => $this->ends_at instanceof \Carbon\Carbon 
+                ? $this->ends_at->toIso8601String() 
+                : null,
+            'image_url'   => $this->image_path 
+                ? Storage::disk('public')->url($this->image_path) 
+                : asset('assets/img/placeholder.png'),
+
+            // Carga condicional optimizada de relaciones
+            'branch_name' => $this->whenLoaded('branch', fn() => $this->branch->name),
+            
             'items'       => $this->whenLoaded('skus', function() {
                 return $this->skus->map(fn($sku) => [
                     'sku_id'   => $sku->id,
                     'name'     => $sku->name,
-                    'quantity' => $sku->pivot->quantity,
-                    'price'    => $sku->base_price
+                    'quantity' => (int) $sku->pivot->quantity,
+                    'price'    => (float) $sku->base_price
                 ]);
             }),
         ];

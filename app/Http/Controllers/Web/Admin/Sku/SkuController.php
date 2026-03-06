@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Web\Admin;
+namespace App\Http\Controllers\Web\Admin\Sku;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sku;

@@ -21,6 +21,14 @@ module.exports = {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
         },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+          foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+          foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+        },
         destructive: {
           DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
           foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
@@ -31,14 +39,18 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['"JetBrains Mono"', 'monospace'], 
-        display: ['"Orbitron"', 'sans-serif'], 
-        mono: ['"JetBrains Mono"', 'monospace'],
+        sans: ['Inter', 'sans-serif'],        // Para cuerpo de texto
+        display: ['Orbitron', 'sans-serif'],  // Para títulos
+        mono: ['JetBrains Mono', 'monospace'], // Para datos/código
       },
       transitionDuration: {
         '0': '0ms',
         '50': '50ms',
-      }
+      },
+      boxShadow: {
+        'neon': '0 0 var(--neon-blur) hsl(var(--primary) / 0.5)',
+        'neon-strong': '0 0 calc(var(--neon-blur) * 2) hsl(var(--primary) / 0.8)',
+      },
     },
   },
   plugins: [],

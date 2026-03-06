@@ -6,7 +6,9 @@ import {
     FileText, DollarSign, Users, 
     ArrowRight, ArrowLeft, Save, 
     Building2, Hash, CalendarClock, CreditCard,
-    Mail, Phone, MapPin, CheckCircle
+    Mail, Phone, MapPin, CheckCircle, AlertTriangle,
+    Cpu, Terminal, Wifi, WifiOff, Zap, Globe,
+    Fingerprint, Package, Clock, Target
 } from 'lucide-vue-next';
 
 const props = defineProps({ provider: Object });
@@ -14,12 +16,17 @@ const props = defineProps({ provider: Object });
 // --- ESTADO ---
 const currentStep = ref(1);
 const steps = [
-    { id: 1, title: 'Identidad', icon: FileText },
-    { id: 2, title: 'Negocio', icon: DollarSign },
-    { id: 3, title: 'Contacto', icon: Users },
+    { id: 1, title: 'IDENTIDAD', code: 'SEC_01', icon: FileText },
+    { id: 2, title: 'NEGOCIO', code: 'SEC_02', icon: DollarSign },
+    { id: 3, title: 'CONTACTO', code: 'SEC_03', icon: Users },
 ];
 
 const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
+
+// --- CÓDIGO DE PROVEEDOR ---
+const providerCode = computed(() => {
+    return `PRV_${String(props.provider.id).padStart(4, '0')}`;
+});
 
 // --- FORMULARIO ---
 const form = useForm({
@@ -45,15 +52,29 @@ const validateStep = () => {
     form.clearErrors();
     if (currentStep.value === 1) {
         let valid = true;
-        if (!form.company_name) { form.setError('company_name', 'Requerido'); valid = false; }
-        if (!form.tax_id) { form.setError('tax_id', 'Requerido'); valid = false; }
+        if (!form.company_name) { 
+            form.setError('company_name', '// RAZÓN SOCIAL REQUERIDA'); 
+            valid = false; 
+        }
+        if (!form.tax_id) { 
+            form.setError('tax_id', '// NIT REQUERIDO'); 
+            valid = false; 
+        }
         return valid;
     }
     return true;
 };
 
 const nextStep = () => {
-    if (validateStep() && currentStep.value < steps.length) currentStep.value++;
+    if (validateStep()) {
+        if (currentStep.value < steps.length) {
+            currentStep.value++;
+        }
+    } else {
+        const card = document.getElementById('wizard-card');
+        card?.classList.add('shake');
+        setTimeout(() => card?.classList.remove('shake'), 400);
+    }
 };
 
 const prevStep = () => {
@@ -72,6 +93,10 @@ const submit = () => {
             if (Object.keys(errors).some(k => step1Fields.includes(k))) currentStep.value = 1;
             else if (Object.keys(errors).some(k => step3Fields.includes(k))) currentStep.value = 3;
             else currentStep.value = 2;
+            
+            const card = document.getElementById('wizard-card');
+            card?.classList.add('shake');
+            setTimeout(() => card?.classList.remove('shake'), 400);
         }
     });
 };
@@ -80,214 +105,452 @@ const submit = () => {
 <template>
     <AdminLayout>
         
-        <div class="max-w-4xl mx-auto pb-32 md:pb-12">
+        <div class="max-w-4xl mx-auto pb-32 md:pb-12 px-4 md:px-0">
             
-            <div class="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-4 mb-6 flex flex-col gap-4 shadow-sm transition-all duration-300">
-                <div class="flex justify-between items-start">
-                    <div class="flex items-center gap-3">
-                        <Link :href="route('admin.providers.index')" class="btn btn-ghost btn-sm btn-square -ml-2 text-muted-foreground hover:bg-muted">
-                            <ArrowLeft :size="22" />
-                        </Link>
-                        <div>
-                            <h1 class="text-xl font-display font-black text-foreground leading-none tracking-tight">
-                                Editar Proveedor
-                            </h1>
-                            <p class="text-xs font-mono text-primary mt-1">ID: #{{ provider.id }}</p>
+            <!-- Header sticky con progress bar -->
+            <div class="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-primary/30 px-4 py-4 mb-6 transition-all duration-300 group/header">
+                
+                <!-- Efecto de escaneo -->
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <Link :href="route('admin.providers.index')" 
+                                  class="p-2 border border-border hover:border-primary hover:shadow-neon-primary transition-all relative group/back">
+                                <ArrowLeft :size="20" class="group-hover/back:text-primary transition-colors" />
+                                <!-- Esquinas decorativas -->
+                                <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/back:opacity-100"></span>
+                                <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/back:opacity-100"></span>
+                                <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/back:opacity-100"></span>
+                                <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/back:opacity-100"></span>
+                            </Link>
+                            
+                            <div class="relative group/title">
+                                <h1 class="text-xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)] leading-none"
+                                    data-text="EDITAR PROVEEDOR">
+                                    EDITAR PROVEEDOR
+                                </h1>
+                                <p class="text-[10px] font-mono text-muted-foreground mt-1 flex items-center gap-2">
+                                    <Cpu :size="12" class="text-primary animate-pulse" />
+                                    <span>{{ providerCode }} // {{ props.provider.company_name }}</span>
+                                    <Terminal :size="12" class="text-primary animate-pulse" />
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <!-- Badge de estado -->
+                            <div class="border px-3 py-1.5 flex items-center gap-2"
+                                 :class="form.is_active ? 'border-cyan-500/30 bg-cyan-500/10' : 'border-destructive/30 bg-destructive/10'">
+                                <component :is="form.is_active ? Wifi : WifiOff" 
+                                           :size="12" 
+                                           :class="form.is_active ? 'text-cyan-500' : 'text-destructive'" />
+                                <span class="text-[10px] font-mono font-bold uppercase"
+                                      :class="form.is_active ? 'text-cyan-500' : 'text-destructive'">
+                                    {{ form.is_active ? 'ACTIVO' : 'INACTIVO' }}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <span v-if="form.is_active" class="badge badge-success text-[10px] font-black tracking-widest uppercase px-2 py-1 shadow-sm shadow-success/20">
-                            Activo
-                        </span>
-                        <span v-else class="badge badge-error text-[10px] font-black tracking-widest uppercase px-2 py-1 shadow-sm shadow-error/20">
-                            Inactivo
-                        </span>
-                    </div>
-                </div>
 
-                <div class="space-y-2">
-                    <div class="relative h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                        <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out shadow-[0_0_10px_rgba(0,240,255,0.5)]" 
-                             :style="{ width: `${progressPercentage}%` }"></div>
-                    </div>
-                    <div class="flex justify-between px-1">
-                        <span class="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300" :class="currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'">Identidad</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300" :class="currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'">Negocio</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300" :class="currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'">Contacto</span>
+                    <!-- Progress Bar -->
+                    <div class="space-y-2">
+                        <div class="relative h-1.5 w-full bg-border">
+                            <div class="absolute top-0 left-0 h-full bg-primary shadow-neon-primary transition-all duration-500 ease-out" 
+                                 :style="{ width: `${progressPercentage}%` }"></div>
+                        </div>
+                        <div class="flex justify-between px-1">
+                            <span v-for="step in steps" :key="step.id"
+                                  class="text-[8px] font-mono font-bold uppercase transition-colors duration-300"
+                                  :class="currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'">
+                                {{ step.code }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <form @submit.prevent="submit" class="px-4 md:px-0">
-                <div class="card bg-card border border-border shadow-sm min-h-[450px] relative overflow-hidden flex flex-col">
+            <form @submit.prevent="submit" id="wizard-card">
+                <!-- Main Card -->
+                <div class="border border-border/50 bg-background shadow-2xl min-h-[450px] relative overflow-hidden group/card">
                     
-                    <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                    <!-- Scanline superior -->
+                    <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover/card:translate-x-[100%] transition-transform duration-1000"></div>
+                    
+                    <!-- Efecto de glow en esquinas -->
+                    <div class="absolute top-0 left-0 w-20 h-20 bg-primary/5 blur-3xl"></div>
+                    <div class="absolute bottom-0 right-0 w-20 h-20 bg-primary/5 blur-3xl"></div>
+                    
+                    <!-- Esquinas decorativas grandes -->
+                    <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
+                    <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
+                    <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/30"></div>
+                    <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/30"></div>
 
-                    <div class="p-6 md:p-8 flex-1 relative z-10">
-                        <Transition name="fade" mode="out-in">
-                            
-                            <div v-if="currentStep === 1" key="1" class="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="md:col-span-2 space-y-2">
-                                        <label class="form-label text-xs uppercase tracking-wider text-muted-foreground font-bold">Razón Social <span class="text-error">*</span></label>
-                                        <div class="relative group">
-                                            <Building2 :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                            <input v-model="form.company_name" type="text" class="form-input w-full pl-10 font-bold uppercase text-lg h-12" placeholder="Ej: CORPORACION ACME S.A." :class="{'border-error ring-error/20': form.errors.company_name}">
-                                        </div>
-                                        <p v-if="form.errors.company_name" class="form-error">{{ form.errors.company_name }}</p>
+                    <div class="p-6 md:p-8 relative z-10">
+                        
+                        <!-- Step 1: Identidad -->
+                        <div v-if="currentStep === 1" class="space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Razón Social -->
+                                <div class="md:col-span-2 space-y-2">
+                                    <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                        <Terminal :size="12" /> // RAZÓN SOCIAL <span class="text-destructive">*</span>
+                                    </label>
+                                    <div class="relative group/input">
+                                        <Building2 :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                        <input v-model="form.company_name" 
+                                               type="text" 
+                                               class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all uppercase"
+                                               placeholder="CORPORACIÓN ACME S.A." />
+                                        <!-- Esquinas decorativas en focus -->
+                                        <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                        <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                        <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                        <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
                                     </div>
-
-                                    <div class="space-y-2">
-                                        <label class="form-label text-xs uppercase tracking-wider text-muted-foreground font-bold">Nombre Comercial</label>
-                                        <input v-model="form.commercial_name" type="text" class="form-input w-full h-11" placeholder="Ej: Acme Corp">
-                                    </div>
-
-                                    <div class="space-y-2">
-                                        <label class="form-label text-xs uppercase tracking-wider text-muted-foreground font-bold">NIT / RUC <span class="text-error">*</span></label>
-                                        <div class="relative group">
-                                            <Hash :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                            <input v-model="form.tax_id" type="text" class="form-input w-full pl-10 font-mono text-base h-11" placeholder="20123456789" :class="{'border-error ring-error/20': form.errors.tax_id}">
-                                        </div>
-                                        <p v-if="form.errors.tax_id" class="form-error">{{ form.errors.tax_id }}</p>
-                                    </div>
-
-                                    <div class="space-y-2">
-                                        <label class="form-label text-xs uppercase tracking-wider text-muted-foreground font-bold">Código ERP</label>
-                                        <input v-model="form.internal_code" type="text" class="form-input w-full font-mono bg-muted/30 h-11" placeholder="PROV-001">
-                                    </div>
+                                    <p v-if="form.errors.company_name" class="text-[10px] font-mono text-destructive mt-1 flex items-center gap-1">
+                                        <AlertTriangle :size="10" /> {{ form.errors.company_name }}
+                                    </p>
                                 </div>
 
-                                <div class="pt-6 border-t border-border mt-2">
-                                    <div class="flex items-center justify-between p-4 rounded-xl border transition-all duration-300 cursor-pointer group" 
-                                         :class="form.is_active ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/10'"
-                                         @click="form.is_active = !form.is_active">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Estado Operativo</span>
-                                            <span class="text-xs text-muted-foreground">Habilitar proveedor para compras</span>
-                                        </div>
-                                        <div class="relative w-12 h-6 rounded-full transition-colors duration-300 border border-transparent"
-                                             :class="form.is_active ? 'bg-primary' : 'bg-muted-foreground/30'">
-                                            <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300"
-                                                 :class="form.is_active ? 'translate-x-6' : 'translate-x-0'"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-else-if="currentStep === 2" key="2" class="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="col-span-1 p-4 rounded-2xl border border-border bg-gradient-to-b from-blue-50/50 to-transparent flex flex-col items-center justify-center text-center gap-2 shadow-sm">
-                                        <CalendarClock :size="28" class="text-blue-600 mb-1"/>
-                                        <label class="text-[10px] font-black text-blue-900/70 uppercase tracking-wide">Tiempo Entrega</label>
-                                        <div class="flex items-baseline gap-1">
-                                            <input v-model="form.lead_time_days" type="number" class="w-16 text-center bg-transparent border-b-2 border-blue-200 font-black text-2xl text-blue-900 focus:outline-none focus:border-blue-500 p-0 transition-colors" placeholder="0">
-                                            <span class="text-xs font-bold text-blue-600">días</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-span-1 p-4 rounded-2xl border border-border bg-gradient-to-b from-emerald-50/50 to-transparent flex flex-col items-center justify-center text-center gap-2 shadow-sm">
-                                        <DollarSign :size="28" class="text-emerald-600 mb-1"/>
-                                        <label class="text-[10px] font-black text-emerald-900/70 uppercase tracking-wide">Mínimo Compra</label>
-                                        <div class="flex items-baseline gap-1">
-                                            <span class="text-xs font-bold text-emerald-600">$</span>
-                                            <input v-model="form.min_order_value" type="number" class="w-20 text-center bg-transparent border-b-2 border-emerald-200 font-black text-2xl text-emerald-900 focus:outline-none focus:border-emerald-500 p-0 transition-colors" placeholder="0">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="pt-4 border-t border-border">
-                                    <h4 class="text-xs font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
-                                        <CreditCard :size="16" class="text-primary"/> Condiciones de Crédito
-                                    </h4>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div class="space-y-2">
-                                            <label class="form-label text-xs uppercase font-bold">Días Crédito</label>
-                                            <input v-model="form.credit_days" type="number" class="form-input w-full h-11" placeholder="Ej: 30, 60">
-                                        </div>
-                                        <div class="space-y-2">
-                                            <label class="form-label text-xs uppercase font-bold">Límite ($)</label>
-                                            <input v-model="form.credit_limit" type="number" step="0.01" class="form-input w-full h-11 font-mono" placeholder="0.00">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-else key="3" class="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                                <!-- Nombre Comercial -->
                                 <div class="space-y-2">
-                                    <label class="form-label text-xs uppercase tracking-wider text-muted-foreground font-bold">Email Pedidos</label>
-                                    <div class="relative group">
-                                        <Mail :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                        <input v-model="form.email_orders" type="email" class="form-input w-full pl-10 h-11" placeholder="pedidos@empresa.com" :class="{'border-error ring-error/20': form.errors.email_orders}">
-                                    </div>
-                                    <p v-if="form.errors.email_orders" class="form-error">{{ form.errors.email_orders }}</p>
+                                    <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                        // NOMBRE COMERCIAL
+                                    </label>
+                                    <input v-model="form.commercial_name" 
+                                           type="text" 
+                                           class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                           placeholder="ACME CORP" />
                                 </div>
 
+                                <!-- NIT / RUC -->
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                        <Fingerprint :size="12" /> // NIT / RUC <span class="text-destructive">*</span>
+                                    </label>
+                                    <div class="relative group/input">
+                                        <Hash :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                        <input v-model="form.tax_id" 
+                                               type="text" 
+                                               class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                               placeholder="20123456789" />
+                                    </div>
+                                    <p v-if="form.errors.tax_id" class="text-[10px] font-mono text-destructive mt-1 flex items-center gap-1">
+                                        <AlertTriangle :size="10" /> {{ form.errors.tax_id }}
+                                    </p>
+                                </div>
+
+                                <!-- Código ERP -->
+                                <div class="space-y-2 md:col-span-2">
+                                    <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                        // CÓDIGO ERP
+                                    </label>
+                                    <input v-model="form.internal_code" 
+                                           type="text" 
+                                           class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                           placeholder="PROV-001" />
+                                </div>
+                            </div>
+
+                            <!-- Toggle de estado -->
+                            <div class="pt-6 border-t border-primary/30 mt-2">
+                                <div @click="form.is_active = !form.is_active" 
+                                     class="flex items-center justify-between p-4 border cursor-pointer select-none transition-all group/toggle"
+                                     :class="form.is_active ? 'border-cyan-500/30 bg-cyan-500/5 shadow-neon-primary' : 'border-border/50 hover:border-primary/30'">
+                                    <div class="flex flex-col">
+                                        <span class="font-mono font-bold text-sm uppercase flex items-center gap-2"
+                                              :class="form.is_active ? 'text-cyan-500' : 'text-muted-foreground'">
+                                            <component :is="form.is_active ? Wifi : WifiOff" :size="16" />
+                                            {{ form.is_active ? '[ SYS_ONLINE ]' : '[ SYS_OFFLINE ]' }}
+                                        </span>
+                                        <span class="text-[8px] font-mono text-muted-foreground uppercase mt-1">
+                                            HABILITAR PROVEEDOR PARA COMPRAS
+                                        </span>
+                                    </div>
+                                    <div class="relative w-12 h-6 border border-border/50">
+                                        <div class="absolute top-0.5 left-0.5 w-5 h-5 transition-all duration-300"
+                                             :class="form.is_active ? 'translate-x-6 bg-cyan-500 shadow-neon-primary' : 'translate-x-0 bg-muted-foreground'"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Negocio -->
+                        <div v-else-if="currentStep === 2" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- Lead Time -->
+                                <div class="col-span-1 p-4 border border-primary/30 bg-primary/5 relative group/metric">
+                                    <div class="flex flex-col items-center justify-center text-center gap-2">
+                                        <CalendarClock :size="28" class="text-primary mb-1 icon-glow" />
+                                        <label class="text-[8px] font-mono font-bold text-primary uppercase tracking-wide">TIEMPO ENTREGA</label>
+                                        <div class="flex items-baseline gap-1">
+                                            <input v-model="form.lead_time_days" 
+                                                   type="number" 
+                                                   class="w-16 text-center bg-transparent border-b-2 border-primary/30 font-mono font-black text-2xl text-foreground focus:outline-none focus:border-primary transition-colors p-0"
+                                                   placeholder="0" />
+                                            <span class="text-[10px] font-mono text-primary">días</span>
+                                        </div>
+                                    </div>
+                                    <!-- Esquinas -->
+                                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
+                                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
+                                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
+                                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
+                                </div>
+
+                                <!-- Min Order -->
+                                <div class="col-span-1 p-4 border border-emerald-500/30 bg-emerald-500/5 relative group/metric">
+                                    <div class="flex flex-col items-center justify-center text-center gap-2">
+                                        <DollarSign :size="28" class="text-emerald-500 mb-1 icon-glow" />
+                                        <label class="text-[8px] font-mono font-bold text-emerald-500 uppercase tracking-wide">MÍNIMO COMPRA</label>
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-xs font-mono text-emerald-500">$</span>
+                                            <input v-model="form.min_order_value" 
+                                                   type="number" 
+                                                   class="w-20 text-center bg-transparent border-b-2 border-emerald-500/30 font-mono font-black text-2xl text-foreground focus:outline-none focus:border-emerald-500 transition-colors p-0"
+                                                   placeholder="0" />
+                                        </div>
+                                    </div>
+                                    <!-- Esquinas -->
+                                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-emerald-500/30"></span>
+                                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-emerald-500/30"></span>
+                                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-emerald-500/30"></span>
+                                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-emerald-500/30"></span>
+                                </div>
+                            </div>
+
+                            <!-- Condiciones de Crédito -->
+                            <div class="pt-4 border-t border-primary/30">
+                                <h4 class="text-[10px] font-mono font-bold text-primary uppercase mb-4 flex items-center gap-2">
+                                    <CreditCard :size="14" class="text-primary" /> // CONDICIONES DE CRÉDITO
+                                </h4>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-2">
-                                        <label class="form-label text-xs uppercase font-bold">Contacto</label>
-                                        <div class="relative group">
-                                            <Users :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                            <input v-model="form.contact_name" type="text" class="form-input w-full pl-10 h-11" placeholder="Juan Pérez">
-                                        </div>
+                                        <label class="text-[9px] font-mono text-primary uppercase tracking-wider">DÍAS CRÉDITO</label>
+                                        <input v-model="form.credit_days" 
+                                               type="number" 
+                                               class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                               placeholder="30" />
                                     </div>
                                     <div class="space-y-2">
-                                        <label class="form-label text-xs uppercase font-bold">Móvil</label>
-                                        <div class="relative group">
-                                            <Phone :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                            <input v-model="form.phone" type="tel" class="form-input w-full pl-10 h-11" placeholder="+51 999...">
-                                        </div>
+                                        <label class="text-[9px] font-mono text-primary uppercase tracking-wider">LÍMITE (USD)</label>
+                                        <input v-model="form.credit_limit" 
+                                               type="number" step="0.01" 
+                                               class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                               placeholder="1000.00" />
                                     </div>
                                 </div>
+                            </div>
+                        </div>
 
+                        <!-- Step 3: Contacto -->
+                        <div v-else class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <!-- Email -->
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                    // EMAIL PEDIDOS
+                                </label>
+                                <div class="relative group/input">
+                                    <Mail :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                    <input v-model="form.email_orders" 
+                                           type="email" 
+                                           class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                           placeholder="pedidos@empresa.com" />
+                                </div>
+                                <p v-if="form.errors.email_orders" class="text-[10px] font-mono text-destructive mt-1 flex items-center gap-1">
+                                    <AlertTriangle :size="10" /> {{ form.errors.email_orders }}
+                                </p>
+                            </div>
+
+                            <!-- Contacto y Teléfono -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <label class="form-label text-xs uppercase font-bold">Dirección</label>
-                                    <div class="relative group">
-                                        <MapPin :size="18" class="absolute left-3 top-3 text-muted-foreground group-focus-within:text-primary transition-colors"/>
-                                        <textarea v-model="form.address" class="form-input w-full pl-10 pt-2.5 resize-none" rows="2" placeholder="Dirección completa"></textarea>
+                                    <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                        // CONTACTO
+                                    </label>
+                                    <div class="relative group/input">
+                                        <Users :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                        <input v-model="form.contact_name" 
+                                               type="text" 
+                                               class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                               placeholder="JUAN PÉREZ" />
                                     </div>
                                 </div>
-                                
                                 <div class="space-y-2">
-                                    <label class="form-label text-xs uppercase font-bold">Notas</label>
-                                    <textarea v-model="form.notes" class="form-input w-full resize-none text-sm" rows="3" placeholder="Información interna relevante..."></textarea>
+                                    <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                        // MÓVIL
+                                    </label>
+                                    <div class="relative group/input">
+                                        <Phone :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                        <input v-model="form.phone" 
+                                               type="tel" 
+                                               class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                               placeholder="+591 77712345" />
+                                    </div>
                                 </div>
                             </div>
 
-                        </Transition>
+                            <!-- Dirección -->
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                    // DIRECCIÓN
+                                </label>
+                                <div class="relative group/input">
+                                    <MapPin :size="16" class="absolute left-3 top-3 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                    <textarea v-model="form.address" 
+                                              class="w-full pl-10 pr-4 pt-3 pb-2 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all resize-none"
+                                              rows="2"
+                                              placeholder="DIRECCIÓN COMPLETA"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block">
+                                    // NOTAS INTERNAS
+                                </label>
+                                <textarea v-model="form.notes" 
+                                          class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all resize-none"
+                                          rows="3"
+                                          placeholder="INFORMACIÓN INTERNA RELEVANTE..."></textarea>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="p-6 bg-muted/20 border-t border-border flex justify-between items-center mt-auto relative z-10">
+                    <!-- Footer Actions -->
+                    <div class="p-6 border-t border-border/50 bg-background/80 backdrop-blur-sm flex justify-between items-center relative z-10">
                         <button type="button" @click="prevStep" 
-                                class="btn btn-outline h-12 px-6 rounded-xl border font-bold text-muted-foreground bg-background hover:bg-muted"
-                                :class="{'opacity-0 pointer-events-none': currentStep === 1}">
-                            <ArrowLeft :size="20" class="mr-2"/> Atrás
+                                :disabled="currentStep === 1"
+                                class="px-6 py-2 border border-border text-[10px] font-mono font-bold uppercase hover:border-primary hover:text-primary transition-all disabled:opacity-30 disabled:pointer-events-none relative group/prev">
+                            <span class="flex items-center gap-2">
+                                <ArrowLeft :size="14" class="group-hover/prev:-translate-x-1 transition-transform" />
+                                ANTERIOR
+                            </span>
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/prev:opacity-100"></span>
+                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/prev:opacity-100"></span>
+                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/prev:opacity-100"></span>
+                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/prev:opacity-100"></span>
                         </button>
 
                         <button v-if="currentStep < steps.length" type="button" @click="nextStep"
-                                class="btn btn-primary h-12 px-8 rounded-xl shadow-lg shadow-primary/20 text-base font-bold flex items-center gap-2">
-                            Siguiente <ArrowRight :size="20"/>
+                                class="px-8 py-2 bg-primary text-primary-foreground text-[10px] font-mono font-black uppercase shadow-neon-primary hover:bg-primary/90 transition-all relative group/next overflow-hidden">
+                            <span class="flex items-center gap-2 relative z-10">
+                                SIGUIENTE <ArrowRight :size="14" class="group-hover/next:translate-x-1 transition-transform" />
+                            </span>
+                            <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/next:translate-y-0 transition-transform duration-500"></span>
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
+                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
+                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
+                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground/50"></span>
                         </button>
 
-                        <button v-else type="button" @click="submit"
+                        <button v-else type="submit"
                                 :disabled="form.processing"
-                                class="btn btn-primary h-12 px-8 rounded-xl shadow-lg shadow-primary/20 text-base font-bold flex items-center gap-2 bg-navy text-white hover:bg-navy/90">
-                            <span v-if="form.processing" class="loading loading-spinner loading-sm"></span>
-                            <span v-else class="flex items-center gap-2">
-                                <Save :size="20"/> Guardar
+                                class="px-8 py-2 bg-primary text-primary-foreground text-[10px] font-mono font-black uppercase shadow-neon-primary hover:bg-primary/90 transition-all relative group/submit overflow-hidden">
+                            <span v-if="form.processing" class="flex items-center gap-2">
+                                <Cpu :size="14" class="animate-spin" /> PROCESANDO...
                             </span>
+                            <span v-else class="flex items-center gap-2 relative z-10">
+                                <Save :size="14" /> GUARDAR CAMBIOS
+                            </span>
+                            <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/submit:translate-y-0 transition-transform duration-500"></span>
                         </button>
                     </div>
-
                 </div>
             </form>
 
+            <!-- Session ID -->
+            <div class="mt-4 text-center">
+                <p class="text-[8px] font-mono text-muted-foreground">
+                    SESSION_ID // {{ providerCode }}_EDIT_{{ String(currentStep).padStart(2, '0') }} // {{ new Date().toISOString().slice(0,10) }}
+                </p>
+            </div>
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.fade-enter-from { opacity: 0; transform: translateX(10px); }
-.fade-leave-to { opacity: 0; transform: translateX(-10px); position: absolute; width: 100%; }
+/* Animaciones */
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Efecto glitch */
+.glitch-text {
+    position: relative;
+    animation: glitch-skew 4s infinite linear alternate-reverse;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+}
+
+.glitch-text::before {
+    color: #0ff;
+    z-index: -1;
+    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+    color: #f0f;
+    z-index: -2;
+    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-skew {
+    0% { transform: skew(0deg); }
+    20% { transform: skew(0deg); }
+    21% { transform: skew(2deg); }
+    22% { transform: skew(0deg); }
+    80% { transform: skew(0deg); }
+    81% { transform: skew(-2deg); }
+    82% { transform: skew(0deg); }
+    100% { transform: skew(0deg); }
+}
+
+@keyframes glitch-anim-1 {
+    0% { clip-path: inset(20% 0 30% 0); }
+    20% { clip-path: inset(50% 0 10% 0); }
+    40% { clip-path: inset(10% 0 60% 0); }
+    60% { clip-path: inset(80% 0 5% 0); }
+    80% { clip-path: inset(30% 0 40% 0); }
+    100% { clip-path: inset(40% 0 20% 0); }
+}
+
+@keyframes glitch-anim-2 {
+    0% { clip-path: inset(60% 0 10% 0); }
+    20% { clip-path: inset(20% 0 50% 0); }
+    40% { clip-path: inset(70% 0 5% 0); }
+    60% { clip-path: inset(10% 0 70% 0); }
+    80% { clip-path: inset(40% 0 30% 0); }
+    100% { clip-path: inset(30% 0 40% 0); }
+}
+
+/* Sombras neón */
+.shadow-neon-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+/* Efecto de brillo para íconos */
+.icon-glow {
+    filter: drop-shadow(0 0 4px currentColor);
+    transition: filter 0.3s ease;
+}
 </style>

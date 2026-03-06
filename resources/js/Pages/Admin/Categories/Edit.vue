@@ -9,7 +9,9 @@ import { ref, computed, watch } from 'vue';
 import { 
     FolderTree, Image as ImageIcon, Settings, 
     ArrowRight, ArrowLeft, Save, AlertCircle, 
-    Info, Hash, FileText, BadgeCheck
+    Info, Hash, FileText, BadgeCheck, Cpu, Terminal,
+    Wifi, WifiOff, AlertTriangle, CheckCircle, Eye,
+    EyeOff, Shield, Zap, Layers, Tag
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -20,15 +22,16 @@ const props = defineProps({
 // --- ESTADO ---
 const currentStep = ref(1);
 const categoryType = ref(props.category.parent_id ? 'child' : 'parent');
+const showPreview = ref(false);
 
 const steps = [
-    { id: 1, title: 'Jerarquía', icon: FolderTree, fields: ['name', 'external_code', 'parent_id'] },
-    { id: 2, title: 'Contenido', icon: ImageIcon, fields: ['image', 'description'] },
-    { id: 3, title: 'Ajustes & SEO', icon: Settings, fields: ['tax_classification', 'requires_age_check'] },
+    { id: 1, title: 'JERARQUÍA', code: 'SEC_01', icon: FolderTree, fields: ['name', 'external_code', 'parent_id'] },
+    { id: 2, title: 'CONTENIDO', code: 'SEC_02', icon: ImageIcon, fields: ['image', 'description'] },
+    { id: 3, title: 'AJUSTES', code: 'SEC_03', icon: Settings, fields: ['tax_classification', 'requires_age_check'] },
 ];
 
 const form = useForm({
-    _method: 'PUT', // Túnel para soporte de archivos
+    _method: 'PUT',
     name: props.category.name,
     parent_id: props.category.parent_id || '',
     external_code: props.category.external_code || '',
@@ -44,12 +47,15 @@ const form = useForm({
 });
 
 // --- LÓGICA ---
-
-// Sincronizar tipo de categoría
 watch(categoryType, (val) => {
     if (val === 'parent') {
         form.parent_id = '';
     }
+});
+
+// Código de categoría
+const categoryCode = computed(() => {
+    return `CAT_${String(props.category.id).padStart(4, '0')}`;
 });
 
 const nextStep = () => {
@@ -57,16 +63,22 @@ const nextStep = () => {
     
     if (currentStep.value === 1) {
         if (!form.name.trim()) {
-            form.setError('name', 'El nombre es obligatorio');
+            form.setError('name', '// NOMBRE REQUERIDO');
             return;
         }
         if (categoryType.value === 'child' && !form.parent_id) {
-            form.setError('parent_id', 'Seleccione una categoría padre');
+            form.setError('parent_id', '// SELECCIONE CATEGORÍA PADRE');
             return;
         }
     }
     
-    if (currentStep.value < steps.length) currentStep.value++;
+    if (currentStep.value < steps.length) {
+        currentStep.value++;
+    } else {
+        const card = document.getElementById('wizard-card');
+        card?.classList.add('shake');
+        setTimeout(() => card?.classList.remove('shake'), 400);
+    }
 };
 
 const prevStep = () => {
@@ -74,13 +86,16 @@ const prevStep = () => {
 };
 
 const submit = () => {
-    // Usamos POST con _method: PUT para compatibilidad con archivos en Laravel
     form.post(route('admin.categories.update', props.category.id), {
         forceFormData: true,
         preserveScroll: true,
         onError: (errors) => {
             const stepWithError = steps.find(step => step.fields.some(f => errors[f]));
             if (stepWithError) currentStep.value = stepWithError.id;
+            
+            const card = document.getElementById('wizard-card');
+            card?.classList.add('shake');
+            setTimeout(() => card?.classList.remove('shake'), 400);
         }
     });
 };
@@ -94,161 +109,424 @@ const handleStepClick = (stepId) => {
 
 <template>
     <AdminLayout>
-        <div class="max-w-4xl mx-auto pb-12">
+        <div class="max-w-4xl mx-auto pb-12 px-4 md:px-0">
             
-            <div class="mb-8 px-4 md:px-0">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-mono bg-muted px-2 py-0.5 rounded border border-border">UUID: {{ category.id }}</span>
-                            <span v-if="category.is_active" class="flex items-center gap-1 text-[10px] font-black text-success uppercase"><BadgeCheck :size="12"/> Activo</span>
+            <!-- Header -->
+            <div class="mb-8 relative group/header">
+                <!-- Efecto de escaneo -->
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <span class="text-[8px] font-mono border border-primary/30 bg-primary/5 text-primary px-2 py-1">
+                                    {{ categoryCode }}
+                                </span>
+                                <div class="flex items-center gap-1">
+                                    <component :is="form.is_active ? Wifi : WifiOff" 
+                                               :size="12" 
+                                               :class="form.is_active ? 'text-cyan-500' : 'text-destructive'" />
+                                    <span class="text-[8px] font-mono" :class="form.is_active ? 'text-cyan-500' : 'text-destructive'">
+                                        {{ form.is_active ? 'ONLINE' : 'OFFLINE' }}
+                                    </span>
+                                </div>
+                                <span v-if="form.is_featured" 
+                                      class="text-[8px] font-mono text-warning border border-warning/30 bg-warning/5 px-2 py-1 flex items-center gap-1">
+                                    <Zap :size="10" /> FEATURED
+                                </span>
+                            </div>
+                            
+                            <h1 class="text-3xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_12px_hsl(var(--primary)/0.6)] leading-none"
+                                data-text="EDITAR CATEGORÍA">
+                                EDITAR CATEGORÍA
+                            </h1>
+                            <p class="text-[10px] font-mono text-muted-foreground flex items-center gap-2">
+                                <Cpu :size="12" class="text-primary animate-pulse" />
+                                <span class="text-primary">{{ category.name }}</span>
+                                <Terminal :size="12" class="text-primary animate-pulse" />
+                            </p>
                         </div>
-                        <h1 class="text-3xl font-black tracking-tighter">
-                            Editar <span class="text-primary">{{ category.name }}</span>
-                        </h1>
+                        
+                        <Link :href="route('admin.categories.index')" 
+                              class="px-4 py-2 border border-destructive/50 text-destructive font-mono text-xs hover:bg-destructive hover:text-destructive-foreground transition-all relative group/cancel">
+                            CANCELAR
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-destructive opacity-0 group-hover/cancel:opacity-100"></span>
+                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-destructive opacity-0 group-hover/cancel:opacity-100"></span>
+                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-destructive opacity-0 group-hover/cancel:opacity-100"></span>
+                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-destructive opacity-0 group-hover/cancel:opacity-100"></span>
+                        </Link>
                     </div>
-                    <Link :href="route('admin.categories.index')" class="btn btn-ghost text-muted-foreground hover:text-error transition-colors">
-                        Cancelar
-                    </Link>
-                </div>
 
-                <StepProgress 
-                    :steps="steps" 
-                    :current-step="currentStep" 
-                    :progress-percentage="progressPercentage"
-                    @step-click="handleStepClick"
-                />
+                    <!-- Step Progress (manteniendo el componente existente pero con props) -->
+                    <StepProgress 
+                        :steps="steps" 
+                        :current-step="currentStep" 
+                        :progress-percentage="progressPercentage"
+                        @step-click="handleStepClick"
+                    />
+                </div>
             </div>
 
-            <div class="card border border-border bg-card shadow-2xl overflow-hidden min-h-[550px] flex flex-col mx-4 md:mx-0">
+            <!-- Main Card -->
+            <div id="wizard-card" class="border border-border/50 bg-background shadow-2xl overflow-hidden min-h-[550px] flex flex-col relative group/card">
+                
+                <!-- Scanline superior -->
+                <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover/card:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <!-- Efecto de glow en esquinas -->
+                <div class="absolute top-0 left-0 w-20 h-20 bg-primary/5 blur-3xl"></div>
+                <div class="absolute bottom-0 right-0 w-20 h-20 bg-primary/5 blur-3xl"></div>
+                
+                <!-- Esquinas decorativas grandes -->
+                <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
+                <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
+                <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/30"></div>
+                <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/30"></div>
+
                 <form @submit.prevent="submit" class="flex-1 flex flex-col">
                     
-                    <div class="p-8 flex-1">
+                    <div class="p-8 flex-1 relative z-10">
                         <Transition name="fade" mode="out-in">
                             
-                            <div v-if="currentStep === 1" key="1" class="space-y-8 animate-in slide-in-from-right-4 fade-in">
+                            <!-- Step 1: Jerarquía -->
+                            <div v-if="currentStep === 1" key="1" class="space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
                                 <CategoryTypeSelector v-model="categoryType" />
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <!-- Nombre -->
                                     <div class="md:col-span-2 space-y-2">
-                                        <label class="form-label font-bold uppercase tracking-widest text-xs text-muted-foreground">Nombre de la Categoría</label>
-                                        <input v-model="form.name" type="text" class="form-input text-xl font-black py-4" :class="{'border-error': form.errors.name}">
-                                        <p v-if="form.errors.name" class="text-error text-xs flex items-center gap-1 mt-1"><AlertCircle :size="14"/> {{ form.errors.name }}</p>
-                                    </div>
-
-                                    <div class="space-y-2">
-                                        <label class="form-label text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
-                                            <Hash :size="14"/> Código ERP / SKU
+                                        <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                            <Terminal :size="12" /> // NOMBRE DE CATEGORÍA
                                         </label>
-                                        <input v-model="form.external_code" type="text" class="form-input font-mono uppercase" placeholder="Ej: CAT-001">
+                                        <div class="relative group/input">
+                                            <Tag :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
+                                            <input v-model="form.name" 
+                                                   type="text" 
+                                                   class="w-full pl-10 pr-4 py-4 bg-background border border-border/50 font-mono text-xl font-black focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                                   :class="{'border-destructive/50': form.errors.name}"
+                                                   placeholder="NOMBRE DE CATEGORÍA" />
+                                            <!-- Esquinas decorativas en focus -->
+                                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                                        </div>
+                                        <p v-if="form.errors.name" class="text-[10px] font-mono text-destructive mt-1 flex items-center gap-1">
+                                            <AlertTriangle :size="10" /> {{ form.errors.name }}
+                                        </p>
                                     </div>
 
-                                    <div v-if="categoryType === 'child'" class="md:col-span-2 space-y-4 animate-in zoom-in-95">
-                                        <div class="p-5 bg-primary/5 rounded-2xl border border-primary/20">
-                                            <label class="form-label text-primary font-black mb-2 block uppercase tracking-tighter">Vincular a Padre</label>
+                                    <!-- Código ERP -->
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                            <Hash :size="12" /> // CÓDIGO ERP / SKU
+                                        </label>
+                                        <input v-model="form.external_code" 
+                                               type="text" 
+                                               class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm uppercase focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                               placeholder="CAT-001" />
+                                    </div>
+
+                                    <!-- Selector de Padre (si es child) -->
+                                    <div v-if="categoryType === 'child'" class="md:col-span-2 animate-in zoom-in-95 duration-500">
+                                        <div class="border border-primary/30 bg-primary/5 p-6 relative group/parent">
+                                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent translate-x-[-100%] group-hover/parent:translate-x-[100%] transition-transform duration-700"></div>
+                                            
+                                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-4 block flex items-center gap-2">
+                                                <FolderTree :size="14" /> // VINCULAR A PADRE
+                                            </label>
+                                            
                                             <div class="relative">
-                                                <FolderTree class="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40" :size="20"/>
-                                                <select v-model="form.parent_id" class="form-input pl-12 bg-background border-primary/20 focus:border-primary">
-                                                    <option value="">-- Sin Padre (Principal) --</option>
-                                                    <option v-for="cat in parents" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                                                <Layers class="absolute left-3 top-1/2 -translate-y-1/2 text-primary/50" :size="16"/>
+                                                <select v-model="form.parent_id" 
+                                                        class="w-full pl-10 pr-4 py-3 bg-background border border-primary/30 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                                        :class="{'border-destructive/50': form.errors.parent_id}">
+                                                    <option value="">-- SIN PADRE (PRINCIPAL) --</option>
+                                                    <option v-for="cat in parents" :key="cat.id" :value="cat.id">
+                                                        {{ cat.name }}
+                                                    </option>
                                                 </select>
                                             </div>
-                                            <p v-if="form.errors.parent_id" class="text-error text-xs mt-2 font-bold">{{ form.errors.parent_id }}</p>
+                                            <p v-if="form.errors.parent_id" class="text-[10px] font-mono text-destructive mt-2 flex items-center gap-1">
+                                                <AlertTriangle :size="10" /> {{ form.errors.parent_id }}
+                                            </p>
+                                            
+                                            <!-- Esquinas -->
+                                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
+                                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
+                                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
+                                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div v-else-if="currentStep === 2" key="2" class="space-y-8 animate-in slide-in-from-right-4 fade-in">
+                            <!-- Step 2: Contenido -->
+                            <div v-else-if="currentStep === 2" key="2" class="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <!-- Image Uploader -->
                                     <div class="lg:col-span-1">
-                                        <label class="form-label mb-3 block text-xs font-bold uppercase">Imagen de Identidad</label>
+                                        <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-3 block">
+                                            // IMAGEN DE IDENTIDAD
+                                        </label>
                                         <ImageUploader 
                                             v-model="form.image" 
                                             :existing-image="category.image_url" 
-                                            class="h-64 w-full shadow-inner" 
+                                            class="h-64 w-full border border-primary/30 shadow-inner relative overflow-hidden group/upload"
                                         />
-                                        <p v-if="form.errors.image" class="text-error text-xs text-center mt-2 font-bold">{{ form.errors.image }}</p>
+                                        <p v-if="form.errors.image" class="text-[10px] font-mono text-destructive text-center mt-2 flex items-center gap-1">
+                                            <AlertTriangle :size="10" /> {{ form.errors.image }}
+                                        </p>
                                     </div>
 
                                     <div class="lg:col-span-2 space-y-6">
+                                        <!-- Descripción -->
                                         <div class="space-y-2">
-                                            <label class="form-label flex items-center gap-2 text-xs font-bold uppercase">
-                                                <FileText :size="14"/> Descripción Pública
+                                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                                <FileText :size="12" /> // DESCRIPCIÓN PÚBLICA
                                             </label>
-                                            <textarea v-model="form.description" rows="6" class="form-input resize-none leading-relaxed" placeholder="Describe la categoría para los clientes..."></textarea>
+                                            <textarea v-model="form.description" 
+                                                      rows="6" 
+                                                      class="w-full bg-background border border-border/50 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all resize-none"
+                                                      placeholder="DESCRIBE LA CATEGORÍA PARA LOS CLIENTES..."></textarea>
                                         </div>
 
-                                        <div class="bg-muted/30 p-6 rounded-2xl border border-border">
+                                        <!-- Metadatos SEO -->
+                                        <div class="border border-primary/30 bg-primary/5 p-6 relative group/seo">
                                             <div class="flex items-center gap-2 mb-4">
-                                                <Info :size="16" class="text-primary"/>
-                                                <h3 class="text-xs font-black uppercase tracking-widest text-foreground">Metadatos SEO</h3>
+                                                <Info :size="14" class="text-primary"/>
+                                                <h3 class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">METADATOS SEO</h3>
                                             </div>
                                             <div class="space-y-4">
-                                                <input v-model="form.seo_title" type="text" class="form-input text-sm" placeholder="Título para buscadores">
-                                                <textarea v-model="form.seo_description" rows="2" class="form-input text-sm resize-none" placeholder="Descripción para buscadores"></textarea>
+                                                <input v-model="form.seo_title" 
+                                                       type="text" 
+                                                       class="w-full bg-background border border-primary/30 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                                       placeholder="TÍTULO PARA BUSCADORES">
+                                                <textarea v-model="form.seo_description" 
+                                                          rows="2" 
+                                                          class="w-full bg-background border border-primary/30 px-4 py-3 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all resize-none"
+                                                          placeholder="DESCRIPCIÓN PARA BUSCADORES"></textarea>
                                             </div>
+                                            <!-- Esquinas -->
+                                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
+                                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
+                                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
+                                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div v-else key="3" class="space-y-8 animate-in slide-in-from-right-4 fade-in">
-                                <div class="bg-card border border-border rounded-2xl divide-y divide-border shadow-sm">
-                                    <div class="p-6">
-                                        <h3 class="font-black text-sm uppercase tracking-widest text-muted-foreground mb-6 flex items-center gap-2">
-                                            <Settings :size="16"/> Visibilidad & Control
+                            <!-- Step 3: Ajustes -->
+                            <div v-else key="3" class="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                                <div class="border border-primary/30 divide-y divide-primary/30">
+                                    <!-- Visibilidad & Control -->
+                                    <div class="p-6 relative group/visibility">
+                                        <h3 class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-6 flex items-center gap-2">
+                                            <Eye :size="14" /> VISIBILIDAD & CONTROL
                                         </h3>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            <BaseCheckbox v-model="form.is_active" label="Categoría Activa" help="Habilita la visibilidad en toda la plataforma." />
-                                            <BaseCheckbox v-model="form.is_featured" label="Destacar Categoría" help="Promociona esta categoría en el catálogo frontal." />
-                                            <BaseCheckbox v-model="form.requires_age_check" label="Restricción +18" help="Activa la validación de mayoría de edad." />
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <BaseCheckbox 
+                                                v-model="form.is_active" 
+                                                label="CATEGORÍA ACTIVA" 
+                                                help="HABILITA LA VISIBILIDAD EN TODA LA PLATAFORMA." 
+                                                class="cyber-checkbox"
+                                            />
+                                            <BaseCheckbox 
+                                                v-model="form.is_featured" 
+                                                label="DESTACAR CATEGORÍA" 
+                                                help="PROMOCIONA ESTA CATEGORÍA EN EL CATÁLOGO FRONTAL." 
+                                                class="cyber-checkbox"
+                                            />
+                                            <BaseCheckbox 
+                                                v-model="form.requires_age_check" 
+                                                label="RESTRICCIÓN +18" 
+                                                help="ACTIVA LA VALIDACIÓN DE MAYORÍA DE EDAD." 
+                                                class="cyber-checkbox"
+                                            />
                                         </div>
+                                        <!-- Esquinas -->
+                                        <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
+                                        <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
                                     </div>
 
-                                    <div class="p-6 bg-muted/5">
-                                        <label class="form-label text-xs uppercase font-black text-muted-foreground mb-4 block tracking-widest">Parámetros de Negocio</label>
+                                    <!-- Parámetros de Negocio -->
+                                    <div class="p-6 bg-primary/5 relative group/business">
+                                        <h3 class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-4 block">
+                                            PARÁMETROS DE NEGOCIO
+                                        </h3>
                                         <div class="max-w-md">
                                             <div class="relative">
-                                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary uppercase">TAX:</span>
-                                                <input v-model="form.tax_classification" type="text" class="form-input pl-14 font-mono text-sm uppercase" placeholder="EJ: ALCOHOL_VAT">
+                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-primary uppercase">TAX:</span>
+                                                <input v-model="form.tax_classification" 
+                                                       type="text" 
+                                                       class="w-full pl-12 pr-4 py-3 bg-background border border-primary/30 font-mono text-sm uppercase focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                                       placeholder="ALCOHOL_VAT">
                                             </div>
-                                            <p class="text-[10px] text-muted-foreground mt-2 italic">Mapeo fiscal para facturación automática.</p>
+                                            <p class="text-[8px] font-mono text-muted-foreground mt-2">
+                                                MAPEO FISCAL PARA FACTURACIÓN AUTOMÁTICA.
+                                            </p>
                                         </div>
+                                        <!-- Esquinas -->
+                                        <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
+                                        <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
                                     </div>
                                 </div>
                             </div>
-
                         </Transition>
                     </div>
 
-                    <div class="p-6 bg-background/50 backdrop-blur-sm border-t border-border flex justify-between items-center sticky bottom-0">
-                        <button type="button" @click="prevStep" class="btn btn-ghost font-bold" :class="{'invisible': currentStep === 1}">
-                            <ArrowLeft :size="18" class="mr-2"/> Atrás
+                    <!-- Footer Actions -->
+                    <div class="p-6 bg-background/80 backdrop-blur-sm border-t border-primary/30 flex justify-between items-center sticky bottom-0 z-20">
+                        <button type="button" @click="prevStep" 
+                                :class="{'invisible': currentStep === 1}"
+                                class="px-6 py-2 border border-border text-[10px] font-mono font-bold uppercase hover:border-primary hover:text-primary transition-all relative group/prev">
+                            <span class="flex items-center gap-2">
+                                <ArrowLeft :size="14" class="group-hover/prev:-translate-x-1 transition-transform" />
+                                ANTERIOR
+                            </span>
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/prev:opacity-100"></span>
+                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/prev:opacity-100"></span>
+                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/prev:opacity-100"></span>
+                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/prev:opacity-100"></span>
                         </button>
 
-                        <button v-if="currentStep < steps.length" type="button" @click="nextStep" class="btn btn-primary px-10 shadow-xl shadow-primary/20">
-                            Continuar <ArrowRight :size="18" class="ml-2"/>
+                        <button v-if="currentStep < steps.length" type="button" @click="nextStep"
+                                class="px-8 py-2 bg-primary text-primary-foreground text-[10px] font-mono font-black uppercase shadow-neon-primary hover:bg-primary/90 transition-all relative group/next overflow-hidden">
+                            <span class="flex items-center gap-2 relative z-10">
+                                CONTINUAR <ArrowRight :size="14" class="group-hover/next:translate-x-1 transition-transform" />
+                            </span>
+                            <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/next:translate-y-0 transition-transform duration-500"></span>
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
+                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
+                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
+                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground/50"></span>
                         </button>
 
-                        <button v-else type="submit" :disabled="form.processing" class="btn btn-primary px-12 shadow-xl shadow-primary/30">
+                        <button v-else type="submit" :disabled="form.processing"
+                                class="px-8 py-2 bg-primary text-primary-foreground text-[10px] font-mono font-black uppercase shadow-neon-primary hover:bg-primary/90 transition-all relative group/submit overflow-hidden">
                             <span v-if="form.processing" class="flex items-center gap-2">
-                                <span class="loading loading-spinner loading-xs"></span> Procesando
+                                <Cpu :size="14" class="animate-spin" /> PROCESANDO...
                             </span>
-                            <span v-else class="flex items-center gap-2 font-black">
-                                <Save :size="20"/> GUARDAR CAMBIOS
+                            <span v-else class="flex items-center gap-2 relative z-10">
+                                <Save :size="14" /> GUARDAR CAMBIOS
                             </span>
+                            <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/submit:translate-y-0 transition-transform duration-500"></span>
                         </button>
                     </div>
-
                 </form>
+            </div>
+
+            <!-- Session ID -->
+            <div class="mt-4 text-center">
+                <p class="text-[8px] font-mono text-muted-foreground">
+                    SESSION_ID // {{ categoryCode }}_EDIT_{{ String(currentStep).padStart(2, '0') }} // {{ new Date().toISOString().slice(0,10) }}
+                </p>
             </div>
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: all 0.2s ease-in-out; }
-.fade-enter-from { opacity: 0; transform: translateY(5px); }
-.fade-leave-to { opacity: 0; transform: translateY(-5px); }
+/* Animaciones */
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Efecto glitch */
+.glitch-text {
+    position: relative;
+    animation: glitch-skew 4s infinite linear alternate-reverse;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+}
+
+.glitch-text::before {
+    color: #0ff;
+    z-index: -1;
+    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+    color: #f0f;
+    z-index: -2;
+    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-skew {
+    0% { transform: skew(0deg); }
+    20% { transform: skew(0deg); }
+    21% { transform: skew(2deg); }
+    22% { transform: skew(0deg); }
+    80% { transform: skew(0deg); }
+    81% { transform: skew(-2deg); }
+    82% { transform: skew(0deg); }
+    100% { transform: skew(0deg); }
+}
+
+@keyframes glitch-anim-1 {
+    0% { clip-path: inset(20% 0 30% 0); }
+    20% { clip-path: inset(50% 0 10% 0); }
+    40% { clip-path: inset(10% 0 60% 0); }
+    60% { clip-path: inset(80% 0 5% 0); }
+    80% { clip-path: inset(30% 0 40% 0); }
+    100% { clip-path: inset(40% 0 20% 0); }
+}
+
+@keyframes glitch-anim-2 {
+    0% { clip-path: inset(60% 0 10% 0); }
+    20% { clip-path: inset(20% 0 50% 0); }
+    40% { clip-path: inset(70% 0 5% 0); }
+    60% { clip-path: inset(10% 0 70% 0); }
+    80% { clip-path: inset(40% 0 30% 0); }
+    100% { clip-path: inset(30% 0 40% 0); }
+}
+
+/* Sombras neón */
+.shadow-neon-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+/* Transiciones */
+.fade-enter-active, .fade-leave-active {
+    transition: all 0.3s ease;
+}
+.fade-enter-from {
+    opacity: 0;
+    transform: translateX(20px);
+}
+.fade-leave-to {
+    opacity: 0;
+    transform: translateX(-20px);
+    position: absolute;
+    width: 100%;
+}
+
+/* Estilos para checkboxes */
+:deep(.cyber-checkbox) {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+:deep(.cyber-checkbox label) {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
 </style>

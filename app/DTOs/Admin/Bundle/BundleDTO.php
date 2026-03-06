@@ -14,7 +14,10 @@ class BundleDTO
         public readonly ?float $fixedPrice,
         public readonly bool $isActive,
         public readonly ?UploadedFile $image,
-        public readonly array $items 
+        public readonly array $items,
+        public ?string $startsAt,
+        public ?string $endsAt
+        
     ) {}
 
     public static function fromRequest(Request $request): self
@@ -26,7 +29,9 @@ class BundleDTO
             fixedPrice: $request->validated('fixed_price') ? (float)$request->validated('fixed_price') : null,
             isActive: $request->boolean('is_active'),
             image: $request->file('image'),
-            items: $request->validated('items')
+            items: $request->validated('items'),
+            startsAt: $request->validated('starts_at'),
+            endsAt: $request->validated('ends_at')
         );
     }
 }

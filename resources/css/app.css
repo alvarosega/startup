@@ -11,7 +11,8 @@
   }
 
   html, body {
-    @apply bg-background text-foreground antialiased font-sans;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif; /* Fuente por defecto para cuerpo */
     overscroll-behavior-y: none;
     /* Grid de telemetría de fondo */
     background-image: 
@@ -21,7 +22,7 @@
     background-position: center top;
   }
 
-  /* Scanlines estáticos a nivel de pantalla */
+  /* Scanlines animadas (ligero parpadeo) */
   body::after {
     content: "";
     position: fixed;
@@ -34,6 +35,12 @@
     );
     pointer-events: none;
     z-index: 9999;
+    animation: scanline-flicker 8s infinite;
+  }
+
+  @keyframes scanline-flicker {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
   }
 
   ::selection {
@@ -44,9 +51,9 @@
     @apply font-display font-black uppercase tracking-widest text-foreground;
   }
 
-  /* Inputs estilo terminal */
+  /* Inputs estilo terminal con brillo al focus */
   input, textarea, select {
-    @apply w-full bg-transparent border-0 border-b border-border px-2 py-2 text-foreground font-mono text-sm outline-none transition-none;
+    @apply w-full bg-transparent border-0 border-b border-border px-2 py-2 text-foreground font-mono text-sm outline-none transition-all duration-200;
     -webkit-appearance: none;
     appearance: none;
     caret-color: hsl(var(--primary));
@@ -54,9 +61,10 @@
 
   input:focus, textarea:focus, select:focus {
     @apply border-primary;
-    box-shadow: 0 1px 0 hsl(var(--primary));
+    box-shadow: 0 0 var(--neon-blur) hsl(var(--primary) / 0.5), 0 1px 0 hsl(var(--primary));
   }
 
+  /* Scrollbars personalizadas */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { @apply bg-background; border-left: 1px solid hsl(var(--border)); }
   ::-webkit-scrollbar-thumb {
@@ -67,56 +75,79 @@
 }
 
 @layer components {
-  /* PANELES HUD (Bento Box) */
+  /* PANELES HUD (sin clip-path, con neón) */
   .hud-panel {
-    @apply relative bg-card text-card-foreground p-6 transition-none;
-    clip-path: polygon(var(--cut-size) 0, 100% 0, 100% calc(100% - var(--cut-size)), calc(100% - var(--cut-size)) 100%, 0 100%, 0 var(--cut-size));
-  }
-  
-  /* Borde interno forzado para el clip-path */
-  .hud-panel::before {
-    content: '';
-    @apply absolute inset-0 pointer-events-none;
-    background: hsl(var(--border));
-    clip-path: polygon(var(--cut-size) 0, 100% 0, 100% calc(100% - var(--cut-size)), calc(100% - var(--cut-size)) 100%, 0 100%, 0 var(--cut-size));
-    z-index: -1;
-  }
-  .hud-panel::after {
-    content: '';
-    @apply absolute inset-[1px] pointer-events-none bg-card;
-    clip-path: polygon(calc(var(--cut-size) - 1px) 0, 100% 0, 100% calc(100% - calc(var(--cut-size) - 1px)), calc(100% - calc(var(--cut-size) - 1px)) 100%, 0 100%, 0 calc(var(--cut-size) - 1px));
-    z-index: -1;
+    @apply relative bg-card text-card-foreground p-6 border border-border;
+    box-shadow: 0 0 var(--neon-blur) hsl(var(--primary) / 0.3);
+    transition: box-shadow 0.2s ease;
   }
 
-  /* BOTONES DEL SISTEMA */
-  .btn-sys {
-    @apply inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-[0.15em] text-xs px-6 py-2 bg-transparent text-foreground transition-none outline-none select-none cursor-pointer relative;
-    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  .hud-panel:hover {
+    box-shadow: 0 0 calc(var(--neon-blur) * 2) hsl(var(--primary) / 0.6);
   }
-  
+
+  /* BOTONES NEÓN */
+  .btn-sys {
+    @apply inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-[0.15em] text-xs px-6 py-2 bg-transparent text-foreground border border-border outline-none select-none cursor-pointer relative transition-all duration-200;
+  }
+
   .btn-sys::before {
     content: '';
-    @apply absolute inset-0 bg-border z-[-2];
-  }
-  .btn-sys::after {
-    content: '';
-    @apply absolute inset-[1px] bg-background z-[-1] transition-none;
+    @apply absolute inset-0 bg-border opacity-0 transition-opacity duration-200;
   }
 
-  .btn-sys:hover::after, .btn-sys:focus::after {
-    @apply bg-primary;
+  .btn-sys:hover::before {
+    @apply opacity-20;
   }
-  .btn-sys:hover, .btn-sys:focus {
-    @apply text-primary-foreground;
+
+  .btn-sys:hover {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 var(--neon-blur) hsl(var(--primary) / 0.5);
+    @apply text-primary;
   }
 
   .btn-sys:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
   }
-  
-  /* MICRO-ANOMALÍA (Hover crudo) */
-  .glitch-hover:hover {
-    transform: translate(-1px, 1px);
-    color: hsl(var(--primary));
+
+  /* TABLAS DE INVENTARIO (estilo terminal mejorado) */
+  .table-sys {
+    @apply w-full border-collapse;
+  }
+
+  .table-sys th {
+    @apply font-display text-xs tracking-wider uppercase border-b border-border text-left p-3;
+  }
+
+  .table-sys td {
+    @apply p-3 border-b border-border font-mono text-sm;
+  }
+
+  .table-sys tbody tr:hover {
+    @apply bg-border/10;
+    box-shadow: 0 0 calc(var(--neon-blur) / 2) hsl(var(--primary) / 0.3);
+  }
+
+  /* EFECTOS DE TEXTO */
+  .glitch-text {
+    position: relative;
+    animation: glitch 3s infinite;
+  }
+
+  @keyframes glitch {
+    0%, 100% { transform: none; opacity: 1; }
+    7% { transform: skew(-0.5deg, -0.9deg); opacity: 0.75; }
+    10% { transform: none; opacity: 1; }
+    27% { transform: none; opacity: 1; }
+    30% { transform: skew(0.8deg, -0.1deg); opacity: 0.75; }
+    35% { transform: none; opacity: 1; }
+    52% { transform: none; opacity: 1; }
+    55% { transform: skew(-1deg, 0.2deg); opacity: 0.75; }
+    50% { transform: none; opacity: 1; }
+  }
+
+  .neon-border {
+    border: 1px solid hsl(var(--primary));
+    box-shadow: 0 0 var(--neon-blur) hsl(var(--primary) / 0.5);
   }
 }

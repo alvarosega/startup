@@ -3,38 +3,41 @@
 namespace App\Http\Requests\Admin\User;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use App\Traits\ValidatesGlobalIdentity; // <--- OBLIGATORIO
 
 class UpdateUserRequest extends FormRequest
 {
+    use ValidatesGlobalIdentity; // <--- USAR
+
     public function authorize(): bool { return true; }
 
-    protected function prepareForValidation()
+    protected function prepareForValidation(): void
     {
-        if ($this->has('phone')) {
-            $phone = str_replace(' ', '', $this->phone);
-            if (!str_starts_with($phone, '+')) {
-                $this->merge(['phone' => '+591' . $phone]);
-            } else {
-                $this->merge(['phone' => $phone]);
-            }
-        }
+        // Eliminamos la lógica manual de +591 y usamos el estándar del sistema
+        $this->normalizeIdentityData();
     }
 
     public function rules(): array
     {
-        // Obtenemos el usuario de la ruta para ignorar su ID
-        $userId = $this->route('user')->id;
-
         return [
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name'  => ['required', 'string', 'max:255'],
-            'phone'      => ['required', 'string', Rule::unique('users', 'phone')->ignore($userId)],
-            'email'      => ['nullable', 'email', Rule::unique('users', 'email')->ignore($userId)],
-            'password'   => ['nullable', 'string', 'min:6'], // Opcional al editar
+            // Mantenemos 'type' solo si permites editar otros silos desde aquí. 
+            // Si el módulo es 100% Customer, 'type' debería ser opcional o fijo.
+            'type'       => ['required', 'in:admin,customer,driver'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name'  => ['required', 'string', 'max:100'],
+            
+            // Inyectamos el ID para que la regla Unique ignore al usuario actual
+            'phone'      => $this->globalPhoneRules($this->route('user')),
+            'email'      => $this->globalEmailRules($this->route('user')),
+            
+            'password'   => ['nullable', 'string', 'min:6'],
             'role_id'    => ['required', 'exists:roles,id'],
-            'branch_id'  => ['nullable', 'exists:branches,id'],
+            'branch_id'  => ['nullable', 'string', 'exists:branches,id'],
             'is_active'  => ['boolean'],
+            
+            // Campos de apoyo (se validan pero solo se usan si el type es driver)
+            'license_number' => ['nullable', 'string'],
+            'license_plate'  => ['nullable', 'string'],
         ];
     }
 }

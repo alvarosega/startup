@@ -264,21 +264,3 @@ const submit = () => {
 </div>
     </ShopLayout>
 </template> 
-<style scoped>
-.custom-tel-input { 
-    @apply w-full rounded-2xl border-input bg-background/50 text-base h-[52px] transition-all duration-300 border font-bold;
-}
-.custom-tel-input:focus-within { 
-    @apply border-primary ring-0 shadow-[0_0_20px_rgba(0,240,255,0.15)];
-}
-:deep(.vti__dropdown) { 
-    @apply bg-transparent px-3 hover:bg-muted transition-colors !important;
-    border-radius: 1rem 0 0 1rem !important; 
-}
-:deep(.vti__input) { 
-    @apply bg-transparent !important;
-}
-
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-muted-foreground/20 rounded-full; }
-</style>

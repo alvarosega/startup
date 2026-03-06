@@ -19,6 +19,8 @@ class UpsertBundleAction
                 'description' => $dto->description,
                 'fixed_price' => $dto->fixedPrice,
                 'is_active'   => $dto->isActive,
+                'starts_at'   => $dto->startsAt,
+                'ends_at'     => $dto->endsAt,
             ];
 
             if (!$bundle) {

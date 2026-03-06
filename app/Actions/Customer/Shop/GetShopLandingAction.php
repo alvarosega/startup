@@ -6,6 +6,7 @@ use App\Models\MarketZone;
 use App\Models\Bundle;
 use App\Http\Resources\Customer\Shop\ShopCategoryResource;
 use App\Http\Resources\Customer\Shop\ShopProductResource;
+use Carbon\Carbon;
 
 class GetShopLandingAction
 {
@@ -27,18 +28,15 @@ class GetShopLandingAction
         })->filter()->keyBy('slug');
 
         // 2. Obtener Bundles (Cero conversiones binarias, uso de String puro)
-        $bundles = Bundle::where('branch_id', $branchId)
+        $bundles = Bundle::query()
+            ->where('branch_id', $branchId)
             ->where('is_active', true)
-            ->latest()
-            ->get()
-            ->map(fn($bundle) => [
-                'id'            => $bundle->id, // UUID String nativo
-                'name'          => $bundle->name,
-                'image_url'     => $bundle->image_path ? asset('storage/' . $bundle->image_path) : null,
-                'slug'          => $bundle->slug,
-                'type'          => 'bundle',
-                'price_display' => $bundle->fixed_price ? 'Bs ' . number_format($bundle->fixed_price, 2) : 'Ver Precio'
-            ]);
+            ->where(function ($query) {
+                // Trae los que no tienen límite o cuyo límite es en el futuro
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', Carbon::now());
+            })
+            ->get();
 
         return [
             'zones'   => $zonesData,

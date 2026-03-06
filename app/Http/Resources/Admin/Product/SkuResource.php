@@ -17,7 +17,10 @@ class SkuResource extends JsonResource
             'weight' => (float) $this->weight,
             'conversion_factor' => (float) $this->conversion_factor,
             'is_active' => (bool) $this->is_active,
-            'image_url' => $this->image_path ? Storage::url($this->image_path) : null,
+            // Fallback para imágenes específicas de variante
+            'image_url' => $this->image_path 
+                ? Storage::disk('public')->url($this->image_path) 
+                : asset('assets/img/placeholder.png'),
         ];
     }
 }

@@ -5,20 +5,23 @@ import { Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { debounce } from 'lodash';
 import { 
-    UserPlus, Search, Users, Shield, Building2, 
-    Briefcase, Truck, MoreVertical, MessageCircle, 
-    Phone, Edit, Trash2, MapPin, SlidersHorizontal 
+    UserPlus, Search, Users, Shield, 
+    Briefcase,  MessageCircle, 
+    SlidersHorizontal,
+    Cpu, Terminal, Zap,
+    Plus,  UserCheck, Key, Eye, MoreVertical, 
+    Edit, Trash2, X, RefreshCw, AlertTriangle, Building2,
+    Truck, Radar, MapPin, Mail, Phone, Lock, CheckCircle2 // <--- ASEGURARSE QUE ESTOS 4 ESTÉN AQUÍ
 } from 'lucide-vue-next';
 
-const props = defineProps({ 
+const props = defineProps({
     users: Object,
-    filters: Object,
-    roles: Array,
-    branches: Array
+    // ELIMINAR ESTA LÍNEA: roles: Array,
+    branches: Array,
+    filters: Object
 });
 
 const params = ref({
-    // Usamos el encadenamiento opcional (?.) para evitar el error de undefined
     search: props.filters?.search || '',
     role_id: props.filters?.role_id || '',
     branch_id: props.filters?.branch_id || '',
@@ -27,40 +30,78 @@ const showMobileFilters = ref(false);
 const activeMenuUserId = ref(null);
 
 /**
- * ESTILOS SEMÁNTICOS POR ROL
- * Mapea la clave del rol a colores y etiquetas específicas
+ * ESTILOS NEÓN POR ROL (adaptados a paleta ciberpunk)
  */
 const getRoleStyle = (roleKey) => {
     const key = roleKey || 'unknown';
     switch (key) {
         case 'super_admin': 
-            return { bg: 'bg-violet-600', text: 'text-violet-600', border: 'border-violet-200', label: 'Global Admin' };
+            return { 
+                bg: 'bg-primary', 
+                text: 'text-primary', 
+                border: 'border-primary/30',
+                neon: 'shadow-neon-primary',
+                icon: Shield,
+                label: 'GLOBAL_ADMIN',
+                scanline: 'bg-primary/20'
+            };
         case 'branch_admin': 
-            return { bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-200', label: 'Gerente' };
+            return { 
+                bg: 'bg-secondary', 
+                text: 'text-secondary', 
+                border: 'border-secondary/30',
+                neon: 'shadow-neon-secondary',
+                icon: Building2,
+                label: 'BRANCH_ADMIN',
+                scanline: 'bg-secondary/20'
+            };
         case 'driver': 
-            return { bg: 'bg-amber-500', text: 'text-amber-600', border: 'border-amber-200', label: 'Conductor' };
+            return { 
+                bg: 'bg-accent', 
+                text: 'text-accent', 
+                border: 'border-accent/30',
+                neon: 'shadow-neon-accent',
+                icon: Truck,
+                label: 'DRIVER_UNIT',
+                scanline: 'bg-accent/20'
+            };
         case 'customer': 
-            return { bg: 'bg-emerald-500', text: 'text-emerald-600', border: 'border-emerald-200', label: 'Cliente' };
+            return { 
+                bg: 'bg-cyan-500', 
+                text: 'text-cyan-500', 
+                border: 'border-cyan-500/30',
+                neon: 'shadow-neon-cyan',
+                icon: Users,
+                label: 'CUSTOMER',
+                scanline: 'bg-cyan-500/20'
+            };
         default: 
-            return { bg: 'bg-slate-600', text: 'text-slate-600', border: 'border-slate-200', label: 'Staff' };
+            return { 
+                bg: 'bg-muted-foreground', 
+                text: 'text-muted-foreground', 
+                border: 'border-border',
+                neon: 'shadow-neon',
+                icon: Users,
+                label: 'STAFF',
+                scanline: 'bg-muted-foreground/20'
+            };
     }
 };
 
 /**
- * AGRUPACIÓN POR SUCURSAL
- * Clasifica a los usuarios según su asignación geográfica o funcional
+ * AGRUPACIÓN POR SUCURSAL (silos)
  */
 const groupedUsers = computed(() => {
     if (!props.users.data) return {};
     return props.users.data.reduce((acc, user) => {
-        let groupName = 'Sin Sucursal Asignada';
+        let groupName = 'SILO_NO_ASIGNADO';
         
         if (user.role_key === 'super_admin') {
-            groupName = 'Administración Global';
+            groupName = 'COMANDO_GLOBAL';
         } else if (user.type === 'driver') {
-            groupName = 'Logística / Delivery';
+            groupName = 'LOGÍSTICA//DELIVERY';
         } else if (user.branch) {
-            groupName = user.branch;
+            groupName = user.branch.toUpperCase().replace(/\s+/g, '_');
         }
 
         if (!acc[groupName]) acc[groupName] = [];
@@ -82,7 +123,7 @@ const toggleMenu = (userId) => {
 const closeMenu = () => activeMenuUserId.value = null;
 
 const deleteUser = (user) => {
-    if (confirm(`¿Estás seguro de eliminar a ${user.name}?`)) {
+    if (confirm(`⚠️ CONFIRMAR ELIMINACIÓN // ${user.name}`)) {
         router.delete(route('admin.users.destroy', user.id), {
             preserveScroll: true,
             onSuccess: () => closeMenu()
@@ -106,176 +147,336 @@ const clearFilters = () => {
     <AdminLayout>
         <template #header>
             <div class="flex items-center justify-between pt-1 pb-1">
-                <div>
-                    <h1 class="text-2xl font-display font-black tracking-tight text-foreground leading-none">
-                        Equipo y Clientes
+                <div class="relative group/header">
+                    <h1 class="text-2xl font-display font-black tracking-tight text-foreground leading-none glitch-text" 
+                        data-text="EQUIPO Y CLIENTES">
+                        EQUIPO Y CLIENTES
                     </h1>
-                    <p class="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-widest">
-                        Gestión Unificada de Silos
+                    <p class="text-[10px] text-primary font-mono mt-1 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <Cpu :size="12" class="animate-pulse" />
+                        GESTIÓN DE SILOS // SISTEMA ACTIVO
+                        <Terminal :size="12" class="animate-pulse" />
                     </p>
+                    <!-- Línea de escaneo -->
+                    <div class="absolute -bottom-2 left-0 w-0 h-[1px] bg-primary group-hover/header:w-full transition-all duration-700"></div>
                 </div>
                 <Link :href="route('admin.users.create')" 
-                      class="hidden md:flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-                    <UserPlus :size="16" /> <span>Nuevo Usuario</span>
+                      class="hidden md:flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-bold border border-primary/50 relative overflow-hidden group/btn">
+                    <UserPlus :size="16" class="relative z-10" /> 
+                    <span class="relative z-10">NUEVO_USUARIO</span>
+                    <!-- Efecto scan -->
+                    <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500"></span>
+                    <!-- Esquinas -->
+                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
+                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
+                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
+                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground/50"></span>
                 </Link>
             </div>
         </template>
 
         <div class="space-y-5 pb-32 md:pb-12 relative">
             
-            <div class="sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/80 backdrop-blur-xl border-b border-border/40 transition-all">
+            <!-- Barra de búsqueda estilo terminal -->
+            <div class="sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/80 backdrop-blur-xl border-b border-primary/20 transition-all">
                 <div class="flex gap-2">
-                    <div class="relative flex-1 group">
-                        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" :size="16" />
+                    <div class="relative flex-1 group/search">
+                        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/search:text-primary transition-colors" :size="16" />
                         <input 
                             v-model="params.search" 
                             type="text" 
-                            placeholder="Buscar en todos los silos (Nombre, Email, Tel...)" 
-                            class="w-full pl-9 pr-4 py-2.5 bg-card/50 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                            placeholder="> BUSCAR EN SILOS // NOMBRE, EMAIL, TEL..." 
+                            class="w-full pl-9 pr-4 py-2.5 bg-card/50 border border-border font-mono text-sm focus:border-primary focus:shadow-neon-primary transition-all outline-none"
                         >
+                        <!-- Efecto de escritura -->
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary animate-pulse"></div>
                     </div>
                     <button @click="showMobileFilters = true" 
-                            class="flex items-center justify-center w-10 h-10 bg-card border border-border rounded-xl text-muted-foreground hover:text-primary hover:border-primary transition-all relative">
-                        <SlidersHorizontal :size="18" />
+                            class="flex items-center justify-center w-10 h-10 bg-card border border-border hover:border-primary hover:shadow-neon-primary transition-all relative group/filter">
+                        <SlidersHorizontal :size="18" class="group-hover/filter:text-primary transition-colors" />
                         <span v-if="params.role_id || params.branch_id" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+                        <!-- Esquinas -->
+                        <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
+                        <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
+                        <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
+                        <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
                     </button>
                 </div>
             </div>
 
+            <!-- Lista de usuarios -->
             <div v-if="users.data.length > 0" class="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
                 
                 <div v-for="(groupUsers, groupName) in groupedUsers" :key="groupName" class="space-y-4">
                     
-                    <div class="flex items-center gap-3 px-1">
-                        <div class="p-1.5 rounded-lg bg-muted text-muted-foreground">
-                            <Building2 v-if="groupName !== 'Sin Sucursal Asignada' && groupName !== 'Logística / Delivery'" :size="14" />
-                            <Truck v-else-if="groupName === 'Logística / Delivery'" :size="14" />
-                            <MapPin v-else :size="14" />
+                    <div class="flex items-center gap-3 px-1 group/sector">
+                        <div class="p-1.5 bg-primary/10 text-primary border border-primary/30">
+                            <Radar :size="14" />
                         </div>
-                        <h3 class="text-[11px] font-black text-foreground uppercase tracking-[0.2em]">{{ groupName }}</h3>
-                        <div class="h-px bg-gradient-to-r from-border to-transparent flex-1"></div>
-                        <span class="text-[10px] font-black text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full border border-border">
-                            {{ groupUsers.length }}
+                        <h3 class="text-[11px] font-mono font-bold text-foreground uppercase tracking-[0.2em] relative">
+                            [{{ groupName }}]
+                            <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-primary group-hover/sector:w-full transition-all duration-500"></span>
+                        </h3>
+                        <div class="h-px bg-gradient-to-r from-primary/30 to-transparent flex-1"></div>
+                        <span class="text-[10px] font-mono text-primary bg-primary/10 px-2 py-0.5 border border-primary/30">
+                            {{ String(groupUsers.length).padStart(2, '0') }}_UNIDADES
                         </span>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div v-for="user in groupUsers" :key="user.id" 
-                             class="group relative bg-card rounded-2xl p-4 border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all flex items-center gap-4">
+                            class="group/card relative bg-card transition-all duration-500 p-4 flex items-center gap-4"
+                            :class="activeMenuUserId === user.id ? 'z-50 overflow-visible border-primary/80 shadow-neon-primary' : 'z-10 overflow-hidden border-border hover:border-primary/50 border'">
                             
-                            <div class="relative shrink-0">
-                                <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg transition-transform group-hover:rotate-3"
-                                     :class="getRoleStyle(user.role_key).bg">
-                                    {{ (user.name || '?').charAt(0).toUpperCase() }}
+                            <div class="relative w-10 h-10 shrink-0 overflow-hidden border border-primary/30 bg-background group/avatar z-10">
+                                <img v-if="user.avatar?.type === 'image'" :src="user.avatar.source" class="w-full h-full object-cover grayscale group-hover/avatar:grayscale-0 transition-all" />
+                                <div v-else class="w-full h-full flex items-center justify-center bg-primary/5 text-primary">
+                                    <img :src="`/assets/avatars/${user.avatar?.source || 'avatar_1.svg'}`" class="w-6 h-6 opacity-70 group-hover/avatar:opacity-100 transition-opacity" />
                                 </div>
-                                <div class="absolute -bottom-1 -right-1 bg-background rounded-full p-1.5 ring-2 ring-card shadow-sm"
-                                     :class="getRoleStyle(user.role_key).text">
-                                    <Shield v-if="user.type === 'admin'" :size="12" fill="currentColor" />
-                                    <Truck v-else-if="user.type === 'driver'" :size="12" />
-                                    <Users v-else :size="12" />
-                                </div>
+                                <div class="absolute top-0 right-0 w-1 h-1 bg-primary"></div>
                             </div>
 
-                            <div class="flex-1 min-w-0">
+                            <div class="absolute inset-0 pointer-events-none opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 z-0">
+                                <div class="absolute top-0 left-0 w-full h-[1px] bg-primary/50 animate-scanline"></div>
+                            </div>
+
+                            <div class="flex-1 min-w-0 relative z-20">
                                 <div class="flex justify-between items-start mb-0.5">
-                                    <h4 class="font-bold text-foreground text-sm truncate pr-4 group-hover:text-primary transition-colors">
+                                    <h4 class="font-mono font-bold text-foreground text-sm truncate pr-4 group-hover/card:text-primary transition-colors">
                                         {{ user.name }}
                                     </h4>
                                     
                                     <div class="relative">
-                                        <button @click.stop="toggleMenu(user.id)" class="p-1.5 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                                        <button type="button" @click.stop="toggleMenu(user.id)" 
+                                                class="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all border border-transparent hover:border-primary/30 relative group/menu">
                                             <MoreVertical :size="16" />
+                                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/menu:opacity-100"></span>
+                                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/menu:opacity-100"></span>
+                                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/menu:opacity-100"></span>
+                                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/menu:opacity-100"></span>
                                         </button>
                                         
                                         <div v-if="activeMenuUserId === user.id" 
-                                             class="absolute right-0 top-8 z-50 w-36 bg-popover/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 origin-top-right">
+                                            class="absolute right-0 top-8 z-[9999] w-40 bg-card border border-primary/30 shadow-neon-primary animate-in fade-in zoom-in-95 origin-top-right flex flex-col">
+                                            
                                             <Link :href="route('admin.users.edit', user.id)" 
-                                                  class="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                                                <Edit :size="13" /> Editar
+                                                class="flex items-center gap-2 w-full px-4 py-3 text-xs font-mono text-foreground hover:bg-primary/10 hover:text-primary transition-colors relative group/edit cursor-pointer">
+                                                <Edit :size="13" class="pointer-events-none" /> 
+                                                <span class="pointer-events-none">EDITAR</span>
+                                                <span class="absolute left-0 w-0 h-full bg-primary/10 group-hover/edit:w-full transition-all duration-300 -z-10"></span>
                                             </Link>
-                                            <div class="h-px bg-border/50 mx-2"></div>
-                                            <button @click="deleteUser(user)" 
-                                                    class="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors">
-                                                <Trash2 :size="13" /> Eliminar
+                                            
+                                            <div class="h-px bg-border mx-2"></div>
+                                            
+                                            <button type="button" @click.stop="deleteUser(user)" 
+                                                    class="flex items-center gap-2 w-full px-4 py-3 text-xs font-mono text-destructive hover:bg-destructive/10 transition-colors relative group/delete cursor-pointer text-left">
+                                                <Trash2 :size="13" class="pointer-events-none" /> 
+                                                <span class="pointer-events-none">ELIMINAR</span>
+                                                <span class="absolute left-0 w-0 h-full bg-destructive/10 group-hover/delete:w-full transition-all duration-300 -z-10"></span>
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <p class="text-[10px] text-muted-foreground truncate mb-3">{{ user.email }}</p>
+                                <div class="space-y-0.5 mb-3">
+                                    <p class="text-[10px] font-mono text-muted-foreground truncate flex items-center gap-1.5">
+                                        <Mail :size="10" class="text-primary/50" /> {{ user.email }}
+                                    </p>
+                                    <p v-if="user.phone" class="text-[10px] font-mono text-primary truncate flex items-center gap-1.5">
+                                        <Phone :size="10" class="animate-pulse" /> 
+                                        <span class="tracking-widest">{{ user.phone }}</span>
+                                    </p>
+                                </div>
                                 
                                 <div class="flex items-center gap-2">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border shadow-sm"
-                                          :class="[getRoleStyle(user.role_key).text, getRoleStyle(user.role_key).border, 'bg-card']">
-                                        {{ user.role_label }}
+                                    <span class="inline-flex items-center px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider border border-cyan-500/50 text-cyan-500 bg-cyan-500/10">
+                                        CLIENTE
                                     </span>
-                                    
-                                    <span v-if="user.type === 'customer'" class="text-[8px] font-bold text-emerald-600/40 uppercase italic">
-                                        Silo Cliente
+                                    <span v-if="!user.is_active" class="text-[8px] font-mono text-destructive uppercase tracking-wider border border-destructive/30 px-1.5 bg-destructive/5 flex items-center gap-1">
+                                        <Lock :size="8" /> LOCKED
+                                    </span>
+                                    <span v-else class="text-[8px] font-mono text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                                        <CheckCircle2 :size="8" /> ONLINE
                                     </span>
                                 </div>
                             </div>
 
-                            <div v-if="user.phone" class="shrink-0 pl-3 border-l border-border/50">
+                            <div v-if="user.phone" class="shrink-0 pl-3 border-l border-border/50 relative z-20">
                                 <a :href="getWhatsappLink(user.phone)" target="_blank"
-                                   class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center transition-all hover:bg-emerald-500 hover:text-white shadow-sm active:scale-90"
-                                   title="Contactar por WhatsApp">
+                                class="w-9 h-9 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 flex items-center justify-center transition-all hover:bg-emerald-500 hover:text-white hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] relative group/whatsapp"
+                                title="CONTACTAR // WHATSAPP">
                                     <MessageCircle :size="18" stroke-width="2.5" />
                                 </a>
                             </div>
-
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div v-else class="flex flex-col items-center justify-center py-24 text-center opacity-40">
-                <div class="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                    <Search :size="40" />
+            <!-- Estado vacío -->
+            <div v-else class="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border bg-card/30">
+                <div class="w-20 h-20 border-2 border-border flex items-center justify-center mb-4 relative">
+                    <Search :size="40" class="text-muted-foreground" />
+                    <!-- Scanline animada -->
+                    <div class="absolute inset-0 overflow-hidden">
+                        <div class="w-full h-[2px] bg-primary/30 animate-scan-slow"></div>
+                    </div>
                 </div>
-                <h3 class="text-lg font-bold text-foreground">Sin registros encontrados</h3>
-                <p class="text-xs text-muted-foreground max-w-[200px] mx-auto mt-1">
-                    No hay usuarios que coincidan con los filtros aplicados en los silos.
+                <h3 class="text-lg font-mono font-bold text-foreground glitch-text" data-text="SIN_REGISTROS">SIN_REGISTROS</h3>
+                <p class="text-xs font-mono text-muted-foreground max-w-[200px] mx-auto mt-1">
+                    NO HAY USUARIOS QUE COINCIDAN CON LOS FILTROS APLICADOS EN LOS SILOS.
                 </p>
-                <button @click="clearFilters" class="mt-6 text-xs font-bold text-primary hover:underline">
-                    Limpiar todos los filtros
+                <button @click="clearFilters" class="mt-6 text-xs font-mono text-primary hover:text-primary/80 transition-colors relative group/clear">
+                    LIMPIAR FILTROS //
+                    <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-primary group-hover/clear:w-full transition-all duration-300"></span>
                 </button>
             </div>
         </div>
 
+        <!-- Botón flotante mobile -->
         <Link :href="route('admin.users.create')" 
-              class="md:hidden fixed bottom-[100px] right-6 z-40 w-14 h-14 bg-primary text-primary-foreground rounded-2xl shadow-2xl flex items-center justify-center active:scale-90 transition-transform border border-white/20">
+              class="md:hidden fixed bottom-[100px] right-6 z-40 w-14 h-14 bg-primary text-primary-foreground flex items-center justify-center border border-primary-foreground/50 shadow-neon-primary active:scale-90 transition-transform relative group/mobile">
             <UserPlus :size="28" stroke-width="2.5" />
+            <!-- Efecto de pulso -->
+            <span class="absolute inset-0 border border-primary animate-ping opacity-0 group-hover/mobile:opacity-100"></span>
+            <!-- Esquinas -->
+            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground"></span>
+            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground"></span>
+            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground"></span>
+            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground"></span>
         </Link>
 
+        <!-- Mobile Filters Modal -->
         <div v-if="showMobileFilters" class="fixed inset-0 z-[100] md:hidden flex items-end">
             <div class="absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity animate-in fade-in" @click="showMobileFilters = false"></div>
             
-            <div class="relative w-full bg-card rounded-t-[40px] shadow-2xl border-t border-border p-8 pb-12 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full duration-500">
-                <div class="w-16 h-1.5 rounded-full bg-muted mx-auto mb-8"></div>
+            <div class="relative w-full bg-card border-t border-primary/30 p-8 pb-12 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full duration-500">
+                <!-- Indicador superior -->
+                <div class="w-16 h-1 bg-primary/30 mx-auto mb-8"></div>
                 
                 <div class="flex items-center justify-between mb-8">
-                    <h2 class="text-xl font-black text-foreground uppercase tracking-tighter">Filtrar Equipo</h2>
-                    <button @click="clearFilters" class="text-[10px] font-black text-primary bg-primary/10 px-3 py-1.5 rounded-full uppercase">
-                        Reiniciar
+                    <h2 class="text-xl font-mono font-bold text-foreground uppercase tracking-tighter flex items-center gap-2">
+                        <Terminal :size="18" class="text-primary" />
+                        FILTRAR EQUIPO
+                    </h2>
+                    <button @click="clearFilters" class="text-[10px] font-mono text-primary bg-primary/10 px-3 py-1.5 border border-primary/30 uppercase">
+                        REINICIAR
                     </button>
                 </div>
 
                 <UserFilters v-model="params" :roles="roles" :branches="branches" layout="vertical" />
 
                 <button @click="showMobileFilters = false" 
-                        class="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-sm uppercase tracking-widest mt-10 shadow-xl shadow-primary/20 active:scale-95 transition-transform">
-                    Ver {{ users.total }} Resultados
+                        class="w-full bg-primary text-primary-foreground py-4 font-mono text-sm uppercase tracking-widest mt-10 shadow-neon-primary active:scale-95 transition-transform relative group/apply">
+                    VER {{ users.total }} RESULTADOS
+                    <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/apply:translate-y-0 transition-transform duration-500"></span>
                 </button>
             </div>
         </div>
 
+        <!-- Overlay para cerrar menús -->
         <div v-if="activeMenuUserId" @click="closeMenu" class="fixed inset-0 z-40 bg-transparent"></div>
 
     </AdminLayout>
 </template>
 
 <style scoped>
-.font-display { font-family: 'Space Grotesk', sans-serif; }
-.shadow-xs { shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+/* Animaciones personalizadas */
+@keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(1000%); }
+}
+
+.animate-scanline {
+    animation: scanline 8s linear infinite;
+}
+
+@keyframes scan-slow {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(1000%); }
+}
+
+.animate-scan-slow {
+    animation: scan-slow 12s linear infinite;
+}
+
+/* Efecto glitch mejorado */
+.glitch-text {
+    position: relative;
+    animation: glitch-skew 4s infinite linear alternate-reverse;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+}
+
+.glitch-text::before {
+    color: #0ff;
+    z-index: -1;
+    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+    color: #f0f;
+    z-index: -2;
+    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-skew {
+    0% { transform: skew(0deg); }
+    20% { transform: skew(0deg); }
+    21% { transform: skew(2deg); }
+    22% { transform: skew(0deg); }
+    80% { transform: skew(0deg); }
+    81% { transform: skew(-2deg); }
+    82% { transform: skew(0deg); }
+    100% { transform: skew(0deg); }
+}
+
+@keyframes glitch-anim-1 {
+    0% { clip-path: inset(20% 0 30% 0); }
+    20% { clip-path: inset(50% 0 10% 0); }
+    40% { clip-path: inset(10% 0 60% 0); }
+    60% { clip-path: inset(80% 0 5% 0); }
+    80% { clip-path: inset(30% 0 40% 0); }
+    100% { clip-path: inset(40% 0 20% 0); }
+}
+
+@keyframes glitch-anim-2 {
+    0% { clip-path: inset(60% 0 10% 0); }
+    20% { clip-path: inset(20% 0 50% 0); }
+    40% { clip-path: inset(70% 0 5% 0); }
+    60% { clip-path: inset(10% 0 70% 0); }
+    80% { clip-path: inset(40% 0 30% 0); }
+    100% { clip-path: inset(30% 0 40% 0); }
+}
+
+/* Sombras neón personalizadas */
+.shadow-neon-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+.shadow-neon-secondary {
+    box-shadow: 0 0 20px hsl(var(--secondary) / 0.3);
+}
+
+.shadow-neon-accent {
+    box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
+}
+
+.shadow-neon-cyan {
+    box-shadow: 0 0 20px #00ffff80;
+}
+
+/* Efecto de borde neón para inputs */
+input:focus {
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2), 0 0 20px hsl(var(--primary) / 0.3);
+}
 </style>

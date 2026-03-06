@@ -1,11 +1,13 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue'; // <--- AÑADIR 'computed' AQUÍ
 import { router, Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { 
-    Search, Plus, ChevronDown, ChevronUp, Edit3, Trash2, 
+    Search, Plus, ChevronDown, ChevronRight, Edit3, Trash2, 
     AlertTriangle, CheckCircle2, Filter, PackageSearch, Barcode,
-    Layers, Tag
+    Layers, Tag, Cpu, Terminal, Wifi, WifiOff, GitBranch,
+    Zap, Eye, EyeOff, Hash, Package, Box, DollarSign,
+    Scale, ArrowRight, Shield
 } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
@@ -13,17 +15,23 @@ const props = defineProps({
     products: Object,
     filters: Object,
     brands: Array,
-    categories: Array
+    categories: Array,
+    stats: Object // Añadir esta prop
 });
 
 // --- ESTADO ---
-const search = ref(props.filters.search || '');
+const search = ref(props.filters?.search || '');
 const expandedRows = ref(new Set());
+const hoveredProduct = ref(null);
+const viewMode = ref('table'); // 'table' o 'grid'
 
 // --- LÓGICA DE ACORDEÓN ---
 const toggleRow = (id) => {
-    if (expandedRows.value.has(id)) expandedRows.value.delete(id);
-    else expandedRows.value.add(id);
+    if (expandedRows.value.has(id)) {
+        expandedRows.value.delete(id);
+    } else {
+        expandedRows.value.add(id);
+    }
 };
 
 // --- BÚSQUEDA REACTIVA ---
@@ -31,150 +39,456 @@ watch(search, debounce((value) => {
     router.get(route('admin.products.index'), { search: value }, { preserveState: true, replace: true });
 }, 300));
 
+// --- ACCIONES ---
 const deleteProduct = (id) => {
-    if (confirm('¿Mover producto y variantes a la papelera?')) {
-        router.delete(route('admin.products.destroy', id));
+    if (confirm('¿CONFIRMAR ELIMINACIÓN // PRODUCTO MAESTRO Y TODAS SUS VARIANTES?')) {
+        router.delete(route('admin.products.destroy', id), { preserveScroll: true });
     }
 };
+
+// --- UTILIDADES ---
+const getProductCode = (id) => {
+    return `PRD_${String(id).slice(-4).toUpperCase()}`;
+};
+
+const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
+};
+
+const displayStats = computed(() => [
+    { label: 'MAESTROS_TOTAL', value: props.stats.total, icon: Package, color: 'text-primary' },
+    { label: 'MAESTROS_ACTIVOS', value: props.stats.active, icon: CheckCircle2, color: 'text-cyan-500' },
+    { label: 'REGLAS_SKU', value: props.stats.total_skus, icon: Hash, color: 'text-purple-500' },
+    { label: 'SIN_VARIANTES', value: props.stats.incomplete, icon: AlertTriangle, color: 'text-destructive' },
+]);
 </script>
 
 <template>
     <AdminLayout>
-        <Head title="Catálogo de Productos" />
+        <Head title="Catálogo Maestro" />
 
-        <div class="max-w-7xl mx-auto space-y-6 pb-20">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 class="text-3xl font-black uppercase tracking-tighter">Catálogo</h1>
-                    <p class="text-xs font-bold text-muted-foreground uppercase">Gestión de Productos y Variantes</p>
+        <div class="max-w-7xl mx-auto space-y-6 pb-20 px-4 md:px-0">
+            
+            <!-- Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-primary/30 pb-6 relative group/header">
+                <!-- Efecto de escaneo -->
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <div class="relative z-10">
+                    <h1 class="text-3xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_12px_hsl(var(--primary)/0.6)] leading-none"
+                        data-text="CATÁLOGO MAESTRO">
+                        CATÁLOGO MAESTRO
+                    </h1>
+                    <p class="text-[10px] font-mono text-muted-foreground mt-1 flex items-center gap-2">
+                        <Cpu :size="12" class="text-primary animate-pulse" />
+                        CONTROL CENTRAL DE INVENTARIO Y VARIANTES
+                        <Terminal :size="12" class="text-primary animate-pulse" />
+                    </p>
                 </div>
-                <Link :href="route('admin.products.create')" class="btn btn-primary shadow-lg shadow-primary/20">
-                    <Plus :size="18" class="mr-2" /> Nuevo Producto
+                
+                <Link :href="route('admin.products.create')" 
+                      class="px-6 py-3 bg-primary text-primary-foreground font-mono text-xs border border-primary/50 relative overflow-hidden group/btn">
+                    <span class="flex items-center gap-2 relative z-10">
+                        <Plus :size="16" /> NUEVO PRODUCTO
+                    </span>
+                    <!-- Efecto scan -->
+                    <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500"></span>
+                    <!-- Esquinas -->
+                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
+                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
+                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
+                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground/50"></span>
                 </Link>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-card p-4 rounded-2xl border border-border shadow-sm">
-                <div class="relative md:col-span-2">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
-                    <input v-model="search" type="text" placeholder="Buscar por nombre o EAN de variante..." 
-                           class="form-input pl-10 h-11 bg-background border-none ring-1 ring-border focus:ring-2 focus:ring-primary">
+            <!-- Stats Dashboard -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div v-for="(stat, index) in displayStats" :key="index" 
+                    class="border border-border/50 p-4 relative group/stat">
+                    <div class="flex items-center justify-between">
+                        <component :is="stat.icon" :size="20" :class="stat.color" />
+                        <span class="text-[8px] font-mono text-primary/50">{{ stat.label }}</span>
+                    </div>
+                    <p class="text-2xl font-mono font-bold text-foreground mt-2">
+                        {{ String(stat.value).padStart(2, '0') }}
+                    </p>
+                    </div>
+            </div>
+
+            <!-- Search Bar y Filtros -->
+            <div class="flex flex-col md:flex-row gap-4 bg-background border border-border/50 p-4">
+                <div class="relative flex-1 group/search">
+                    <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/search:text-primary transition-colors" :size="16" />
+                    <input v-model="search" 
+                           type="text" 
+                           placeholder="> BUSCAR POR NOMBRE O EAN DE VARIANTE..." 
+                           class="w-full pl-12 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all">
+                    <!-- Efecto de escritura -->
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary animate-pulse"></div>
                 </div>
-                <select class="form-input h-11" @change="e => router.get(route('admin.products.index'), { status: e.target.value })">
-                    <option value="">Cualquier Salud</option>
-                    <option value="incomplete">Incompletos (Sin SKUs)</option>
-                    <option value="complete">Completos</option>
-                </select>
-                <div class="flex items-center justify-center text-xs font-black uppercase text-muted-foreground gap-2">
-                    <Filter :size="14" /> Filtros Avanzados
+                
+                <button class="px-6 py-3 border border-border/50 hover:border-primary hover:text-primary transition-all flex items-center gap-2 text-[10px] font-mono group/filter">
+                    <Filter :size="14" class="group-hover/filter:text-primary" /> FILTROS
+                    <!-- Esquinas -->
+                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/filter:opacity-100"></span>
+                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/filter:opacity-100"></span>
+                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/filter:opacity-100"></span>
+                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/filter:opacity-100"></span>
+                </button>
+            </div>
+
+            <!-- View Toggle -->
+            <div class="flex justify-end">
+                <div class="flex gap-1 border border-border/50 p-1">
+                    <button @click="viewMode = 'table'"
+                            class="px-3 py-1 text-[10px] font-mono transition-all"
+                            :class="viewMode === 'table' ? 'bg-primary/10 text-primary border-b border-primary' : 'text-muted-foreground'">
+                        TABLA
+                    </button>
+                    <button @click="viewMode = 'grid'"
+                            class="px-3 py-1 text-[10px] font-mono transition-all"
+                            :class="viewMode === 'grid' ? 'bg-primary/10 text-primary border-b border-primary' : 'text-muted-foreground'">
+                        GRID
+                    </button>
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-muted/30 border-b border-border">
-                        <tr class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            <th class="px-6 py-4 w-12 text-center">Salud</th>
-                            <th class="px-6 py-4">Producto / Maestro</th>
-                            <th class="px-6 py-4">Categoría / Marca</th>
-                            <th class="px-6 py-4 text-center">Variantes</th>
-                            <th class="px-6 py-4 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border/50">
-                        <template v-for="product in products.data" :key="product.id">
-                            <tr :class="[
-                                'hover:bg-muted/10 transition-colors',
-                                product.skus_count === 0 ? 'border-l-4 border-l-error bg-error/5' : 'border-l-4 border-l-transparent'
-                            ]">
-                                <td class="px-6 py-4 text-center">
-                                    <AlertTriangle v-if="product.skus_count === 0" class="text-error mx-auto" :size="20" />
-                                    <CheckCircle2 v-else class="text-success mx-auto" :size="20" />
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-border">
-                                            <img v-if="product.image_url" :src="product.image_url" class="object-cover w-full h-full">
-                                            <PackageSearch v-else :size="20" class="text-muted-foreground/40" />
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-black uppercase tracking-tight">{{ product.name }}</p>
-                                            <p class="text-[10px] font-mono text-muted-foreground">{{ product.id }}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] font-bold uppercase flex items-center gap-1">
-                                            <Layers :size="10" /> {{ product.category?.name || '---' }}
-                                        </span>
-                                        <span class="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-                                            <Tag :size="10" /> {{ product.brand?.name || '---' }}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <button @click="toggleRow(product.id)" 
-                                            class="badge gap-2 cursor-pointer hover:bg-primary hover:text-white transition-all py-3 px-4"
-                                            :class="product.skus_count === 0 ? 'badge-error' : 'badge-outline'">
-                                        {{ product.skus_count }} Variantes
-                                        <ChevronDown v-if="!expandedRows.has(product.id)" :size="14" />
-                                        <ChevronUp v-else :size="14" />
-                                    </button>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <div class="flex justify-end gap-2">
-                                        <Link :href="route('admin.products.skus.create', product.id)" 
-                                              class="btn btn-ghost btn-xs text-primary" title="Añadir Variantes">
-                                            <Plus :size="16" />
-                                        </Link>
-                                        <Link :href="route('admin.products.edit', product.id)" 
-                                              class="btn btn-ghost btn-xs" title="Editar Maestro">
-                                            <Edit3 :size="16" />
-                                        </Link>
-                                        <button @click="deleteProduct(product.id)" 
-                                                class="btn btn-ghost btn-xs text-error" title="Eliminar">
-                                            <Trash2 :size="16" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+            <!-- Tabla de Productos -->
+            <div class="border border-border/50 shadow-2xl overflow-hidden relative group/table">
+                <!-- Scanline superior -->
+                <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover/table:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <!-- Esquinas decorativas grandes -->
+                <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
+                <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
+                <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/30"></div>
+                <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/30"></div>
 
-                            <tr v-if="expandedRows.has(product.id)" class="bg-muted/5 animate-in fade-in zoom-in-95">
-                                <td colspan="5" class="px-6 py-4">
-                                    <div class="border-l-2 border-primary/30 ml-8 pl-6 space-y-3">
-                                        <div v-if="product.skus.length === 0" class="py-4 text-xs font-bold text-error flex items-center gap-2">
-                                            <AlertTriangle :size="14" /> Este producto no puede activarse sin variantes.
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-muted/10 border-b border-primary/30">
+                            <tr class="text-[9px] font-mono font-bold uppercase tracking-widest text-primary">
+                                <th class="px-6 py-5 w-12 text-center">ST</th>
+                                <th class="px-6 py-5">PRODUCTO MAESTRO</th>
+                                <th class="px-6 py-5">JERARQUÍA</th>
+                                <th class="px-6 py-5 text-center">ESTRUCTURA</th>
+                                <th class="px-6 py-5 text-right">OPERACIONES</th>
+                            </tr>
+                        </thead>
+                        
+                        <tbody class="divide-y divide-primary/10">
+                            <template v-for="product in products.data" :key="product.id">
+                                <!-- Fila principal -->
+                                <tr @mouseenter="hoveredProduct = product.id"
+                                    @mouseleave="hoveredProduct = null"
+                                    class="hover:bg-primary/5 transition-colors group/row relative">
+                                    
+                                    <!-- Estado -->
+                                    <td class="px-6 py-4 text-center">
+                                        <div class="relative">
+                                            <div class="w-3 h-3 rounded-full mx-auto" 
+                                                 :class="product.skus?.length === 0 
+                                                    ? 'bg-destructive animate-pulse shadow-[0_0_10px_hsl(var(--destructive))]' 
+                                                    : 'bg-cyan-500 shadow-[0_0_10px_hsl(var(--primary))]'">
+                                            </div>
                                         </div>
-                                        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            <div v-for="sku in product.skus" :key="sku.id" 
-                                                 class="bg-background border border-border p-3 rounded-xl flex justify-between items-center group">
-                                                <div class="flex items-center gap-3">
-                                                    <Barcode :size="14" class="text-muted-foreground" />
-                                                    <div>
-                                                        <p class="text-[11px] font-black uppercase">{{ sku.name }}</p>
-                                                        <p class="text-[9px] font-mono text-muted-foreground">{{ sku.code || 'SIN EAN' }}</p>
-                                                    </div>
-                                                </div>
-                                                <div class="flex items-center gap-4">
-                                                    <span class="text-xs font-black text-success">${{ sku.price }}</span>
-                                                    <Link :href="route('admin.skus.edit', sku.id)" class="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Edit3 :size="12" class="text-muted-foreground" />
-                                                    </Link>
+                                    </td>
+                                    
+                                    <!-- Producto -->
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-10 h-10 border border-primary/30 bg-background flex items-center justify-center overflow-hidden shrink-0 relative group/image">
+                                                <img v-if="product.image_url" 
+                                                     :src="product.image_url" 
+                                                     class="object-cover w-full h-full">
+                                                <PackageSearch v-else :size="18" class="text-primary/50" />
+                                                <!-- Efecto de escaneo -->
+                                                <div class="absolute inset-0 bg-gradient-to-b from-transparent via-primary/10 to-transparent translate-y-[-100%] group-hover/image:translate-y-[100%] transition-transform duration-700"></div>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-mono font-bold text-foreground truncate group-hover/row:text-primary transition-colors">
+                                                    {{ product.name }}
+                                                </p>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    <span class="text-[8px] font-mono text-primary/50">{{ getProductCode(product.id) }}</span>
+                                                    <span v-if="!product.is_active" 
+                                                          class="text-[8px] font-mono text-destructive flex items-center gap-1">
+                                                        <WifiOff :size="8" /> OFFLINE
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                    
+                                    <!-- Jerarquía -->
+                                    <td class="px-6 py-4">
+                                        <div class="space-y-1.5">
+                                            <span class="text-[8px] font-mono font-bold uppercase flex items-center gap-1.5 text-muted-foreground">
+                                                <Layers :size="10" class="text-primary" /> 
+                                                {{ product.category?.name || 'SIN CATEGORÍA' }}
+                                            </span>
+                                            <span class="text-[8px] font-mono font-bold uppercase flex items-center gap-1.5 text-muted-foreground">
+                                                <Tag :size="10" class="text-primary" /> 
+                                                {{ product.brand?.name || 'SIN MARCA' }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    
+                                    <!-- Estructura (SKUs) -->
+                                    <td class="px-6 py-4 text-center">
+                                        <button @click="toggleRow(product.id)" 
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 border transition-all relative group/skus"
+                                                :class="product.skus?.length === 0 
+                                                    ? 'border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10' 
+                                                    : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'">
+                                            <Box :size="12" />
+                                            <span class="text-[9px] font-mono font-bold">{{ product.skus?.length || 0 }} SKUs</span>
+                                            <component :is="expandedRows.has(product.id) ? ChevronDown : ChevronRight" 
+                                                       :size="12" 
+                                                       class="transition-transform duration-300" />
+                                            <!-- Esquinas -->
+                                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/skus:opacity-100"></span>
+                                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/skus:opacity-100"></span>
+                                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/skus:opacity-100"></span>
+                                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/skus:opacity-100"></span>
+                                        </button>
+                                    </td>
+                                    
+                                    <!-- Acciones -->
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 transition-opacity">
+                                            <Link :href="route('admin.products.skus.create', product.id)" 
+                                                  class="p-2 text-primary hover:bg-primary/10 border border-transparent hover:border-primary/30 transition-all relative group/add"
+                                                  title="AÑADIR VARIANTE">
+                                                <Plus :size="14" />
+                                                <span class="absolute -top-8 left-1/2 -translate-x-1/2 text-[8px] font-mono text-primary opacity-0 group-hover/add:opacity-100 whitespace-nowrap">
+                                                    AÑADIR SKU
+                                                </span>
+                                            </Link>
+                                            <Link :href="route('admin.products.edit', product.id)" 
+                                                  class="p-2 text-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/30 transition-all relative group/edit">
+                                                <Edit3 :size="14" />
+                                                <span class="absolute -top-8 left-1/2 -translate-x-1/2 text-[8px] font-mono text-primary opacity-0 group-hover/edit:opacity-100">
+                                                    EDITAR
+                                                </span>
+                                            </Link>
+                                            <button @click="deleteProduct(product.id)" 
+                                                    class="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30 transition-all relative group/delete">
+                                                <Trash2 :size="14" />
+                                                <span class="absolute -top-8 left-1/2 -translate-x-1/2 text-[8px] font-mono text-destructive opacity-0 group-hover/delete:opacity-100 whitespace-nowrap">
+                                                    ELIMINAR
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Fila expandida con variantes -->
+                                <tr v-if="expandedRows.has(product.id)" class="bg-muted/5">
+                                    <td colspan="5" class="p-0 border-b border-primary/30">
+                                        <div class="relative">
+                                            <!-- Línea conectora vertical -->
+                                            <div class="absolute left-16 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary via-primary/50 to-transparent"></div>
+                                            
+                                            <div class="px-8 py-6 ml-12 border-l-2 border-primary/30">
+                                                
+                                                <!-- Mensaje si no hay SKUs -->
+                                                <div v-if="product.skus?.length === 0" 
+                                                     class="border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
+                                                    <AlertTriangle :size="16" class="text-destructive animate-pulse" />
+                                                    <span class="text-[10px] font-mono text-destructive uppercase tracking-wider">
+                                                        PRODUCTO INCOMPLETO // AÑADE VARIANTES PARA COMERCIALIZARLO
+                                                    </span>
+                                                </div>
+
+                                                <!-- Tabla de variantes -->
+                                                <table v-else class="w-full text-left text-[10px] font-mono">
+                                                    <thead class="text-[8px] font-mono font-bold uppercase tracking-widest text-primary/70 border-b border-primary/30">
+                                                        <tr>
+                                                            <th class="pb-3 pl-2">VARIANTE</th>
+                                                            <th class="pb-3">CÓDIGO (EAN)</th>
+                                                            <th class="pb-3 text-center">FACTOR / PESO</th>
+                                                            <th class="pb-3 text-right">PRECIO REF.</th>
+                                                            <th class="pb-3 text-right">STOCK</th>
+                                                            <th class="pb-3 text-right">ACCIONES</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-primary/10">
+                                                        <tr v-for="sku in product.skus" :key="sku.id" 
+                                                            class="group/sku hover:bg-primary/5 transition-colors">
+                                                            <td class="py-3 pl-2">
+                                                                <div class="flex items-center gap-2">
+                                                                    <div class="w-6 h-6 border border-primary/30 bg-background flex items-center justify-center overflow-hidden">
+                                                                        <img v-if="sku.image_url" 
+                                                                             :src="sku.image_url" 
+                                                                             class="object-cover w-full h-full">
+                                                                        <Barcode v-else :size="10" class="text-primary/50" />
+                                                                    </div>
+                                                                    <span class="font-bold uppercase text-foreground group-hover/sku:text-primary transition-colors">
+                                                                        {{ sku.name }}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td class="py-3 font-mono text-muted-foreground">
+                                                                <span class="px-2 py-1 border border-primary/30 bg-primary/5">
+                                                                    {{ sku.code || 'SIN ASIGNAR' }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-3 text-center font-mono text-muted-foreground">
+                                                                <span class="flex items-center justify-center gap-1">
+                                                                    <Scale :size="10" class="text-primary" />
+                                                                    {{ sku.conversion_factor }}x
+                                                                    <span class="text-primary/50">|</span>
+                                                                    <Hash :size="10" class="text-primary" />
+                                                                    {{ sku.weight }}kg
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-3 text-right font-mono font-bold text-cyan-500">
+                                                                ${{ formatPrice(sku.price) }}
+                                                            </td>
+                                                            <td class="py-3 text-right">
+                                                                <span class="px-2 py-1 border font-mono text-[8px]"
+                                                                      :class="sku.stock > 0 ? 'border-cyan-500/30 bg-cyan-500/5 text-cyan-500' : 'border-destructive/30 bg-destructive/5 text-destructive'">
+                                                                    {{ sku.stock || 0 }} UNID.
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-3 text-right">
+                                                                <Link :href="route('admin.skus.edit', sku.id)" 
+                                                                      class="inline-flex p-1.5 text-primary hover:bg-primary/10 border border-transparent hover:border-primary/30 transition-all opacity-0 group-hover/sku:opacity-100">
+                                                                    <Edit3 :size="12" />
+                                                                </Link>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                <div v-if="products.links && products.links.length > 3" 
+                     class="p-6 border-t border-primary/30 bg-background/80 backdrop-blur-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <p class="text-[8px] font-mono text-muted-foreground uppercase tracking-widest">
+                        MOSTRANDO {{ products.from }} - {{ products.to }} DE {{ products.total }} RESULTADOS
+                    </p>
+                    <div class="flex gap-1">
+                        <template v-for="(link, p) in products.links" :key="p">
+                            <div v-if="link.url === null" 
+                                 class="px-3 py-1.5 text-[10px] font-mono text-muted-foreground/50 border border-transparent"
+                                 v-html="link.label"></div>
+                            <Link v-else 
+                                  :href="link.url" 
+                                  class="px-3 py-1.5 text-[10px] font-mono border transition-all relative group/page"
+                                  :class="link.active 
+                                      ? 'border-primary bg-primary/10 text-primary shadow-neon-primary' 
+                                      : 'border-transparent text-muted-foreground hover:border-primary/30 hover:text-primary'" 
+                                  v-html="link.label" />
                         </template>
-                    </tbody>
-                </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session ID -->
+            <div class="text-center">
+                <p class="text-[8px] font-mono text-muted-foreground">
+                    SESSION_ID // CATALOG_INDEX // {{ new Date().toISOString().slice(0,10) }}
+                </p>
             </div>
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-.form-input { @apply rounded-xl border-border text-sm; }
-.badge-error { @apply bg-error/10 text-error border-error/20 font-black; }
+/* Animaciones */
+@keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(1000%); }
+}
+
+.animate-scanline {
+    animation: scanline 8s linear infinite;
+}
+
+/* Efecto glitch */
+.glitch-text {
+    position: relative;
+    animation: glitch-skew 4s infinite linear alternate-reverse;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+}
+
+.glitch-text::before {
+    color: #0ff;
+    z-index: -1;
+    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+    color: #f0f;
+    z-index: -2;
+    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-skew {
+    0% { transform: skew(0deg); }
+    20% { transform: skew(0deg); }
+    21% { transform: skew(2deg); }
+    22% { transform: skew(0deg); }
+    80% { transform: skew(0deg); }
+    81% { transform: skew(-2deg); }
+    82% { transform: skew(0deg); }
+    100% { transform: skew(0deg); }
+}
+
+@keyframes glitch-anim-1 {
+    0% { clip-path: inset(20% 0 30% 0); }
+    20% { clip-path: inset(50% 0 10% 0); }
+    40% { clip-path: inset(10% 0 60% 0); }
+    60% { clip-path: inset(80% 0 5% 0); }
+    80% { clip-path: inset(30% 0 40% 0); }
+    100% { clip-path: inset(40% 0 20% 0); }
+}
+
+@keyframes glitch-anim-2 {
+    0% { clip-path: inset(60% 0 10% 0); }
+    20% { clip-path: inset(20% 0 50% 0); }
+    40% { clip-path: inset(70% 0 5% 0); }
+    60% { clip-path: inset(10% 0 70% 0); }
+    80% { clip-path: inset(40% 0 30% 0); }
+    100% { clip-path: inset(30% 0 40% 0); }
+}
+
+/* Sombras neón */
+.shadow-neon-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+/* Scrollbar personalizada */
+.custom-scrollbar::-webkit-scrollbar {
+    height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--border) / 0.2);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary));
+    border-radius: 0;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.8);
+}
 </style>

@@ -48,6 +48,8 @@ class BundleRequest extends FormRequest
             'items'             => 'required|array|min:1',
             'items.*.sku_id'    => 'required|exists:skus,id',
             'items.*.quantity'  => 'required|integer|min:1',
+            'starts_at'         => 'nullable|date.',
+            'ends_at'           => 'nullable|date|after:starts_at'
         ];
     }
 

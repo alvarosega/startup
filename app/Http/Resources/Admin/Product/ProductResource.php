@@ -14,7 +14,10 @@ class ProductResource extends JsonResource
             'description' => $this->description,
             'brand_id' => $this->brand_id,
             'category_id' => $this->category_id,
-            'image_url' => $this->image_path ? Storage::url($this->image_path) : null,
+            // Lógica de Imagen con Placeholder
+            'image_url' => $this->image_path 
+                ? Storage::disk('public')->url($this->image_path) 
+                : asset('assets/img/placeholder.png'),
             'is_active' => (bool)$this->is_active,
             'is_alcoholic' => (bool)$this->is_alcoholic,
             'skus' => SkuResource::collection($this->whenLoaded('skus')),

@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\Bundle;
-use App\Models\Branch;
-use App\Models\Sku;
+use App\Models\{Bundle, Branch, Sku};
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class BundleSeeder extends Seeder
 {
@@ -19,45 +18,43 @@ class BundleSeeder extends Seeder
             return;
         }
 
-        foreach ($branches as $branch) {
-            // Creamos 3 packs por sucursal
-            $packs = [
-                [
-                    'name' => "Pack Bienvenida - {$branch->name}",
-                    'description' => "Selección premium de la casa para nuevos clientes en {$branch->city}.",
-                    'price' => 150.00
-                ],
-                [
-                    'name' => "Combo Parrillero {$branch->name}",
-                    'description' => "Todo lo necesario para tu asado de fin de semana.",
-                    'price' => null // Precio dinámico (suma de items)
-                ],
-                [
-                    'name' => "Mix de Bebidas {$branch->name}",
-                    'description' => "Variedad de hidratantes y energizantes.",
-                    'price' => 85.50
-                ]
-            ];
+        // Definición de los 7 tipos de bundles solicitados
+        $packDefinitions = [
+            ['name' => 'Flash Sale Alpha', 'desc' => 'Oferta de tiempo limitado nivel 1.'],
+            ['name' => 'Flash Sale Beta', 'desc' => 'Oferta de tiempo limitado nivel 2.'],
+            ['name' => 'Pack Nocturno', 'desc' => 'Solo para compras de madrugada.'],
+            ['name' => 'Combo Gamer', 'desc' => 'Energía y snacks para maratones.'],
+            ['name' => 'Kit de Supervivencia', 'desc' => 'Básicos esenciales de la sucursal.'],
+            ['name' => 'Pack de Temporada', 'desc' => 'Productos exclusivos del mes.'],
+            ['name' => 'Mega Bundle Omega', 'desc' => 'El pack más completo del catálogo.'],
+        ];
 
-            foreach ($packs as $packData) {
+        $startDate = Carbon::create(2026, 3, 3, 0, 0, 0);
+        $baseEndDate = Carbon::create(2026, 4, 3, 23, 59, 59);
+
+        foreach ($branches as $branch) {
+            foreach ($packDefinitions as $index => $data) {
+                // Cálculo escalonado de fecha de vencimiento (Día 3, 4, 5...)
+                $endsAt = $baseEndDate->copy()->addDays($index);
+
                 $bundle = Bundle::create([
-                    'branch_id'   => $branch->id,
-                    'name'        => $packData['name'],
-                    'slug'        => Str::slug($packData['name']) . '-' . Str::random(4),
-                    'description' => $packData['description'],
-                    'fixed_price' => $packData['price'],
-                    'is_active'   => true,
+                    'branch_id'     => $branch->id,
+                    'name'          => "{$data['name']} - {$branch->name}",
+                    'slug'          => Str::slug($data['name'] . '-' . $branch->name) . '-' . Str::random(4),
+                    'description'   => $data['desc'],
+                    'fixed_price'   => rand(50, 500),
+                    'is_active'     => true,
+                    'starts_at'     => $startDate,
+                    'ends_at'       => $endsAt,
                 ]);
 
-                // Asignar entre 2 y 4 SKUs aleatorios al pack
+                // Asignación de Items (Pivote sin ID)
                 $randomSkus = $skus->random(rand(2, 4));
-                
                 $items = [];
                 foreach ($randomSkus as $sku) {
-                    $items[$sku->id] = ['quantity' => rand(1, 3)];
+                    $items[$sku->id] = ['quantity' => rand(1, 5)];
                 }
 
-                // Sincronización usando el modelo Pivot (sin columna 'id' como corregimos)
                 $bundle->skus()->sync($items);
             }
         }

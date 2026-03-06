@@ -10,8 +10,6 @@ return new class extends Migration
     {
         Schema::create('bundles', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            // Relación con Sucursal
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
             
             $table->string('name');
@@ -20,11 +18,14 @@ return new class extends Migration
             $table->string('image_path')->nullable();
             $table->boolean('is_active')->default(true)->index();
             $table->decimal('fixed_price', 10, 2)->nullable();
+        
+            // --- NUEVOS CAMPOS PARA TEMPORIZADOR ---
+            $table->timestamp('starts_at')->nullable()->index();
+            $table->timestamp('ends_at')->nullable()->index();
             
             $table->softDeletes();
             $table->timestamps();
         
-            // La Ley: Un slug debe ser único por sucursal
             $table->unique(['branch_id', 'slug']); 
         });
     }

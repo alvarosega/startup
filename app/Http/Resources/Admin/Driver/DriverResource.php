@@ -11,16 +11,22 @@ class DriverResource extends JsonResource
     {
         return [
             'id'           => $this->id,
-            'branch_id'    => $this->branch_id, // <-- AÑADIDO
+            'branch_id'    => $this->branch_id,
             'phone'        => $this->phone,
+            
+            // --- VARIABLES CRÍTICAS AÑADIDAS ---
+            'status'       => $this->status,
+            'is_online'    => (bool) $this->is_online,
+            // -----------------------------------
+            
+            // Mantenemos las variables calculadas por si otros componentes las usan
             'is_active'    => $this->status === 'active', 
+            'is_verified'  => ($this->details?->verification_status === 'verified'),
             
             'full_name'    => $this->details ? trim("{$this->details->first_name} {$this->details->last_name}") : 'Sin Datos',
             'license_plate'=> $this->details?->license_plate ?? 'N/A',
             'vehicle_type' => $this->details?->vehicle_type ?? 'moto',
-            'is_verified'  => ($this->details?->verification_status === 'verified'),
 
-            // <-- AÑADIDO: Objeto de la sucursal para la vista Index
             'branch'       => $this->whenLoaded('branch', function () {
                 return $this->branch ? [
                     'id'   => $this->branch->id,
