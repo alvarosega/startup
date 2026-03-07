@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
 {
@@ -18,23 +17,10 @@ class Category extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id',
-        'parent_id',
-        'market_zone_id',
-        'name',
-        'slug',
-        'external_code',
-        'tax_classification',
-        'requires_age_check',
-        'is_active',
-        'is_featured',
-        'sort_order',
-        'image_path',
-        'icon_path',
-        'bg_color',
-        'description',
-        'seo_title',
-        'seo_description',
+        'name', 'slug', 'external_code', 'tax_classification',
+        'requires_age_check', 'is_active', 'is_featured', 'sort_order',
+        'image_path', 'icon_path', 'bg_color', 'description',
+        'seo_title', 'seo_description',
     ];
 
     protected $casts = [
@@ -43,36 +29,30 @@ class Category extends Model
         'requires_age_check' => 'boolean',
         'sort_order' => 'integer',
     ];
-    public function scopeRoots(Builder $query): Builder
-    {
-        return $query->whereNull('parent_id');
-    }
+
+    protected $hidden = ['deleted_at'];
+
     // =================================================================================
-    // RELACIONES
+    // RELACIONES (SOLO HACIA ABAJO)
     // =================================================================================
 
-    public function parent()
+    public function brands(): HasMany
     {
-        return $this->belongsTo(Category::class, 'parent_id');
+        return $this->hasMany(Brand::class);
     }
 
-    public function subcategories()
-    {
-        return $this->children(); // Reutiliza la relación existente
-    }
-
-    public function children()
-    {
-        return $this->hasMany(Category::class, 'parent_id');
-    }
-
-    public function products()
+    public function products(): HasMany
     {
         return $this->hasMany(Product::class);
     }
-    public static function getAllForAdminTree(array $filters = [])
+
+    // =================================================================================
+    // LÓGICA DE CONSULTA (ENCAPSULACIÓN)
+    // =================================================================================
+
+    public static function getAllForAdmin(array $filters = [])
     {
-        return self::with(['parent', 'marketZone'])
+        return self::query()
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
             })
@@ -80,31 +60,8 @@ class Category extends Model
             ->get();
     }
 
-    public static function getPossibleParents(?string $excludeId = null)
-    {
-        $query = self::roots()->orderBy('name');
-        if ($excludeId) {
-            $query->where('id', '!=', $excludeId);
-        }
-        return $query->get(['id', 'name']);
-    }
-    public static function getRootsForZoneAssignment()
-    {
-        return self::roots()
-            ->orderBy('name')
-            ->get(['id', 'name', 'market_zone_id']);
-    }
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
-
-    public function marketZone()
-    {
-        return $this->belongsTo(MarketZone::class, 'market_zone_id');
-    }
-
-    /*-----------------*/
-
-
 }

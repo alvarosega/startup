@@ -151,3 +151,38 @@
     box-shadow: 0 0 var(--neon-blur) hsl(var(--primary) / 0.5);
   }
 }
+/* --- BLOQUE CUSTOMER SILO --- */ 
+@layer utilities {
+  .customer-theme {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    scroll-behavior: smooth;
+  }
+
+  /* Squircles (Curvas suaves Apple/Google) */
+  .customer-theme .clip-f1-br,
+  .customer-theme .clip-f1-tl {
+    clip-path: none !important; 
+    border-radius: 1.25rem; /* 20px de curvatura */
+  }
+
+  /* Glassmorphism (Textura de cristal esmerilado) */
+  .customer-theme .cyber-glass {
+    background-color: hsl(var(--glass-base) / 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  /* Dot Grid Minimalista (Estilo Google) */
+  .customer-theme .bg-f1-pattern {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(hsl(var(--border) / 0.8) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Sombras Neón controladas */
+  .customer-theme .shadow-neon-red {
+    box-shadow: 0 4px 24px -2px hsl(var(--c-red-glow) / 0.3), 0 0 6px hsl(var(--c-red-glow) / 0.15);
+  }
+}

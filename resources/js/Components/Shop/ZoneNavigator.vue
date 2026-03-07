@@ -1,53 +1,67 @@
 <script setup>
 const props = defineProps({ zones: Array });
 const emit = defineEmits(['select-item', 'select-zone']);
+
+// Prevención de imágenes rotas
+const getImageUrl = (path) => {
+    if (!path) return '/assets/img/placeholder.png';
+    if (path.startsWith('http')) return path;
+    return `/storage/${path.replace(/^\/+/, '')}`;
+};
 </script>
 
 <template>
-    <div class="w-full pb-6 pt-4 px-4 space-y-8">
+    <div class="w-full pb-12 pt-2 space-y-8 relative">
         
-        <div v-for="(zone, idx) in zones" :key="zone.id || idx" class="flex flex-col gap-4 relative">
+        <div v-for="zone in zones" :key="zone.id" class="flex flex-col relative w-full">
             
-            <div class="flex items-end justify-between border-b-2 border-tech pb-2 sticky top-0 bg-background/90 backdrop-blur-md z-10 pt-2 cursor-pointer group"
+            <div class="sticky top-[160px] z-[40] cyber-glass border-y border-tech px-4 py-3 mb-4 flex items-center justify-between shadow-sm cursor-pointer group transition-all duration-300"
                  @click="emit('select-zone', zone)">
-                <div>
-                    <span class="text-[10px] font-mono font-black text-muted uppercase tracking-widest block mb-0.5">
-                        0{{ idx + 1 }} // SISTEMA
-                    </span>
-                    <h2 class="text-2xl font-sans font-black uppercase text-primary tracking-wide transition-colors group-hover:text-f1-red">
-                        {{ zone.name }}
-                    </h2>
-                </div>
-                <button class="text-[10px] font-mono font-bold text-muted uppercase group-hover:text-f1-red transition-colors mb-1">
-                    Ingresar ↘
-                </button>
+                <h2 class="text-lg font-sans font-black uppercase text-foreground tracking-tight group-hover:text-f1-red transition-colors">
+                    {{ zone.name }}
+                </h2>
+                <span class="text-muted group-hover:text-f1-red transition-colors text-xl leading-none">
+                    &rarr;
+                </span>
             </div>
 
-            <div v-if="zone.aisles && zone.aisles.length > 0" class="grid grid-cols-2 gap-3">
-                <div v-for="(aisle, aIdx) in zone.aisles" :key="aIdx"
+            <div v-if="zone.aisles && zone.aisles.length > 0" 
+                 class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 gap-4 pb-4">
+                 
+                <div v-for="aisle in zone.aisles" :key="aisle.id"
                      @click="emit('select-item', { item: aisle, zone: zone })"
-                     class="bg-surface border border-tech clip-f1-br flex flex-col relative group cursor-pointer hover:border-f1-red transition-colors duration-150 h-48 shadow-sm">
+                     class="w-[70vw] md:w-[280px] h-[340px] shrink-0 snap-start bg-surface border border-tech rounded-[20px] flex flex-col relative group cursor-pointer hover-neon-red transition-all duration-500 overflow-hidden shadow-sm">
                      
-                    <div class="absolute inset-0 opacity-10 bg-gradient-to-t from-black to-transparent pointer-events-none z-0"></div>
+                     <div class="absolute inset-0 overflow-hidden rounded-[20px] pointer-events-none z-0">
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-tr from-f1-red/20 via-background to-telemetry-green/15 opacity-80 blur-[40px] group-hover:scale-125 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"></div>
+                    </div>
                      
-                    <div class="flex-1 flex items-center justify-center p-4 relative overflow-hidden z-10">
-                        <img :src="aisle.image_url" :alt="aisle.name" 
-                             class="w-full h-full object-contain tech-shadow transition-transform duration-300 group-hover:scale-105">
+                    <div class="absolute inset-0 flex items-center justify-center p-6 z-10 pointer-events-none">
+                        <img :src="getImageUrl(aisle.image_url || aisle.image_path)" :alt="aisle.name" 
+                             class="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.35)] transition-transform duration-500 group-hover:scale-[1.15]">
                     </div>
 
-                    <div class="p-3 bg-background border-t border-tech flex flex-col justify-center min-h-[56px] z-10">
-                        <span class="text-[8px] font-mono text-muted uppercase mb-0.5">Categoría</span>
-                        <h3 class="text-xs font-sans font-bold uppercase text-primary line-clamp-2 leading-tight">
+                    <div class="absolute bottom-0 left-0 right-0 z-20 cyber-glass border-t border-tech p-4 flex items-center justify-center">
+                        <h3 class="text-sm font-sans font-black uppercase text-foreground text-center line-clamp-2 tracking-wide drop-shadow-md">
                             {{ aisle.name }}
                         </h3>
                     </div>
                 </div>
+
+                <div class="w-[10vw] shrink-0"></div>
             </div>
 
-            <div v-else class="w-full p-4 border border-tech bg-surface/50 clip-f1-br flex items-center justify-center">
-                <span class="text-xs font-mono text-muted uppercase tracking-widest">Registros no encontrados</span>
+            <div v-else class="w-full px-4">
+                <div class="p-6 border border-tech cyber-glass rounded-[20px] flex items-center justify-center shadow-sm">
+                    <span class="text-xs font-mono font-bold text-muted uppercase tracking-widest">Zona sin inventario activo</span>
+                </div>
             </div>
 
         </div>
     </div>
 </template>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>

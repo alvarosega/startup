@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\Admin\Brand;
 
 use App\Models\Brand;
@@ -6,15 +7,22 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class ListBrands
 {
-    public function execute(?string $search = null): LengthAwarePaginator
+    public function execute(array $filters = []): LengthAwarePaginator
     {
         return Brand::query()
-            ->with(['provider:id,company_name,commercial_name', 'category:id,name'])
-            ->when($search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%");
-            })
+            ->with([
+                'provider:id,commercial_name', 
+                'category:id,name', 
+                'marketZone:id,name'
+            ])
+            // LA LEY: Implementación explícita de filtros
+            ->when($filters['search'] ?? null, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
+            ->when($filters['provider_id'] ?? null, fn($q, $id) => $q->where('provider_id', $id))
+            ->when($filters['category_id'] ?? null, fn($q, $id) => $q->where('category_id', $id))
+            ->when($filters['market_zone_id'] ?? null, fn($q, $id) => $q->where('market_zone_id', $id))
+            ->orderBy('sort_order')
             ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString(); // Mantiene el parámetro 'search' en los links de paginación
+            ->paginate(30)
+            ->withQueryString();
     }
 }

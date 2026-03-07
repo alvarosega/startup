@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Category;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
@@ -10,27 +11,22 @@ class StoreCategoryRequest extends FormRequest
 
     public function rules(): array
     {
+        $categoryId = $this->route('category')?->id;
+
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'market_zone_id' => ['required', 'exists:market_zones,id'],
-            'parent_id' => ['nullable', 'exists:categories,id'], // Check UUID
-            'external_code' => ['nullable', 'string', 'max:50', 'unique:categories,external_code'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
-            'description' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'max:2048'],
-            'icon'           => ['nullable', 'image', 'max:1024'], // AÑADIR
-            'bg_color'       => ['nullable', 'string', 'max:7'],
-            'children' => ['nullable', 'array'],
-            'children.*.name' => ['required', 'string', 'max:255'],
-            'children.*.external_code' => ['nullable', 'string', 'max:50'],
-            'children.*.image' => ['nullable', 'image', 'max:2048'],
-            // SEO & Config
-            'seo_title' => ['nullable', 'string', 'max:255'],
-            'seo_description' => ['nullable', 'string'],
+            'name'               => ['required', 'string', 'max:255'],
+            'external_code'      => ['nullable', 'string', 'max:50', Rule::unique('categories')->ignore($categoryId)->withoutTrashed()],
+            'slug'               => ['nullable', 'string', 'max:255', Rule::unique('categories')->ignore($categoryId)->withoutTrashed()],
+            'description'        => ['nullable', 'string'],
+            'image'              => ['nullable', 'image', 'max:2048'],
+            'icon'               => ['nullable', 'image', 'max:1024'],
+            'bg_color'           => ['nullable', 'string', 'max:7'],
+            'seo_title'          => ['nullable', 'string', 'max:255'],
+            'seo_description'    => ['nullable', 'string'],
             'tax_classification' => ['nullable', 'string', 'max:50'],
             'requires_age_check' => ['boolean'],
-            'is_active' => ['boolean'],
-            'is_featured' => ['boolean'],
+            'is_active'          => ['boolean'],
+            'is_featured'        => ['boolean'],
         ];
     }
 }

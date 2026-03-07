@@ -8,30 +8,22 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. CIMIENTOS (Roles y Permisos con Guards correctos)
         $this->call(RolesAndPermissionsSeeder::class);
 
-        // 2. INFRAESTRUCTURA (Sucursales)
         $this->call(BranchSeeder::class);
-
-        // 3. ACTORES (Silos Aislados)
-        // Crea el Super Admin en la tabla 'admins'
         $this->call(SuperAdminSeeder::class); 
         
-        // (Opcional) Si quieres crear clientes de prueba
-        // $this->call(CustomerSeeder::class); 
-
-        // 4. CATÁLOGOS Y OPERACIONES (Mantener si estos modelos existen)
         $this->call([
             LevelSeeder::class,
             ComplianceSeeder::class,
-            ProviderSeeder::class,
-            BrandSeeder::class,
-            CategorySeeder::class,
-            ProductSeeder::class, // Genera los SKUs necesarios
+            // Nivel 0
+            MarketZoneSeeder::class,    // Nivel 0
+            CategorySeeder::class,    
+            ProviderSeeder::class,        // Nivel 1
+            BrandSeeder::class,         // Nivel 2
+            ProductSeeder::class,    // Nivel 3 (Descomentar cuando lo creemos)
             InventorySeeder::class,
-            MarketZoneSeeder::class,
-            BundleSeeder::class, // <--- AÑADIR AQUÍ AL FINAL
-       ]);
+            BundleSeeder::class,
+        ]);
     }
 }

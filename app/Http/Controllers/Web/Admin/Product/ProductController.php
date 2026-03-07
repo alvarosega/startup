@@ -5,73 +5,78 @@ namespace App\Http\Controllers\Web\Admin\Product;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Http\Requests\Admin\Product\{StoreProductRequest, UpdateProductRequest};
-use App\DTOs\Admin\Product\{CreateProductDTO, UpdateProductDTO};
+use App\DTOs\Admin\Product\ProductData;
 use App\Actions\Admin\Product\{
-    CreateProductAction, UpdateProductAction, DeleteProductAction, 
+    UpsertProductAction, DeleteProductAction, 
     ListProductsAction, GetProductStatsAction, GetProductFormDataAction,
     CheckProductExistenceAction
 };
 use App\Http\Resources\Admin\Product\ProductResource;
 use Illuminate\Http\{Request, JsonResponse, RedirectResponse};
 use Inertia\{Inertia, Response as InertiaResponse};
-use Illuminate\Support\Facades\{Log, Auth};
+use Illuminate\Support\Facades\{Cache, Auth};
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ProductController extends Controller
 {
-    private string $guard = 'super_admin'; // Actor específico
+    use AuthorizesRequests;
+    private string $guard = 'super_admin';
 
-    public function index(
-        Request $request, 
-        ListProductsAction $listAction, 
-        GetProductStatsAction $statsAction
-    ): InertiaResponse {
+    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction): InertiaResponse 
+    {
+        $this->authorize('viewAny', Product::class);
+
+        // Sin caché en el paginador completo para evitar fallos de hidratación de Eloquent
+        $productsPaginator = $listAction->execute($request);
+
         return Inertia::render('Admin/Products/Index', [
-            'filters'  => $request->only(['search', 'category', 'brand']),
-            'products' => ProductResource::collection($listAction->execute($request)),
-            'stats'    => $statsAction->execute(), // Lógica atómica
-            'options'  => app(GetProductFormDataAction::class)->execute() // Data para filtros
+            'filters'  => $request->only(['search', 'category', 'brand', 'status']),
+            'products' => ProductResource::collection($productsPaginator),
+            'stats'    => $statsAction->execute(),
+            'options'  => app(GetProductFormDataAction::class)->execute() 
         ]);
     }
 
     public function checkName(Request $request, CheckProductExistenceAction $action): JsonResponse
     {
-        return response()->json([
-            'available' => !$action->execute($request->name)
-        ]);
+        return response()->json(['available' => !$action->execute($request->query('name'))]);
     }
 
     public function create(GetProductFormDataAction $dataAction): InertiaResponse
     {
-        return Inertia::render('Admin/Products/Create', $dataAction->execute(includeChildren: true));
+        $this->authorize('create', Product::class);
+        return Inertia::render('Admin/Products/Create', $dataAction->execute());
     }
 
-    public function store(StoreProductRequest $request, CreateProductAction $action): RedirectResponse
+    public function store(StoreProductRequest $request, UpsertProductAction $action): RedirectResponse
     {
-        Log::info("CATÁLOGO: Creación por " . Auth::guard($this->guard)->id());
-        
-        $product = $action->execute(CreateProductDTO::fromRequest($request));
+        $this->authorize('create', Product::class);
+        $product = $action->execute(ProductData::fromRequest($request));
         
         return redirect()->route('admin.products.skus.create', $product->id)
-            ->with('success', 'Maestro creado.');
+            ->with('success', 'Maestro creado. Proceda a configurar variantes.');
     }
 
     public function edit(Product $product, GetProductFormDataAction $dataAction): InertiaResponse
     {
+        $this->authorize('update', $product);
         return Inertia::render('Admin/Products/Edit', array_merge(
-            ['product' => (new ProductResource($product->load(['brand', 'category'])))->resolve()],
-            $dataAction->execute(includeChildren: true)
+            ['product' => new ProductResource($product->load(['brand', 'category']))],
+            $dataAction->execute()
         ));
     }
 
-    public function update(UpdateProductRequest $request, Product $product, UpdateProductAction $action): RedirectResponse
+    public function update(UpdateProductRequest $request, Product $product, UpsertProductAction $action): RedirectResponse
     {
-        $action->execute($product, UpdateProductDTO::fromRequest($request));
-        return redirect()->route('admin.products.index')->with('success', 'Actualizado.');
+        $this->authorize('update', $product);
+        $action->execute(ProductData::fromRequest($request), $product);
+        return redirect()->route('admin.products.index')->with('success', 'Catálogo actualizado.');
     }
 
     public function destroy(Product $product, DeleteProductAction $action): RedirectResponse
     {
+        $this->authorize('delete', $product);
         $action->execute($product);
-        return redirect()->route('admin.products.index')->with('warning', 'Eliminado.');
+        return redirect()->route('admin.products.index')->with('warning', 'Maestro eliminado.');
     }
 }

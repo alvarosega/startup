@@ -13,6 +13,7 @@ readonly class BrandData
         public string $slug,
         public string $provider_id,
         public string $category_id,
+        public string $market_zone_id,
         public ?string $website,
         public ?string $description,
         public bool $is_active,
@@ -28,6 +29,7 @@ readonly class BrandData
             slug: Str::slug($request->validated('name')),
             provider_id: $request->validated('provider_id'),
             category_id: $request->validated('category_id'),
+            market_zone_id: $request->validated('market_zone_id'), // CAPTURA
             website: $request->validated('website'),
             description: $request->validated('description'),
             is_active: $request->boolean('is_active', true),

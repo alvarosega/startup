@@ -14,7 +14,6 @@ const props = defineProps({
 
 const page = usePage();
 
-// --- LÓGICA DE MODALES ---
 const showBundleModal = ref(false);
 const activeBundleSlug = ref(null);
 
@@ -23,7 +22,6 @@ const openBundleModal = (slug) => {
     showBundleModal.value = true;
 };
 
-// --- NORMALIZACIÓN DE ZONAS (Sin alterar Bundles) ---
 const processedZones = computed(() => {
     const rawZones = props.zonesData ? (Array.isArray(props.zonesData) ? props.zonesData : Object.values(props.zonesData)) : [];
     
@@ -42,7 +40,6 @@ const processedZones = computed(() => {
     }));
 });
 
-// --- ENRUTAMIENTO ---
 const navigateToAisle = ({ item, zone }) => {
     router.visit(route('customer.shop.zone', { zone: zone.slug }), {
         data: { category: item.id }
@@ -60,7 +57,7 @@ watch(() => page.props.cart_summary?.count, () => {}, { immediate: true });
     <ShopLayout>
         <Head title="Explorar Catálogo" />
 
-        <div class="w-full relative flex flex-col pb-24">
+        <div class="w-full flex flex-col relative">
             
             <BundleList 
                 :bundles="props.bundlesData" 
@@ -76,13 +73,15 @@ watch(() => page.props.cart_summary?.count, () => {}, { immediate: true });
                 />
 
                 <div v-else class="flex items-center justify-center p-6 mt-10">
-                    <div class="w-full max-w-sm bg-surface border-l-4 border-f1-red p-6 shadow-tech clip-f1-br">
-                        <div class="flex items-center gap-3 mb-2 text-f1-red">
+                    <div class="w-full max-w-sm cyber-glass border-l-4 border-f1-red p-6 shadow-neon-red clip-f1-br transition-all duration-300">
+                        <div class="flex items-center gap-3 mb-3 text-f1-red">
                             <AlertTriangle :size="24" />
-                            <span class="text-xs font-mono font-black uppercase tracking-widest">Aviso de Sistema</span>
+                            <span class="text-[10px] font-mono font-black uppercase tracking-[0.2em]">Aviso de Sistema</span>
                         </div>
-                        <h2 class="text-xl font-sans font-bold uppercase text-primary mb-2">Sin Cobertura</h2>
-                        <p class="text-xs font-mono text-muted uppercase leading-relaxed">La ubicación actual no cuenta con catálogo activo. Verifique su dirección.</p>
+                        <h2 class="text-xl font-sans font-black uppercase text-foreground mb-2 tracking-tight">Sin Cobertura</h2>
+                        <p class="text-xs font-mono text-muted uppercase leading-relaxed">
+                            La ubicación de telemetría actual no cuenta con catálogo activo. Verifique sus coordenadas.
+                        </p>
                     </div>
                 </div>
             </div>

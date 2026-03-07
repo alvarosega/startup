@@ -4,87 +4,59 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Category;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CategorySeeder extends Seeder
 {
     public function run(): void
     {
-        $categories = [
-            [
-                'name' => 'Cervezas',
-                'adult' => true,
-                'subs' => ['Lager Industrial', 'Cerveza de Trigo', 'Cerveza Negra / Stout', 'Cerveza Artesanal IPA', 'Cerveza Importada']
-            ],
-            [
-                'name' => 'Destilados',
-                'adult' => true,
-                'subs' => ['Singani', 'Whisky Escocés', 'Ron Añejo', 'Vodka Premium', 'Gin & Botánicos']
-            ],
-            [
-                'name' => 'Vinos',
-                'adult' => true,
-                'subs' => ['Vino Tinto Varietal', 'Vino Blanco', 'Vino Rosado', 'Vino Espumoso', 'Vino de Postre']
-            ],
-            [
-                'name' => 'Gaseosas',
-                'adult' => false,
-                'subs' => ['Colas Negras', 'Sabores Frutales', 'Gaseosa Zero Azúcar', 'Ginger Ale & Tónicas', 'Sodas Saborizadas']
-            ],
-            [
-                'name' => 'Aguas & Hidratantes',
-                'adult' => false,
-                'subs' => ['Agua Sin Gas', 'Agua Con Gas', 'Bebidas Isotónicas', 'Agua Saborizada', 'Agua Tónica Premium']
-            ],
-            [
-                'name' => 'Energizantes',
-                'adult' => false,
-                'subs' => ['Energizante Regular', 'Energizante Sin Azúcar', 'Bebidas de Café', 'Shots Energéticos', 'Energizante Natural']
-            ],
-            [
-                'name' => 'Jugos & Néctares',
-                'adult' => false,
-                'subs' => ['Jugo de Naranja', 'Néctar de Durazno', 'Jugo de Manzana', 'Multifruta', 'Jugos Detox']
-            ],
-            [
-                'name' => 'Licores & Cremas',
-                'adult' => true,
-                'subs' => ['Crema de Leche/Café', 'Licores de Hierbas', 'Vermouth', 'Triple Sec & Mixers', 'Aperitivos']
-            ],
-            [
-                'name' => 'Snacks Salados',
-                'adult' => false,
-                'subs' => ['Papas Fritas', 'Nachos & Tortillas', 'Frutos Secos', 'Galletas Saladas', 'Palitos & Pretzels']
-            ],
-            [
-                'name' => 'Cigarros & Tabaco',
-                'adult' => true,
-                'subs' => ['Cigarros Rubios', 'Cigarros Mentolados', 'Tabaco para Armar', 'Puros', 'Accesorios de Fumar']
-            ]
-        ];
-
-        foreach ($categories as $catData) {
-            $parent = Category::firstOrCreate([
-                'name' => $catData['name'],
-                'slug' => Str::slug($catData['name']),
-            ], [
-                'is_active' => true,
-                'requires_age_check' => $catData['adult']
-            ]);
-
-            
-            $parentId = $parent->id;
-
-            foreach ($catData['subs'] as $subName) {
-                Category::firstOrCreate([
-                    'name' => $subName,
-                    'slug' => Str::slug($subName),
-                    'parent_id' => $parentId
-                ], [
-                    'is_active' => true,
-                    'requires_age_check' => $catData['adult']
-                ]);
-            }
+        $filePath = database_path('data/categories.csv');
+        
+        if (!file_exists($filePath)) {
+            return;
         }
+
+        $file = fopen($filePath, 'r');
+        
+        // 1. Protocolo Anti-BOM y Normalización de Cabeceras
+        $rawHeaders = fgetcsv($file, 0, ';');
+        $headers = array_map(fn($h) => strtolower(preg_replace('/^[\xef\xbb\xbf]+/', '', trim((string)$h))), $rawHeaders);
+
+        DB::transaction(function () use ($file, $headers) {
+            while (($data = fgetcsv($file, 0, ';')) !== false) {
+                if (count($headers) !== count($data)) continue;
+                
+                $row = array_combine($headers, $data);
+
+                // 2. Sanitización de Codificación (The Law: Anti-Corruption)
+                $cleanRow = array_map(function($value) {
+                    $str = trim((string)$value);
+                    if ($str === '') return null;
+                    
+                    // Si detecta encoding corrupto (ISO), fuerza a UTF-8
+                    if (!mb_check_encoding($str, 'UTF-8')) {
+                        $str = mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
+                    }
+                    return $str;
+                }, $row);
+
+                // 3. Persistencia Atómica (Sin parent_id)
+                Category::updateOrCreate(
+                    ['slug' => $cleanRow['slug'] ?? Str::slug($cleanRow['name'])],
+                    [
+                        'name'               => $cleanRow['name'],
+                        'external_code'      => $cleanRow['external_code'] ?? null,
+                        'tax_classification' => $cleanRow['tax_classification'] ?? null,
+                        'requires_age_check' => (bool) ($cleanRow['requires_age_check'] ?? 0),
+                        'is_active'          => (bool) ($cleanRow['is_active'] ?? 1),
+                        'is_featured'        => (bool) ($cleanRow['is_featured'] ?? 0),
+                        'sort_order'         => (int) ($cleanRow['sort_order'] ?? 0),
+                    ]
+                );
+            }
+        });
+
+        fclose($file);
     }
 }

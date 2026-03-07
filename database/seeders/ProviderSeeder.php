@@ -1,56 +1,38 @@
 <?php
-
 namespace Database\Seeders;
-
 use Illuminate\Database\Seeder;
 use App\Models\Provider;
-use Faker\Factory as Faker;
+use Illuminate\Support\Facades\DB;
 
-class ProviderSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $faker = Faker::create('es_BO');
+class ProviderSeeder extends Seeder {
+    public function run(): void {
+        $filePath = database_path('data/providers.csv');
+        if (!file_exists($filePath)) return;
 
-        // 1. PROVEEDORES REALES (Tus datos originales)
-        $providers = [
-            [
-                'company_name' => 'Cervecería Boliviana Nacional S.A.',
-                'commercial_name' => 'CBN',
-                'tax_id' => '1020304050',
-                'internal_code' => 'PROV-001',
-                // ... resto de tus datos reales ...
-                'is_active' => true,
-            ],
-            // ... (Mantén aquí tus otros 4 proveedores reales originales) ...
-        ];
+        $file = fopen($filePath, 'r');
+        $rawHeaders = fgetcsv($file, 0, ';');
+        $headers = array_map(fn($h) => strtolower(preg_replace('/^[\xef\xbb\xbf]+/', '', trim((string)$h))), $rawHeaders);
 
-        // 2. PROVEEDORES FICTICIOS (Generación Masiva)
-        for ($i = 0; $i < 15; $i++) {
-            $company = $faker->company;
-            $providers[] = [
-                'company_name' => $company . ' S.A.',
-                'commercial_name' => explode(' ', $company)[0] . ' Distribución',
-                'tax_id' => $faker->unique()->numerify('10########'),
-                'internal_code' => 'PROV-' . str_pad($i + 10, 3, '0', STR_PAD_LEFT),
-                'contact_name' => $faker->name,
-                'email_orders' => $faker->companyEmail,
-                'phone' => '7' . $faker->numerify('#######'),
-                'address' => $faker->streetAddress,
-                'city' => $faker->randomElement(['La Paz', 'Santa Cruz', 'Cochabamba', 'El Alto', 'Tarija']),
-                'lead_time_days' => $faker->numberBetween(1, 7),
-                'min_order_value' => $faker->randomFloat(2, 100, 2000),
-                'credit_days' => $faker->randomElement([0, 7, 15, 30, 45]),
-                'credit_limit' => $faker->randomFloat(2, 5000, 50000),
-                'is_active' => true,
-            ];
-        }
+        DB::transaction(function () use ($file, $headers) {
+            while (($data = fgetcsv($file, 0, ';')) !== false) {
+                if (count($headers) !== count($data)) continue;
+                $row = array_combine($headers, $data);
 
-        foreach ($providers as $data) {
-            Provider::firstOrCreate(
-                ['tax_id' => $data['tax_id'] ?? $faker->unique()->numerify('10########')],
-                $data
-            );
-        }
+                $cleanRow = array_map(function($value) {
+                    $str = trim((string)$value);
+                    if ($str === '') return null;
+                    
+                    $encoding = mb_detect_encoding($str, ['UTF-8', 'ISO-8859-1', 'Windows-1252'], true);
+                    if ($encoding !== 'UTF-8') {
+                        $str = mb_convert_encoding($str, 'UTF-8', $encoding ?: 'ISO-8859-1');
+                    }
+
+                    return htmlspecialchars_decode(mb_convert_encoding($str, 'UTF-8', 'UTF-8'), ENT_QUOTES);
+                }, $row);
+
+                Provider::updateOrCreate(['tax_id' => $cleanRow['tax_id']], $cleanRow);
+            }
+        });
+        fclose($file);
     }
 }

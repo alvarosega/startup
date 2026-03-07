@@ -30,4 +30,8 @@ class Product extends Model
     public function prices(): HasManyThrough {
         return $this->hasManyThrough(Price::class, Sku::class, 'product_id', 'sku_id');
     }
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }

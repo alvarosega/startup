@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\HasMany; // Importación necesaria
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class MarketZone extends Model
 {
@@ -16,43 +17,44 @@ class MarketZone extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id',
         'name',
         'slug',
         'hex_color',
         'svg_id',
-        'description'
+        'description',
+        'is_active',
     ];
 
-    /**
-     * Relación base con categorías.
-     */
-    public function categories(): HasMany
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    protected $hidden = [
+        'deleted_at', // Regla 3: Zero-Trust Leakage
+    ];
+
+    // =========================================================================
+    // RELACIONES (NUEVA JERARQUÍA)
+    // =========================================================================
+
+    public function brands(): HasMany
     {
-        return $this->hasMany(Category::class);
+        return $this->hasMany(Brand::class);
     }
 
-    /**
-     * Alias semántico para "Pasillos".
-     * Esto soluciona el error "Call to undefined relationship [aisles]".
-     */
-    public function aisles(): HasMany
-    {
-        return $this->categories()->whereNull('parent_id'); // Asumiendo que los pasillos son categorías raíz
-    }
+    // =========================================================================
+    // SCOPES & OPTIMIZACIÓN
+    // =========================================================================
 
-    public static function getAllWithStats()
+    public function scopeActive(Builder $query): Builder
     {
-        return self::withCount('categories')
-            ->latest()
-            ->get();
+        return $query->where('is_active', true);
     }
 
     public static function getMinimalList()
     {
-        // Rendimiento Extremo: Solo cargamos lo estrictamente necesario para el selector
-        return self::where('is_active', true)
+        return self::active()
             ->orderBy('name')
-            ->get(['id', 'name', 'hex_color']);
+            ->get(['id', 'name', 'hex_color']); // Solo carga lo necesario
     }
 }

@@ -1,72 +1,145 @@
-/* resources/css/root.css - ARQUITECTURA NEÓN */
-
+/* --- SILO ADMIN (BLADE RUNNER NEÓN) --- */
 :root {
-  /* PALETA NEÓN FRÍA (Blade Runner) */
-  --cyan: 180 100% 50%;      /* #00ffff */
-  --magenta: 300 100% 50%;   /* #ff00ff */
-  --blue: 210 100% 50%;      /* #007bff */
-  --electric-blue: 200 100% 50%; /* #00aaff */
-
-  /* NÚCLEO DE COLOR PRINCIPAL (usaremos cyan como base) */
+  --cyan: 180 100% 50%;
+  --magenta: 300 100% 50%;
+  --blue: 210 100% 50%;
+  --electric-blue: 200 100% 50%;
   --brand-hue: 180;
   --brand-saturation: 100%;
   --brand-lightness: 50%;
-
-  /* FÍSICA Y GEOMETRÍA */
-  --cut-size: 0px;           /* Eliminamos esquinas recortadas */
+  --cut-size: 0px;
   --border-weight: 1px;
-  --neon-blur: 8px;           /* Desenfoque para efecto neón */
-
-  /* GRID DE CALIBRACIÓN */
+  --neon-blur: 8px;
   --grid-size: 20px;
   --grid-opacity: 0.05;
-
-  /* MODO CLARO (Clean, con toques de neón) */
-  --background: 0 0% 98%;      /* Casi blanco */
-  --foreground: 0 0% 10%;      /* Casi negro */
+  --background: 0 0% 98%;
+  --foreground: 0 0% 10%;
   --card: 0 0% 100%;
   --card-foreground: 0 0% 10%;
-  --border: 0 0% 85%;          /* Gris suave */
+  --border: 0 0% 85%;
   --input: 0 0% 98%;
-
   --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   --primary-foreground: 0 0% 0%;
-
   --secondary: var(--magenta);
   --secondary-foreground: 0 0% 100%;
-
   --accent: var(--electric-blue);
   --accent-foreground: 0 0% 0%;
-
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
-
   --scanline-opacity: 0.02;
 }
 
 .dark {
-  /* MODO OSCURO (Abisal con neones intensos) */
-  --background: 0 0% 0%;       /* Negro absoluto */
-  --foreground: 0 0% 100%;     /* Blanco puro */
-
-  --card: 0 0% 5%;             /* Gris muy oscuro */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 5%;
   --card-foreground: 0 0% 100%;
-
-  --border: 0 0% 20%;          /* Líneas de contención sutiles */
+  --border: 0 0% 20%;
   --input: 0 0% 5%;
-
   --primary: var(--brand-hue) var(--brand-saturation) var(--brand-lightness);
   --primary-foreground: 0 0% 0%;
-
   --secondary: var(--magenta);
   --secondary-foreground: 0 0% 100%;
-
   --accent: var(--electric-blue);
   --accent-foreground: 0 0% 0%;
-
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
-
   --grid-opacity: 0.15;
   --scanline-opacity: 0.05;
+}
+
+
+/* =========================================================
+   SILO CUSTOMER: PALETA INDEPENDIENTE (CYBER-MINIMALIST)
+   ========================================================= */
+/* MODO CLARO (Estilo Apple/Google: Cerámica y limpieza MEJORADO) */
+.customer-theme {
+  /* Neutrales: Más calidez y gama completa para mejor jerarquía */
+  --background: 40 23% 97%;       /* #F8F5F0 - Blanco cálido (menos frío que #F5F5F7) */
+  --foreground: 20 10% 15%;       /* #2C2724 - Marrón muy oscuro (menos duro que el gris plomo) */
+  --card: 0 0% 100%;              /* #FFFFFF - Blanco puro para contenedores */
+  --card-foreground: 20 10% 15%;  /* Hereda del foreground para consistencia */
+  --border: 40 10% 85%;           /* #E0DBD1 - Beige sutil para bordes */
+  --input: 40 15% 92%;            /* #F0EBE2 - Fondo de inputs más cálido */
+  
+  /* Acento Principal: Azul técnico versátil (tu idea original) */
+  --primary: 200 90% 50%;         /* #1A8CD8 - Azul más vibrante y técnico */
+  --primary-foreground: 0 0% 100%;
+  
+  /* NUEVOS Acentos Estratégicos */
+  --secondary: 40 15% 55%;        /* #B8A692 - Beige/marrón medio para acentos secundarios */
+  --secondary-foreground: 20 10% 15%;
+  --accent: 160 60% 45%;          /* #2E9B7A - Verde mentoso para éxito o detalles frescos */
+  --accent-foreground: 0 0% 100%;
+  
+  /* Estados y Sistema */
+  --muted: 40 10% 45%;            /* #847A6E - Gris-beige para texto deshabilitado */
+  --muted-foreground: 40 5% 55%;  /* Fondo para elementos muted */
+  --destructive: 0 80% 60%;       /* #E65F5F - Rojo para errores (menos saturado que el glow) */
+  --destructive-foreground: 0 0% 100%;
+  
+  /* Efectos Visuales */
+  --glass-base: 0 0% 100%;        /* Base para cristal translúcido */
+  --glass-border: 40 10% 85% / 0.5; /* Borde semitransparente para glass */
+  
+  --ring: 200 90% 50%;            /* Color del focus ring (mismo que primary) */
+  --radius: 0.75rem;              /* Radio de borde consistente */
+  
+  /* Colores Funcionales (semánticos) */
+  --success: 160 60% 45%;         /* Mismo que accent para consistencia */
+  --warning: 40 100% 65%;         /* #FFD966 - Ámbar para advertencias */
+  --info: 200 90% 50%;            /* Mismo que primary */
+  
+  /* Sombras suaves y profesionales */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.04);
+  
+  --nav-height: 60px;
+}
+
+/* MODO OSCURO (Estilo Deep Tech: OLED y Neón Láser MEJORADO) */
+.dark .customer-theme {
+  /* Neutrales: Gama completa en oscuro para profundidad */
+  --background: 0 0% 4%;          /* #0A0A0A - Casi OLED, pero permite ver profundidad */
+  --foreground: 0 0% 95%;         /* #F2F2F2 - Blanco ligeramente suave para menos fatiga */
+  --card: 0 0% 8%;                /* #141414 - Carbón más claro que el fondo para contraste */
+  --card-foreground: 0 0% 95%;
+  --border: 0 0% 15%;             /* #262626 - Bordes sutiles pero visibles */
+  --input: 0 0% 12%;              /* #1F1F1F - Fondo de inputs */
+  
+  /* Acento Principal: Azul Neón Eléctrico (en lugar de rojo) */
+  --primary: 200 100% 60%;        /* #33B5FF - Azul neón brillante, más legible y moderno */
+  --primary-foreground: 0 0% 0%;
+  
+  /* NUEVOS Acentos en Oscuro */
+  --secondary: 0 0% 25%;          /* #404040 - Gris neutro para elementos secundarios */
+  --secondary-foreground: 0 0% 95%;
+  --accent: 160 70% 50%;          /* #2EB872 - Verde neón para éxito */
+  --accent-foreground: 0 0% 0%;
+  
+  /* Estados y Sistema */
+  --muted: 0 0% 40%;              /* #666666 - Gris para texto muted */
+  --muted-foreground: 0 0% 15%;   /* Fondo para elementos muted */
+  --destructive: 0 80% 60%;       /* #E65F5F - Rojo para errores (consistente con claro) */
+  --destructive-foreground: 0 0% 0%;
+  
+  /* Efectos Visuales */
+  --glass-base: 0 0% 8%;          /* Base más oscura para glass */
+  --glass-border: 0 0% 20% / 0.5; /* Borde sutil para glass */
+  
+  --ring: 200 100% 60%;           /* Mismo que primary */
+  --radius: 0.75rem;
+  
+  /* Colores Funcionales */
+  --success: 160 70% 50%;         /* Mismo que accent */
+  --warning: 45 100% 55%;         /* #FFC107 - Ámbar neón */
+  --info: 200 100% 60%;           /* Mismo que primary */
+  
+  /* Sombras en oscuro: más sutiles, basadas en luz */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.6);
+  
+  --nav-height: 60px;
 }

@@ -13,8 +13,8 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         
         @inertiaHead
-        @routes {{-- <--- AGREGA ESTA LÍNEA ANTES DE @VITE --}}
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @routes
+        @vite(['resources/js/app.js']) 
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

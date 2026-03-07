@@ -52,6 +52,13 @@ class Bundle extends Model
                     ->withTimestamps();
     }
 
+    public function items()
+    {
+        // belongsToMany(ModeloDestino, tabla_pivote, llave_foranea_local, llave_foranea_destino)
+        return $this->belongsToMany(Sku::class, 'bundle_items', 'bundle_id', 'sku_id')
+                    ->withPivot('quantity')
+                    ->withTimestamps();
+    }
 
     public function scopeForBranch(Builder $query, string $branchId): void
     {

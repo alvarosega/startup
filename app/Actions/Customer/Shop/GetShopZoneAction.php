@@ -27,9 +27,8 @@ class GetShopZoneAction
         // 4. Obtiene los SKUs con el stock y precios ya filtrados por la sub-action
         $skus = $this->getSkusAction->execute($productIds);
 
-        // 5. Agrupación Jerárquica: Pasillo -> Subcategoría -> SKU
+        // 5. Agrupación Jerárquica REAL: Pasillo -> Subcategoría -> Producto -> SKUs
         $structuredData = $skus->groupBy(function ($sku) {
-            // Agrupar por el Pasillo (Padre)
             return $sku->product->category->parent_id ?? $sku->product->category_id;
         })->map(function ($skusInAisle) {
             $first = $skusInAisle->first();
@@ -44,15 +43,32 @@ class GetShopZoneAction
                         return [
                             'id'       => $sub->id,
                             'name'     => $sub->name,
-                            'products' => $skusInSub->map(fn($sku) => [
-                                'id'              => $sku->id,
-                                'name'            => "{$sku->product->name} {$sku->name}",
-                                'price'           => $sku->display_price,
-                                'image_url'       => $sku->image_url ?? $sku->product->image_url,
-                                'available_stock' => (int) $sku->available_stock, // Forzar entero
-                                'stock_status'    => $sku->stock_status, // 'in_stock' o 'out_of_stock'
-                                'variants'        => [$sku], 
-                            ])->values()
+                            // AGRUPACIÓN POR PRODUCTO
+                            'products' => $skusInSub->groupBy('product_id')->map(function ($skusForProduct) {
+                                $product = $skusForProduct->first()->product;
+                                
+                                // Calculamos el stock total del producto sumando sus SKUs
+                                $totalStock = $skusForProduct->sum('available_stock');
+                                
+                                return [
+                                    'id'              => $product->id,
+                                    'name'            => $product->name, // Nombre limpio del producto
+                                    'image_url'       => $product->image_path ?? $skusForProduct->first()->image_url,
+                                    'available_stock' => (int) $totalStock,
+                                    'stock_status'    => $totalStock > 0 ? 'in_stock' : 'out_of_stock',
+                                    'min_price'       => $skusForProduct->min('display_price'), // Precio "Desde X"
+                                    
+                                    // Los SKUs reales anidados para el Bottom Sheet
+                                    'skus'            => $skusForProduct->map(fn($sku) => [
+                                        'id'              => $sku->id,
+                                        'name'            => $sku->name, // Ej: "1 Litro"
+                                        'price'           => $sku->display_price,
+                                        'image_url'       => $sku->image_url ?? $sku->image_path,
+                                        'available_stock' => (int) $sku->available_stock,
+                                        'stock_status'    => $sku->stock_status,
+                                    ])->values()
+                                ];
+                            })->values()
                         ];
                     })->values()
             ];

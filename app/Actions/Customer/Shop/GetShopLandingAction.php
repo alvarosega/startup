@@ -27,12 +27,11 @@ class GetShopLandingAction
             ];
         })->filter()->keyBy('slug');
 
-        // 2. Obtener Bundles (Cero conversiones binarias, uso de String puro)
         $bundles = Bundle::query()
             ->where('branch_id', $branchId)
             ->where('is_active', true)
+            ->with(['items']) // <- Modificado: Carga directamente los SKUs
             ->where(function ($query) {
-                // Trae los que no tienen límite o cuyo límite es en el futuro
                 $query->whereNull('ends_at')
                     ->orWhere('ends_at', '>', Carbon::now());
             })

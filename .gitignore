@@ -39,3 +39,4 @@ ui-debug.log
 serviceAccountKey.json
 google-services.json
 GoogleService-Info.plist
+database/data/*.csv

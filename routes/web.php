@@ -25,14 +25,14 @@ use App\Http\Controllers\Web\Customer\Shop\ShopZoneController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\User\UserController;
-use App\Http\Controllers\Web\Admin\BranchController;
+use App\Http\Controllers\Web\Admin\Branch\BranchController;
 use App\Http\Controllers\Web\Admin\Product\ProductController;
 use App\Http\Controllers\Web\Admin\Category\CategoryController;
-use App\Http\Controllers\Web\Admin\MarketZoneController;
+use App\Http\Controllers\Web\Admin\MarketZone\MarketZoneController;
 use App\Http\Controllers\Web\Admin\Bundle\BundleController as AdminBundleController;
 
-use App\Http\Controllers\Web\Admin\BrandController;
-use App\Http\Controllers\Web\Admin\ProviderController;
+use App\Http\Controllers\Web\Admin\Brand\BrandController;
+use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Sku\SkuController;
 use App\Http\Controllers\Web\Admin\PriceController;
 use App\Http\Controllers\Web\Admin\InventoryController;

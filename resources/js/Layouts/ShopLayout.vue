@@ -2,8 +2,9 @@
 import { computed, ref } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
-    MapPin, ShoppingBag, User, FileText, LogOut, Search,
-    Zap, Home, ShieldCheck, X, Menu, Settings
+    MapPin, ShoppingBag, User, FileText, LogOut, Flag,
+    Home, ShieldCheck, X, Menu, Settings, ClipboardList,
+    Facebook, Instagram, Twitter, CreditCard, Info, HelpCircle
 } from 'lucide-vue-next';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue'; 
@@ -16,21 +17,16 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
-const location = computed(() => page.props.location_context || { label: 'SIN SEÑAL DE TELEMETRÍA', type: 'branch' });
+const location = computed(() => page.props.location_context || { label: 'SIN SEÑAL', type: 'branch' });
 const cartCount = computed(() => page.props.cart_summary?.count || 0);
 
-// Estados UI (Mecánicos)
-const isSearchOpen = ref(false);
-const showHamburgerMenu = ref(false);
+// Simulación de orden activa para la telemetría (esto debe venir de props/page)
+const activeOrder = computed(() => page.props.active_order || null); 
 
-const toggleSearch = () => {
-    isSearchOpen.value = !isSearchOpen.value;
-    if (isSearchOpen.value) showHamburgerMenu.value = false;
-};
+const showHamburgerMenu = ref(false);
 
 const toggleHamburger = () => {
     showHamburgerMenu.value = !showHamburgerMenu.value;
-    if (showHamburgerMenu.value) isSearchOpen.value = false;
 };
 
 const menuItems = [
@@ -46,56 +42,74 @@ const logout = () => {
 };
 
 const isIndexPage = computed(() => route().current('customer.shop.index'));
+const isCartPage = computed(() => route().current('customer.cart.index'));
+const isOrdersPage = computed(() => route().current('customer.orders.*'));
+
+// Lógica de color de telemetría según estado
+const telemetryStatusColor = computed(() => {
+    if (!activeOrder.value) return 'bg-tech';
+    const status = activeOrder.value.status;
+    const map = {
+        'pending_payment': 'bg-amber-500 shadow-[0_0_8px_#f59e0b]',
+        'under_review': 'bg-blue-400 shadow-[0_0_8px_#60a5fa]',
+        'preparing': 'bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]',
+        'dispatched': 'bg-f1-red animate-bounce shadow-[0_0_8px_#ff0000]',
+        'arrived': 'bg-telemetry-green shadow-[0_0_12px_#00ff00]',
+        'completed': 'bg-telemetry-green opacity-50'
+    };
+    return map[status] || 'bg-f1-red';
+});
 </script>
 
 <template>
-    <GlobalLoader />
-    <Toast />
+    <div class="customer-theme bg-f1-pattern text-foreground font-sans flex flex-col min-h-[100svh] relative w-full transition-colors duration-300">
+        <GlobalLoader />
+        <Toast />
 
-
-        
-        <nav class="absolute top-0 left-0 right-0 h-nav flex items-center bg-surface/95 backdrop-blur-md border-b border-tech z-[60]">
-            <div class="container mx-auto px-4 h-full grid grid-cols-[auto_1fr_auto] gap-4 items-center w-full">
+        <nav class="fixed top-0 left-0 right-0 h-[64px] flex items-center bg-background/60 backdrop-blur-2xl border-b border-tech z-[60] transition-all duration-300">
+            <div class="container mx-auto px-4 h-full flex items-center justify-between w-full">
                 
                 <Link :href="route('customer.shop.index')" class="flex items-center group">
-                    <div class="w-10 h-10 bg-primary text-background flex items-center justify-center clip-f1-br transition-transform duration-150 group-hover:scale-105">
-                        <Zap :size="20" class="fill-current" />
+                    <div class="w-9 h-9 bg-f1-red text-white flex items-center justify-center rounded-lg transition-all duration-300 group-hover:scale-105 shadow-neon-red">
+                        <Flag :size="18" class="fill-current" />
                     </div>
                 </Link>
 
-                <div class="flex flex-col items-center justify-center min-w-0 px-2 cursor-pointer" @click="router.visit(route('customer.profile.addresses'))">
-                    <span class="text-[8px] font-mono font-black uppercase tracking-[0.2em] text-f1-red mb-0.5">[ZONA ACTUAL]</span>
-                    <div class="flex items-center gap-1.5 max-w-full">
-                        <MapPin :size="12" class="text-muted shrink-0" />
-                        <span class="text-xs font-bold uppercase truncate text-primary">{{ location.label }}</span>
+                <div class="flex flex-col items-center justify-center min-w-0 px-2 cursor-pointer group" @click="router.visit(route('customer.profile.addresses'))">
+                    <span class="text-[7px] font-mono font-black uppercase tracking-[0.2em] text-f1-red group-hover:text-f1-red-hover transition-colors">
+                        [SECTOR]
+                    </span>
+                    <div class="flex items-center gap-1 max-w-[150px]">
+                        <MapPin :size="10" class="text-muted shrink-0" />
+                        <span class="text-[10px] font-bold uppercase truncate text-primary">{{ location.label }}</span>
                     </div>
                 </div>
 
-                <button @click="toggleHamburger" class="w-10 h-10 border border-tech flex items-center justify-center bg-background clip-f1-tl hover:border-f1-red transition-colors duration-150">
-                    <Menu :size="20" class="text-primary" />
+                <button @click="toggleHamburger" class="w-10 h-10 rounded-full border border-tech flex items-center justify-center bg-surface overflow-hidden transition-all duration-300 hover:border-f1-red group">
+                    <img v-if="user?.avatar" :src="user.avatar" class="w-full h-full object-cover">
+                    <User v-else :size="20" class="text-primary group-hover:text-f1-red" />
                 </button>
-
             </div>
         </nav>
 
-        <main class="w-full mx-auto transition-all pt-nav pb-nav md:pb-0 flex flex-col flex-1" 
-            :class="isIndexPage ? 'max-w-full p-0 pb-nav' : 'max-w-7xl px-4 md:py-8'">
+        <main class="w-full mx-auto transition-all pt-[64px] pb-[80px] flex flex-col flex-1" 
+            :class="isIndexPage ? 'max-w-full px-0' : 'max-w-7xl px-4 py-6'">
             
             <div v-if="isProfileSection && user" class="flex flex-col md:flex-row gap-8 flex-1">
-                <aside class="hidden md:block w-64 shrink-0 bg-surface border border-tech clip-f1-br p-0 h-fit shadow-tech">
-                    <div class="p-4 border-b border-tech bg-background/50">
-                        <h3 class="text-[10px] font-mono font-black uppercase tracking-widest text-f1-red mb-1">PILOTO ACTIVO</h3>
-                        <p class="font-sans font-bold uppercase truncate text-sm text-primary">{{ user.name || user.email }}</p>
+                <aside class="hidden md:block w-64 shrink-0 bg-surface border border-tech rounded-[20px] p-0 h-fit shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-tech bg-surface/50">
+                        <h3 class="text-[9px] font-mono font-black uppercase tracking-widest text-f1-red mb-1">DATA PILOTO</h3>
+                        <p class="font-sans font-bold uppercase truncate text-xs text-primary">{{ user.name || user.email }}</p>
                     </div>
                     <nav class="flex flex-col p-2 gap-1">
                         <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)"
-                            class="flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase clip-f1-br transition-all duration-150 border border-transparent"
-                            :class="route().current(item.route) ? 'bg-f1-red text-white border-f1-red' : 'text-primary hover:bg-background hover:border-tech'">
-                            <component :is="item.icon" :size="18" /> {{ item.name }}
+                            class="flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase rounded-xl transition-all duration-300 border border-transparent"
+                            :class="route().current(item.route) ? 'bg-f1-red text-white shadow-neon-red' : 'text-primary hover:bg-background hover:border-tech'">
+                            <component :is="item.icon" :size="16" /> {{ item.name }}
                         </Link>
                     </nav>
                 </aside>
-                <div class="flex-1 bg-surface/80 backdrop-blur-sm border border-tech clip-f1-br p-4">
+                <div class="flex-1 bg-surface border border-tech rounded-[24px] p-6 shadow-sm">
                     <slot />
                 </div>
             </div>
@@ -104,113 +118,110 @@ const isIndexPage = computed(() => route().current('customer.shop.index'));
                 <slot />
             </div>
 
-        </main>
-
-        <Transition name="fast-slide-right">
-            <div v-if="showHamburgerMenu" class="fixed inset-0 top-nav bottom-nav md:bottom-0 z-[50] bg-surface border-l border-tech w-full md:w-80 ml-auto flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
-                <div class="flex-1 overflow-y-auto p-4">
-                    <nav v-if="user" class="flex flex-col gap-2">
-                        <div class="p-4 mb-2 bg-background border border-tech clip-f1-br">
-                            <p class="text-[10px] font-mono uppercase text-telemetry-green tracking-widest mb-1">TELEMETRÍA OK</p>
-                            <p class="font-sans font-black text-lg uppercase truncate text-primary">{{ user.name || user.email }}</p>
+            <footer class="mt-12 w-full bg-surface/30 border-t border-tech py-10 px-6">
+                <div class="container mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+                    <div>
+                        <h4 class="text-[10px] font-mono font-black uppercase text-f1-red mb-4 tracking-tighter">Navegación</h4>
+                        <ul class="space-y-2 text-xs font-bold text-muted uppercase">
+                            <li><Link :href="route('customer.shop.index')" class="hover:text-primary transition-colors">Catálogo</Link></li>
+                            <li><Link :href="route('customer.cart.index')" class="hover:text-primary transition-colors">Mi Carrito</Link></li>
+                            <li><Link :href="route('customer.orders.history')" class="hover:text-primary transition-colors">Mis Pedidos</Link></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-[10px] font-mono font-black uppercase text-f1-red mb-4 tracking-tighter">Soporte</h4>
+                        <ul class="space-y-2 text-xs font-bold text-muted uppercase">
+                            <li class="flex items-center gap-2"><HelpCircle :size="14" /> Centro de Ayuda</li>
+                            <li class="flex items-center gap-2"><Info :size="14" /> Términos y Condiciones</li>
+                        </ul>
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <h4 class="text-[10px] font-mono font-black uppercase text-f1-red mb-4 tracking-tighter">Pagos Seguro</h4>
+                        <div class="flex gap-4 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+                            <CreditCard :size="24" />
+                            <div class="w-8 h-5 bg-muted rounded"></div>
+                            <div class="w-8 h-5 bg-muted rounded"></div>
                         </div>
-
-                        <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)"
-                            @click="showHamburgerMenu = false"
-                            class="flex items-center gap-4 p-4 bg-background border border-tech clip-f1-br text-sm font-bold uppercase text-primary hover:border-f1-red transition-colors duration-150">
-                            <component :is="item.icon" :size="18" class="text-muted" /> {{ item.name }}
-                        </Link>
-                        
-                        <div class="my-4 border-t border-tech"></div>
-                        
-                        <div class="mb-4">
-                            <span class="text-[10px] font-mono text-muted uppercase block mb-3">Sistemas / HUD</span>
-                            <div class="flex gap-4 p-4 bg-background border border-tech clip-f1-br">
-                                <ThemeToggler />
-                                <FullScreenToggler />
-                            </div>
-                        </div>
-
-                        <button @click="logout" class="w-full flex items-center justify-center gap-3 p-4 bg-f1-red/10 border border-f1-red text-f1-red clip-f1-br font-bold uppercase hover:bg-f1-red hover:text-white transition-colors duration-150">
-                            <LogOut :size="16" /> Desconectar Sistema
-                        </button>
-                    </nav>
-                    <div v-else class="flex flex-col gap-4 mt-4">
-                        <div class="flex gap-4 p-4 mb-4 bg-background border border-tech clip-f1-br">
-                            <ThemeToggler />
-                            <FullScreenToggler />
-                        </div>
-                        <Link :href="route('login')" class="w-full p-4 bg-f1-red text-white font-bold uppercase text-center clip-f1-br transition-colors hover:bg-f1-red-hover">Iniciar Stint (Login)</Link>
-                        <Link :href="route('register')" class="w-full p-4 bg-background border border-tech text-primary font-bold uppercase text-center clip-f1-br transition-colors hover:border-primary">Nuevo Piloto (Unirse)</Link>
+                    </div>
+                    <div class="col-span-2 md:col-span-1 flex flex-col items-end md:items-start">
+                         <h4 class="text-[10px] font-mono font-black uppercase text-f1-red mb-4 tracking-tighter">Comunidad</h4>
+                         <div class="flex gap-4">
+                            <Facebook :size="18" class="text-muted hover:text-primary cursor-pointer" />
+                            <Instagram :size="18" class="text-muted hover:text-primary cursor-pointer" />
+                            <Twitter :size="18" class="text-muted hover:text-primary cursor-pointer" />
+                         </div>
                     </div>
                 </div>
-            </div>
-        </Transition>
-
-        <Transition name="fast-fade">
-            <div v-if="isSearchOpen" class="fixed inset-0 top-nav bottom-nav md:bottom-0 z-[50] bg-surface/95 backdrop-blur-md p-4">
-                <div class="flex items-center w-full max-w-2xl mx-auto border-b-2 border-f1-red pb-2">
-                    <Search :size="24" class="text-f1-red mr-3" />
-                    <input autoFocus placeholder="INGRESE PARÁMETRO DE BÚSQUEDA..." class="w-full bg-transparent border-none outline-none text-lg font-mono font-bold text-primary placeholder-muted" />
-                    <button @click="toggleSearch" class="text-muted hover:text-f1-red transition-colors duration-150"><X :size="24" /></button>
+                <div class="pt-6 border-t border-tech text-center">
+                    <span class="text-[9px] font-mono text-muted uppercase tracking-[0.3em]">&copy; 2026 CYBER-SYSTEM // V 3.0.4 - RELEASE</span>
                 </div>
+            </footer>
+        </main>
+
+        <div v-if="activeOrder" class="fixed bottom-[80px] left-0 right-0 h-[2px] z-[65] pointer-events-none">
+            <div class="h-full transition-all duration-1000 ease-in-out" :class="telemetryStatusColor" style="width: 100%;"></div>
+            <div class="absolute -top-6 right-4 px-2 py-0.5 cyber-glass border border-tech rounded text-[8px] font-mono font-black text-primary uppercase">
+                Estado: {{ activeOrder.status_label }}
             </div>
-        </Transition>
+        </div>
 
-        <nav class="fixed bottom-0 left-0 right-0 h-nav bg-surface border-t border-tech z-[70] flex justify-around items-center px-2 md:hidden">
-            <Link :href="route('customer.shop.index')" class="flex flex-col items-center justify-center w-full h-full gap-1 group relative">
-                <div class="absolute top-0 w-full h-[2px] bg-f1-red transition-transform duration-150 origin-center" :class="isIndexPage ? 'scale-x-100' : 'scale-x-0'"></div>
-                <Home :size="20" :class="isIndexPage ? 'text-primary' : 'text-muted'" />
-                <span class="text-[9px] font-mono uppercase" :class="isIndexPage ? 'text-primary font-bold' : 'text-muted'">Grid</span>
+        <nav class="fixed bottom-0 left-0 right-0 h-[80px] bg-background/80 backdrop-blur-2xl border-t border-tech z-[70] flex justify-around items-center px-6 md:hidden">
+            <Link :href="route('customer.shop.index')" class="flex flex-col items-center justify-center h-full relative group">
+                <div class="absolute -top-1 w-8 h-[2px] bg-f1-red transition-all duration-300" :class="isIndexPage ? 'opacity-100 shadow-neon-red' : 'opacity-0'"></div>
+                <Home :size="24" :class="isIndexPage ? 'text-primary' : 'text-muted'" />
             </Link>
-
-            <button @click="toggleSearch" class="flex flex-col items-center justify-center w-full h-full gap-1 group relative">
-                <div class="absolute top-0 w-full h-[2px] bg-f1-red transition-transform duration-150 origin-center" :class="isSearchOpen ? 'scale-x-100' : 'scale-x-0'"></div>
-                <Search :size="20" :class="isSearchOpen ? 'text-primary' : 'text-muted'" />
-                <span class="text-[9px] font-mono uppercase" :class="isSearchOpen ? 'text-primary font-bold' : 'text-muted'">Escanear</span>
-            </button>
-
-            <Link :href="route('customer.cart.index')" class="flex flex-col items-center justify-center w-full h-full gap-1 group relative bg-background border-x border-tech">
-                <div class="absolute top-0 w-full h-[2px] bg-f1-red transition-transform duration-150 origin-center" :class="route().current('customer.cart.index') ? 'scale-x-100' : 'scale-x-0'"></div>
+            
+            <Link :href="route('customer.cart.index')" class="flex flex-col items-center justify-center h-full relative group">
+                <div class="absolute -top-1 w-8 h-[2px] bg-f1-red transition-all duration-300" :class="isCartPage ? 'opacity-100 shadow-neon-red' : 'opacity-0'"></div>
                 <div class="relative">
-                    <ShoppingBag :size="20" :class="route().current('customer.cart.index') ? 'text-primary' : 'text-muted'" />
-                    <span v-if="cartCount > 0" class="absolute -top-2 -right-3 min-w-[16px] h-[16px] bg-f1-red text-white text-[9px] font-mono font-black clip-f1-tl flex items-center justify-center shadow-lg px-1">
+                    <ShoppingBag :size="24" :class="isCartPage ? 'text-primary' : 'text-muted'" />
+                    <span v-if="cartCount > 0" class="absolute -top-2 -right-3 min-w-[16px] h-[16px] bg-f1-red text-white text-[9px] font-mono font-black rounded-full flex items-center justify-center shadow-neon-red px-1">
                         {{ cartCount }}
                     </span>
                 </div>
-                <span class="text-[9px] font-mono uppercase" :class="route().current('customer.cart.index') ? 'text-primary font-bold' : 'text-muted'">Box</span>
             </Link>
-
-            <Link :href="route('customer.profile.index')" class="flex flex-col items-center justify-center w-full h-full gap-1 group relative">
-                <div class="absolute top-0 w-full h-[2px] bg-f1-red transition-transform duration-150 origin-center" :class="route().current('customer.profile.index') ? 'scale-x-100' : 'scale-x-0'"></div>
-                <User :size="20" :class="route().current('customer.profile.index') ? 'text-primary' : 'text-muted'" />
-                <span class="text-[9px] font-mono uppercase" :class="route().current('customer.profile.index') ? 'text-primary font-bold' : 'text-muted'">Piloto</span>
+            
+            <Link :href="route('customer.orders.history')" class="flex flex-col items-center justify-center h-full relative group">
+                <div class="absolute -top-1 w-8 h-[2px] bg-f1-red transition-all duration-300" :class="isOrdersPage ? 'opacity-100 shadow-neon-red' : 'opacity-0'"></div>
+                <ClipboardList :size="24" :class="isOrdersPage ? 'text-primary' : 'text-muted'" />
             </Link>
         </nav>
 
-        <Transition name="fast-fade">
-            <div v-if="showHamburgerMenu || isSearchOpen" class="fixed inset-0 z-[40] bg-background/80 backdrop-blur-sm md:hidden" @click="showHamburgerMenu = false; isSearchOpen = false"></div>
+        <Transition name="fast-slide-right">
+            <div v-if="showHamburgerMenu" class="fixed inset-0 top-0 z-[100] flex justify-end">
+                <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="showHamburgerMenu = false"></div>
+                <div class="relative w-80 h-full cyber-glass border-l border-tech p-6 flex flex-col shadow-2xl">
+                    <button @click="showHamburgerMenu = false" class="self-end mb-8 p-2 text-muted hover:text-f1-red"><X :size="24" /></button>
+                    
+                    <div v-if="user" class="mb-10">
+                        <div class="w-20 h-20 rounded-2xl bg-surface border border-tech mb-4 overflow-hidden shadow-neon-red">
+                            <img v-if="user.avatar" :src="user.avatar" class="w-full h-full object-cover">
+                            <User v-else :size="40" class="w-full h-full p-4 text-muted" />
+                        </div>
+                        <h3 class="text-xl font-black uppercase text-primary leading-tight">{{ user.name }}</h3>
+                        <p class="text-[10px] font-mono text-muted uppercase tracking-widest">{{ user.email }}</p>
+                    </div>
+
+                    <nav class="flex flex-col gap-2">
+                        <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" @click="showHamburgerMenu = false"
+                            class="flex items-center gap-4 p-4 bg-surface/50 border border-tech rounded-2xl text-xs font-bold uppercase text-primary hover-neon-red transition-all">
+                            <component :is="item.icon" :size="18" class="text-muted" /> {{ item.name }}
+                        </Link>
+                        <div class="my-6 border-t border-tech"></div>
+                        <div class="flex gap-4 p-4 bg-surface/50 border border-tech rounded-2xl">
+                            <ThemeToggler /><FullScreenToggler />
+                        </div>
+                        <button @click="logout" class="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-f1-red/10 border border-f1-red text-f1-red rounded-2xl font-bold uppercase hover:bg-f1-red hover:text-white transition-all">
+                            <LogOut :size="16" /> Cerrar Sesión
+                        </button>
+                    </nav>
+                </div>
+            </div>
         </Transition>
+    </div>
 </template>
 
 <style scoped>
-/* Mecánica lineal. Sin rebotes. */
-.fast-slide-right-enter-active,
-.fast-slide-right-leave-active {
-    transition: transform 0.15s linear, opacity 0.15s linear;
-}
-.fast-slide-right-enter-from,
-.fast-slide-right-leave-to {
-    transform: translateX(100%);
-    opacity: 0;
-}
-
-.fast-fade-enter-active,
-.fast-fade-leave-active {
-    transition: opacity 0.1s linear;
-}
-.fast-fade-enter-from,
-.fast-fade-leave-to {
-    opacity: 0;
-}
+.fast-slide-right-enter-active, .fast-slide-right-leave-active { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease; }
+.fast-slide-right-enter-from, .fast-slide-right-leave-to { transform: translateX(100%); opacity: 0; }
 </style>

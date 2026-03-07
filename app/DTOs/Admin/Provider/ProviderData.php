@@ -3,9 +3,10 @@ namespace App\DTOs\Admin\Provider;
 
 use Illuminate\Http\Request;
 
-readonly class ProviderData
-{
+
+readonly class ProviderData {
     public function __construct(
+        public ?string $id, // Null para creación
         public string $company_name,
         public ?string $commercial_name,
         public string $tax_id,
@@ -23,12 +24,12 @@ readonly class ProviderData
         public ?string $notes,
     ) {}
 
-    public static function fromRequest(Request $request): self
-    {
+    public static function fromRequest(Request $request, ?string $id = null): self {
         return new self(
-            company_name: $request->validated('company_name'),
+            id: $id,
+            company_name: (string) $request->validated('company_name'),
             commercial_name: $request->validated('commercial_name'),
-            tax_id: $request->validated('tax_id'),
+            tax_id: (string) $request->validated('tax_id'),
             internal_code: $request->validated('internal_code'),
             contact_name: $request->validated('contact_name'),
             email_orders: $request->validated('email_orders'),
@@ -39,7 +40,7 @@ readonly class ProviderData
             min_order_value: (float) $request->validated('min_order_value', 0),
             credit_days: (int) $request->validated('credit_days', 0),
             credit_limit: (float) $request->validated('credit_limit', 0),
-            is_active: (bool) $request->validated('is_active', true),
+            is_active: $request->boolean('is_active', true),
             notes: $request->validated('notes'),
         );
     }
