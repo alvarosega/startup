@@ -2,6 +2,7 @@
 namespace App\Http\Requests\Admin\Sku;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreBulkSkuRequest extends FormRequest
 {
@@ -12,11 +13,15 @@ class StoreBulkSkuRequest extends FormRequest
         return [
             'skus' => ['required', 'array', 'min:1'],
             'skus.*.name' => ['required', 'string', 'max:255'],
-            'skus.*.code' => ['nullable', 'string', 'unique:skus,code'],
+            'skus.*.code' => [
+                'nullable', 'string', 
+                // LA LEY: Ignorar SKUs eliminados
+                Rule::unique('skus', 'code')->whereNull('deleted_at')
+            ],
             'skus.*.price' => ['required', 'numeric', 'min:0'],
-            'skus.*.conversion_factor' => ['required', 'numeric', 'min:1'],
+            'skus.*.conversion_factor' => ['required', 'numeric', 'min:0.001'], // Evitar divisiones por cero en el futuro
             'skus.*.weight' => ['required', 'numeric', 'min:0'],
-            'skus.*.image' => ['nullable', 'image', 'max:1024'],
+            'skus.*.image' => ['nullable', 'image', 'max:2048'],
         ];
     }
 }

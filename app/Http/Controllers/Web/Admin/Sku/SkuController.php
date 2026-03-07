@@ -1,43 +1,39 @@
 <?php
-
 namespace App\Http\Controllers\Web\Admin\Sku;
 
 use App\Http\Controllers\Controller;
-use App\Models\Sku;
-use App\Http\Requests\Admin\Sku\{StoreSkuRequest, UpdateSkuRequest};
-use App\DTOs\Admin\Sku\UpdateSkuDTO;
-use App\Actions\Admin\Sku\{CreateSkuAction, UpdateSkuAction, DeleteSkuAction};
+use App\Models\{Sku, Product};
+use App\Http\Requests\Admin\Sku\{StoreBulkSkuRequest, UpdateSkuRequest};
+use App\DTOs\Admin\Sku\{CreateBulkSkuDTO, SkuDataDTO};
+use App\Actions\Admin\Sku\{CreateBulkSkuAction, UpdateSkuAction, DeleteSkuAction};
 use Illuminate\Http\RedirectResponse;
-use App\Models\Product; // <--- ESTA ES LA IMPORTACIÓN QUE FALTA
-use App\Http\Requests\Admin\Sku\StoreBulkSkuRequest;
-use App\Actions\Admin\Sku\CreateBulkSkuAction;
-use Inertia\Inertia;
-use Inertia\Response as InertiaResponse;
-use App\DTOs\Admin\Sku\CreateBulkSkuDTO; // <--- IMPORTACIÓN CRÍTICA
-
+use Inertia\{Inertia, Response as InertiaResponse};
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class SkuController extends Controller
 {
+    use AuthorizesRequests;
+
     public function create(Product $product): InertiaResponse
     {
+        $this->authorize('create', Sku::class); // Si tienes SkuPolicy
         return Inertia::render('Admin/Skus/Create', [
-            'product' => [
-                'id' => $product->id,
-                'name' => $product->name
-            ]
+            'product' => ['id' => $product->id, 'name' => $product->name]
         ]);
     }
     
     public function store(StoreBulkSkuRequest $request, Product $product, CreateBulkSkuAction $action): RedirectResponse
     {
-        // Ahora usamos el DTO de forma segura
+        $this->authorize('create', Sku::class);
         $action->execute($product->id, CreateBulkSkuDTO::fromRequest($request));
 
         return redirect()->route('admin.products.index')
-            ->with('success', 'Variantes creadas y catálogo finalizado.');
+            ->with('success', 'Variantes inyectadas al catálogo.');
     }
+
     public function edit(Sku $sku): InertiaResponse
     {
+        $this->authorize('update', $sku);
         $sku->load('product');
     
         return Inertia::render('Admin/Skus/Edit', [
@@ -45,19 +41,21 @@ class SkuController extends Controller
             'product' => $sku->product
         ]);
     }
+
     public function update(UpdateSkuRequest $request, Sku $sku, UpdateSkuAction $action): RedirectResponse
     {
-        $action->execute($sku, $request->validated());
+        $this->authorize('update', $sku);
+        $action->execute($sku, SkuDataDTO::fromRequest($request)); // Usamos el DTO estricto
     
         return redirect()->route('admin.products.index')
-            ->with('success', 'Variante actualizada correctamente.');
+            ->with('success', 'Parámetros de variante actualizados.');
     }
 
     public function destroy(Sku $sku, DeleteSkuAction $action): RedirectResponse
     {
+        $this->authorize('delete', $sku);
         $action->execute($sku);
 
-        return back()->with('warning', 'Variante eliminada del catálogo.');
+        return back()->with('warning', 'Variante extraída de circulación.');
     }
-
 }

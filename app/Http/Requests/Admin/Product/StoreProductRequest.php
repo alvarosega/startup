@@ -13,18 +13,20 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'name' => [
-                'required', 
-                'string', 
-                'max:255', 
+                'required', 'string', 'max:255', 
                 // LA LEY: Ignorar registros con SoftDeletes
                 Rule::unique('products', 'name')->whereNull('deleted_at')
             ],
-            'brand_id' => ['required', 'uuid', 'exists:brands,id'],
+            'brand_id' => [
+                'required', 'uuid', 
+                // LA LEY: Asegurar que la marca existe y no está en la papelera
+                Rule::exists('brands', 'id')->whereNull('deleted_at')
+            ],
             'category_id' => [
-                'required', 
-                'uuid', 
-                // LA LEY: Solo permitir subcategorías (hojas del árbol)
-                Rule::exists('categories', 'id')->whereNotNull('parent_id')
+                'required', 'uuid', 
+                // CORRECCIÓN CRÍTICA: Se eliminó la restricción de subcategoría
+                // para que coincida con los datos que envía el Controller (raíces).
+                Rule::exists('categories', 'id')->whereNull('deleted_at')
             ],
             'description'  => ['nullable', 'string'],
             'image'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -36,8 +38,9 @@ class StoreProductRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'category_id.exists' => '// ERROR: DEBE SELECCIONAR UNA SUBCATEGORÍA VÁLIDA',
-            'name.unique' => '// CONFLICTO: ESTE PRODUCTO YA EXISTE EN EL ARCHIVO CENTRAL',
+            'category_id.exists' => '// ERROR_404: CATEGORÍA INEXISTENTE O DADA DE BAJA',
+            'brand_id.exists'    => '// ERROR_404: MARCA INEXISTENTE O DADA DE BAJA',
+            'name.unique'        => '// CONFLICTO: ESTE MAESTRO YA EXISTE EN EL SISTEMA VIVO',
         ];
     }
 }

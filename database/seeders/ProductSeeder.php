@@ -79,12 +79,13 @@ class ProductSeeder extends Seeder
                     );
                 }
 
-                // Generación del Slug del Producto
-                $productSlug = Str::slug($cleanRow['name']);
-
-                // Persistencia (Idempotente)
+                $nameClean = trim(mb_strtolower($cleanRow['name']));
+                $productSlug = str_replace(' ', '-', $nameClean);
+                $productSlug = preg_replace('/[^a-z0-9ñ\-]/u', '', $productSlug);
+                
+                // Persistencia
                 Product::updateOrCreate(
-                    ['slug' => $productSlug], // Llave de búsqueda
+                    ['slug' => $productSlug], 
                     [
                         'name'         => $cleanRow['name'],
                         'brand_id'     => $brandId,

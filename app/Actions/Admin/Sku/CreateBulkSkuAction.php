@@ -1,10 +1,9 @@
 <?php
-
 namespace App\Actions\Admin\Sku;
 
 use App\Models\Sku;
 use App\DTOs\Admin\Sku\CreateBulkSkuDTO;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{DB, Cache};
 
 class CreateBulkSkuAction
 {
@@ -19,10 +18,11 @@ class CreateBulkSkuAction
                     'base_price'        => $skuData->price,
                     'conversion_factor' => $skuData->conversionFactor,
                     'weight'            => $skuData->weight,
-                    'image_path'        => $skuData->image ? $skuData->image->store('skus', 'public') : null
+                    'image_path'        => $skuData->image ? $skuData->image->store('skus', 'public') : null,
+                    'is_active'         => true,
                 ]);
 
-                // Generación de precio inicial
+                // Financial Traceability
                 $sku->prices()->create([
                     'type'        => 'regular',
                     'list_price'  => $skuData->price,
@@ -30,6 +30,9 @@ class CreateBulkSkuAction
                     'valid_from'  => now()
                 ]);
             }
+            
+            // LA LEY: Si añadimos SKUs, el catálogo de productos cambió
+            Cache::forget('admin_products_list');
         });
     }
 }
