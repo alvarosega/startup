@@ -12,6 +12,8 @@ return new class extends Migration {
             $table->uuid('id')->primary();
             
             $table->string('name')->unique(); 
+            $table->string('slug')->unique()->index(); 
+            
             $table->string('city')->default('La Paz');
             $table->string('phone', 20)->nullable();
             $table->string('address')->nullable();

@@ -21,14 +21,14 @@ class Sku extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'base_price' => 'decimal:2',
-        'conversion_factor' => 'decimal:3',
-        'weight' => 'decimal:3'
+        // LA LEY: Eliminados base_price, conversion_factor y weight del cast 
+        // para que los Accessors tengan el control absoluto.
     ];
 
-    public function product() { return $this->belongsTo(Product::class); }
-    public function prices() { return $this->hasMany(Price::class); }
-    public function inventoryLots() { return $this->hasMany(InventoryLot::class); }
+    public function product(): BelongsTo { return $this->belongsTo(Product::class); }
+    public function prices(): HasMany { return $this->hasMany(Price::class); }
+    public function inventoryLots(): HasMany { return $this->hasMany(InventoryLot::class); }
+    
     public function currentPrices(): HasMany
     {
         return $this->prices()
@@ -38,9 +38,11 @@ class Sku extends Model
             ->where(function ($q) {
                 $q->whereNull('valid_to')->orWhere('valid_to', '>=', now());
             })
-            ->orderBy('priority', 'asc') // Prioridad 1 gana
-            ->orderBy('min_quantity', 'desc'); // A igualdad de prioridad, preferir escalas mayores (opcional)
+            // CORRECCIÓN CRÍTICA: Prioridad más alta (6) gana sobre la más baja (1)
+            ->orderBy('priority', 'desc') 
+            ->orderBy('min_quantity', 'desc');
     }
+
     protected function displayPrice(): Attribute
     {
         return Attribute::make(
@@ -53,26 +55,43 @@ class Sku extends Model
                     ->where('min_quantity', '<=', 1)
                     ->first();
 
-                // Aseguramos que devuelva el valor numérico
                 return $price ? $price->final_price : $this->base_price;
             }
         );
     }
 
     // =================================================================================
-    // ACCESSORS SENIOR
+    // ACCESSORS SENIOR (Tolerancia Cero a Errores de Formato)
     // =================================================================================
 
     public function getImageUrlAttribute(): ?string
     {
         return $this->image_path ? asset('storage/' . $this->image_path) : null;
     }
+
     public static function getAvailableForBundles()
     {
-        // Eager loading de 'product' es obligatorio para el label del select
         return self::with('product')
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'product_id', 'name', 'base_price']); // Solo columnas necesarias
+            ->get(['id', 'product_id', 'name', 'base_price']); 
+    }
+
+    public function getBasePriceAttribute($value): float
+    {
+        $clean = str_replace(',', '.', (string) $value);
+        return is_numeric($clean) ? (float) $clean : 0.00;
+    }
+
+    public function getWeightAttribute($value): float
+    {
+        $clean = str_replace(',', '.', (string) $value);
+        return is_numeric($clean) ? (float) $clean : 0.00;
+    }
+
+    public function getConversionFactorAttribute($value): float
+    {
+        $clean = str_replace(',', '.', (string) $value);
+        return is_numeric($clean) ? (float) $clean : 1.00;
     }
 }

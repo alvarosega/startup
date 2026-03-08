@@ -34,7 +34,7 @@ use App\Http\Controllers\Web\Admin\Bundle\BundleController as AdminBundleControl
 use App\Http\Controllers\Web\Admin\Brand\BrandController;
 use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Sku\SkuController;
-use App\Http\Controllers\Web\Admin\PriceController;
+use App\Http\Controllers\Web\Admin\Price\PriceController;
 use App\Http\Controllers\Web\Admin\InventoryController;
 use App\Http\Controllers\Web\Admin\PurchaseController;
 //use App\Http\Controllers\Web\Admin\TransferController;

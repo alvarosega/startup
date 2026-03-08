@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             BrandSeeder::class,         // Nivel 2
             ProductSeeder::class,    
             SkuSeeder::class,
+            PriceSeeder::class,
             //InventorySeeder::class,
             BundleSeeder::class,
         ]);

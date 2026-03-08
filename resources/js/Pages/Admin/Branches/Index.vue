@@ -4,17 +4,16 @@ import { Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import MapComponent from '@/Components/Base/MapComponent.vue';
 import { 
-    MapPin, Phone, Edit, Building, Plus, 
-    Copy, ExternalLink, Search, Globe, 
-    Zap, DollarSign, Target, ShieldCheck, ArrowRight,
-    Radio, Cpu, Radar, Crosshair, Navigation, TowerControl,
-    Wifi, WifiOff, AlertTriangle, CheckCircle2, GitBranch,
-    HardDrive, Server, Activity, Clock, Terminal
+    MapPin, Edit, Building, Plus, 
+    Copy, Target, Wifi, WifiOff, 
+    DollarSign, Activity, HardDrive, Cpu,
+    AlertTriangle, CheckCircle2, GitBranch,
+    Server, Clock
 } from 'lucide-vue-next';
 
 const props = defineProps({
     branches: Array,
-    auth: Object // Para verificar permisos super_admin
+    auth: Object
 });
 
 const isLoading = ref(true);
@@ -68,292 +67,242 @@ const fmt = (val) => new Intl.NumberFormat('es-BO', { style: 'currency', currenc
 
 // Estado de red para cada nodo
 const getNetworkStatus = (branch) => {
-    if (!branch.is_active) return { icon: WifiOff, class: 'text-destructive', label: 'OFFLINE' };
-    if (branch.surge_multiplier > 1.5) return { icon: Activity, class: 'text-warning', label: 'ALERTA // SURGE' };
-    return { icon: Wifi, class: 'text-cyan-500', label: 'ONLINE' };
+    if (!branch.is_active) return { icon: WifiOff, class: 'text-destructive', label: 'Inactiva' };
+    if (branch.surge_multiplier > 1.5) return { icon: Activity, class: 'text-warning', label: 'Alerta surge' };
+    return { icon: Wifi, class: 'text-success', label: 'Activa' };
 };
 </script>
 
 <template>
     <AdminLayout>
         <template #header>
-            <div class="pt-0 pb-4 border-b border-primary/30 flex justify-between items-end relative group/header">
-                <!-- Efecto de escaneo en el header -->
-                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
-                
-                <div class="relative z-10">
-                    <h1 class="text-3xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_12px_hsl(var(--primary)/0.6)] leading-none"
-                        data-text="NODOS OPERATIVOS">
-                        NODOS OPERATIVOS
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-foreground tracking-tight">
+                        Sucursales
                     </h1>
-                    <p class="text-[10px] text-muted-foreground font-mono font-bold tracking-widest uppercase mt-1 flex items-center gap-2">
-                        <TowerControl :size="12" class="text-primary" />
-                        {{ stats.total }} UNIDADES EN RED // {{ stats.active }} ACTIVAS
-                        <Terminal :size="12" class="text-primary" />
+                    <p class="text-sm text-muted-foreground mt-1">
+                        Gestión de nodos operativos y cobertura
                     </p>
                 </div>
                 
                 <Link :href="route('admin.branches.create')" 
-                      class="px-4 py-2 bg-primary text-primary-foreground font-mono text-xs border border-primary/50 relative overflow-hidden group/btn">
-                    <span class="flex items-center gap-2 relative z-10">
-                        <Plus :size="14" /> INICIALIZAR NODO
-                    </span>
-                    <!-- Efecto scan -->
-                    <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500"></span>
-                    <!-- Esquinas -->
-                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
-                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
-                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
-                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground/50"></span>
+                      class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all inline-flex items-center gap-2">
+                    <Plus :size="18" />
+                    Nueva sucursal
                 </Link>
             </div>
         </template>
 
-        <div class="space-y-6 pb-32 md:pb-12 relative mt-4">
+        <div class="space-y-6 pb-32 md:pb-12">
             
             <!-- Stats Dashboard -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="border border-border/50 p-4 relative group/stat">
-                    <div class="flex items-center justify-between">
-                        <Server :size="20" class="text-primary" />
-                        <span class="text-[8px] font-mono text-primary/50">TOTAL</span>
+                <div class="bg-card border border-border rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-primary/10 rounded-lg">
+                            <Server :size="20" class="text-primary" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">Total</p>
+                            <p class="text-2xl font-bold text-foreground">{{ stats.total }}</p>
+                        </div>
                     </div>
-                    <p class="text-2xl font-mono font-bold text-foreground mt-2">{{ String(stats.total).padStart(2, '0') }}</p>
-                    <p class="text-[10px] text-muted-foreground font-mono">NODOS INSTALADOS</p>
-                    <!-- Esquinas -->
-                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
-                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
-                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
-                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
                 </div>
 
-                <div class="border border-border/50 p-4 relative group/stat">
-                    <div class="flex items-center justify-between">
-                        <Wifi :size="20" class="text-cyan-500" />
-                        <span class="text-[8px] font-mono text-primary/50">ACTIVOS</span>
+                <div class="bg-card border border-border rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-success/10 rounded-lg">
+                            <Wifi :size="20" class="text-success" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">Activas</p>
+                            <p class="text-2xl font-bold text-foreground">{{ stats.active }}</p>
+                        </div>
                     </div>
-                    <p class="text-2xl font-mono font-bold text-cyan-500 mt-2">{{ String(stats.active).padStart(2, '0') }}</p>
-                    <p class="text-[10px] text-muted-foreground font-mono">NODOS ONLINE</p>
                 </div>
 
-                <div class="border border-border/50 p-4 relative group/stat">
-                    <div class="flex items-center justify-between">
-                        <WifiOff :size="20" class="text-destructive" />
-                        <span class="text-[8px] font-mono text-primary/50">INACTIVOS</span>
+                <div class="bg-card border border-border rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-destructive/10 rounded-lg">
+                            <WifiOff :size="20" class="text-destructive" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">Inactivas</p>
+                            <p class="text-2xl font-bold text-foreground">{{ stats.inactive }}</p>
+                        </div>
                     </div>
-                    <p class="text-2xl font-mono font-bold text-destructive mt-2">{{ String(stats.inactive).padStart(2, '0') }}</p>
-                    <p class="text-[10px] text-muted-foreground font-mono">NODOS OFFLINE</p>
                 </div>
 
-                <div class="border border-border/50 p-4 relative group/stat">
-                    <div class="flex items-center justify-between">
-                        <Activity :size="20" class="text-warning" />
-                        <span class="text-[8px] font-mono text-primary/50">SURGE</span>
+                <div class="bg-card border border-border rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-warning/10 rounded-lg">
+                            <Activity :size="20" class="text-warning" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">Zonas surge</p>
+                            <p class="text-2xl font-bold text-foreground">{{ stats.surgeZones }}</p>
+                        </div>
                     </div>
-                    <p class="text-2xl font-mono font-bold text-warning mt-2">{{ String(stats.surgeZones).padStart(2, '0') }}</p>
-                    <p class="text-[10px] text-muted-foreground font-mono">ZONAS DE ALERTA</p>
                 </div>
             </div>
 
             <!-- Filtros -->
-            <div class="flex items-center gap-2 border-b border-primary/30 pb-2">
+            <div class="flex items-center gap-2 border-b border-border pb-2">
                 <button @click="selectedBranchType = 'all'"
-                        class="px-3 py-1 text-[10px] font-mono transition-all relative group/filter"
-                        :class="selectedBranchType === 'all' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-primary'">
-                    TODOS ({{ stats.total }})
-                    <span class="absolute bottom-0 left-0 w-0 h-[2px] bg-primary group-hover/filter:w-full transition-all"></span>
+                        class="px-3 py-1 text-sm font-medium transition-colors relative"
+                        :class="selectedBranchType === 'all' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'">
+                    Todas ({{ stats.total }})
                 </button>
                 <button @click="selectedBranchType = 'active'"
-                        class="px-3 py-1 text-[10px] font-mono transition-all relative group/filter"
-                        :class="selectedBranchType === 'active' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-primary'">
-                    ACTIVOS ({{ stats.active }})
+                        class="px-3 py-1 text-sm font-medium transition-colors relative"
+                        :class="selectedBranchType === 'active' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'">
+                    Activas ({{ stats.active }})
                 </button>
                 <button @click="selectedBranchType = 'inactive'"
-                        class="px-3 py-1 text-[10px] font-mono transition-all relative group/filter"
-                        :class="selectedBranchType === 'inactive' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-primary'">
-                    INACTIVOS ({{ stats.inactive }})
+                        class="px-3 py-1 text-sm font-medium transition-colors relative"
+                        :class="selectedBranchType === 'inactive' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'">
+                    Inactivas ({{ stats.inactive }})
                 </button>
                 <div class="flex-1"></div>
-                <span class="text-[8px] font-mono text-muted-foreground">
-                    <Clock :size="10" class="inline" /> ÚLTIMA SINCRONIZACIÓN: {{ new Date().toLocaleTimeString() }}
+                <span class="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock :size="14" />
+                    {{ new Date().toLocaleTimeString() }}
                 </span>
             </div>
 
             <!-- Mapa -->
-            <div class="animate-in fade-in zoom-in duration-500">
-                <div class="relative overflow-hidden border border-primary/30 shadow-[0_0_25px_hsl(var(--primary)/0.2)] group/map bg-background">
-                    <div class="absolute top-0 left-0 z-[400] bg-background/90 border-b border-r border-primary/30 px-3 py-1.5 flex items-center gap-2 pointer-events-none backdrop-blur-sm">
-                        <Radar :size="14" class="text-primary icon-glow animate-pulse"/>
-                        <span class="text-[10px] text-primary font-mono font-bold uppercase tracking-widest">GEOFENCING // RADAR ACTIVO</span>
-                    </div>
-                    
-                    <!-- Overlay de escaneo -->
-                    <div class="absolute inset-0 pointer-events-none z-[300] opacity-30">
-                        <div class="absolute top-0 left-0 w-full h-[2px] bg-primary/30 animate-scanline"></div>
-                    </div>
-                    
-                    <MapComponent 
-                        ref="mapRef"
-                        :markers="filteredBranches" 
-                        :center="mapCenter" 
-                        :zoom="mapZoom"
-                        height="320px" 
-                        class="w-full h-full opacity-90 group-hover/map:opacity-100 transition-opacity"
-                    />
-                </div>
+            <div class="border border-border rounded-xl overflow-hidden shadow-sm">
+                <MapComponent 
+                    ref="mapRef"
+                    :markers="filteredBranches" 
+                    :center="mapCenter" 
+                    :zoom="mapZoom"
+                    height="320px" 
+                    class="w-full h-full"
+                />
             </div>
 
-            <!-- Grid de Nodos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 font-mono">
+            <!-- Grid de Sucursales -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 
                 <!-- Skeletons -->
                 <template v-if="isLoading">
                     <div v-for="n in 3" :key="`skel-${n}`" 
-                          class="h-[420px] border border-primary/20 p-6 animate-pulse relative overflow-hidden">
-                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] animate-shimmer"></div>
-                    </div>
+                          class="h-[380px] bg-card border border-border rounded-xl animate-pulse"></div>
                 </template>
 
                 <template v-else>
                     <div v-for="branch in filteredBranches" :key="branch.id" 
                          @mouseenter="hoveredBranch = branch.id"
                          @mouseleave="hoveredBranch = null"
-                         class="group relative border transition-all duration-500 flex flex-col overflow-hidden"
-                         :class="[
-                             branch.is_default 
-                                ? 'border-primary shadow-neon-primary z-10' 
-                                : 'border-border/50 hover:border-primary/50 hover:shadow-neon-primary',
-                             !branch.is_active && 'opacity-70'
-                         ]">
-                        
-                        <!-- Scanline superior -->
-                        <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                         class="bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 flex flex-col"
+                         :class="{ 'opacity-70': !branch.is_active }">
                         
                         <!-- Badges -->
-                        <div class="absolute top-2 right-2 z-20 flex gap-1">
+                        <div class="px-5 pt-4 flex justify-end gap-2">
                             <div v-if="branch.is_default" 
-                                 class="bg-primary text-primary-foreground text-[8px] font-mono px-2 py-0.5 flex items-center gap-1">
-                                <GitBranch :size="10" />
-                                MASTER NODE
+                                 class="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                <GitBranch :size="12" />
+                                Principal
                             </div>
                             <div v-if="branch.surge_multiplier > 1"
-                                 class="bg-warning/20 text-warning border border-warning/30 text-[8px] font-mono px-2 py-0.5 flex items-center gap-1">
-                                <Activity :size="10" />
-                                SURGE x{{ branch.surge_multiplier }}
+                                 class="bg-warning/10 text-warning text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                <Activity :size="12" />
+                                Surge x{{ branch.surge_multiplier }}
                             </div>
                         </div>
 
                         <!-- Header -->
-                        <div class="p-5 border-b border-border/50 relative">
-                            <div class="flex justify-between items-start mb-2">
+                        <div class="px-5 pb-2">
+                            <div class="flex justify-between items-start">
                                 <div>
-                                    <h3 class="text-lg font-black text-foreground uppercase tracking-tighter truncate w-3/4 group-hover:text-primary transition-colors">
+                                    <h3 class="text-lg font-semibold text-foreground truncate max-w-[200px]">
                                         {{ branch.name }}
                                     </h3>
                                     <div class="flex items-center gap-2 mt-1">
                                         <component :is="getNetworkStatus(branch).icon" 
-                                                   :size="12" 
+                                                   :size="14" 
                                                    :class="getNetworkStatus(branch).class" />
-                                        <span class="text-[8px] font-mono" :class="getNetworkStatus(branch).class">
+                                        <span class="text-sm" :class="getNetworkStatus(branch).class">
                                             {{ getNetworkStatus(branch).label }}
                                         </span>
                                     </div>
                                 </div>
-                                <div class="flex gap-2">
-                                    <Link :href="route('admin.branches.edit', branch.id)" 
-                                          class="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/30 relative group/edit">
-                                        <Edit :size="16" />
-                                        <span class="absolute -top-8 left-1/2 -translate-x-1/2 text-[8px] font-mono text-primary opacity-0 group-hover/edit:opacity-100 whitespace-nowrap">
-                                            EDITAR
-                                        </span>
-                                    </Link>
-                                </div>
+                                <Link :href="route('admin.branches.edit', branch.id)" 
+                                      class="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors">
+                                    <Edit :size="16" />
+                                </Link>
                             </div>
-                            <span class="text-[9px] font-mono text-primary flex items-center gap-1">
-                                <MapPin :size="10" /> {{ branch.city }} // ID:{{ String(branch.id).slice(-4).toUpperCase() }}
-                            </span>
+                            <div class="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <MapPin :size="12" class="text-primary/60" />
+                                {{ branch.city }} · ID: {{ String(branch.id).slice(-4).toUpperCase() }}
+                            </div>
                         </div>
 
                         <!-- Content -->
-                        <div class="p-5 flex-1 space-y-4 bg-gradient-to-b from-transparent to-background/50 text-[11px]">
+                        <div class="px-5 py-3 flex-1 space-y-3 bg-muted/5">
                             <!-- Métricas principales -->
-                            <div class="grid grid-cols-2 gap-4 border-b border-border/30 pb-4">
-                                <div class="space-y-1">
-                                    <span class="text-muted-foreground block text-[8px] font-mono uppercase tracking-wider flex items-center gap-1">
-                                        <DollarSign :size="10" /> BASE DELIVERY
-                                    </span>
-                                    <span class="text-foreground font-mono font-bold text-sm">{{ fmt(branch.delivery_base_fee) }}</span>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-xs text-muted-foreground block">Base delivery</span>
+                                    <span class="text-base font-semibold text-foreground">{{ fmt(branch.delivery_base_fee) }}</span>
                                 </div>
-                                <div class="space-y-1 text-right">
-                                    <span class="text-muted-foreground block text-[8px] font-mono uppercase tracking-wider flex items-center justify-end gap-1">
-                                        <Activity :size="10" /> SURGE
-                                    </span>
-                                    <span class="font-mono font-bold text-sm"
-                                          :class="branch.surge_multiplier > 1 ? 'text-warning' : 'text-foreground'">
+                                <div class="text-right">
+                                    <span class="text-xs text-muted-foreground block">Surge</span>
+                                    <span class="text-base font-semibold" :class="branch.surge_multiplier > 1 ? 'text-warning' : 'text-foreground'">
                                         x{{ branch.surge_multiplier }}
                                     </span>
                                 </div>
                             </div>
 
                             <!-- Métricas secundarias -->
-                            <div class="grid grid-cols-2 gap-4 border-b border-border/30 pb-4">
-                                <div class="space-y-1">
-                                    <span class="text-muted-foreground block text-[8px] font-mono uppercase tracking-wider flex items-center gap-1">
-                                        <HardDrive :size="10" /> PEDIDO MÍN
-                                    </span>
-                                    <span class="text-foreground font-mono font-bold">{{ fmt(branch.min_order_amount) }}</span>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-xs text-muted-foreground block">Pedido mínimo</span>
+                                    <span class="text-sm font-medium">{{ fmt(branch.min_order_amount) }}</span>
                                 </div>
-                                <div class="space-y-1 text-right">
-                                    <span class="text-muted-foreground block text-[8px] font-mono uppercase tracking-wider flex items-center justify-end gap-1">
-                                        <Cpu :size="10" /> SERVICE FEE
-                                    </span>
-                                    <span class="text-foreground font-mono font-bold">{{ branch.base_service_fee_percentage }}%</span>
+                                <div class="text-right">
+                                    <span class="text-xs text-muted-foreground block">Service fee</span>
+                                    <span class="text-sm font-medium">{{ branch.base_service_fee_percentage }}%</span>
                                 </div>
                             </div>
 
                             <!-- Dirección -->
-                            <div class="flex items-start gap-2 text-muted-foreground group/address">
-                                <MapPin :size="14" class="shrink-0 mt-0.5 group-hover/address:text-primary transition-colors" />
-                                <span class="font-mono text-[9px] leading-tight line-clamp-2 uppercase tracking-wide">
-                                    {{ branch.address }}
-                                </span>
+                            <div class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <MapPin :size="16" class="shrink-0 mt-0.5" />
+                                <span class="line-clamp-2">{{ branch.address }}</span>
                             </div>
                         </div>
 
                         <!-- Footer Actions -->
-                        <div class="grid grid-cols-2 border-t border-border/50 divide-x divide-border/50">
+                        <div class="grid grid-cols-2 border-t border-border">
                             <button @click="focusOnMap(branch)" 
-                                    class="flex items-center justify-center gap-2 py-3 text-[9px] font-mono uppercase tracking-widest text-muted-foreground hover:text-primary transition-all group/radar relative overflow-hidden">
-                                <Target :size="14" class="group-hover/radar:scale-125 transition-transform" />
-                                RADAR
-                                <span class="absolute inset-0 bg-primary/5 translate-y-full group-hover/radar:translate-y-0 transition-transform duration-300"></span>
+                                    class="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                                <Target :size="16" />
+                                Enfocar
                             </button>
                             <button @click="copyId(branch.id)"
-                                    class="flex items-center justify-center gap-2 py-3 text-[9px] font-mono uppercase tracking-widest text-muted-foreground hover:text-primary transition-all group/copy relative overflow-hidden">
-                                <Copy :size="14" class="group-hover/copy:scale-125 transition-transform" />
-                                ID_HEX
-                                <span class="absolute inset-0 bg-primary/5 translate-y-full group-hover/copy:translate-y-0 transition-transform duration-300"></span>
+                                    class="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                                <Copy :size="16" />
+                                Copiar ID
                             </button>
                         </div>
-
-                        <!-- Hover overlay -->
-                        <div v-if="hoveredBranch === branch.id" 
-                             class="absolute inset-0 border-2 border-primary/30 pointer-events-none animate-pulse"></div>
                     </div>
                 </template>
             </div>
 
             <!-- Mensaje sin resultados -->
             <div v-if="!isLoading && filteredBranches.length === 0" 
-                 class="border border-dashed border-primary/30 p-12 text-center relative">
-                <Radar :size="40" class="mx-auto text-muted-foreground mb-4" />
-                <p class="text-sm font-mono text-foreground">// SIN NODOS EN ESTA CATEGORÍA</p>
-                <p class="text-[10px] font-mono text-muted-foreground mt-2">
-                    {{ selectedBranchType === 'active' ? 'NO HAY NODOS ACTIVOS' : 'NO HAY NODOS INACTIVOS' }}
+                 class="bg-card border border-border rounded-xl p-12 text-center">
+                <Building :size="48" class="mx-auto text-muted-foreground mb-4" />
+                <p class="text-lg font-medium text-foreground mb-2">No hay sucursales</p>
+                <p class="text-sm text-muted-foreground">
+                    {{ selectedBranchType === 'active' ? 'No hay sucursales activas.' : selectedBranchType === 'inactive' ? 'No hay sucursales inactivas.' : 'Crea tu primera sucursal.' }}
                 </p>
-                <button @click="selectedBranchType = 'all'" 
-                        class="mt-4 text-[10px] font-mono text-primary hover:text-primary/80 transition-colors">
-                    VER TODOS <ArrowRight :size="12" class="inline" />
+                <button v-if="selectedBranchType !== 'all'" @click="selectedBranchType = 'all'" 
+                        class="mt-4 text-sm text-primary hover:text-primary/80 transition-colors">
+                    Ver todas
                 </button>
             </div>
         </div>
@@ -361,100 +310,5 @@ const getNetworkStatus = (branch) => {
 </template>
 
 <style scoped>
-/* Animaciones */
-@keyframes scanline {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(1000%); }
-}
-
-.animate-scanline {
-    animation: scanline 8s linear infinite;
-}
-
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-.animate-shimmer {
-    animation: shimmer 2s infinite;
-}
-
-/* Efecto glitch */
-.glitch-text {
-    position: relative;
-    animation: glitch-skew 4s infinite linear alternate-reverse;
-}
-
-.glitch-text::before,
-.glitch-text::after {
-    content: attr(data-text);
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.8;
-}
-
-.glitch-text::before {
-    color: #0ff;
-    z-index: -1;
-    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
-}
-
-.glitch-text::after {
-    color: #f0f;
-    z-index: -2;
-    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
-}
-
-@keyframes glitch-skew {
-    0% { transform: skew(0deg); }
-    20% { transform: skew(0deg); }
-    21% { transform: skew(2deg); }
-    22% { transform: skew(0deg); }
-    80% { transform: skew(0deg); }
-    81% { transform: skew(-2deg); }
-    82% { transform: skew(0deg); }
-    100% { transform: skew(0deg); }
-}
-
-@keyframes glitch-anim-1 {
-    0% { clip-path: inset(20% 0 30% 0); }
-    20% { clip-path: inset(50% 0 10% 0); }
-    40% { clip-path: inset(10% 0 60% 0); }
-    60% { clip-path: inset(80% 0 5% 0); }
-    80% { clip-path: inset(30% 0 40% 0); }
-    100% { clip-path: inset(40% 0 20% 0); }
-}
-
-@keyframes glitch-anim-2 {
-    0% { clip-path: inset(60% 0 10% 0); }
-    20% { clip-path: inset(20% 0 50% 0); }
-    40% { clip-path: inset(70% 0 5% 0); }
-    60% { clip-path: inset(10% 0 70% 0); }
-    80% { clip-path: inset(40% 0 30% 0); }
-    100% { clip-path: inset(30% 0 40% 0); }
-}
-
-/* Sombras neón */
-.shadow-neon-primary {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-}
-
-/* Efecto de brillo para íconos */
-.icon-glow {
-    filter: drop-shadow(0 0 4px currentColor);
-    transition: filter 0.3s ease;
-}
-
-.icon-glow:hover {
-    filter: drop-shadow(0 0 8px currentColor);
-}
-
-/* Colores personalizados */
-.text-warning { color: #ffaa00; }
-.bg-warning { background-color: #ffaa00; }
-.border-warning { border-color: #ffaa00; }
+/* Sin estilos personalizados - todo usa clases de Tailwind */
 </style>

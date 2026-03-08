@@ -12,8 +12,8 @@ class PricingSkuResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'code' => $this->code,
-            'base_price' => (float) $this->base_price,
-            // Agrupamos la colección de precios por el ID de sucursal
+            // Casteo forzado final por seguridad de la API
+            'base_price' => (float) $this->base_price, 
             'prices_matrix' => $this->prices->groupBy('branch_id'),
         ];
     }

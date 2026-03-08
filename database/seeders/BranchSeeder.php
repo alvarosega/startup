@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Branch;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class BranchSeeder extends Seeder
 {
@@ -12,7 +13,7 @@ class BranchSeeder extends Seeder
     {
         $branches = [
             [
-                'name' => 'Sede Central - La Paz',
+                'name' => 'Sede Central La Paz',
                 'city' => 'La Paz',
                 'address' => 'Av. 6 de Agosto #2020, Sopocachi',
                 'phone' => '22445566',
@@ -35,7 +36,7 @@ class BranchSeeder extends Seeder
                 ],
             ],
             [
-                'name' => 'Sede Santa Cruz - Equipetrol',
+                'name' => 'Sede Santa Cruz Equipetrol',
                 'city' => 'Santa Cruz',
                 'address' => 'Av. San Martín, Calle 5 Este',
                 'phone' => '33445566',
@@ -58,7 +59,7 @@ class BranchSeeder extends Seeder
                 ],
             ],
             [
-                'name' => 'Sede Cochabamba - Cala Cala',
+                'name' => 'Sede Cochabamba Cala Cala',
                 'city' => 'Cochabamba',
                 'address' => 'Av. Libertador Bolívar #100',
                 'phone' => '44445566',
@@ -83,7 +84,13 @@ class BranchSeeder extends Seeder
 
         foreach ($branches as $branch) {
             DB::transaction(function () use ($branch) {
+                // GENERADOR DE SLUG (Protocolo Bolivia: Conserva 'ñ')
+                $slug = mb_strtolower(trim($branch['name']));
+                $slug = str_replace([' ', ' - '], '-', $slug);
+                $slug = preg_replace('/[^a-z0-9ñ\-]/u', '', $slug);
+
                 Branch::updateOrCreate(
+                    ['slug' => $slug],
                     ['name' => $branch['name']], 
                     [
                         'city' => $branch['city'],

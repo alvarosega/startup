@@ -20,8 +20,6 @@ class Price extends Model
     ];
 
     protected $casts = [
-        'list_price' => 'decimal:2',
-        'final_price' => 'decimal:2',
         'valid_from' => 'datetime',
         'valid_to' => 'datetime',
     ];
@@ -35,5 +33,22 @@ class Price extends Model
 
     public function updater(): BelongsTo { 
         return $this->belongsTo(Admin::class, 'updated_by_id'); 
+    }
+    public function getListPriceAttribute($value): float
+    {
+        $clean = str_replace(',', '.', (string) $value);
+        return is_numeric($clean) ? (float) $clean : 0.00;
+    }
+
+    public function getFinalPriceAttribute($value): float
+    {
+        $clean = str_replace(',', '.', (string) $value);
+        return is_numeric($clean) ? (float) $clean : 0.00;
+    }
+
+    public function getMinQuantityAttribute($value): int
+    {
+        $clean = str_replace(',', '.', (string) $value);
+        return is_numeric($clean) ? (int) $clean : 1;
     }
 }
