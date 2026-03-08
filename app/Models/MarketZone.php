@@ -33,18 +33,7 @@ class MarketZone extends Model
         'deleted_at', // Regla 3: Zero-Trust Leakage
     ];
 
-    // =========================================================================
-    // RELACIONES (NUEVA JERARQUÍA)
-    // =========================================================================
 
-    public function brands(): HasMany
-    {
-        return $this->hasMany(Brand::class);
-    }
-
-    // =========================================================================
-    // SCOPES & OPTIMIZACIÓN
-    // =========================================================================
 
     public function scopeActive(Builder $query): Builder
     {
@@ -56,5 +45,9 @@ class MarketZone extends Model
         return self::active()
             ->orderBy('name')
             ->get(['id', 'name', 'hex_color']); // Solo carga lo necesario
+    }
+    public function brands(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Brand::class, 'market_zone_id');
     }
 }

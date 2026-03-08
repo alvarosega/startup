@@ -41,11 +41,11 @@ const processedZones = computed(() => {
 });
 
 const navigateToAisle = ({ item, zone }) => {
+    // Ahora enviamos brand_id al catálogo
     router.visit(route('customer.shop.zone', { zone: zone.slug }), {
-        data: { category: item.id }
+        data: { brand: item.id } // Cambiado de category a brand
     });
 };
-
 const navigateToZone = (zone) => {
     router.visit(route('customer.shop.zone', { zone: zone.slug }));
 };

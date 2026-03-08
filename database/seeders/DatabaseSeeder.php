@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,    
             SkuSeeder::class,
             PriceSeeder::class,
-            //InventorySeeder::class,
+            InventorySeeder::class,
             BundleSeeder::class,
         ]);
     }

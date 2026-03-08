@@ -12,15 +12,25 @@ class Branch extends Model
 {
     use HasFactory, SoftDeletes, HasUuids;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
-
     protected $fillable = [
-        'id', 'name', 'phone', 'city', 'address', 
-        'coverage_polygon', 'opening_hours', 'is_active', 'is_default', 'latitude', 'longitude',
-        // Nuevas variables logísticas
-        'delivery_base_fee', 'delivery_price_per_km', 'surge_multiplier',
-        'min_order_amount', 'small_order_fee', 'base_service_fee_percentage'
+        'id', 
+        'name', 
+        'slug', // <-- CRÍTICO: Añadido para que el seeder funcione
+        'phone', 
+        'city', 
+        'address', 
+        'coverage_polygon', 
+        'opening_hours', 
+        'is_active', 
+        'is_default', 
+        'latitude', 
+        'longitude',
+        'delivery_base_fee', 
+        'delivery_price_per_km', 
+        'surge_multiplier',
+        'min_order_amount', 
+        'small_order_fee', 
+        'base_service_fee_percentage'
     ];
 
     protected $casts = [
@@ -28,7 +38,6 @@ class Branch extends Model
         'opening_hours' => 'array',
         'coverage_polygon' => 'array',
         'is_default' => 'boolean',
-        // Casteo estricto a flotantes para evitar strings en cálculos matemáticos
         'latitude' => 'float',
         'longitude' => 'float',
         'delivery_base_fee' => 'float',
@@ -39,22 +48,32 @@ class Branch extends Model
         'base_service_fee_percentage' => 'float',
     ];
 
+    /**
+     * Scope para filtrar sucursales activas.
+     */
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }   
     
+    /**
+     * Lógica de arranque del modelo.
+     */
     protected static function booted()
     {
         static::saving(function ($branch) {
-            // Si esta sucursal se marca como default, desmarcar las demás
+            // Garantizar unicidad de la sucursal por defecto
             if ($branch->is_default) {
+                // El uso de update() aquí es seguro porque no dispara eventos de Eloquent
                 static::where('id', '!=', $branch->id)->update(['is_default' => false]);
                 Cache::forget('shop_default_branch_id');
             }
         });
     }
 
+    /**
+     * Obtiene una lista simplificada para selectores de interfaz.
+     */
     public static function getMinimalList()
     {
         return self::orderBy('name')->get(['id', 'name']);

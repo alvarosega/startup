@@ -1,5 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
+import { LogIn } from 'lucide-vue-next';
 
 const form = useForm({
     email: '',
@@ -15,46 +16,79 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Admin Login" />
-    <div class="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
-            <h2 class="text-2xl font-bold text-white text-center mb-6">Acceso Admin</h2>
-            
+    <Head title="Acceso Administrador" />
+
+    <div class="min-h-screen bg-background flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-card border border-border rounded-xl shadow-lg p-8">
+            <!-- Logo / Título -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-foreground tracking-tight">
+                    Panel de Administración
+                </h1>
+                <p class="text-sm text-muted-foreground mt-2">
+                    Ingresa tus credenciales para continuar
+                </p>
+            </div>
+
             <form @submit.prevent="submit" class="space-y-6">
-                
-                <div>
-                    <label class="block text-gray-400 text-sm mb-1">Email</label>
-                    <input 
-                        v-model="form.email" 
-                        type="email" 
+                <!-- Email -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-muted-foreground">
+                        Correo electrónico
+                    </label>
+                    <input
+                        v-model="form.email"
+                        type="email"
                         required
-                        class="w-full bg-gray-700 text-white rounded border border-gray-600 p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        class="w-full bg-background border border-border rounded-lg px-4 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="admin@ejemplo.com"
                     />
-                    <div v-if="form.errors.email" class="text-red-500 text-sm mt-1">
+                    <p v-if="form.errors.email" class="text-sm text-destructive">
                         {{ form.errors.email }}
-                    </div>
+                    </p>
                 </div>
 
-                <div>
-                    <label class="block text-gray-400 text-sm mb-1">Contraseña</label>
-                    <input 
-                        v-model="form.password" 
-                        type="password" 
+                <!-- Contraseña -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-muted-foreground">
+                        Contraseña
+                    </label>
+                    <input
+                        v-model="form.password"
+                        type="password"
                         required
-                        class="w-full bg-gray-700 text-white rounded border border-gray-600 p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        class="w-full bg-background border border-border rounded-lg px-4 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="••••••••"
                     />
+                    <p v-if="form.errors.password" class="text-sm text-destructive">
+                        {{ form.errors.password }}
+                    </p>
                 </div>
 
-                <div class="flex items-center">
-                    <input v-model="form.remember" type="checkbox" class="rounded bg-gray-700 border-gray-600 text-blue-600" />
-                    <span class="ml-2 text-gray-400 text-sm">Recordarme</span>
+                <!-- Recordar sesión -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                            v-model="form.remember"
+                            type="checkbox"
+                            class="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary/20 transition"
+                        />
+                        <span class="text-sm text-muted-foreground">Recordarme</span>
+                    </label>
+                    <!-- Opcional: enlace para recuperar contraseña -->
+                    <a href="#" class="text-sm text-primary hover:text-primary/80 transition-colors">
+                        ¿Olvidaste tu contraseña?
+                    </a>
                 </div>
 
-                <button 
+                <!-- Botón de ingreso -->
+                <button
+                    type="submit"
                     :disabled="form.processing"
-                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded transition disabled:opacity-50"
+                    class="w-full bg-primary text-primary-foreground py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                 >
-                    {{ form.processing ? 'Verificando...' : 'Ingresar' }}
+                    <LogIn :size="18" />
+                    <span>{{ form.processing ? 'Verificando...' : 'Ingresar' }}</span>
                 </button>
             </form>
         </div>

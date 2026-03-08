@@ -19,30 +19,33 @@ class ShopProductResource extends JsonResource
     public function toArray(Request $request): array
     {
         $mainVariant = $this->skus->first();
-        $priceData = $mainVariant?->prices->first();
-
+        
+        // USAMOS EL ACCESSOR display_price que ya definimos en el modelo Sku
+        // El modelo ya sabe buscar en 'currentPrices' (que filtramos en el Action)
+        $finalPrice = $mainVariant ? $mainVariant->display_price : 0;
+    
         return [
             'id'        => $this->id,
             'name'      => $this->name,
             'brand'     => $this->brand?->name,
-            // Aplicación del fallback en el Producto
             'image_url' => $this->image_path 
                 ? Storage::disk('public')->url($this->image_path)
                 : asset('assets/img/placeholder.png'),
-            'has_stock' => $mainVariant?->skus_count > 0 || $mainVariant?->inventoryLots->sum('quantity') > 0,
-            'price'     => $priceData ? (float) $priceData->final_price : 0,
+            
+            // CORRECCIÓN: Usamos el atributo 'available_stock' calculado en el Action
+            'has_stock' => $mainVariant && $mainVariant->available_stock > 0,
+            'price'     => (float) $finalPrice,
+            
             'variants'  => $this->skus->map(function ($sku) {
-                $skuPrice = $sku->prices->first();
                 return [
                     'id'        => $sku->id,
                     'name'      => $sku->name,
                     'code'      => $sku->code,
-                    'price'     => $skuPrice ? (float) $skuPrice->final_price : 0,
-                    // Aplicación del fallback en la Variante (SKU)
+                    'price'     => (float) $sku->display_price, // Usar accessor
                     'image_url' => $sku->image_path 
                         ? Storage::disk('public')->url($sku->image_path)
                         : asset('assets/img/placeholder.png'),
-                    'has_stock' => $sku->inventoryLots->sum('quantity') > 0
+                    'has_stock' => $sku->available_stock > 0 // Usar atributo calculado
                 ];
             }),
         ];

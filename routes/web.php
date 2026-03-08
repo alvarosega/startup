@@ -35,8 +35,8 @@ use App\Http\Controllers\Web\Admin\Brand\BrandController;
 use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Sku\SkuController;
 use App\Http\Controllers\Web\Admin\Price\PriceController;
-use App\Http\Controllers\Web\Admin\InventoryController;
-use App\Http\Controllers\Web\Admin\PurchaseController;
+use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
+use App\Http\Controllers\Web\Admin\Inventory\PurchaseController;
 //use App\Http\Controllers\Web\Admin\TransferController;
 //use App\Http\Controllers\Web\Admin\RemovalController;
 //use App\Http\Controllers\Web\Admin\TransformationController;
@@ -216,7 +216,7 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             Route::resource('inventory', InventoryController::class)->only(['index']);
             Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
             Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
-    
+            Route::get('inventory/{sku}/kardex', [InventoryController::class, 'kardex'])->name('inventory.kardex');
             // Operaciones
             Route::resource('purchases', PurchaseController::class);
             Route::resource('transfers', TransferController::class);

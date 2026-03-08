@@ -11,14 +11,15 @@ class GetConsolidatedStockAction
 {
     public function execute(StockFilterDTO $filters, ?string $adminBranchId = null): LengthAwarePaginator
     {
-        // 1. Base Query con Agregación SQL
         $query = InventoryLot::query()
             ->select([
                 'branch_id',
                 'sku_id',
                 DB::raw('SUM(quantity) as total_quantity'),
+                // Separación matemática en base de datos (Compatible SQLite y MySQL 8+)
+                DB::raw('SUM(CASE WHEN is_safety_stock = 1 THEN quantity ELSE 0 END) as safety_quantity'),
+                DB::raw('SUM(CASE WHEN is_safety_stock = 0 THEN quantity ELSE 0 END) as normal_quantity'),
                 DB::raw('SUM(reserved_quantity) as total_reserved'),
-                // Rango de costos sin promediar (Refleja la realidad FEFO)
                 DB::raw('MIN(unit_cost) as min_cost'),
                 DB::raw('MAX(unit_cost) as max_cost'),
             ])
@@ -30,20 +31,41 @@ class GetConsolidatedStockAction
             ])
             ->groupBy('branch_id', 'sku_id');
 
-        // 2. Filtro de Silo de Seguridad (Admin asignado a sucursal)
         if ($adminBranchId) {
             $query->where('branch_id', $adminBranchId);
         } elseif ($filters->branch_id) {
             $query->where('branch_id', $filters->branch_id);
         }
 
-        // 3. Filtro de Búsqueda (Opcional, por EAN o Nombre)
         if ($filters->search) {
             $query->whereHas('sku', function ($q) use ($filters) {
                 $q->where('code', 'like', "%{$filters->search}%")
                   ->orWhere('name', 'like', "%{$filters->search}%")
                   ->orWhereHas('product', fn($q2) => $q2->where('name', 'like', "%{$filters->search}%"));
             });
+        }
+
+        if ($filters->brand_id || $filters->category_id || $filters->provider_id) {
+            $query->whereHas('sku.product', function($q) use ($filters) {
+                if ($filters->brand_id) $q->where('brand_id', $filters->brand_id);
+                if ($filters->category_id) $q->where('category_id', $filters->category_id);
+                if ($filters->provider_id) {
+                    $q->whereHas('brand', fn($b) => $b->where('provider_id', $filters->provider_id));
+                }
+            });
+        }
+
+        // Filtro Matemático: Solo evalúa el Stock Comercial (Ordinario - Reservado)
+        if ($filters->status) {
+            $availableCalc = '(SUM(CASE WHEN is_safety_stock = 0 THEN quantity ELSE 0 END) - SUM(reserved_quantity))';
+            
+            if ($filters->status === 'OUT_OF_STOCK') {
+                $query->havingRaw("$availableCalc <= 0");
+            } elseif ($filters->status === 'LOW_STOCK') {
+                $query->havingRaw("$availableCalc > 0 AND $availableCalc < 10");
+            } elseif ($filters->status === 'IN_STOCK') {
+                $query->havingRaw("$availableCalc >= 10");
+            }
         }
 
         return $query->paginate($filters->per_page);

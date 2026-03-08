@@ -56,7 +56,8 @@ class GetShopSkusAction
             
             // C. EAGER LOAD DE RELACIONES NECESARIAS
             ->with([
-                'product.category.parent' // <--- AGREGAR ESTO para poder agrupar por pasillo
+                'product.brand', // <-- AHORA CARGAMOS LA MARCA
+                'product.category' // Mantenemos la categoría base, sin el 'parent'
             ])
             
             ->get()

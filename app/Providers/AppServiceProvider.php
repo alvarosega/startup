@@ -34,11 +34,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if (config('app.env') !== 'testing') {
-            URL::forceScheme('https');
-            URL::forceRootUrl(config('app.url'));
+            // 1. Fuerza al generador de rutas a usar HTTPS
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+            
+            // 2. EL BLINDAJE: Engaña al objeto Request global para que el Paginador crea que está en HTTPS
+            request()->server->set('HTTPS', 'on');
         }
 
-        Schema::defaultStringLength(191);
+        \Illuminate\Support\Facades\Schema::defaultStringLength(191);
 
         // --- GATES ---
         Gate::before(function ($user, $ability) {

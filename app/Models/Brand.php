@@ -34,9 +34,7 @@ class Brand extends Model
     // RELACIONES
     // =========================================================================
 
-    public function marketZone(): BelongsTo { return $this->belongsTo(MarketZone::class); }
     public function provider(): BelongsTo { return $this->belongsTo(Provider::class); }
-    public function category(): BelongsTo { return $this->belongsTo(Category::class); }
 
 
     // =========================================================================
@@ -50,5 +48,19 @@ class Brand extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+    public function marketZone(): \Illuminate\Database\Eloquent\Relations\BelongsTo 
+    { 
+        return $this->belongsTo(MarketZone::class); 
+    }
+    
+    public function products(): \Illuminate\Database\Eloquent\Relations\HasMany 
+    { 
+        return $this->hasMany(Product::class); 
+    }
+    
+    public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo 
+    { 
+        return $this->belongsTo(Category::class); 
     }
 }

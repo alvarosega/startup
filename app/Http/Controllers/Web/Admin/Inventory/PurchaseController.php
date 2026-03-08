@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Web\Admin;
+namespace App\Http\Controllers\Web\Admin\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\Purchase; // Solo se importa para el $this->authorize()

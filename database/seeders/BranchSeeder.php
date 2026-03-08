@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Branch;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class BranchSeeder extends Seeder
 {
@@ -20,14 +19,12 @@ class BranchSeeder extends Seeder
                 'latitude' => -16.508356,
                 'longitude' => -68.126282,
                 'is_default' => true,
-                // Topografía compleja (La Paz): Envíos más caros
                 'delivery_base_fee' => 7.00,
                 'delivery_price_per_km' => 2.50,
                 'surge_multiplier' => 1.00,
                 'min_order_amount' => 45.00,
                 'small_order_fee' => 6.00,
                 'base_service_fee_percentage' => 5.00,
-                // Polígono ampliado (aprox 6km a la redonda desde el centro)
                 'coverage_polygon' => [
                     [-16.450000, -68.170000], 
                     [-16.450000, -68.080000],
@@ -43,14 +40,12 @@ class BranchSeeder extends Seeder
                 'latitude' => -17.769000,
                 'longitude' => -63.195000,
                 'is_default' => false,
-                // Topografía plana (Santa Cruz): Envíos ligeramente más baratos por km
                 'delivery_base_fee' => 5.00,
                 'delivery_price_per_km' => 1.80,
                 'surge_multiplier' => 1.00,
                 'min_order_amount' => 40.00,
                 'small_order_fee' => 5.00,
                 'base_service_fee_percentage' => 5.00,
-                // Polígono ampliado
                 'coverage_polygon' => [
                     [-17.700000, -63.250000],
                     [-17.700000, -63.130000],
@@ -72,7 +67,6 @@ class BranchSeeder extends Seeder
                 'min_order_amount' => 35.00,
                 'small_order_fee' => 5.00,
                 'base_service_fee_percentage' => 5.00,
-                // Polígono ampliado
                 'coverage_polygon' => [
                     [-17.310000, -66.220000],
                     [-17.310000, -66.100000],
@@ -84,15 +78,15 @@ class BranchSeeder extends Seeder
 
         foreach ($branches as $branch) {
             DB::transaction(function () use ($branch) {
-                // GENERADOR DE SLUG (Protocolo Bolivia: Conserva 'ñ')
+                // Generación de slug manual
                 $slug = mb_strtolower(trim($branch['name']));
                 $slug = str_replace([' ', ' - '], '-', $slug);
                 $slug = preg_replace('/[^a-z0-9ñ\-]/u', '', $slug);
 
                 Branch::updateOrCreate(
-                    ['slug' => $slug],
-                    ['name' => $branch['name']], 
-                    [
+                    ['slug' => $slug], // Argumento 1: Búsqueda
+                    [                  // Argumento 2: Datos a insertar/actualizar
+                        'name' => $branch['name'],
                         'city' => $branch['city'],
                         'address' => $branch['address'],
                         'phone' => $branch['phone'],
@@ -101,7 +95,6 @@ class BranchSeeder extends Seeder
                         'coverage_polygon' => $branch['coverage_polygon'],
                         'is_default' => $branch['is_default'],
                         'is_active' => true,
-                        // Logsítica
                         'delivery_base_fee' => $branch['delivery_base_fee'],
                         'delivery_price_per_km' => $branch['delivery_price_per_km'],
                         'surge_multiplier' => $branch['surge_multiplier'],

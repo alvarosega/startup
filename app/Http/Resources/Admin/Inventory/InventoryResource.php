@@ -9,10 +9,14 @@ class InventoryResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $totalQty = (int) $this->total_quantity;
-        $reservedQty = (int) $this->total_reserved;
+        $totalQty   = (int) $this->total_quantity;
+        $safetyQty  = (int) $this->safety_quantity;
+        $normalQty  = (int) $this->normal_quantity;
+        $reservedQty= (int) $this->total_reserved;
         
-        // Formateo del costo para respetar la regla de "No Promediar"
+        // LA LEY: Disponible real para la venta excluye el safety_stock
+        $availableQty = $normalQty - $reservedQty;
+        
         $minCost = (float) $this->min_cost;
         $maxCost = (float) $this->max_cost;
         $costDisplay = ($minCost === $maxCost) 
@@ -20,34 +24,35 @@ class InventoryResource extends JsonResource
             : number_format($minCost, 2) . ' - ' . number_format($maxCost, 2);
 
         return [
-            // Identificadores de Agrupación
             'sku_id'             => $this->sku_id,
             'branch_id'          => $this->branch_id,
-            
-            // Datos Planos
-            'sku_name'           => $this->sku?->name ?? 'S/N',
+            'sku_name'           => $this->sanitizeUTF8($this->sku?->name ?? 'S/N'),
             'sku_code'           => $this->sku?->code ?? 'S/N',
-            'product_name'       => $this->sku?->product?->name ?? 'Desconocido',
-            'brand_name'         => $this->sku?->product?->brand?->name ?? 'Sin Marca',
+            'product_name'       => $this->sanitizeUTF8($this->sku?->product?->name ?? 'Desconocido'),
+            'brand_name'         => $this->sanitizeUTF8($this->sku?->product?->brand?->name ?? 'Sin Marca'),
             'branch_name'        => $this->branch?->name ?? 'N/A',
             
-            // Matemáticas de Stock
+            // Métricas desglosadas
             'total_quantity'     => $totalQty,
+            'normal_quantity'    => $normalQty,
+            'safety_quantity'    => $safetyQty,
             'total_reserved'     => $reservedQty,
-            'available_quantity' => $totalQty - $reservedQty, // Stock real para la venta
+            'available_quantity' => $availableQty,
             
-            // Valoración
             'cost_range'         => $costDisplay,
-            
-            // Indicador de Riesgo
-            'status'             => $this->calculateStockStatus($totalQty - $reservedQty)
+            'status'             => $this->calculateStockStatus($availableQty)
         ];
     }
 
     private function calculateStockStatus(int $available): string
     {
         if ($available <= 0) return 'OUT_OF_STOCK';
-        if ($available < 10) return 'LOW_STOCK'; // Umbral estático por ahora
+        if ($available < 10) return 'LOW_STOCK';
         return 'IN_STOCK';
+    }
+
+    protected function sanitizeUTF8(?string $text): ?string {
+        if (!$text) return null;
+        return mb_convert_encoding($text, 'UTF-8', 'UTF-8');
     }
 }

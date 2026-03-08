@@ -2,508 +2,321 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
-import debounce from 'lodash/debounce';
 import { 
-    Search, Filter, Package, Box, Building2, 
-    AlertTriangle, CheckCircle2, Cpu, Terminal, 
-    Wifi, WifiOff, DollarSign, Hash, Layers,
-    TrendingUp, TrendingDown, Eye, EyeOff, Zap,
-    BarChart3, PieChart, Activity, Target
+    Search, MapPin, PackageOpen, AlertTriangle, 
+    CheckCircle2, XCircle, BarChart3, History, 
+    Filter, X, Factory, Tag, Layers, FolderTree
 } from 'lucide-vue-next';
 
-const props = defineProps({
-    inventory: Object,
-    branches: Array, 
-    filters: Object
+const props = defineProps({ 
+    stock: Object, 
+    branches: Array,
+    providers: Array,
+    brands: Array,
+    categories: Array,
+    filters: Object 
 });
 
-const search = ref(props.filters.search || '');
-const branchId = ref(props.filters.branch_id || '');
-const viewMode = ref('list'); // 'list' o 'grid'
-const hoveredItem = ref(null);
+// REGLA DOD v2.0: Desempaquetado Seguro para evitar crashes reactivos
+const stockList = computed(() => props.stock?.data || props.stock || []);
 
-const updateParams = debounce(() => {
-    router.get(route('admin.inventory.index'), { 
-        search: search.value, 
-        branch_id: branchId.value 
-    }, { preserveState: true, replace: true, preserveScroll: true });
-}, 300);
+// UI State
+const showAdvancedFilters = ref(false);
 
-watch([search, branchId], updateParams);
-
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-BO', { 
-        style: 'currency', 
-        currency: 'BOB',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(amount);
-};
-
-// Estadísticas de inventario
-const stats = computed(() => {
-    const items = props.inventory.data || [];
-    const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + (item.total_quantity || 0), 0);
-    const lowStock = items.filter(item => item.total_quantity <= 5).length;
-    const mediumStock = items.filter(item => item.total_quantity > 5 && item.total_quantity <= 20).length;
-    const healthyStock = items.filter(item => item.total_quantity > 20).length;
-    const totalValue = items.reduce((sum, item) => sum + ((item.total_quantity || 0) * (item.avg_cost || 0)), 0);
-    
-    return [
-        { 
-            label: 'TOTAL_ITEMS', 
-            value: String(totalItems).padStart(2, '0'), 
-            icon: Package, 
-            color: 'text-primary', 
-            bg: 'bg-primary/10' 
-        },
-        { 
-            label: 'UNIDADES', 
-            value: String(totalQuantity).padStart(2, '0'), 
-            icon: Box, 
-            color: 'text-cyan-500', 
-            bg: 'bg-cyan-500/10' 
-        },
-        { 
-            label: 'VALOR_TOTAL', 
-            value: formatCurrency(totalValue), 
-            icon: DollarSign, 
-            color: 'text-emerald-500', 
-            bg: 'bg-emerald-500/10',
-            isCurrency: true 
-        },
-        { 
-            label: 'STOCK_CRÍTICO', 
-            value: String(lowStock).padStart(2, '0'), 
-            icon: AlertTriangle, 
-            color: 'text-warning', 
-            bg: 'bg-warning/10' 
-        },
-    ];
+// Reactive Filters
+const f = ref({
+    search: props.filters.search || '',
+    branch_id: props.filters.branch_id || '',
+    provider_id: props.filters.provider_id || '',
+    brand_id: props.filters.brand_id || '',
+    category_id: props.filters.category_id || '',
+    status: props.filters.status || '',
 });
 
-// Determinar estado de stock
-const getStockStatus = (quantity) => {
-    if (quantity <= 5) {
-        return {
-            color: 'bg-warning',
-            textColor: 'text-warning',
-            borderColor: 'border-warning/30',
-            shadow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]',
-            icon: AlertTriangle,
-            label: 'CRÍTICO'
-        };
-    } else if (quantity <= 20) {
-        return {
-            color: 'bg-amber-500',
-            textColor: 'text-amber-500',
-            borderColor: 'border-amber-500/30',
-            shadow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]',
-            icon: Activity,
-            label: 'MEDIO'
-        };
-    } else {
-        return {
-            color: 'bg-cyan-500',
-            textColor: 'text-cyan-500',
-            borderColor: 'border-cyan-500/30',
-            shadow: 'shadow-[0_0_15px_rgba(0,255,255,0.2)]',
-            icon: CheckCircle2,
-            label: 'SALUDABLE'
-        };
-    }
+// UX: Contar cuántos filtros avanzados están activos
+const activeFiltersCount = computed(() => {
+    let count = 0;
+    if (f.value.branch_id) count++;
+    if (f.value.provider_id) count++;
+    if (f.value.brand_id) count++;
+    if (f.value.category_id) count++;
+    if (f.value.status) count++;
+    return count;
+});
+
+// UX: Lógica de Agrupación Visual por Sucursal
+const shouldShowBranchHeader = (index) => {
+    const data = stockList.value;
+    if (!data || !data[index]) return false;
+    if (index === 0) return true;
+    return data[index]?.branch_id !== data[index - 1]?.branch_id;
 };
 
-// Código de item
-const getItemCode = (id) => {
-    return `INV_${String(id).slice(-4).toUpperCase()}`;
+// Motor de Filtros
+let searchTimeout = null;
+const applyFilters = () => {
+    router.get(route('admin.inventory.index'), f.value, { 
+        preserveState: true, 
+        replace: true,
+        preserveScroll: true 
+    });
+};
+
+const resetFilters = () => {
+    f.value = { search: f.value.search, branch_id: '', provider_id: '', brand_id: '', category_id: '', status: '' };
+    applyFilters();
+};
+
+// Observador con Debounce solo para el texto (Evita saturar la DB)
+watch(() => f.value.search, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 350); 
+});
+
+// Los selects (comboboxes) aplican la consulta inmediatamente
+watch([
+    () => f.value.branch_id, 
+    () => f.value.provider_id, 
+    () => f.value.brand_id, 
+    () => f.value.category_id, 
+    () => f.value.status
+], applyFilters);
+
+// Utilidades Visuales
+const formatMoney = (val) => new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(val);
+
+const getStatusConfig = (status) => {
+    const map = {
+        'IN_STOCK': { icon: CheckCircle2, class: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30', text: 'ÓPTIMO' },
+        'LOW_STOCK': { icon: AlertTriangle, class: 'text-amber-600 bg-amber-500/10 border-amber-500/30', text: 'BAJO' },
+        'OUT_OF_STOCK': { icon: XCircle, class: 'text-red-600 bg-red-500/10 border-red-500/30', text: 'AGOTADO' }
+    };
+    return map[status] || map['OUT_OF_STOCK'];
 };
 </script>
 
 <template>
     <AdminLayout>
-        <div class="max-w-7xl mx-auto space-y-6 pb-20 px-4 md:px-0">
+        <div class="max-w-[1400px] mx-auto pb-20 px-4 sm:px-6 lg:px-8">
             
-            <!-- Header -->
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-primary/30 pb-6 relative group/header">
-                <!-- Efecto de escaneo -->
-                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
-                
-                <div class="relative z-10 w-full md:w-auto">
-                    <h1 class="text-2xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_12px_hsl(var(--primary)/0.6)] leading-none"
-                        data-text="KARDEX DE INVENTARIO">
-                        KARDEX DE INVENTARIO
+            <div class="flex flex-col md:flex-row justify-between items-end mb-6 gap-6 pt-6">
+                <div>
+                    <h1 class="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
+                        <BarChart3 class="text-primary" :size="32" stroke-width="2.5"/>
+                        Stock Consolidado
                     </h1>
-                    <p class="text-[10px] font-mono text-muted-foreground mt-1 flex items-center gap-2">
-                        <Cpu :size="12" class="text-primary animate-pulse" />
-                        STOCK FÍSICO CONSOLIDADO
-                        <Terminal :size="12" class="text-primary animate-pulse" />
+                    <p class="text-xs text-muted-foreground uppercase font-black tracking-widest mt-1">
+                        Disponibilidad en Tiempo Real (FEFO)
                     </p>
                 </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <div class="relative w-full sm:w-80 group">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-primary">
+                            <Search :size="18" class="text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        </div>
+                        <input v-model="f.search" type="text" placeholder="Buscar producto, SKU, EAN..." 
+                               class="bg-card border-border border rounded-xl pl-10 pr-4 h-12 text-sm font-medium w-full focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm" />
+                    </div>
+
+                    <button @click="showAdvancedFilters = !showAdvancedFilters" 
+                            class="h-12 px-5 rounded-xl border flex items-center justify-center gap-2 font-bold text-xs transition-all shadow-sm relative overflow-hidden"
+                            :class="showAdvancedFilters ? 'bg-primary text-primary-foreground border-primary shadow-primary/20' : 'bg-card text-muted-foreground hover:bg-muted/80 hover:text-foreground'">
+                        <Filter :size="16"/> 
+                        <span>Avanzado</span>
+                        <span v-if="activeFiltersCount > 0 && !showAdvancedFilters" 
+                              class="absolute top-1 right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] text-white font-black animate-in zoom-in">
+                            {{ activeFiltersCount }}
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="showAdvancedFilters" class="card p-6 mb-8 bg-card border shadow-lg shadow-border/10 animate-in slide-in-from-top-4 fade-in duration-200 relative rounded-2xl">
                 
-                <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto relative z-10">
-                    <!-- Selector de Sucursal -->
-                    <select v-if="branches.length > 1" v-model="branchId" 
-                            class="px-4 py-2 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all appearance-none">
-                        <option value="">TODAS LAS SUCURSALES</option>
-                        <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
-                    </select>
+                <div class="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <Filter :size="14"/> Opciones de Filtrado
+                    </h3>
+                    <button v-if="activeFiltersCount > 0" @click="resetFilters" class="text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-red-700 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
+                        <X :size="12" stroke-width="3"/> Limpiar ({{ activeFiltersCount }})
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
                     
-                    <!-- Search -->
-                    <div class="relative group/search">
-                        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/search:text-primary transition-colors" :size="14" />
-                        <input v-model="search" 
-                               type="text" 
-                               placeholder="> BUSCAR POR SKU O PRODUCTO..." 
-                               class="w-full md:w-72 pl-10 pr-4 py-2 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all">
-                        <!-- Efecto de escritura -->
-                        <div class="absolute right-3 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary animate-pulse"></div>
+                    <div v-if="branches && branches.length > 0" class="space-y-1.5">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5"><MapPin :size="12"/> Sucursal</label>
+                        <select v-model="f.branch_id" class="form-input w-full h-11 text-xs font-medium bg-muted/30 border-border/60 rounded-xl focus:ring-primary/20">
+                            <option value="">Todas las Sedes</option>
+                            <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5"><Activity :size="12"/> Estado del Stock</label>
+                        <select v-model="f.status" class="form-input w-full h-11 text-xs font-medium bg-muted/30 border-border/60 rounded-xl focus:ring-primary/20">
+                            <option value="">Todos los Estados</option>
+                            <option value="OUT_OF_STOCK">🚨 Agotado (0)</option>
+                            <option value="LOW_STOCK">⚠️ Stock Bajo (< 10)</option>
+                            <option value="IN_STOCK">✅ Óptimo (10+)</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5"><FolderTree :size="12"/> Categoría</label>
+                        <select v-model="f.category_id" class="form-input w-full h-11 text-xs font-medium bg-muted/30 border-border/60 rounded-xl focus:ring-primary/20">
+                            <option value="">Todas</option>
+                            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5"><Layers :size="12"/> Marca</label>
+                        <select v-model="f.brand_id" class="form-input w-full h-11 text-xs font-medium bg-muted/30 border-border/60 rounded-xl focus:ring-primary/20">
+                            <option value="">Todas</option>
+                            <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5"><Factory :size="12"/> Proveedor</label>
+                        <select v-model="f.provider_id" class="form-input w-full h-11 text-xs font-medium bg-muted/30 border-border/60 rounded-xl focus:ring-primary/20">
+                            <option value="">Todos</option>
+                            <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.commercial_name || p.company_name }}</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Stats Dashboard -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div v-for="(stat, index) in stats" :key="index" 
-                     class="border border-border/50 p-4 relative group/stat">
-                    <div class="flex items-center justify-between">
-                        <component :is="stat.icon" :size="20" :class="stat.color" />
-                        <span class="text-[8px] font-mono text-primary/50">{{ stat.label }}</span>
-                    </div>
-                    <p class="text-xl font-mono font-bold text-foreground mt-2 truncate" :class="stat.isCurrency ? 'text-sm' : 'text-2xl'">
-                        {{ stat.value }}
-                    </p>
-                    <p class="text-[10px] text-muted-foreground font-mono">{{ stat.label }}</p>
-                    <!-- Esquinas -->
-                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
-                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
-                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
-                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
+            <div class="bg-card border rounded-2xl shadow-sm overflow-hidden relative">
+                <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                    <table class="w-full text-left border-collapse whitespace-nowrap">
+                        
+                        <thead>
+                            <tr class="bg-muted/40 border-b border-border text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                <th class="py-4 px-6 w-16 text-center">Estado</th>
+                                <th class="py-4 px-6">Identificación del Producto</th>
+                                <th class="py-4 px-6 text-center">Costo Unit. (Rango)</th>
+                                <th class="py-4 px-6 text-center border-l border-border/50 bg-muted/20">Físico Neto</th>
+                                <th class="py-4 px-6 text-center bg-muted/20">Inmovilizado</th>
+                                <th class="py-4 px-6 text-right border-l border-primary/20 bg-primary/5 text-primary">Disponible (Venta)</th>
+                                <th class="py-4 px-6 w-16 text-center">Auditoría</th>
+                            </tr>
+                        </thead>
+                        
+                        <tbody class="divide-y divide-border/40">
+                            <template v-if="stockList.length > 0">
+                                <template v-for="(item, index) in stockList" :key="item.sku_id + item.branch_id">
+                                    
+                                    <tr v-if="shouldShowBranchHeader(index)" class="bg-muted/60">
+                                        <td colspan="7" class="py-2.5 px-6 border-y border-border shadow-inner">
+                                            <div class="flex items-center gap-2 font-black text-[11px] uppercase tracking-widest text-foreground">
+                                                <div class="bg-primary/20 p-1 rounded"><MapPin :size="14" class="text-primary"/></div>
+                                                {{ item.branch_name }}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <tr class="hover:bg-muted/20 transition-all duration-150 group">
+                                        
+                                        <td class="py-4 px-6">
+                                            <div class="mx-auto flex items-center justify-center w-9 h-9 rounded-xl border-2 transition-transform group-hover:scale-110"
+                                                 :class="getStatusConfig(item.status).class"
+                                                 :title="getStatusConfig(item.status).text">
+                                                <component :is="getStatusConfig(item.status).icon" :size="18" stroke-width="2.5"/>
+                                            </div>
+                                        </td>
+
+                                        <td class="py-4 px-6">
+                                            <div class="flex flex-col">
+                                                <p class="text-[13px] font-black text-foreground group-hover:text-primary transition-colors">
+                                                    {{ item.product_name }} 
+                                                    <span class="text-muted-foreground/50 mx-1">/</span> 
+                                                    <span class="text-foreground/80 font-bold">{{ item.sku_name }}</span>
+                                                </p>
+                                                <div class="flex items-center gap-2 mt-1.5">
+                                                    <span class="flex items-center gap-1 text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/60">
+                                                        <Tag :size="10"/> EAN: {{ item.sku_code }}
+                                                    </span>
+                                                    <span class="text-[9px] font-black text-muted-foreground uppercase bg-muted/40 px-1.5 py-0.5 rounded">
+                                                        {{ item.brand_name }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td class="py-4 px-6 text-center">
+                                            <span class="text-[11px] font-mono font-bold text-muted-foreground bg-background border px-2 py-1 rounded-lg shadow-sm">
+                                                Bs {{ item.cost_range }}
+                                            </span>
+                                        </td>
+
+                                        <td class="py-4 px-6 text-center border-l border-border/50 bg-muted/5 group-hover:bg-muted/10 transition-colors">
+                                            <span class="text-sm font-bold text-foreground">{{ item.total_quantity }}</span>
+                                        </td>
+
+                                        <td class="py-4 px-6 text-center bg-muted/5 group-hover:bg-muted/10 transition-colors">
+                                            <span class="inline-flex items-center justify-center text-[10px] font-black px-2 py-1 rounded-full border min-w-[32px]"
+                                                  :class="item.total_reserved > 0 ? 'bg-orange-500/10 text-orange-600 border-orange-500/30' : 'bg-background border-border/50 text-muted-foreground/50'">
+                                                {{ item.total_reserved }}
+                                            </span>
+                                        </td>
+
+                                        <td class="py-4 px-6 text-right border-l border-primary/10 bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                                            <span class="text-xl font-black tabular-nums tracking-tight"
+                                                  :class="{
+                                                      'text-primary': item.status === 'IN_STOCK',
+                                                      'text-amber-600': item.status === 'LOW_STOCK',
+                                                      'text-red-600': item.status === 'OUT_OF_STOCK'
+                                                  }">
+                                                {{ item.available_quantity }}
+                                            </span>
+                                        </td>
+
+                                        <td class="py-4 px-6 text-center">
+                                            <div class="flex justify-center">
+                                                <Link :href="route('admin.inventory.kardex', item.sku_id)" 
+                                                      class="btn btn-ghost w-9 h-9 p-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 hover:shadow-inner border border-transparent hover:border-primary/20 transition-all"
+                                                      title="Auditar Kardex">
+                                                    <History :size="18" stroke-width="2.5"/>
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </template>
+
+                            <tr v-else>
+                                <td colspan="7" class="py-28 text-center bg-muted/10">
+                                    <div class="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+                                        <div class="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4 border border-border/50 shadow-inner">
+                                            <PackageOpen :size="36" class="text-muted-foreground/40" stroke-width="1.5"/>
+                                        </div>
+                                        <p class="font-black text-foreground uppercase tracking-widest text-sm">Sin Existencias</p>
+                                        <p class="text-xs font-medium text-muted-foreground mt-2 max-w-sm">
+                                            No se encontraron SKUs que coincidan con los filtros aplicados. Intenta limpiar la búsqueda.
+                                        </p>
+                                        <button v-if="activeFiltersCount > 0 || f.search" @click="resetFilters" 
+                                                class="mt-6 px-6 py-2 rounded-xl bg-background border shadow-sm text-xs font-bold hover:bg-muted transition-colors">
+                                            Restablecer Filtros
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
-            <!-- View Toggle -->
-            <div class="flex justify-end">
-                <div class="flex gap-1 border border-border/50 p-1">
-                    <button @click="viewMode = 'list'"
-                            class="px-3 py-1 text-[10px] font-mono transition-all"
-                            :class="viewMode === 'list' ? 'bg-primary/10 text-primary border-b border-primary' : 'text-muted-foreground'">
-                        LISTA
-                    </button>
-                    <button @click="viewMode = 'grid'"
-                            class="px-3 py-1 text-[10px] font-mono transition-all"
-                            :class="viewMode === 'grid' ? 'bg-primary/10 text-primary border-b border-primary' : 'text-muted-foreground'">
-                        GRID
-                    </button>
-                </div>
-            </div>
-
-            <!-- Lista de Inventario -->
-            <div class="border border-border/50 shadow-2xl overflow-hidden relative group/table">
-                <!-- Scanline superior -->
-                <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover/table:translate-x-[100%] transition-transform duration-1000"></div>
-                
-                <!-- Esquinas decorativas grandes -->
-                <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
-                <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
-                <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/30"></div>
-                <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/30"></div>
-
-                <!-- Vista Lista -->
-                <div v-if="viewMode === 'list'" class="divide-y divide-primary/10">
-                    <div v-for="(item, index) in inventory.data" :key="index" 
-                         @mouseenter="hoveredItem = index"
-                         @mouseleave="hoveredItem = null"
-                         class="relative hover:bg-primary/5 transition-all duration-300 group/item">
-                        
-                        <!-- Barra de estado lateral con gradiente -->
-                        <div class="absolute left-0 top-0 bottom-0 w-1.5" 
-                             :class="getStockStatus(item.total_quantity).color"
-                             :style="{ boxShadow: getStockStatus(item.total_quantity).shadow }"></div>
-
-                        <div class="pl-6 py-4 flex flex-col md:flex-row justify-between items-center relative">
-                            
-                            <!-- Información Principal -->
-                            <div class="flex-1 w-full mb-4 md:mb-0">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-[8px] font-mono border border-primary/30 bg-primary/5 text-primary px-2 py-0.5">
-                                        {{ item.branch_name }}
-                                    </span>
-                                    <span v-if="item.brand_name" 
-                                          class="text-[8px] font-mono text-cyan-500 border border-cyan-500/30 bg-cyan-500/5 px-2 py-0.5 flex items-center gap-1">
-                                        <Layers :size="8" /> {{ item.brand_name }}
-                                    </span>
-                                    <span class="text-[8px] font-mono text-primary/50">
-                                        {{ getItemCode(item.id) }}
-                                    </span>
-                                </div>
-                                
-                                <h3 class="text-base font-mono font-bold text-foreground leading-tight mb-1 group-hover/item:text-primary transition-colors">
-                                    {{ item.product_name }}
-                                </h3>
-                                
-                                <div class="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
-                                    <span class="text-primary/80">{{ item.sku_name }}</span>
-                                    <span class="text-primary/30">/</span>
-                                    <span class="border border-border/30 px-1.5 py-0.5">
-                                        <Hash :size="8" class="inline mr-1" /> {{ item.sku_code || 'N/A' }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Métricas -->
-                            <div class="w-full md:w-auto flex flex-col md:flex-row items-center gap-6 md:gap-10 py-2 px-4 border-t md:border-t-0 border-primary/10">
-                                <!-- Costo Ponderado -->
-                                <div class="flex flex-col items-end">
-                                    <span class="text-[8px] font-mono text-primary/50 uppercase tracking-widest flex items-center gap-1">
-                                        <TrendingDown :size="8" /> COSTO POND.
-                                    </span>
-                                    <span class="text-sm font-mono font-bold text-emerald-500">
-                                        {{ formatCurrency(item.avg_cost) }}
-                                    </span>
-                                </div>
-
-                                <!-- Stock -->
-                                <div class="flex flex-col items-end min-w-[100px]">
-                                    <span class="text-[8px] font-mono text-primary/50 uppercase tracking-widest flex items-center gap-1">
-                                        <Package :size="8" /> DISPONIBLE
-                                    </span>
-                                    <div class="flex items-baseline gap-1">
-                                        <span class="text-3xl font-mono font-black text-foreground tabular-nums tracking-tighter"
-                                              :class="getStockStatus(item.total_quantity).textColor">
-                                            {{ item.total_quantity }}
-                                        </span>
-                                        <span class="text-[8px] font-mono text-primary/50">UNID.</span>
-                                    </div>
-                                    <div v-if="item.total_reserved > 0" 
-                                         class="flex items-center gap-1 text-[8px] font-mono text-warning animate-pulse">
-                                        <Activity :size="8" /> {{ item.total_reserved }} RESERVADOS
-                                    </div>
-                                </div>
-
-                                <!-- Badge de estado -->
-                                <div class="hidden lg:block">
-                                    <span class="px-2 py-1 border text-[8px] font-mono"
-                                          :class="getStockStatus(item.total_quantity).borderColor"
-                                          :style="{ color: getStockStatus(item.total_quantity).textColor }">
-                                        {{ getStockStatus(item.total_quantity).label }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Hover overlay -->
-                        <div v-if="hoveredItem === index" 
-                             class="absolute inset-0 border border-primary/30 pointer-events-none"></div>
-                    </div>
-                </div>
-
-                <!-- Vista Grid -->
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-                    <div v-for="(item, index) in inventory.data" :key="index"
-                         @mouseenter="hoveredItem = index"
-                         @mouseleave="hoveredItem = null"
-                         class="border border-border/50 p-4 relative group/item hover:border-primary/30 hover:shadow-neon-primary transition-all duration-500 overflow-hidden">
-                        
-                        <!-- Scanline interna -->
-                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/item:translate-x-[100%] transition-transform duration-700"></div>
-                        
-                        <!-- Barra superior de estado -->
-                        <div class="absolute top-0 left-0 right-0 h-1" 
-                             :class="getStockStatus(item.total_quantity).color"
-                             :style="{ boxShadow: getStockStatus(item.total_quantity).shadow }"></div>
-                        
-                        <div class="relative z-10">
-                            <!-- Header -->
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-[8px] font-mono border border-primary/30 bg-primary/5 text-primary px-2 py-0.5">
-                                    {{ item.branch_name }}
-                                </span>
-                                <span class="text-[8px] font-mono text-primary/50">
-                                    {{ getItemCode(item.id) }}
-                                </span>
-                            </div>
-
-                            <!-- Producto -->
-                            <h3 class="text-sm font-mono font-bold text-foreground mb-2 group-hover/item:text-primary transition-colors line-clamp-2">
-                                {{ item.product_name }}
-                            </h3>
-
-                            <!-- SKU -->
-                            <div class="flex items-center gap-2 mb-4 text-[9px] font-mono text-muted-foreground">
-                                <span class="text-primary/80">{{ item.sku_name }}</span>
-                                <span class="text-primary/30">|</span>
-                                <span class="border border-border/30 px-1.5 py-0.5">
-                                    {{ item.sku_code || 'N/A' }}
-                                </span>
-                            </div>
-
-                            <!-- Métricas en Grid -->
-                            <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-primary/10">
-                                <div>
-                                    <span class="text-[7px] font-mono text-primary/50 uppercase block mb-1">COSTO</span>
-                                    <span class="text-sm font-mono font-bold text-emerald-500">
-                                        {{ formatCurrency(item.avg_cost) }}
-                                    </span>
-                                </div>
-                                <div class="text-right">
-                                    <span class="text-[7px] font-mono text-primary/50 uppercase block mb-1">STOCK</span>
-                                    <div class="flex items-baseline justify-end gap-1">
-                                        <span class="text-2xl font-mono font-black"
-                                              :class="getStockStatus(item.total_quantity).textColor">
-                                            {{ item.total_quantity }}
-                                        </span>
-                                        <span class="text-[7px] font-mono text-primary/50">U</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Reservados (si aplica) -->
-                            <div v-if="item.total_reserved > 0" 
-                                 class="mt-2 flex items-center gap-1 text-[7px] font-mono text-warning animate-pulse">
-                                <Activity :size="8" /> {{ item.total_reserved }} RESERVADOS
-                            </div>
-
-                            <!-- Badge de estado -->
-                            <div class="absolute top-2 right-2">
-                                <span class="px-2 py-1 border text-[7px] font-mono"
-                                      :class="getStockStatus(item.total_quantity).borderColor"
-                                      :style="{ color: getStockStatus(item.total_quantity).textColor }">
-                                    {{ getStockStatus(item.total_quantity).label }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Esquinas decorativas -->
-                        <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
-                        <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
-                        <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
-                        <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
-                    </div>
-                </div>
-
-                <!-- Estado vacío -->
-                <div v-if="inventory.data.length === 0" 
-                     class="flex flex-col items-center justify-center py-20 border border-dashed border-primary/30">
-                    <div class="w-20 h-20 border-2 border-dashed border-primary/30 flex items-center justify-center mb-4">
-                        <Package :size="32" class="text-primary/30" />
-                    </div>
-                    <h3 class="text-lg font-mono font-bold text-foreground glitch-text" data-text="SIN EXISTENCIAS">SIN EXISTENCIAS</h3>
-                    <p class="text-xs font-mono text-muted-foreground mt-2">
-                        AJUSTE LOS FILTROS PARA VER OTROS RESULTADOS.
+            
+            <div v-if="stock.links && stockList.length > 0" class="mt-8 flex justify-center pb-8">
+                <div class="bg-card border rounded-full px-6 py-2 shadow-sm flex items-center gap-3">
+                    <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                        Total en vista: <span class="text-foreground">{{ stock.meta?.total || 0 }}</span> registros
                     </p>
                 </div>
-            </div>
+                </div>
 
-            <!-- Paginación -->
-            <div class="mt-8 flex justify-center items-center gap-4" v-if="inventory.prev_page_url || inventory.next_page_url">
-                <Link v-if="inventory.prev_page_url" :href="inventory.prev_page_url" 
-                      class="px-6 py-2 border border-border/50 text-[10px] font-mono font-bold uppercase hover:border-primary hover:text-primary transition-all relative group/prev">
-                    <span class="flex items-center gap-2">
-                        « ANTERIOR
-                    </span>
-                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/prev:opacity-100"></span>
-                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/prev:opacity-100"></span>
-                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/prev:opacity-100"></span>
-                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/prev:opacity-100"></span>
-                </Link>
-
-                <div class="h-1 w-12 bg-primary/20 rounded-full"></div>
-
-                <Link v-if="inventory.next_page_url" :href="inventory.next_page_url" 
-                      class="px-6 py-2 border border-border/50 text-[10px] font-mono font-bold uppercase hover:border-primary hover:text-primary transition-all relative group/next">
-                    <span class="flex items-center gap-2">
-                        SIGUIENTE »
-                    </span>
-                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/next:opacity-100"></span>
-                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/next:opacity-100"></span>
-                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/next:opacity-100"></span>
-                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/next:opacity-100"></span>
-                </Link>
-            </div>
-
-            <!-- Session ID -->
-            <div class="text-center">
-                <p class="text-[8px] font-mono text-muted-foreground">
-                    SESSION_ID // INVENTORY_INDEX // {{ new Date().toISOString().slice(0,10) }}
-                </p>
-            </div>
         </div>
     </AdminLayout>
 </template>
-
-<style scoped>
-/* Animaciones */
-@keyframes scanline {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(1000%); }
-}
-
-.animate-scanline {
-    animation: scanline 8s linear infinite;
-}
-
-/* Efecto glitch */
-.glitch-text {
-    position: relative;
-    animation: glitch-skew 4s infinite linear alternate-reverse;
-}
-
-.glitch-text::before,
-.glitch-text::after {
-    content: attr(data-text);
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.8;
-}
-
-.glitch-text::before {
-    color: #0ff;
-    z-index: -1;
-    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
-}
-
-.glitch-text::after {
-    color: #f0f;
-    z-index: -2;
-    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
-}
-
-@keyframes glitch-skew {
-    0% { transform: skew(0deg); }
-    20% { transform: skew(0deg); }
-    21% { transform: skew(2deg); }
-    22% { transform: skew(0deg); }
-    80% { transform: skew(0deg); }
-    81% { transform: skew(-2deg); }
-    82% { transform: skew(0deg); }
-    100% { transform: skew(0deg); }
-}
-
-@keyframes glitch-anim-1 {
-    0% { clip-path: inset(20% 0 30% 0); }
-    20% { clip-path: inset(50% 0 10% 0); }
-    40% { clip-path: inset(10% 0 60% 0); }
-    60% { clip-path: inset(80% 0 5% 0); }
-    80% { clip-path: inset(30% 0 40% 0); }
-    100% { clip-path: inset(40% 0 20% 0); }
-}
-
-@keyframes glitch-anim-2 {
-    0% { clip-path: inset(60% 0 10% 0); }
-    20% { clip-path: inset(20% 0 50% 0); }
-    40% { clip-path: inset(70% 0 5% 0); }
-    60% { clip-path: inset(10% 0 70% 0); }
-    80% { clip-path: inset(40% 0 30% 0); }
-    100% { clip-path: inset(30% 0 40% 0); }
-}
-
-/* Sombras neón */
-.shadow-neon-primary {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-}
-</style>
