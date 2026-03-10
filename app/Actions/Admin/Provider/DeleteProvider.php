@@ -4,6 +4,8 @@ namespace App\Actions\Admin\Provider;
 
 use App\Models\Provider;
 use Illuminate\Support\Facades\DB;
+use App\DTOs\Admin\Provider\ProviderData;
+use Illuminate\Support\Facades\Cache;
 
 class DeleteProvider {
     public function execute(Provider $provider): bool {
@@ -13,7 +15,7 @@ class DeleteProvider {
                 throw new \Exception("PROTECCIÓN_ACTIVA: El proveedor tiene marcas vinculadas.");
             }
 
-            Cache::forget('admin_providers_list');
+            Cache::increment('admin_providers_version');
             return $provider->delete();
         });
     }

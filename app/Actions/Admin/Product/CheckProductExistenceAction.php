@@ -6,10 +6,13 @@ use App\Models\Product;
 
 class CheckProductExistenceAction
 {
-    public function execute(string $name): bool
+    public function execute(?string $name): bool
     {
-        return Product::where('name', $name)
-            ->whereNull('deleted_at')
-            ->exists();
+        // Blindaje contra nulos o strings vacíos
+        if (empty(trim($name))) {
+            return false;
+        }
+
+        return Product::where('name', trim($name))->exists();
     }
 }

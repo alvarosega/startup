@@ -86,22 +86,37 @@ watch(() => form.phone, (newVal) => {
     if (!newVal) form.country_code = ''; 
 });
 
-const nextStep = async () => {
+// REEMPLAZA TU FUNCIÓN nextStep ACTUAL POR ESTA:
+
+const nextStep = () => {
     if (currentStep.value === 1) {
-        // BLOQUEO DE SEGURIDAD: Cantidad de números incorrecta
+        // BLOQUEO DE SEGURIDAD FRONTEND
         if (!isPhoneValid.value) {
             step1Errors.value = { phone: ['El número no tiene la cantidad de dígitos correcta para el país seleccionado.'] };
             return;
         }
-        try {
-            await axios.post(route('register.validate-step-1'), form.data());
-            currentStep.value = 2;
-        } catch (error) {
-            if (error.response?.status === 422) step1Errors.value = error.response.data.errors;
-            else alert('Error de conexión con la central.');
-        } finally {
-            validatingStep1.value = false;
-        }
+
+        validatingStep1.value = true;
+        step1Errors.value = {};
+
+        // USAMOS INERTIA EN LUGAR DE AXIOS PARA MANTENER LA SESIÓN Y LOS ERRORES
+        form.post(route('register.validate-step-1'), {
+            preserveScroll: true,
+            preserveState: true,
+            onError: (errors) => {
+                // Inertia atrapa el 422 automáticamente y llena los errores
+                step1Errors.value = errors;
+                validatingStep1.value = false;
+            },
+            onSuccess: () => {
+                // Si pasa la validación del backend (Status 200/Redirect)
+                currentStep.value = 2;
+                validatingStep1.value = false;
+            },
+            onFinish: () => {
+                validatingStep1.value = false;
+            }
+        });
     } else if (currentStep.value === 2) {
         currentStep.value = 3;
     }

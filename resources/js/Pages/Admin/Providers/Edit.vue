@@ -3,17 +3,16 @@ import { ref, computed } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { 
-    FileText, DollarSign, Users, 
-    ArrowRight, ArrowLeft, Save, 
-    Building2, Hash, CalendarClock, CreditCard,
-    Mail, Phone, MapPin, CheckCircle, AlertTriangle,
-    Cpu, Terminal, Wifi, WifiOff, Zap, Globe,
-    Fingerprint, Package, Clock, Target
+    FileText, DollarSign, Users, ArrowRight, ArrowLeft, Save, 
+    Building2, Hash, CalendarClock, CreditCard, Mail, Phone, 
+    MapPin, AlertTriangle, Cpu, Terminal, Wifi, WifiOff, Fingerprint
 } from 'lucide-vue-next';
 
 const props = defineProps({ provider: Object });
 
-// --- ESTADO ---
+// REGLA 3.C: Desempaquetado seguro (Unwrapping)
+const providerData = computed(() => props.provider.data || props.provider);
+
 const currentStep = ref(1);
 const steps = [
     { id: 1, title: 'IDENTIDAD', code: 'SEC_01', icon: FileText },
@@ -23,57 +22,46 @@ const steps = [
 
 const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
 
-// --- CÓDIGO DE PROVEEDOR ---
 const providerCode = computed(() => {
-    return `PRV_${String(props.provider.id).padStart(4, '0')}`;
+    return `PRV_${String(providerData.value.id).split('-')[0].toUpperCase()}`;
 });
 
-// --- FORMULARIO ---
+// --- FORMULARIO (Mapeo desde los datos desempaquetados) ---
 const form = useForm({
-    company_name: props.provider.company_name,
-    commercial_name: props.provider.commercial_name || '',
-    tax_id: props.provider.tax_id,
-    internal_code: props.provider.internal_code || '',
-    is_active: !!props.provider.is_active,
-    lead_time_days: props.provider.lead_time_days,
-    min_order_value: props.provider.min_order_value,
-    credit_days: props.provider.credit_days,
-    credit_limit: props.provider.credit_limit,
-    contact_name: props.provider.contact_name || '',
-    email_orders: props.provider.email_orders || '',
-    phone: props.provider.phone || '',
-    address: props.provider.address || '',
-    city: props.provider.city || '',
-    notes: props.provider.notes || ''
+    _method: 'PUT', // Obligatorio para rutas de actualización en Laravel con Inertia
+    company_name: providerData.value.company_name || '',
+    commercial_name: providerData.value.commercial_name || '',
+    tax_id: providerData.value.tax_id || '',
+    internal_code: providerData.value.internal_code || '',
+    is_active: !!providerData.value.is_active,
+    lead_time_days: Number(providerData.value.lead_time_days) || 1,
+    min_order_value: Number(providerData.value.min_order_value) || 0,
+    credit_days: Number(providerData.value.credit_days) || 0,
+    credit_limit: Number(providerData.value.credit_limit) || 0,
+    contact_name: providerData.value.contact_name || '',
+    email_orders: providerData.value.email_orders || '',
+    phone: providerData.value.phone || '',
+    address: providerData.value.address || '',
+    city: providerData.value.city || '',
+    notes: providerData.value.notes || ''
 });
 
-// --- NAVEGACIÓN ---
+// --- NAVEGACIÓN Y VALIDACIÓN ---
 const validateStep = () => {
     form.clearErrors();
     if (currentStep.value === 1) {
-        let valid = true;
-        if (!form.company_name) { 
-            form.setError('company_name', '// RAZÓN SOCIAL REQUERIDA'); 
-            valid = false; 
-        }
-        if (!form.tax_id) { 
-            form.setError('tax_id', '// NIT REQUERIDO'); 
-            valid = false; 
-        }
-        return valid;
+        if (!form.company_name) form.setError('company_name', '// RAZÓN SOCIAL REQUERIDA'); 
+        if (!form.tax_id) form.setError('tax_id', '// NIT REQUERIDO'); 
+        return !form.errors.company_name && !form.errors.tax_id;
     }
     return true;
 };
 
 const nextStep = () => {
     if (validateStep()) {
-        if (currentStep.value < steps.length) {
-            currentStep.value++;
-        }
+        if (currentStep.value < steps.length) currentStep.value++;
     } else {
-        const card = document.getElementById('wizard-card');
-        card?.classList.add('shake');
-        setTimeout(() => card?.classList.remove('shake'), 400);
+        triggerShake();
     }
 };
 
@@ -81,22 +69,30 @@ const prevStep = () => {
     if (currentStep.value > 1) currentStep.value--;
 };
 
+const triggerShake = () => {
+    const card = document.getElementById('wizard-card');
+    card?.classList.add('shake');
+    setTimeout(() => card?.classList.remove('shake'), 400);
+};
+
 const submit = () => {
     if (!validateStep()) return;
     
-    form.put(route('admin.providers.update', props.provider.id), {
+    // REGLA: En Laravel, las actualizaciones complejas viajan mejor por POST con _method spoofing
+    form.post(route('admin.providers.update', providerData.value.id), {
         preserveScroll: true,
+        onSuccess: () => {
+            // Inertia maneja la redirección
+        },
         onError: (errors) => {
-            const step1Fields = ['company_name', 'tax_id', 'commercial_name'];
-            const step3Fields = ['email_orders', 'contact_name'];
-            
-            if (Object.keys(errors).some(k => step1Fields.includes(k))) currentStep.value = 1;
-            else if (Object.keys(errors).some(k => step3Fields.includes(k))) currentStep.value = 3;
-            else currentStep.value = 2;
-            
-            const card = document.getElementById('wizard-card');
-            card?.classList.add('shake');
-            setTimeout(() => card?.classList.remove('shake'), 400);
+            if (errors.company_name || errors.tax_id || errors.commercial_name || errors.internal_code) {
+                currentStep.value = 1;
+            } else if (errors.lead_time_days || errors.min_order_value || errors.credit_days || errors.credit_limit) {
+                currentStep.value = 2;
+            } else {
+                currentStep.value = 3;
+            }
+            triggerShake();
         }
     });
 };

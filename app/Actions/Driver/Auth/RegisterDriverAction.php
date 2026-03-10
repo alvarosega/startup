@@ -4,6 +4,7 @@ namespace App\Actions\Driver\Auth;
 
 use App\DTOs\Driver\Auth\RegisterDriverData;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash; // <--- OBLIGATORIO
 
 class RegisterDriverAction
 {
@@ -15,10 +16,10 @@ class RegisterDriverAction
             $driver = \App\Models\Driver::create([
                 'phone'        => $data->phone,
                 'email'        => $data->email,
-                'password'     => $data->password, 
-                'status'       => 'pending', // <--- CORRECCIÓN: Nace bloqueado
-                'is_online'    => false,     // <--- CORRECCIÓN: Nace apagado
-                'is_available' => false,     // <--- CORRECCIÓN: Nace no disponible
+                'password'     => Hash::make($data->password), // <--- CORRECCIÓN CRÍTICA APLICADA
+                'status'       => 'pending', 
+                'is_online'    => false,     
+                'is_available' => false,     
             ]);
     
             // 2. Crear el Detalle biográfico

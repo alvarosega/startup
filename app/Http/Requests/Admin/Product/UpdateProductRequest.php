@@ -12,7 +12,6 @@ class UpdateProductRequest extends FormRequest
 
     public function rules(): array
     {
-        // Resolución segura de UUID independientemente del Route Binding
         $product = $this->route('product');
         $productId = $product instanceof Product ? $product->id : $product;
 
@@ -21,16 +20,11 @@ class UpdateProductRequest extends FormRequest
                 'required', 'string', 'max:255', 
                 Rule::unique('products', 'name')->ignore($productId)->whereNull('deleted_at')
             ],
-            'brand_id' => [
-                'required', 'uuid', 
-                Rule::exists('brands', 'id')->whereNull('deleted_at')
-            ],
-            'category_id' => [
-                'required', 'uuid', 
-                Rule::exists('categories', 'id')->whereNull('deleted_at')
-            ],
-            'description'  => ['nullable', 'string'],
-            'image'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'brand_id'    => ['required', 'uuid', Rule::exists('brands', 'id')->whereNull('deleted_at')],
+            'category_id' => ['required', 'uuid', Rule::exists('categories', 'id')->whereNull('deleted_at')],
+            'description' => ['nullable', 'string'],
+            // BLINDAJE: Añadida restricción de mimes y tamaño
+            'image'       => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'is_active'    => ['boolean'],
             'is_alcoholic' => ['boolean'],
         ];

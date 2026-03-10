@@ -1,11 +1,10 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import StepProgress from '@/Components/StepProgress.vue';
-import CategoryTypeSelector from '@/Components/CategoryTypeSelector.vue';
 import ImageUploader from '@/Components/ImageUploader.vue';
 import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { 
     FolderTree, Image as ImageIcon, Settings, 
     ArrowRight, ArrowLeft, Save, AlertCircle, 
@@ -15,63 +14,50 @@ import {
 } from 'lucide-vue-next';
 
 const props = defineProps({
-    category: Object,
-    parents: Array
+    category: Object
 });
+
+// DESEMPAQUETADO SEGURO (La Ley 2.0)
+const cat = props.category.data || props.category;
 
 // --- ESTADO ---
 const currentStep = ref(1);
-const categoryType = ref(props.category.parent_id ? 'child' : 'parent');
 const showPreview = ref(false);
 
 const steps = [
-    { id: 1, title: 'JERARQUÍA', code: 'SEC_01', icon: FolderTree, fields: ['name', 'external_code', 'parent_id'] },
-    { id: 2, title: 'CONTENIDO', code: 'SEC_02', icon: ImageIcon, fields: ['image', 'description'] },
-    { id: 3, title: 'AJUSTES', code: 'SEC_03', icon: Settings, fields: ['tax_classification', 'requires_age_check'] },
+    { id: 1, title: 'IDENTIDAD', code: 'SEC_01', icon: FolderTree, fields: ['name', 'external_code'] },
+    { id: 2, title: 'CONTENIDO', code: 'SEC_02', icon: ImageIcon, fields: ['image', 'description', 'seo_title', 'seo_description'] },
+    { id: 3, title: 'AJUSTES', code: 'SEC_03', icon: Settings, fields: ['tax_classification', 'requires_age_check', 'is_active', 'is_featured'] },
 ];
 
 const form = useForm({
     _method: 'PUT',
-    name: props.category.name,
-    parent_id: props.category.parent_id || '',
-    external_code: props.category.external_code || '',
-    description: props.category.description || '',
-    slug: props.category.slug || '',
+    name: cat.name || '',
+    external_code: cat.external_code || '',
+    description: cat.description || '',
+    slug: cat.slug || '',
     image: null, 
-    seo_title: props.category.seo_title || '',
-    seo_description: props.category.seo_description || '',
-    tax_classification: props.category.tax_classification || '',
-    requires_age_check: Boolean(props.category.requires_age_check),
-    is_active: Boolean(props.category.is_active),
-    is_featured: Boolean(props.category.is_featured),
+    seo_title: cat.seo_title || '',
+    seo_description: cat.seo_description || '',
+    tax_classification: cat.tax_classification || '',
+    requires_age_check: Boolean(cat.requires_age_check),
+    is_active: Boolean(cat.is_active),
+    is_featured: Boolean(cat.is_featured),
 });
 
-// --- LÓGICA ---
-watch(categoryType, (val) => {
-    if (val === 'parent') {
-        form.parent_id = '';
-    }
-});
-
-// Código de categoría
+// Extraemos un fragmento del UUID para el código referencial
 const categoryCode = computed(() => {
-    return `CAT_${String(props.category.id).padStart(4, '0')}`;
+    return `CAT_${String(cat.id).substring(0, 8).toUpperCase()}`;
 });
 
 const nextStep = () => {
     form.clearErrors();
-    
     if (currentStep.value === 1) {
         if (!form.name.trim()) {
             form.setError('name', '// NOMBRE REQUERIDO');
             return;
         }
-        if (categoryType.value === 'child' && !form.parent_id) {
-            form.setError('parent_id', '// SELECCIONE CATEGORÍA PADRE');
-            return;
-        }
     }
-    
     if (currentStep.value < steps.length) {
         currentStep.value++;
     } else {
@@ -86,7 +72,7 @@ const prevStep = () => {
 };
 
 const submit = () => {
-    form.post(route('admin.categories.update', props.category.id), {
+    form.post(route('admin.categories.update', cat.id), {
         forceFormData: true,
         preserveScroll: true,
         onError: (errors) => {
@@ -143,7 +129,7 @@ const handleStepClick = (stepId) => {
                             </h1>
                             <p class="text-[10px] font-mono text-muted-foreground flex items-center gap-2">
                                 <Cpu :size="12" class="text-primary animate-pulse" />
-                                <span class="text-primary">{{ category.name }}</span>
+                                <span class="text-primary">{{ cat.name }}</span>
                                 <Terminal :size="12" class="text-primary animate-pulse" />
                             </p>
                         </div>
@@ -191,10 +177,8 @@ const handleStepClick = (stepId) => {
                             
                             <!-- Step 1: Jerarquía -->
                             <div v-if="currentStep === 1" key="1" class="space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
-                                <CategoryTypeSelector v-model="categoryType" />
-
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <!-- Nombre -->
+                                    
                                     <div class="md:col-span-2 space-y-2">
                                         <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
                                             <Terminal :size="12" /> // NOMBRE DE CATEGORÍA
@@ -203,10 +187,9 @@ const handleStepClick = (stepId) => {
                                             <Tag :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors"/>
                                             <input v-model="form.name" 
                                                    type="text" 
-                                                   class="w-full pl-10 pr-4 py-4 bg-background border border-border/50 font-mono text-xl font-black focus:border-primary focus:shadow-neon-primary outline-none transition-all"
+                                                   class="w-full pl-10 pr-4 py-4 bg-background border border-border/50 font-mono text-xl font-black focus:border-primary focus:shadow-neon-primary outline-none transition-all uppercase"
                                                    :class="{'border-destructive/50': form.errors.name}"
                                                    placeholder="NOMBRE DE CATEGORÍA" />
-                                            <!-- Esquinas decorativas en focus -->
                                             <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
                                             <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
                                             <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
@@ -217,10 +200,9 @@ const handleStepClick = (stepId) => {
                                         </p>
                                     </div>
 
-                                    <!-- Código ERP -->
-                                    <div class="space-y-2">
+                                    <div class="space-y-2 md:col-span-2">
                                         <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
-                                            <Hash :size="12" /> // CÓDIGO ERP / SKU
+                                            <Hash :size="12" /> // CÓDIGO ERP / SKU REFERENCIAL
                                         </label>
                                         <input v-model="form.external_code" 
                                                type="text" 
@@ -228,37 +210,6 @@ const handleStepClick = (stepId) => {
                                                placeholder="CAT-001" />
                                     </div>
 
-                                    <!-- Selector de Padre (si es child) -->
-                                    <div v-if="categoryType === 'child'" class="md:col-span-2 animate-in zoom-in-95 duration-500">
-                                        <div class="border border-primary/30 bg-primary/5 p-6 relative group/parent">
-                                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent translate-x-[-100%] group-hover/parent:translate-x-[100%] transition-transform duration-700"></div>
-                                            
-                                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-4 block flex items-center gap-2">
-                                                <FolderTree :size="14" /> // VINCULAR A PADRE
-                                            </label>
-                                            
-                                            <div class="relative">
-                                                <Layers class="absolute left-3 top-1/2 -translate-y-1/2 text-primary/50" :size="16"/>
-                                                <select v-model="form.parent_id" 
-                                                        class="w-full pl-10 pr-4 py-3 bg-background border border-primary/30 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all"
-                                                        :class="{'border-destructive/50': form.errors.parent_id}">
-                                                    <option value="">-- SIN PADRE (PRINCIPAL) --</option>
-                                                    <option v-for="cat in parents" :key="cat.id" :value="cat.id">
-                                                        {{ cat.name }}
-                                                    </option>
-                                                </select>
-                                            </div>
-                                            <p v-if="form.errors.parent_id" class="text-[10px] font-mono text-destructive mt-2 flex items-center gap-1">
-                                                <AlertTriangle :size="10" /> {{ form.errors.parent_id }}
-                                            </p>
-                                            
-                                            <!-- Esquinas -->
-                                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
-                                            <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
-                                            <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
-                                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -272,7 +223,7 @@ const handleStepClick = (stepId) => {
                                         </label>
                                         <ImageUploader 
                                             v-model="form.image" 
-                                            :existing-image="category.image_url" 
+                                            :existing-image="cat.image_url"
                                             class="h-64 w-full border border-primary/30 shadow-inner relative overflow-hidden group/upload"
                                         />
                                         <p v-if="form.errors.image" class="text-[10px] font-mono text-destructive text-center mt-2 flex items-center gap-1">

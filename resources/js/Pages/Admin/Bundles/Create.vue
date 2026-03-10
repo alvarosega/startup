@@ -14,7 +14,8 @@ const props = defineProps({
     skus: Object,
     branches: Array
 });
-
+// Desempaquetado seguro de SKUs (La Ley 2.0)
+const skuList = computed(() => props.skus?.data || props.skus || []);
 const form = useForm({
     branch_id: '',
     name: '',
@@ -356,7 +357,7 @@ const submit = () => {
                                                         class="w-full pl-10 pr-4 py-2 bg-background border border-border/50 font-mono text-xs focus:border-primary focus:shadow-neon-primary outline-none transition-all appearance-none"
                                                         :class="{'border-destructive/50': form.errors[`items.${index}.sku_id`]}">
                                                     <option value="" disabled>SELECCIONAR ITEM...</option>
-                                                    <option v-for="sku in skus.data" :key="sku.id" :value="sku.id">
+                                                    <option v-for="sku in skuList" :key="sku.id" :value="sku.id">
                                                         {{ sku.name }} ({{ sku.code }})
                                                     </option>
                                                 </select>

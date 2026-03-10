@@ -10,9 +10,6 @@ class UpdateSkuAction
     public function execute(Sku $sku, SkuDataDTO $dto): void
     {
         DB::transaction(function () use ($sku, $dto) {
-            $oldPrice = (float) $sku->base_price;
-            $newPrice = $dto->price;
-
             $data = [
                 'name'              => $dto->name,
                 'code'              => $dto->code,
@@ -23,20 +20,15 @@ class UpdateSkuAction
             ];
 
             if ($dto->image) {
-                if ($sku->image_path) Storage::disk('public')->delete($sku->image_path);
+                if ($sku->image_path) {
+                    Storage::disk('public')->delete($sku->image_path);
+                }
                 $data['image_path'] = $dto->image->store('skus', 'public');
             }
 
-            if ($oldPrice !== $newPrice) {
-                $sku->prices()->create([
-                    'type'        => 'regular',
-                    'list_price'  => $newPrice,
-                    'final_price' => $newPrice,
-                    'valid_from'  => now()
-                ]);
-            }
-
             $sku->update($data);
+            
+            // LA LEY: Siempre invalidar la caché al mutar datos estructurales
             Cache::forget('admin_products_list');
         });
     }

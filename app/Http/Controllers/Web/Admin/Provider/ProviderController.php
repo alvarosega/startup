@@ -38,7 +38,13 @@ class ProviderController extends Controller
     public function index(Request $request, ListProviders $action): Response
     {
         $search = (string) $request->search;
-        $cacheKey = 'admin_providers_' . md5($search . $request->page);
+        $page = $request->page ?: 1;
+        
+        // 1. Leemos la versión actual del módulo (Si no existe, es la 1)
+        $version = Cache::get('admin_providers_version', 1);
+        
+        // 2. Construimos la llave atada a la versión
+        $cacheKey = "admin_providers_v{$version}_search_" . md5($search . $page);
 
         $providers = Cache::remember($cacheKey, 3600, fn() => 
             ProviderResource::collection($action->execute($search))

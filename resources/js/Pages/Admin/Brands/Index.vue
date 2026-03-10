@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import Pagination from '@/Components/Admin/Pagination.vue'; // <-- IMPORTACIÓN AÑADIDA
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import debounce from 'lodash/debounce';
@@ -7,7 +8,7 @@ import {
     Search, Plus, Image as ImageIcon, Factory, 
     Tag, Edit, Trash2, LayoutGrid, CheckCircle2, 
     Zap, Filter, XCircle, MapPin, 
-    Wifi, WifiOff, Star
+    Wifi, WifiOff, Star, Cpu, Terminal
 } from 'lucide-vue-next';
 
 const props = defineProps({ 
@@ -31,8 +32,8 @@ const brandsList = computed(() => props.brands?.data || []);
 
 // --- SINCRONIZACIÓN DE FILTROS ---
 watch(filters, debounce((val) => {
-    const cleanFilters = Object.fromEntries(Object.entries(val).filter(([_, v]) => v !== '' && v !== null));
-    router.get(route('admin.brands.index'), cleanFilters, { 
+    // Si queremos limpiar la URL, enviamos todos los filtros, Inertia/Laravel ignora los vacíos.
+    router.get(route('admin.brands.index'), val, { 
         preserveState: true, 
         replace: true, 
         preserveScroll: true 
@@ -210,24 +211,29 @@ const clearSearch = () => {
                     </p>
                 </div>
             </div>
-
-            <!-- Paginación -->
-            <div v-if="props.brands?.links && props.brands.links.length > 3" class="mt-8 flex justify-center">
-                <nav class="flex gap-2">
-                    <template v-for="(link, k) in props.brands.links" :key="k">
-                        <Link v-if="link.url" :href="link.url" v-html="link.label" 
-                              class="min-w-[36px] h-9 flex items-center justify-center text-sm border rounded-md transition-all"
-                              :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-foreground'"
-                              :preserve-scroll="true" />
-                        <span v-else v-html="link.label" 
-                              class="min-w-[36px] h-9 flex items-center justify-center text-sm text-muted-foreground/30 border border-transparent"></span>
-                    </template>
-                </nav>
+            <Pagination 
+                v-if="props.brands?.meta && props.brands.meta.last_page > 1" 
+                :meta="props.brands.meta" 
+                class="mt-8"
+            />
+            <div class="mt-12 text-center opacity-30">
+                <p class="text-[7px] font-mono text-muted-foreground uppercase tracking-[0.4em]">
+                    BRD_IDX_NODE // v2.0 // TS: {{ new Date().toISOString() }}
+                </p>
             </div>
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-/* Sin estilos personalizados - todo usa clases de Tailwind */
+.shadow-neon-primary { box-shadow: 0 0 15px hsl(var(--primary) / 0.3); }
+
+.glitch-text { position: relative; animation: glitch-skew 4s infinite linear alternate-reverse; }
+.glitch-text::before, .glitch-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.8; }
+.glitch-text::before { color: #0ff; z-index: -1; animation: glitch-anim-1 0.4s infinite linear alternate-reverse; }
+.glitch-text::after { color: #f0f; z-index: -2; animation: glitch-anim-2 0.4s infinite linear alternate-reverse; }
+
+@keyframes glitch-skew { 0%, 20%, 22%, 80%, 82%, 100% { transform: skew(0deg); } 21% { transform: skew(2deg); } 81% { transform: skew(-2deg); } }
+@keyframes glitch-anim-1 { 0% { clip-path: inset(20% 0 30% 0); } 100% { clip-path: inset(40% 0 20% 0); } }
+@keyframes glitch-anim-2 { 0% { clip-path: inset(60% 0 10% 0); } 100% { clip-path: inset(30% 0 40% 0); } }
 </style>

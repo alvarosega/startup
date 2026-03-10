@@ -50,8 +50,10 @@ class CategoryController extends Controller
     public function edit(Category $category): Response
     {
         $this->authorize('update', $category);
+
         return Inertia::render('Admin/Categories/Edit', [
-            'category' => new CategoryResource($category)
+            // CORRECCIÓN: Quitamos el ->load(['parent']) porque la relación ya no existe.
+            'category' => new CategoryResource($category) 
         ]);
     }
 

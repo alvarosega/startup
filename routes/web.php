@@ -24,7 +24,7 @@ use App\Http\Controllers\Web\Customer\Shop\ShopZoneController;
 // --- CONTROLADORES ADMIN ---
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\User\UserController;
+use App\Http\Controllers\Web\Admin\User\CustomerController;
 use App\Http\Controllers\Web\Admin\Branch\BranchController;
 use App\Http\Controllers\Web\Admin\Product\ProductController;
 use App\Http\Controllers\Web\Admin\Category\CategoryController;
@@ -188,16 +188,19 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
 
         // --- RECURSOS ---
         Route::middleware('role:super_admin,super_admin')->group(function () {
-            Route::resource('users', UserController::class);
-            Route::post('users/identify-branch', [UserController::class, 'identifyBranch'])->name('users.identify-branch');
+            Route::resource('users', CustomerController::class);
+            Route::post('users/identify-branch', [CustomerController::class, 'identifyBranch'])->name('users.identify-branch');
             Route::resource('drivers', DriverController::class);
         
             Route::resource('branches', BranchController::class);
             Route::resource('products', ProductController::class);
-            // Rutas Quirúrgicas para SKUs
             Route::get('products/check-name', [ProductController::class, 'checkName'])->name('products.check-name');
             Route::get('products/{product}/skus/create', [SkuController::class, 'create'])->name('products.skus.create');
             Route::post('products/{product}/skus', [SkuController::class, 'store'])->name('products.skus.store');
+            
+            // AHORA SÍ, EL RECURSO MAESTRO
+            Route::resource('products', ProductController::class);
+            
             Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
             Route::resource('categories', CategoryController::class);
             Route::resource('market-zones', MarketZoneController::class)

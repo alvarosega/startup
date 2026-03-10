@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
         
         $this->call([
             LevelSeeder::class,
+            CustomerSeeder::class,
             ComplianceSeeder::class,
             // Nivel 0
             MarketZoneSeeder::class,    // Nivel 0

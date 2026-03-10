@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Web\Admin\Brand;
 
 use App\Http\Controllers\Controller;
 use App\Models\{Brand, Provider, Category, MarketZone};
-use App\Actions\Admin\Brand\{ListBrands, UpsertBrandAction, GetBrandStatsAction};
+use App\Actions\Admin\Brand\{ListBrands, UpsertBrandAction, GetBrandStatsAction, DeleteBrandAction};
 use App\DTOs\Admin\Brand\BrandData;
 use App\Http\Requests\Admin\Brand\{StoreBrandRequest, UpdateBrandRequest};
 use App\Http\Resources\Admin\Brand\BrandResource;
@@ -12,6 +12,7 @@ use Illuminate\Http\{Request, RedirectResponse};
 use Inertia\{Inertia, Response};
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Cache;
 
 class BrandController extends Controller
 {
@@ -23,7 +24,9 @@ class BrandController extends Controller
     {
         $this->authorize('viewAny', Brand::class);
     
-        // LA LEY: Sin caché en el paginador para evitar fallos de serialización de Eloquent
+        // LA LEY v2.0: NO CACHEAR PAGINADORES CON MODELOS ELOQUENT.
+        // Si requieres rendimiento extremo aquí, se cachea la salida del Resource, no el Paginador.
+        // Para este nivel de administración, es más seguro ejecutar la query.
         $brandsPaginator = $listAction->execute($request->all());
     
         return Inertia::render('Admin/Brands/Index', [
@@ -32,7 +35,7 @@ class BrandController extends Controller
             'filters' => $request->only(['search', 'provider_id', 'category_id', 'market_zone_id']),
             'options' => [
                 'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as name']),
-                'categories' => Category::active()->whereNull('parent_id')->get(['id', 'name']),
+                'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
                 'zones'      => MarketZone::getMinimalList(),
             ],
             'can_manage' => Auth::guard($this->guard)->user()->can('create', Brand::class)
@@ -43,9 +46,8 @@ class BrandController extends Controller
     {
         $this->authorize('create', Brand::class);
         return Inertia::render('Admin/Brands/Create', [
-            // Solo proveedores de la base de datos (verifica si tu campo es company_name o commercial_name)
             'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as company_name']),
-            'categories' => Category::active()->whereNull('parent_id')->get(['id', 'name']),
+            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
             'zones'      => MarketZone::getMinimalList()
         ]);
     }
@@ -56,7 +58,7 @@ class BrandController extends Controller
         return Inertia::render('Admin/Brands/Edit', [
             'brand'      => new BrandResource($brand),
             'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as company_name']),
-            'categories' => Category::active()->whereNull('parent_id')->orderBy('name')->get(['id', 'name']),
+            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
             'zones'      => MarketZone::getMinimalList()
         ]);
     }
@@ -75,10 +77,16 @@ class BrandController extends Controller
         return redirect()->route('admin.brands.index')->with('message', 'Marca actualizada.');
     }
 
-    public function destroy(Brand $brand): RedirectResponse
+    public function destroy(Brand $brand, DeleteBrandAction $action): RedirectResponse
     {
         $this->authorize('delete', $brand);
-        $brand->delete(); // Borrado Lógico
-        return redirect()->route('admin.brands.index')->with('message', 'Marca eliminada del catálogo.');
+        
+        try {
+            // DELEGAR: El controlador orquesta, la Action ejecuta.
+            $action->execute($brand);
+            return redirect()->route('admin.brands.index')->with('message', 'Marca eliminada del catálogo.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 }

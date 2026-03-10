@@ -21,19 +21,20 @@ class ProductController extends Controller
 {
     use AuthorizesRequests;
     private string $guard = 'super_admin';
-
     public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction): InertiaResponse 
     {
         $this->authorize('viewAny', Product::class);
 
-        // Sin caché en el paginador completo para evitar fallos de hidratación de Eloquent
         $productsPaginator = $listAction->execute($request);
 
         return Inertia::render('Admin/Products/Index', [
             'filters'  => $request->only(['search', 'category', 'brand', 'status']),
             'products' => ProductResource::collection($productsPaginator),
             'stats'    => $statsAction->execute(),
-            'options'  => app(GetProductFormDataAction::class)->execute() 
+            'options'  => app(GetProductFormDataAction::class)->execute(),
+            
+            // LA CORRECCIÓN CRÍTICA: Enviar la directiva de autorización a la vista
+            'can_manage' => Auth::guard($this->guard)->user()?->can('create', Product::class) ?? false,
         ]);
     }
 

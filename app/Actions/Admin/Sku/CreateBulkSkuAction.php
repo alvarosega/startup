@@ -11,27 +11,23 @@ class CreateBulkSkuAction
     {
         DB::transaction(function () use ($productId, $dto) {
             foreach ($dto->skus as $skuData) {
-                $sku = Sku::create([
+                Sku::create([
                     'product_id'        => $productId,
                     'name'              => $skuData->name,
                     'code'              => $skuData->code,
-                    'base_price'        => $skuData->price,
+                    'base_price'        => $skuData->price, // Aquí sí es base_price porque el DTO lo mapeó así
                     'conversion_factor' => $skuData->conversionFactor,
                     'weight'            => $skuData->weight,
                     'image_path'        => $skuData->image ? $skuData->image->store('skus', 'public') : null,
                     'is_active'         => true,
                 ]);
 
-                // Financial Traceability
-                $sku->prices()->create([
-                    'type'        => 'regular',
-                    'list_price'  => $skuData->price,
-                    'final_price' => $skuData->price,
-                    'valid_from'  => now()
-                ]);
+                // LA LEY: ELIMINADO el bloque de $sku->prices()->create(...)
+                // Los precios financieros reales (list/final) se gestionan 
+                // en el módulo PriceController. El SKU solo guarda su base_price referencial.
             }
             
-            // LA LEY: Si añadimos SKUs, el catálogo de productos cambió
+            // Invalida la caché del catálogo para que Vue lo detecte de inmediato
             Cache::forget('admin_products_list');
         });
     }

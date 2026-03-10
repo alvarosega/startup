@@ -3,16 +3,12 @@ import { ref, computed } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { 
-    FileText, DollarSign, Users, 
-    ArrowRight, ArrowLeft, Save, 
-    Building2, Hash, CalendarClock, CreditCard,
-    Mail, Phone, MapPin, AlertCircle, AlertTriangle,
-    Cpu, Terminal, Wifi, Zap, Fingerprint,
-    Package, Clock, Target, Plus
+    FileText, DollarSign, Users, ArrowRight, ArrowLeft, Save, 
+    Building2, Hash, CalendarClock, CreditCard, Mail, Phone, 
+    MapPin, AlertTriangle, Cpu, Terminal, Wifi, WifiOff, Fingerprint
 } from 'lucide-vue-next';
 
 const currentStep = ref(1);
-
 const steps = [
     { id: 1, title: 'IDENTIDAD', code: 'SEC_01', icon: FileText, fields: ['company_name', 'tax_id'] },
     { id: 2, title: 'NEGOCIO', code: 'SEC_02', icon: DollarSign, fields: ['lead_time_days', 'min_order_value'] },
@@ -20,11 +16,6 @@ const steps = [
 ];
 
 const progressPercentage = computed(() => ((currentStep.value - 1) / (steps.length - 1)) * 100);
-
-// Código temporal para nuevo proveedor
-const tempCode = computed(() => {
-    return `PRV_NEW_${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
-});
 
 const form = useForm({
     company_name: '',
@@ -44,62 +35,48 @@ const form = useForm({
     notes: ''
 });
 
-// --- NAVEGACIÓN ---
+// REGLA: Validación local rápida antes de orquestación en backend
 const validateStep = () => {
     form.clearErrors();
     if (currentStep.value === 1) {
-        let valid = true;
-        if (!form.company_name) { 
-            form.setError('company_name', '// RAZÓN SOCIAL REQUERIDA'); 
-            valid = false; 
-        }
-        if (!form.tax_id) { 
-            form.setError('tax_id', '// NIT REQUERIDO'); 
-            valid = false; 
-        }
-        return valid;
+        if (!form.company_name) form.setError('company_name', '// RAZÓN SOCIAL OBLIGATORIA');
+        if (!form.tax_id) form.setError('tax_id', '// NIT/RUC OBLIGATORIO');
+        return !form.errors.company_name && !form.errors.tax_id;
     }
     return true;
 };
 
 const nextStep = () => {
-    if (validateStep()) {
-        if (currentStep.value < steps.length) {
-            currentStep.value++;
-        }
-    } else {
-        const card = document.getElementById('wizard-card');
-        card?.classList.add('shake');
-        setTimeout(() => card?.classList.remove('shake'), 400);
-    }
+    if (validateStep()) currentStep.value++;
+    else triggerShake();
 };
 
-const prevStep = () => {
-    if (currentStep.value > 1) currentStep.value--;
+const triggerShake = () => {
+    const card = document.getElementById('wizard-card');
+    card?.classList.add('shake');
+    setTimeout(() => card?.classList.remove('shake'), 400);
 };
 
-// --- SUBMIT ---
 const submit = () => {
     if (!validateStep()) return;
     
     form.post(route('admin.providers.store'), {
         preserveScroll: true,
+        // onSuccess: () => { ... } // Inertia maneja la redirección del redirect()->route() automáticamente
         onError: (errors) => {
-            const step1Fields = ['company_name', 'tax_id', 'commercial_name'];
-            const step3Fields = ['email_orders', 'contact_name'];
-            
-            if (Object.keys(errors).some(k => step1Fields.includes(k))) currentStep.value = 1;
-            else if (Object.keys(errors).some(k => step3Fields.includes(k))) currentStep.value = 3;
-            else currentStep.value = 2;
-            
-            const card = document.getElementById('wizard-card');
-            card?.classList.add('shake');
-            setTimeout(() => card?.classList.remove('shake'), 400);
+            // REGLA: Reposicionamiento Táctico
+            if (errors.company_name || errors.tax_id || errors.commercial_name || errors.internal_code) {
+                currentStep.value = 1;
+            } else if (errors.lead_time_days || errors.min_order_value || errors.credit_days || errors.credit_limit) {
+                currentStep.value = 2;
+            } else {
+                currentStep.value = 3;
+            }
+            triggerShake();
         }
     });
 };
 </script>
-
 <template>
     <AdminLayout>
         

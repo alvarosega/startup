@@ -11,7 +11,7 @@ class UpdateSkuRequest extends FormRequest
 
     public function rules(): array
     {
-        // Resolución segura de UUID
+        // Resolución segura de UUID contra inyecciones
         $sku = $this->route('sku');
         $skuId = $sku instanceof Sku ? $sku->id : $sku;
 
@@ -21,10 +21,11 @@ class UpdateSkuRequest extends FormRequest
                 'nullable', 'string', 
                 Rule::unique('skus', 'code')->ignore($skuId)->whereNull('deleted_at')
             ],
+            // LA LEY: Consistencia estricta con la base de datos
             'base_price'        => ['required', 'numeric', 'min:0'],
             'conversion_factor' => ['required', 'numeric', 'min:0.001'],
             'weight'            => ['required', 'numeric', 'min:0'],
-            'image'             => ['nullable', 'image', 'max:2048'],
+            'image'             => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'is_active'         => ['boolean'],
         ];
     }

@@ -25,11 +25,11 @@ readonly class BrandData
     public static function fromRequest(Request $request): self
     {
         return new self(
-            name: $request->validated('name'),
-            slug: Str::slug($request->validated('name')),
-            provider_id: $request->validated('provider_id'),
-            category_id: $request->validated('category_id'),
-            market_zone_id: $request->validated('market_zone_id'), // CAPTURA
+            name: (string) $request->validated('name'),
+            slug: Str::slug((string) $request->validated('name')),
+            provider_id: (string) $request->validated('provider_id'),
+            category_id: (string) $request->validated('category_id'),
+            market_zone_id: (string) $request->validated('market_zone_id'),
             website: $request->validated('website'),
             description: $request->validated('description'),
             is_active: $request->boolean('is_active', true),

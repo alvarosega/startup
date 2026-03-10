@@ -22,23 +22,13 @@ class LoginController extends Controller
 
     public function store(LoginRequest $request, LoginCustomerAction $action)
     {
-        // 1. Transformación a DTO (Datos inmutables)
         $data = LoginCustomerData::fromRequest($request);
     
         try {
-            // 2. Ejecución de la lógica de negocio
-            $action->execute($data);
+            $action->execute($data); // <--- La acción ya sincroniza el carrito por dentro
             
-            // 3. Gestión de sesión
             $request->session()->regenerate();
-            if ($request->has('guest_client_uuid')) {
-                $syncAction->execute(new SyncCartDTO(
-                    customerId: Auth::guard('customer')->id(),
-                    guestUuid: $request->input('guest_client_uuid'),
-                    branchId: app(\App\Services\ShopContextService::class)->getActiveBranchId()
-                ));
-            }
-            return redirect()->intended(route('shop.index'));
+            return redirect()->intended(route('customer.shop.index')); // Usa el nombre de ruta correcto
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();

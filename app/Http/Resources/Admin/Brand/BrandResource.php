@@ -15,12 +15,20 @@ class BrandResource extends JsonResource
             'slug'           => (string) $this->slug,
             'is_active'      => (bool) $this->is_active,
             'is_featured'    => (bool) $this->is_featured,
-            'image_url'      => $this->image_url, // Usa el accesor del Modelo
+            'image_url'      => $this->image_url,
             
+            // DATOS CRUDOS NECESARIOS PARA EL FORMULARIO (Edit.vue)
+            'provider_id'    => (string) $this->provider_id,
+            'category_id'    => (string) $this->category_id,
+            'market_zone_id' => (string) $this->market_zone_id,
+            'website'        => $this->website,
+            'description'    => $this->sanitizeUtf8($this->description),
+            'sort_order'     => (int) $this->sort_order,
+            
+            // DATOS PRESENTACIONALES (Index.vue)
             'provider_name'  => $this->sanitizeUtf8($this->provider?->commercial_name) ?? 'S/P',
             'category_name'  => $this->sanitizeUtf8($this->category?->name) ?? 'S/C',
             'market_zone'    => $this->sanitizeUtf8($this->marketZone?->name) ?? 'GLOBAL',
-            
         ];
     }
 

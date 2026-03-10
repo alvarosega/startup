@@ -5,6 +5,7 @@ namespace App\Actions\Admin\Brand;
 use App\Models\Brand;
 use App\DTOs\Admin\Brand\BrandData;
 use Illuminate\Support\Facades\{DB, Storage, Cache};
+use Illuminate\Http\UploadedFile;
 
 class UpsertBrandAction
 {
@@ -27,7 +28,7 @@ class UpsertBrandAction
                 'sort_order'     => $data->sort_order,
             ];
 
-            if ($data->image) {
+            if ($data->image instanceof UploadedFile) {
                 $attributes['image_path'] = $data->image->store('brands', 'public');
             }
 
@@ -35,11 +36,13 @@ class UpsertBrandAction
                 $brand = Brand::create($attributes);
             } else {
                 $brand->update($attributes);
-                if ($data->image && $oldPath) Storage::disk('public')->delete($oldPath);
+                if ($data->image instanceof UploadedFile && $oldPath) {
+                    Storage::disk('public')->delete($oldPath);
+                }
             }
-
-            // INVALIDACIÓN DE REDIS
-            Cache::forget('admin_brands_list');
+            
+            // LA LEY 2.0: Invalidación infalible usando Timestamp en lugar de increment
+            Cache::put('admin_brands_version', now()->timestamp);
             
             return $brand;
         });

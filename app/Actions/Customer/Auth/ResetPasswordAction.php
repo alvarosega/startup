@@ -3,33 +3,29 @@
 namespace App\Actions\Customer\Auth;
 
 use App\Models\Customer;
+use App\DTOs\Customer\Auth\ResetPasswordDTO; // <--- IMPORTAMOS EL DTO
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
-class ResetPasswordAction // <--- CORREGIDO: Debe coincidir con el nombre del archivo
+class ResetPasswordAction 
 {
-    /**
-     * Valida el código, actualiza la clave y limpia el silo.
-     */
-    public function execute(string $email, string $code, string $password): void
+    public function execute(ResetPasswordDTO $dto): void
     {
-        DB::transaction(function () use ($email, $code, $password) {
+        DB::transaction(function () use ($dto) {
             $record = DB::table('password_reset_codes_customers')
-                ->where('email', $email)
-                ->where('token', $code)
+                ->where('email', $dto->email)
+                ->where('token', $dto->code)
                 ->first();
 
-            // Validación de integridad y expiración (15 min)
             if (!$record || Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
                 throw ValidationException::withMessages([
                     'code' => 'El código es incorrecto o ha expirado.',
                 ]);
             }
 
-            // Actualización del modelo del Silo
-            $customer = Customer::where('email', $email)->first();
+            $customer = Customer::where('email', $dto->email)->first();
             
             if (!$customer) {
                 throw ValidationException::withMessages([
@@ -38,11 +34,10 @@ class ResetPasswordAction // <--- CORREGIDO: Debe coincidir con el nombre del ar
             }
 
             $customer->update([
-                'password' => Hash::make($password)
+                'password' => Hash::make($dto->password)
             ]);
 
-            // Limpieza del Silo
-            DB::table('password_reset_codes_customers')->where('email', $email)->delete();
+            DB::table('password_reset_codes_customers')->where('email', $dto->email)->delete();
         });
     }
 }

@@ -10,22 +10,24 @@ class DeleteProductAction
 {
     public function execute(Product $product): void
     {
-        DB::transaction(function () use ($product) {
-            // DoD v2.0: Protección Zero-Trust Deletes
-            // No podemos borrar un maestro si tiene SKUs con stock activo o en pedidos.
-            // Por ahora, asumiremos que se borran en cascada suave (SoftDelete),
-            // pero levantamos advertencia si es una política de la empresa.
-            
-            // Bloqueo estricto de ejemplo (si quisieras impedir el borrado):
-            /*
-            if ($product->skus()->where('stock', '>', 0)->exists()) {
-                 throw ValidationException::withMessages(['product' => 'No se puede eliminar un producto con inventario activo.']);
-            }
-            */
+        // LA LEY: Verificación de Integridad Física antes del borrado
+        // Si el producto tiene SKUs con lotes de inventario, bloqueamos.
+        $hasStock = $product->skus()->whereHas('inventoryLots', function($q) {
+            $q->where('current_stock', '>', 0);
+        })->exists();
 
-            $product->skus()->delete(); // Cascading soft delete
+        if ($hasStock) {
+            throw ValidationException::withMessages([
+                'product' => "BLOQUEO_SEGURIDAD: No es posible eliminar el maestro '{$product->name}' porque existen existencias físicas activas en el inventario."
+            ]);
+        }
+
+        DB::transaction(function () use ($product) {
+            // Borrado en cascada suave (SoftDelete)
+            $product->skus()->delete(); 
             $product->delete();
             
+            // DoD v2.0: Invalida la caché del catálogo
             Cache::forget('admin_products_list');
         });
     }

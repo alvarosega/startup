@@ -8,26 +8,23 @@ use Illuminate\Validation\ValidationException;
 
 class LoginDriverAction
 {
-    /**
-     * @throws ValidationException
-     */
     public function execute(LoginDriverData $data): void
     {
         $credentials = [
-            'phone' => $data->phone,
+            'phone'    => $data->phone,
             'password' => $data->password,
         ];
 
         // 1. Autenticación estricta en el guard 'driver'
         if (! Auth::guard('driver')->attempt($credentials)) {
             throw ValidationException::withMessages([
-                'phone' => 'Las credenciales proporcionadas no coinciden con nuestros registros.',
+                'phone' => 'Las credenciales proporcionadas no coinciden con nuestros registros o la cuenta no existe.',
             ]);
         }
 
-        // 2. Política de Sesión Única (Nativa de Laravel)
-        // Invalida todas las sesiones excepto la actual. 
-        // Requiere que el middleware AuthenticateSession esté activo.
-        Auth::guard('driver')->logoutOtherDevices($data->password);
+        // El registro de último login (last_login_at) se puede disparar desde un Listener de Eventos
+        // o si prefieres, actualízalo aquí directamente:
+        $driver = Auth::guard('driver')->user();
+        $driver->update(['last_login_at' => now()]);
     }
 }

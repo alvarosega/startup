@@ -5,7 +5,7 @@ import {
     Save, ArrowLeft, Package, Plus, Trash2, MapPin, 
     Image as ImageIcon, DollarSign, FileText, Layers, Upload,
     Cpu, Terminal, Wifi, WifiOff, AlertTriangle, CheckCircle2,
-    Hash, Box, GitBranch, Zap, Eye, EyeOff, Info, Settings
+    Hash, Box, GitBranch, Zap, Eye, EyeOff, Info, Settings, Clock
 } from 'lucide-vue-next';
 import { ref, onMounted, computed } from 'vue';
 
@@ -15,17 +15,22 @@ const props = defineProps({
     branches: Array
 });
 
-const bundleData = props.bundle.data || props.bundle;
+// DESEMPAQUETADO SEGURO (La Ley 2.0)
+const bundleData = computed(() => props.bundle.data || props.bundle);
+const skuList = computed(() => props.skus?.data || props.skus || []);
 
 const form = useForm({
     _method: 'PUT',
-    branch_id: bundleData.branch_id || '',
-    name: bundleData.name,
-    description: bundleData.description,
-    fixed_price: bundleData.fixed_price,
-    is_active: Boolean(bundleData.is_active),
+    branch_id: bundleData.value.branch_id || '',
+    name: bundleData.value.name,
+    description: bundleData.value.description,
+    fixed_price: bundleData.value.fixed_price,
+    is_active: Boolean(bundleData.value.is_active),
     image: null,
-    items: bundleData.items.map(i => ({ sku_id: i.sku_id, quantity: i.quantity }))
+    items: bundleData.value.items.map(i => ({ sku_id: i.sku_id, quantity: i.quantity })),
+    // REINCORPORACIÓN DE CAMPOS DE VIGENCIA
+    starts_at: bundleData.value.starts_at ? bundleData.value.starts_at.slice(0, 16) : '', 
+    ends_at: bundleData.value.ends_at ? bundleData.value.ends_at.slice(0, 16) : ''
 });
 
 if (form.items.length === 0) form.items.push({ sku_id: '', quantity: 1 });
@@ -36,10 +41,10 @@ const imagePreview = ref(null);
 const imageHover = ref(false);
 
 onMounted(() => { 
-    if (bundleData.image_path) {
-        imagePreview.value = bundleData.image_path.startsWith('http') 
-            ? bundleData.image_path 
-            : `/storage/${bundleData.image_path}`; 
+    if (bundleData.value.image_path) {
+        imagePreview.value = bundleData.value.image_path.startsWith('http') 
+            ? bundleData.value.image_path 
+            : `/storage/${bundleData.value.image_path}`; 
     }
 });
 
@@ -74,13 +79,11 @@ const removeItem = (i) => {
 
 // --- UTILIDADES ---
 const packCode = computed(() => {
-    return `PCK_${String(bundleData.id).slice(-4).toUpperCase()}`;
+    return `PCK_${String(bundleData.value.id).substring(0, 8).toUpperCase()}`;
 });
 
 const totalPrice = computed(() => {
     if (form.fixed_price) return parseFloat(form.fixed_price).toFixed(2);
-    
-    // Calcular suma de items (esto sería más complejo en la realidad)
     return 'DINÁMICO';
 });
 
@@ -89,7 +92,7 @@ const itemCount = computed(() => {
 });
 
 const submit = () => {
-    form.post(route('admin.bundles.update', bundleData.id), { 
+    form.post(route('admin.bundles.update', bundleData.value.id), { 
         forceFormData: true, 
         preserveScroll: true,
         onError: (errors) => {
@@ -107,428 +110,166 @@ const submit = () => {
 
         <div class="max-w-7xl mx-auto pb-40 md:pb-12 px-4 md:px-0">
             
-            <!-- Header sticky -->
             <div class="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-primary/30 px-4 py-4 mb-6 transition-all duration-300 group/header">
-                <!-- Efecto de escaneo -->
                 <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
                 
-                <div class="relative z-10">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <Link :href="route('admin.bundles.index')" 
-                                  class="p-2 border border-border hover:border-primary hover:shadow-neon-primary transition-all relative group/back">
-                                <ArrowLeft :size="20" class="group-hover/back:text-primary transition-colors" />
-                                <!-- Esquinas decorativas -->
-                                <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/back:opacity-100"></span>
-                                <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/back:opacity-100"></span>
-                                <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/back:opacity-100"></span>
-                                <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/back:opacity-100"></span>
-                            </Link>
-                            
-                            <div class="relative group/title">
-                                <h1 class="text-xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)] leading-none"
-                                    data-text="EDITAR PACK">
-                                    EDITAR PACK
-                                </h1>
-                                <p class="text-[8px] font-mono text-muted-foreground mt-1 flex items-center gap-2">
-                                    <Cpu :size="10" class="text-primary animate-pulse" />
-                                    <span>{{ packCode }} // {{ bundleData.name }}</span>
-                                    <Terminal :size="10" class="text-primary animate-pulse" />
-                                </p>
-                            </div>
-                        </div>
+                <div class="relative z-10 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <Link :href="route('admin.bundles.index')" class="p-2 border border-border hover:border-primary transition-all relative group/back">
+                            <ArrowLeft :size="20" />
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/back:opacity-100"></span>
+                            <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/back:opacity-100"></span>
+                        </Link>
                         
-                        <!-- Toggle de estado -->
-                        <div class="flex items-center gap-2 border border-primary/30 p-1 bg-background/50">
-                            <span class="text-[8px] font-mono font-bold uppercase px-2 flex items-center gap-1"
-                                  :class="form.is_active ? 'text-cyan-500' : 'text-destructive'">
-                                <component :is="form.is_active ? Wifi : WifiOff" :size="10" />
-                                {{ form.is_active ? 'VISIBLE' : 'OCULTO' }}
-                            </span>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="form.is_active" class="sr-only peer" />
-                                <div class="w-10 h-5 border border-border/50 peer-checked:border-primary transition-all relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-primary/20 translate-x-[-100%] peer-checked:translate-x-0 transition-transform duration-300"></div>
-                                </div>
-                                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-muted-foreground peer-checked:bg-primary peer-checked:translate-x-5 transition-all duration-300"></div>
-                            </label>
+                        <div>
+                            <h1 class="text-xl font-display font-black tracking-widest text-primary uppercase glitch-text" :data-text="'EDITAR PACK: ' + bundleData.name">
+                                EDITAR PACK
+                            </h1>
+                            <p class="text-[8px] font-mono text-muted-foreground mt-1 flex items-center gap-2 uppercase">
+                                <Cpu :size="10" class="text-primary animate-pulse" />
+                                <span>{{ packCode }} // {{ bundleData.name }}</span>
+                            </p>
                         </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 border border-primary/30 p-1 bg-background/50">
+                        <span class="text-[8px] font-mono font-bold uppercase px-2" :class="form.is_active ? 'text-cyan-500' : 'text-destructive'">
+                            {{ form.is_active ? 'ONLINE' : 'OFFLINE' }}
+                        </span>
+                        <input type="checkbox" v-model="form.is_active" class="sr-only peer" id="active-toggle" />
+                        <label for="active-toggle" class="w-10 h-5 border border-border/50 peer-checked:border-primary transition-all relative cursor-pointer">
+                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-muted-foreground peer-checked:bg-primary peer-checked:translate-x-5 transition-all"></div>
+                        </label>
                     </div>
                 </div>
             </div>
 
             <form @submit.prevent="submit" id="pack-card" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <!-- Columna izquierda: Información Base -->
                 <div class="lg:col-span-5 space-y-6">
-                    <div class="border border-border/50 bg-background shadow-2xl overflow-hidden relative group/card">
-                        
-                        <!-- Scanline superior -->
-                        <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover/card:translate-x-[100%] transition-transform duration-1000"></div>
-                        
-                        <!-- Efecto de glow -->
-                        <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none"></div>
-                        
-                        <!-- Esquinas decorativas -->
+                    <div class="border border-border/50 bg-background shadow-2xl relative p-5 space-y-5">
                         <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
-                        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
-                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/30"></div>
                         <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/30"></div>
 
-                        <div class="p-4 border-b border-primary/30 bg-muted/10 flex items-center gap-2">
-                            <Package :size="16" class="text-primary" />
-                            <h3 class="text-[10px] font-mono font-bold text-primary uppercase tracking-wider">INFORMACIÓN BASE</h3>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest block flex items-center gap-1">
+                                <MapPin :size="12" /> // SUCURSAL ASIGNADA
+                            </label>
+                            <select v-model="form.branch_id" class="w-full pl-4 pr-8 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary outline-none transition-all appearance-none uppercase">
+                                <option value="" disabled>SELECCIONAR UBICACIÓN...</option>
+                                <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
+                            </select>
                         </div>
 
-                        <div class="p-5 space-y-5 relative z-10">
-                            
-                            <!-- Sucursal -->
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
-                                    <MapPin :size="12" /> // SUCURSAL OBJETIVO <span class="text-destructive">*</span>
-                                </label>
-                                <div class="relative group/select">
-                                    <MapPin :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/select:text-primary transition-colors" />
-                                    <select v-model="form.branch_id" 
-                                            class="w-full pl-10 pr-8 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all appearance-none"
-                                            :class="{'border-destructive/50': form.errors.branch_id}">
-                                        <option value="" disabled>SELECCIONAR UBICACIÓN...</option>
-                                        <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
-                                    </select>
-                                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1L5 5L9 1"/></svg>
-                                    </div>
-                                </div>
-                                <p v-if="form.errors.branch_id" class="text-[10px] font-mono text-destructive mt-1 flex items-center gap-1">
-                                    <AlertTriangle :size="10" /> {{ form.errors.branch_id }}
-                                </p>
-                            </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest block flex items-center gap-1">
+                                <Terminal :size="12" /> // NOMBRE DEL PACK
+                            </label>
+                            <input v-model="form.name" type="text" class="w-full px-4 py-3 bg-background border border-border/50 font-mono text-lg font-bold focus:border-primary outline-none transition-all uppercase" />
+                        </div>
 
-                            <!-- Nombre del Pack -->
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
-                                    <Terminal :size="12" /> // NOMBRE DEL PACK
-                                </label>
-                                <div class="relative group/input">
-                                    <Package :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
-                                    <input v-model="form.name" 
-                                           type="text" 
-                                           class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-lg font-bold focus:border-primary focus:shadow-neon-primary outline-none transition-all"
-                                           :class="{'border-destructive/50': form.errors.name}" />
-                                    <!-- Esquinas decorativas en focus -->
-                                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
-                                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
-                                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-focus-within/input:opacity-100"></span>
-                                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-focus-within/input:opacity-100"></span>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest block flex items-center gap-1">
+                                <ImageIcon :size="12" /> // IMAGEN PROMOCIONAL
+                            </label>
+                            <div @click="triggerImageInput" class="w-full aspect-video border-2 border-dashed border-primary/30 bg-primary/5 flex items-center justify-center cursor-pointer hover:bg-primary/10 transition-all overflow-hidden relative group">
+                                <img v-if="imagePreview" :src="imagePreview" class="w-full h-full object-cover" />
+                                <div v-else class="text-center">
+                                    <Upload :size="20" class="mx-auto text-primary/50" />
+                                    <span class="text-[8px] font-mono text-primary/50">SUBIR NUEVA</span>
                                 </div>
-                                <p v-if="form.errors.name" class="text-[10px] font-mono text-destructive mt-1 flex items-center gap-1">
-                                    <AlertTriangle :size="10" /> {{ form.errors.name }}
-                                </p>
+                                <input ref="imageInputRef" type="file" accept="image/*" class="hidden" @change="handleImageChange" />
                             </div>
+                        </div>
 
-                            <!-- Imagen Promocional -->
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
-                                    <ImageIcon :size="12" /> // IMAGEN PROMOCIONAL
-                                </label>
-                                <div @mouseenter="imageHover = true"
-                                     @mouseleave="imageHover = false"
-                                     @click="triggerImageInput" 
-                                     class="w-full aspect-video border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/10 transition-all group/image overflow-hidden relative">
-                                    
-                                    <img v-if="imagePreview" 
-                                         :src="imagePreview" 
-                                         class="w-full h-full object-cover transition-transform duration-500 group-hover/image:scale-105" />
-                                    
-                                    <div v-else class="flex flex-col items-center gap-2">
-                                        <div class="w-12 h-12 border border-primary/30 flex items-center justify-center group-hover/image:scale-110 transition-transform">
-                                            <Upload :size="20" class="text-primary/50 group-hover/image:text-primary" />
-                                        </div>
-                                        <span class="text-[8px] font-mono text-primary/50">CLICK PARA SUBIR</span>
-                                    </div>
-                                    
-                                    <!-- Overlay de escaneo en hover -->
-                                    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-primary/10 to-transparent translate-y-[-100%] group-hover/image:translate-y-[100%] transition-transform duration-700"></div>
-                                    
-                                    <input ref="imageInputRef" type="file" accept="image/*" class="hidden" @change="handleImageChange" />
+                        <div class="space-y-4 border border-primary/20 p-4 bg-primary/5 relative">
+                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest block flex items-center gap-1">
+                                <Clock :size="12" /> // VENTANA DE VIGENCIA
+                            </label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label class="text-[7px] font-mono text-muted-foreground uppercase">INICIO</label>
+                                    <input v-model="form.starts_at" type="datetime-local" class="w-full bg-background border border-border/50 px-2 py-1.5 font-mono text-[10px] focus:border-primary outline-none" />
                                 </div>
-                                
-                                <div v-if="imagePreview" class="flex justify-end">
-                                    <button type="button" @click.stop="clearImage" 
-                                            class="text-[8px] font-mono text-destructive hover:bg-destructive/10 px-2 py-1 border border-transparent hover:border-destructive/30 transition-all flex items-center gap-1">
-                                        <Trash2 :size="10" /> QUITAR IMAGEN
-                                    </button>
+                                <div class="space-y-1">
+                                    <label class="text-[7px] font-mono text-muted-foreground uppercase">CIERRE</label>
+                                    <input v-model="form.ends_at" type="datetime-local" class="w-full bg-background border border-border/50 px-2 py-1.5 font-mono text-[10px] focus:border-primary outline-none" />
                                 </div>
                             </div>
+                            <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
+                        </div>
 
-                            <!-- Descripción -->
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
-                                    <FileText :size="12" /> // DESCRIPCIÓN
-                                </label>
-                                <div class="relative group/textarea">
-                                    <FileText :size="14" class="absolute left-3 top-3 text-muted-foreground group-focus-within/textarea:text-primary transition-colors" />
-                                    <textarea v-model="form.description" 
-                                              rows="3" 
-                                              class="w-full pl-10 pr-4 py-3 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none transition-all resize-none"
-                                              placeholder="DESCRIPCIÓN DEL PACK..."></textarea>
-                                </div>
-                            </div>
-
-                            <!-- Precio Fijo -->
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest mb-2 block flex items-center gap-1">
-                                    <DollarSign :size="12" /> // PRECIO FIJO
-                                </label>
-                                <div class="relative group/price">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-primary">BS</span>
-                                    <input v-model="form.fixed_price" 
-                                           type="number" step="0.01" 
-                                           class="w-full pl-12 pr-4 py-3 bg-background border border-border/50 font-mono text-lg font-bold focus:border-primary focus:shadow-neon-primary outline-none transition-all"
-                                           placeholder="0.00" />
-                                </div>
-                                <p class="text-[7px] font-mono text-muted-foreground mt-1">
-                                    DEJAR VACÍO PARA SUMAR AUTOMÁTICAMENTE LOS ITEMS
-                                </p>
-                            </div>
-
-                            <!-- Resumen del Pack -->
-                            <div class="border border-primary/30 bg-primary/5 p-3 mt-4">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-[8px] font-mono text-primary uppercase">TOTAL</span>
-                                    <span class="text-sm font-mono font-bold text-cyan-500">
-                                        {{ totalPrice }} {{ form.fixed_price ? 'BS' : '' }}
-                                    </span>
-                                </div>
-                                <div class="flex items-center justify-between mt-1">
-                                    <span class="text-[8px] font-mono text-primary uppercase">ITEMS</span>
-                                    <span class="text-xs font-mono font-bold text-foreground">{{ itemCount }} / {{ form.items.length }}</span>
-                                </div>
-                            </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-mono font-bold text-primary uppercase tracking-widest block flex items-center gap-1">
+                                <DollarSign :size="12" /> // PRECIO FIJO (BS)
+                            </label>
+                            <input v-model="form.fixed_price" type="number" step="0.01" class="w-full px-4 py-3 bg-background border border-border/50 font-mono text-lg font-bold focus:border-primary outline-none text-cyan-500" placeholder="DINÁMICO" />
                         </div>
                     </div>
                 </div>
 
-                <!-- Columna derecha: Contenido del Pack -->
                 <div class="lg:col-span-7 space-y-6">
                     <div class="border border-border/50 bg-background shadow-2xl h-full flex flex-col relative group/items">
-                        
-                        <!-- Scanline superior -->
-                        <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent translate-x-[-100%] group-hover/items:translate-x-[100%] transition-transform duration-1000"></div>
-                        
-                        <!-- Esquinas decorativas -->
-                        <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
-                        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
-                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/30"></div>
-                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/30"></div>
-
                         <div class="p-4 border-b border-primary/30 bg-muted/10 flex justify-between items-center">
-                            <div class="flex items-center gap-2">
-                                <Layers :size="16" class="text-primary" />
-                                <h3 class="text-[10px] font-mono font-bold text-primary uppercase tracking-wider">CONTENIDO DEL PACK</h3>
-                            </div>
-                            <span class="px-2 py-0.5 border border-primary/30 text-[8px] font-mono text-primary">
-                                {{ form.items.length }} ITEMS
-                            </span>
+                            <h3 class="text-[10px] font-mono font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <Layers :size="16" /> CONTENIDO DEL PACK
+                            </h3>
                         </div>
 
-                        <div class="p-5 flex-1 space-y-4">
-                            
-                            <TransitionGroup name="list" tag="div" class="space-y-3">
-                                <div v-for="(item, index) in form.items" :key="index" 
-                                     class="border border-border/50 p-3 hover:border-primary/30 hover:shadow-neon-primary transition-all relative group/item">
-                                    
-                                    <!-- Scanline interna -->
-                                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/item:translate-x-[100%] transition-transform duration-700"></div>
-                                    
-                                    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center relative z-10">
-                                        
-                                        <!-- Selector de SKU -->
-                                        <div class="flex-1 w-full sm:w-auto space-y-1">
-                                            <label class="text-[7px] font-mono text-primary uppercase tracking-wider ml-1">// PRODUCTO</label>
-                                            <div class="relative">
-                                                <Box :size="12" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                                <select v-model="item.sku_id" 
-                                                        class="w-full pl-10 pr-4 py-2 bg-background border border-border/50 font-mono text-xs focus:border-primary focus:shadow-neon-primary outline-none transition-all appearance-none"
-                                                        :class="{'border-destructive/50': form.errors[`items.${index}.sku_id`]}">
-                                                    <option value="" disabled>SELECCIONAR ITEM...</option>
-                                                    <option v-for="sku in skus.data" :key="sku.id" :value="sku.id">
-                                                        {{ sku.name }} ({{ sku.code }})
-                                                    </option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <!-- Cantidad con controles -->
-                                        <div class="w-full sm:w-32 flex flex-col space-y-1">
-                                            <label class="text-[7px] font-mono text-primary uppercase tracking-wider ml-1 text-center">// CANT.</label>
-                                            <div class="flex items-center">
-                                                <button type="button" 
-                                                        @click="item.quantity > 1 ? item.quantity-- : null" 
-                                                        class="w-8 h-8 border border-r-0 border-border/50 bg-background hover:border-primary/50 hover:text-primary transition-all flex items-center justify-center">
-                                                    -
-                                                </button>
-                                                <input v-model="item.quantity" 
-                                                       type="number" min="1" 
-                                                       class="w-full h-8 border-y border-border/50 text-center font-mono text-xs focus:outline-none focus:border-primary bg-background" />
-                                                <button type="button" 
-                                                        @click="item.quantity++" 
-                                                        class="w-8 h-8 border border-l-0 border-border/50 bg-background hover:border-primary/50 hover:text-primary transition-all flex items-center justify-center">
-                                                    +
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <!-- Botón eliminar -->
-                                        <button type="button" @click="removeItem(index)" 
-                                                class="w-8 h-8 border border-border/50 hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive transition-all flex items-center justify-center mt-auto sm:mt-5"
-                                                :disabled="form.items.length === 1"
-                                                :class="{'opacity-30 cursor-not-allowed': form.items.length === 1}">
-                                            <Trash2 :size="14" />
-                                        </button>
-                                    </div>
-
-                                    <!-- Esquinas -->
-                                    <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
-                                    <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary/30"></span>
-                                    <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary/30"></span>
-                                    <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary/30"></span>
+                        <div class="p-5 flex-1 space-y-3 overflow-y-auto">
+                            <div v-for="(item, index) in form.items" :key="index" class="border border-border/50 p-3 relative flex flex-col sm:flex-row gap-3 items-center bg-primary/5">
+                                <div class="flex-1 w-full">
+                                    <label class="text-[7px] font-mono text-primary uppercase ml-1">// PRODUCTO</label>
+                                    <select v-model="item.sku_id" class="w-full pl-3 pr-8 py-2 bg-background border border-border/50 font-mono text-xs focus:border-primary outline-none uppercase">
+                                        <option value="" disabled>SELECCIONAR ITEM...</option>
+                                        <option v-for="sku in skuList" :key="sku.id" :value="sku.id">
+                                            {{ sku.name }} ({{ sku.code }})
+                                        </option>
+                                    </select>
                                 </div>
-                            </TransitionGroup>
 
-                            <!-- Botón Agregar -->
-                            <button type="button" @click="addItem" 
-                                    class="w-full py-4 border-2 border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-[10px] font-mono relative group/add">
-                                <Plus :size="16" class="group-hover/add:rotate-90 transition-transform duration-300" />
-                                AGREGAR OTRO PRODUCTO
-                                <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/add:opacity-100"></span>
-                                <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/add:opacity-100"></span>
-                                <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/add:opacity-100"></span>
-                                <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary opacity-0 group-hover/add:opacity-100"></span>
+                                <div class="w-full sm:w-24">
+                                    <label class="text-[7px] font-mono text-primary uppercase text-center block">// CANT.</label>
+                                    <input v-model="item.quantity" type="number" min="1" class="w-full py-2 bg-background border border-border/50 text-center font-mono text-xs focus:border-primary outline-none" />
+                                </div>
+
+                                <button type="button" @click="removeItem(index)" class="p-2 text-destructive hover:bg-destructive/10 transition-all mt-3 sm:mt-4" :disabled="form.items.length === 1">
+                                    <Trash2 :size="14" />
+                                </button>
+                                <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary/30"></span>
+                            </div>
+
+                            <button type="button" @click="addItem" class="w-full py-4 border-2 border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5 transition-all text-[10px] font-mono flex items-center justify-center gap-2">
+                                <Plus :size="16" /> AÑADIR OTRO PRODUCTO
                             </button>
+                        </div>
 
+                        <div class="p-4 bg-primary/10 border-t border-primary/30 flex justify-between items-center">
+                            <span class="text-[8px] font-mono text-primary uppercase font-bold">TOTAL ESTIMADO</span>
+                            <span class="text-sm font-mono font-black text-cyan-500 uppercase">{{ totalPrice }} {{ form.fixed_price ? 'BS' : '' }}</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Botón de submit -->
-                <div class="lg:col-span-12 mt-4">
-                    <button type="submit" :disabled="form.processing" 
-                            class="w-full h-14 bg-primary text-primary-foreground text-[10px] font-mono font-black uppercase tracking-widest shadow-neon-primary hover:bg-primary/90 transition-all relative group/submit overflow-hidden">
-                        <span v-if="form.processing" class="flex items-center justify-center gap-2">
-                            <Cpu :size="16" class="animate-spin" /> PROCESANDO...
-                        </span>
-                        <span v-else class="flex items-center justify-center gap-2 relative z-10">
-                            <Save :size="16" /> ACTUALIZAR PACK
-                        </span>
+                <div class="lg:col-span-12">
+                    <button type="submit" :disabled="form.processing" class="w-full h-14 bg-primary text-primary-foreground font-mono font-black uppercase shadow-neon-primary hover:bg-primary/90 transition-all relative overflow-hidden group/submit">
+                        <span v-if="form.processing" class="flex items-center justify-center gap-2"><Cpu :size="16" class="animate-spin" /> PROCESANDO...</span>
+                        <span v-else class="flex items-center justify-center gap-2 relative z-10"><Save :size="16" /> ACTUALIZAR PACK</span>
                         <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/submit:translate-y-0 transition-transform duration-500"></span>
-                        <!-- Esquinas -->
-                        <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
-                        <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
-                        <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
-                        <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground/50"></span>
                     </button>
                 </div>
             </form>
-
-            <!-- Session ID -->
-            <div class="mt-4 text-center">
-                <p class="text-[8px] font-mono text-muted-foreground">
-                    SESSION_ID // {{ packCode }}_EDIT // {{ new Date().toISOString().slice(0,10) }}
-                </p>
-            </div>
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-/* Animaciones */
-@keyframes shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); }
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-    40%, 60% { transform: translate3d(4px, 0, 0); }
-}
-
-.shake {
-    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-}
-
-/* Efecto glitch */
-.glitch-text {
-    position: relative;
-    animation: glitch-skew 4s infinite linear alternate-reverse;
-}
-
-.glitch-text::before,
-.glitch-text::after {
-    content: attr(data-text);
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.8;
-}
-
-.glitch-text::before {
-    color: #0ff;
-    z-index: -1;
-    animation: glitch-anim-1 0.4s infinite linear alternate-reverse;
-}
-
-.glitch-text::after {
-    color: #f0f;
-    z-index: -2;
-    animation: glitch-anim-2 0.4s infinite linear alternate-reverse;
-}
-
-@keyframes glitch-skew {
-    0% { transform: skew(0deg); }
-    20% { transform: skew(0deg); }
-    21% { transform: skew(2deg); }
-    22% { transform: skew(0deg); }
-    80% { transform: skew(0deg); }
-    81% { transform: skew(-2deg); }
-    82% { transform: skew(0deg); }
-    100% { transform: skew(0deg); }
-}
-
-@keyframes glitch-anim-1 {
-    0% { clip-path: inset(20% 0 30% 0); }
-    20% { clip-path: inset(50% 0 10% 0); }
-    40% { clip-path: inset(10% 0 60% 0); }
-    60% { clip-path: inset(80% 0 5% 0); }
-    80% { clip-path: inset(30% 0 40% 0); }
-    100% { clip-path: inset(40% 0 20% 0); }
-}
-
-@keyframes glitch-anim-2 {
-    0% { clip-path: inset(60% 0 10% 0); }
-    20% { clip-path: inset(20% 0 50% 0); }
-    40% { clip-path: inset(70% 0 5% 0); }
-    60% { clip-path: inset(10% 0 70% 0); }
-    80% { clip-path: inset(40% 0 30% 0); }
-    100% { clip-path: inset(30% 0 40% 0); }
-}
-
-/* Sombras neón */
-.shadow-neon-primary {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-}
-
-/* Transiciones de lista */
-.list-enter-active,
-.list-leave-active {
-    transition: all 0.3s ease;
-}
-.list-enter-from,
-.list-leave-to {
-    opacity: 0;
-    transform: translateX(-10px);
-}
-.list-leave-active {
-    position: absolute;
-    width: 100%;
-}
+@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+.shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+.glitch-text { position: relative; animation: glitch-skew 4s infinite linear alternate-reverse; }
+.glitch-text::before, .glitch-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.8; }
+.glitch-text::before { color: #0ff; z-index: -1; animation: glitch-anim-1 0.4s infinite linear alternate-reverse; }
+.glitch-text::after { color: #f0f; z-index: -2; animation: glitch-anim-2 0.4s infinite linear alternate-reverse; }
+@keyframes glitch-skew { 0%, 20%, 22%, 80%, 82%, 100% { transform: skew(0deg); } 21% { transform: skew(2deg); } 81% { transform: skew(-2deg); } }
+.shadow-neon-primary { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
 </style>

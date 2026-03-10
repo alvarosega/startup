@@ -8,14 +8,14 @@ readonly class SkuDataDTO
     public function __construct(
         public string $name,
         public ?string $code,
-        public float $price,
+        public float $price, // Esto mapeará el base_price interno
         public float $conversionFactor,
         public float $weight,
         public bool $isActive,
         public ?UploadedFile $image
     ) {}
 
-    // Usado por el Request de Update Individual
+    // Usado por SkuController@update (Edición Individual)
     public static function fromRequest($request): self
     {
         return new self(
@@ -29,15 +29,15 @@ readonly class SkuDataDTO
         );
     }
 
-    // Usado por el Bulk Create para mapear el array anidado
+    // Usado por CreateBulkSkuDTO (Creación en Lote)
     public static function fromArray(array $data): self
     {
         return new self(
             name:             $data['name'],
             code:             $data['code'] ?? null,
-            price:            (float) $data['price'],
-            conversionFactor: (float) $data['conversion_factor'],
-            weight:           (float) $data['weight'],
+            price:            (float) ($data['base_price'] ?? 0),
+            conversionFactor: (float) ($data['conversion_factor'] ?? 1),
+            weight:           (float) ($data['weight'] ?? 0),
             isActive:         true, // Por defecto en creación
             image:            $data['image'] ?? null
         );

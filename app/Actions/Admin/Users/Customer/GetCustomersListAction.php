@@ -1,25 +1,41 @@
 <?php
 
-namespace App\Actions\Admin\User;
+namespace App\Actions\Admin\Users\Customer;
 
-use Illuminate\Support\Facades\DB;
-use Spatie\Permission\Models\Role;
+use App\Models\Customer;
 use App\Models\Branch;
-use App\Models\Admin;
-use App\Models\Customer; // <--- AÑADIR ESTA LÍNEA
+use Illuminate\Support\Facades\Cache;
 
-class GetUsersListAction
+class GetCustomersListAction
 {
     public function execute(array $filters): array
     {
-        // Busca el método execute y actualiza el select
+        $page = request('page', 1);
+        $isFiltered = !empty($filters['search']) || !empty($filters['branch_id']);
+        
+        // Cacheamos solo la vista base (sin filtros y pagina 1) para velocidad extrema
+        if (!$isFiltered && $page == 1) {
+            $users = Cache::remember('admin_customers_list_base', 86400, fn() => $this->buildQuery($filters));
+        } else {
+            $users = $this->buildQuery($filters);
+        }
+
+        return [
+            'users'    => $users,
+            'branches' => Branch::all(['id', 'name']),
+            'filters'  => $filters 
+        ];
+    }
+
+    private function buildQuery(array $filters)
+    {
         $query = Customer::query()
             ->select([
                 'customers.id', 
                 'customer_profiles.first_name', 
                 'customer_profiles.last_name', 
-                'customer_profiles.avatar_type',   // <--- NUEVO
-                'customer_profiles.avatar_source', // <--- NUEVO
+                'customer_profiles.avatar_type',   
+                'customer_profiles.avatar_source', 
                 'customers.email', 
                 'customers.phone', 
                 'customers.is_active', 
@@ -28,7 +44,7 @@ class GetUsersListAction
             ])
             ->leftJoin('customer_profiles', 'customers.id', '=', 'customer_profiles.customer_id')
             ->leftJoin('branches', 'customers.branch_id', '=', 'branches.id');
-        // Búsqueda con prefijos de tabla para evitar ambigüedad
+
         if (!empty($filters['search'])) {
             $s = "%{$filters['search']}%";
             $query->where(function($q) use ($s) {
@@ -38,16 +54,13 @@ class GetUsersListAction
                   ->orWhere('customer_profiles.last_name', 'like', $s);
             });
         }
-    
-        // ELIMINADO EL ->through(). Retornamos el paginador con objetos stdClass/Model.
-        $users = $query->orderBy('customers.created_at', 'desc')
+
+        if (!empty($filters['branch_id'])) {
+            $query->where('customers.branch_id', $filters['branch_id']);
+        }
+
+        return $query->orderBy('customers.created_at', 'desc')
             ->paginate(15)
             ->withQueryString();
-    
-        return [
-            'users'    => $users,
-            'branches' => Branch::all(['id', 'name']),
-            'filters'  => $filters 
-        ];
     }
 }

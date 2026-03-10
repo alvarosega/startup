@@ -3,36 +3,30 @@
 namespace App\Http\Controllers\Web\Customer\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
+use App\Http\Requests\Customer\Auth\ForgotPasswordRequest; // <--- NUEVO
+use App\Actions\Customer\Auth\SendResetCodeAction;
 use Illuminate\Support\Facades\Log;
-use App\Mail\Customer\CustomerResetCodeMail;
 use Inertia\Inertia;
-use Carbon\Carbon;
 
 class ForgotPasswordController extends Controller
 {
-
     public function showLinkRequestForm()
     {
         return Inertia::render('Customer/Auth/ForgotPassword');
     }
-    public function sendResetCode(Request $request, \App\Actions\Customer\Auth\SendResetCodeAction $action)
+
+    public function sendResetCode(ForgotPasswordRequest $request, SendResetCodeAction $action)
     {
-        // 1. Validación (Firewall)
-        $request->validate(['email' => 'required|email|exists:customers,email']);
-    
         try {
-            // 2. Orquestación
-            $action->execute($request->email);
+            // El request ya viene validado y asegurado
+            $action->execute($request->validated('email'));
     
-            return redirect()->route('password.reset', ['email' => $request->email])
+            return redirect()->route('password.reset', ['email' => $request->validated('email')])
                 ->with('status', 'Código enviado con éxito.');
                 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('[ResetCode] ' . $e->getMessage());
-            return back()->withErrors(['email' => 'No se pudo enviar el código.']);
+            Log::error('[ResetCode] ' . $e->getMessage());
+            return back()->withErrors(['email' => 'No se pudo enviar el código. Intente de nuevo.']);
         }
     }
 }

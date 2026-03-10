@@ -5,104 +5,38 @@ import { Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { debounce } from 'lodash';
 import { 
-    UserPlus, Search, Users, Shield, 
-    Briefcase,  MessageCircle, 
-    SlidersHorizontal,
-    Cpu, Terminal, Zap,
-    Plus,  UserCheck, Key, Eye, MoreVertical, 
-    Edit, Trash2, X, RefreshCw, AlertTriangle, Building2,
-    Truck, Radar, MapPin, Mail, Phone, Lock, CheckCircle2 // <--- ASEGURARSE QUE ESTOS 4 ESTÉN AQUÍ
+    UserPlus, Search, 
+    MessageCircle, SlidersHorizontal,
+    Cpu, Terminal, MoreVertical, 
+    Edit, Trash2, Radar, MapPin, 
+    Mail, Phone, Lock, CheckCircle2 
 } from 'lucide-vue-next';
 
 const props = defineProps({
-    users: Object,
-    // ELIMINAR ESTA LÍNEA: roles: Array,
+    users: Object, // Trae la data paginada de Customers
     branches: Array,
     filters: Object
 });
 
 const params = ref({
     search: props.filters?.search || '',
-    role_id: props.filters?.role_id || '',
     branch_id: props.filters?.branch_id || '',
 });
+
 const showMobileFilters = ref(false);
 const activeMenuUserId = ref(null);
 
 /**
- * ESTILOS NEÓN POR ROL (adaptados a paleta ciberpunk)
- */
-const getRoleStyle = (roleKey) => {
-    const key = roleKey || 'unknown';
-    switch (key) {
-        case 'super_admin': 
-            return { 
-                bg: 'bg-primary', 
-                text: 'text-primary', 
-                border: 'border-primary/30',
-                neon: 'shadow-neon-primary',
-                icon: Shield,
-                label: 'GLOBAL_ADMIN',
-                scanline: 'bg-primary/20'
-            };
-        case 'branch_admin': 
-            return { 
-                bg: 'bg-secondary', 
-                text: 'text-secondary', 
-                border: 'border-secondary/30',
-                neon: 'shadow-neon-secondary',
-                icon: Building2,
-                label: 'BRANCH_ADMIN',
-                scanline: 'bg-secondary/20'
-            };
-        case 'driver': 
-            return { 
-                bg: 'bg-accent', 
-                text: 'text-accent', 
-                border: 'border-accent/30',
-                neon: 'shadow-neon-accent',
-                icon: Truck,
-                label: 'DRIVER_UNIT',
-                scanline: 'bg-accent/20'
-            };
-        case 'customer': 
-            return { 
-                bg: 'bg-cyan-500', 
-                text: 'text-cyan-500', 
-                border: 'border-cyan-500/30',
-                neon: 'shadow-neon-cyan',
-                icon: Users,
-                label: 'CUSTOMER',
-                scanline: 'bg-cyan-500/20'
-            };
-        default: 
-            return { 
-                bg: 'bg-muted-foreground', 
-                text: 'text-muted-foreground', 
-                border: 'border-border',
-                neon: 'shadow-neon',
-                icon: Users,
-                label: 'STAFF',
-                scanline: 'bg-muted-foreground/20'
-            };
-    }
-};
-
-/**
- * AGRUPACIÓN POR SUCURSAL (silos)
+ * AGRUPACIÓN POR SUCURSAL (Silo Exclusivo de Clientes)
  */
 const groupedUsers = computed(() => {
-    if (!props.users.data) return {};
-    return props.users.data.reduce((acc, user) => {
-        let groupName = 'SILO_NO_ASIGNADO';
-        
-        if (user.role_key === 'super_admin') {
-            groupName = 'COMANDO_GLOBAL';
-        } else if (user.type === 'driver') {
-            groupName = 'LOGÍSTICA//DELIVERY';
-        } else if (user.branch) {
-            groupName = user.branch.toUpperCase().replace(/\s+/g, '_');
-        }
+    // Protección Unwrapping Vue 3 (Evita crasheo si data es nula temporalmente)
+    const list = props.users?.data || [];
+    if (list.length === 0) return {};
+
+    return list.reduce((acc, user) => {
+        // En este silo, la única división física es la sucursal asignada por GPS
+        const groupName = user.branch ? user.branch.toUpperCase().replace(/\s+/g, '_') : 'ZONA_LOGÍSTICA_NO_ASIGNADA';
 
         if (!acc[groupName]) acc[groupName] = [];
         acc[groupName].push(user);
@@ -116,14 +50,18 @@ const getWhatsappLink = (phone) => {
     return `https://wa.me/${cleanPhone}`; 
 };
 
+// Control de Menú Contextual
 const toggleMenu = (userId) => {
     activeMenuUserId.value = activeMenuUserId.value === userId ? null : userId;
 };
 
-const closeMenu = () => activeMenuUserId.value = null;
+const closeMenu = () => {
+    activeMenuUserId.value = null;
+};
 
+// Acción Zero-Trust
 const deleteUser = (user) => {
-    if (confirm(`⚠️ CONFIRMAR ELIMINACIÓN // ${user.name}`)) {
+    if (confirm(`⚠️ ALERTA DE SEGURIDAD: ¿CONFIRMAR ELIMINACIÓN DEL CLIENTE? // ${user.name}`)) {
         router.delete(route('admin.users.destroy', user.id), {
             preserveScroll: true,
             onSuccess: () => closeMenu()
@@ -131,15 +69,17 @@ const deleteUser = (user) => {
     }
 };
 
-// Sincronización de filtros con el servidor
+// Motor de Búsqueda Reactivo
 watch(params, debounce((val) => {
     router.get(route('admin.users.index'), val, { 
-        preserveState: true, replace: true, preserveScroll: true 
+        preserveState: true, 
+        replace: true, 
+        preserveScroll: true 
     });
 }, 300), { deep: true });
 
 const clearFilters = () => {
-    params.value = { search: '', role_id: '', branch_id: '' };
+    params.value = { search: '', branch_id: '' };
 };
 </script>
 
@@ -149,24 +89,22 @@ const clearFilters = () => {
             <div class="flex items-center justify-between pt-1 pb-1">
                 <div class="relative group/header">
                     <h1 class="text-2xl font-display font-black tracking-tight text-foreground leading-none glitch-text" 
-                        data-text="EQUIPO Y CLIENTES">
-                        EQUIPO Y CLIENTES
+                        data-text="SILO DE CLIENTES">
+                        SILO DE CLIENTES
                     </h1>
                     <p class="text-[10px] text-primary font-mono mt-1 uppercase tracking-[0.3em] flex items-center gap-2">
                         <Cpu :size="12" class="animate-pulse" />
-                        GESTIÓN DE SILOS // SISTEMA ACTIVO
+                        RED LOGÍSTICA // SISTEMA ACTIVO
                         <Terminal :size="12" class="animate-pulse" />
                     </p>
-                    <!-- Línea de escaneo -->
                     <div class="absolute -bottom-2 left-0 w-0 h-[1px] bg-primary group-hover/header:w-full transition-all duration-700"></div>
                 </div>
+                
                 <Link :href="route('admin.users.create')" 
                       class="hidden md:flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-bold border border-primary/50 relative overflow-hidden group/btn">
                     <UserPlus :size="16" class="relative z-10" /> 
-                    <span class="relative z-10">NUEVO_USUARIO</span>
-                    <!-- Efecto scan -->
+                    <span class="relative z-10">NUEVO_CLIENTE</span>
                     <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500"></span>
-                    <!-- Esquinas -->
                     <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground/50"></span>
                     <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground/50"></span>
                     <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground/50"></span>
@@ -177,7 +115,6 @@ const clearFilters = () => {
 
         <div class="space-y-5 pb-32 md:pb-12 relative">
             
-            <!-- Barra de búsqueda estilo terminal -->
             <div class="sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/80 backdrop-blur-xl border-b border-primary/20 transition-all">
                 <div class="flex gap-2">
                     <div class="relative flex-1 group/search">
@@ -185,17 +122,15 @@ const clearFilters = () => {
                         <input 
                             v-model="params.search" 
                             type="text" 
-                            placeholder="> BUSCAR EN SILOS // NOMBRE, EMAIL, TEL..." 
+                            placeholder="> BUSCAR CLIENTE // NOMBRE, EMAIL, TEL..." 
                             class="w-full pl-9 pr-4 py-2.5 bg-card/50 border border-border font-mono text-sm focus:border-primary focus:shadow-neon-primary transition-all outline-none"
                         >
-                        <!-- Efecto de escritura -->
                         <div class="absolute right-3 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary animate-pulse"></div>
                     </div>
                     <button @click="showMobileFilters = true" 
                             class="flex items-center justify-center w-10 h-10 bg-card border border-border hover:border-primary hover:shadow-neon-primary transition-all relative group/filter">
                         <SlidersHorizontal :size="18" class="group-hover/filter:text-primary transition-colors" />
-                        <span v-if="params.role_id || params.branch_id" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-                        <!-- Esquinas -->
+                        <span v-if="params.branch_id" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
                         <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
                         <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
                         <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary opacity-0 group-hover/filter:opacity-100 transition-opacity"></span>
@@ -204,8 +139,7 @@ const clearFilters = () => {
                 </div>
             </div>
 
-            <!-- Lista de usuarios -->
-            <div v-if="users.data.length > 0" class="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div v-if="users.data && users.data.length > 0" class="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
                 
                 <div v-for="(groupUsers, groupName) in groupedUsers" :key="groupName" class="space-y-4">
                     
@@ -313,18 +247,16 @@ const clearFilters = () => {
                 </div>
             </div>
 
-            <!-- Estado vacío -->
             <div v-else class="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border bg-card/30">
                 <div class="w-20 h-20 border-2 border-border flex items-center justify-center mb-4 relative">
                     <Search :size="40" class="text-muted-foreground" />
-                    <!-- Scanline animada -->
                     <div class="absolute inset-0 overflow-hidden">
                         <div class="w-full h-[2px] bg-primary/30 animate-scan-slow"></div>
                     </div>
                 </div>
                 <h3 class="text-lg font-mono font-bold text-foreground glitch-text" data-text="SIN_REGISTROS">SIN_REGISTROS</h3>
                 <p class="text-xs font-mono text-muted-foreground max-w-[200px] mx-auto mt-1">
-                    NO HAY USUARIOS QUE COINCIDAN CON LOS FILTROS APLICADOS EN LOS SILOS.
+                    NO HAY CLIENTES QUE COINCIDAN CON LOS FILTROS ACTUALES.
                 </p>
                 <button @click="clearFilters" class="mt-6 text-xs font-mono text-primary hover:text-primary/80 transition-colors relative group/clear">
                     LIMPIAR FILTROS //
@@ -333,49 +265,43 @@ const clearFilters = () => {
             </div>
         </div>
 
-        <!-- Botón flotante mobile -->
         <Link :href="route('admin.users.create')" 
               class="md:hidden fixed bottom-[100px] right-6 z-40 w-14 h-14 bg-primary text-primary-foreground flex items-center justify-center border border-primary-foreground/50 shadow-neon-primary active:scale-90 transition-transform relative group/mobile">
             <UserPlus :size="28" stroke-width="2.5" />
-            <!-- Efecto de pulso -->
             <span class="absolute inset-0 border border-primary animate-ping opacity-0 group-hover/mobile:opacity-100"></span>
-            <!-- Esquinas -->
             <span class="absolute top-0 left-0 w-1 h-1 border-t border-l border-primary-foreground"></span>
             <span class="absolute top-0 right-0 w-1 h-1 border-t border-r border-primary-foreground"></span>
             <span class="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-primary-foreground"></span>
             <span class="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-primary-foreground"></span>
         </Link>
 
-        <!-- Mobile Filters Modal -->
         <div v-if="showMobileFilters" class="fixed inset-0 z-[100] md:hidden flex items-end">
             <div class="absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity animate-in fade-in" @click="showMobileFilters = false"></div>
             
             <div class="relative w-full bg-card border-t border-primary/30 p-8 pb-12 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full duration-500">
-                <!-- Indicador superior -->
                 <div class="w-16 h-1 bg-primary/30 mx-auto mb-8"></div>
                 
                 <div class="flex items-center justify-between mb-8">
                     <h2 class="text-xl font-mono font-bold text-foreground uppercase tracking-tighter flex items-center gap-2">
                         <Terminal :size="18" class="text-primary" />
-                        FILTRAR EQUIPO
+                        FILTRAR RED
                     </h2>
                     <button @click="clearFilters" class="text-[10px] font-mono text-primary bg-primary/10 px-3 py-1.5 border border-primary/30 uppercase">
                         REINICIAR
                     </button>
                 </div>
 
-                <UserFilters v-model="params" :roles="roles" :branches="branches" layout="vertical" />
+                <UserFilters v-model="params" :branches="branches" layout="vertical" />
 
                 <button @click="showMobileFilters = false" 
                         class="w-full bg-primary text-primary-foreground py-4 font-mono text-sm uppercase tracking-widest mt-10 shadow-neon-primary active:scale-95 transition-transform relative group/apply">
-                    VER {{ users.total }} RESULTADOS
+                    VER RESULTADOS
                     <span class="absolute inset-0 bg-primary-foreground/10 translate-y-full group-hover/apply:translate-y-0 transition-transform duration-500"></span>
                 </button>
             </div>
         </div>
 
-        <!-- Overlay para cerrar menús -->
-        <div v-if="activeMenuUserId" @click="closeMenu" class="fixed inset-0 z-40 bg-transparent"></div>
+        <div v-if="activeMenuUserId" @click="closeMenu" class="fixed inset-0 z-[40] bg-transparent"></div>
 
     </AdminLayout>
 </template>
@@ -430,14 +356,9 @@ const clearFilters = () => {
 }
 
 @keyframes glitch-skew {
-    0% { transform: skew(0deg); }
-    20% { transform: skew(0deg); }
+    0%, 20%, 22%, 80%, 82%, 100% { transform: skew(0deg); }
     21% { transform: skew(2deg); }
-    22% { transform: skew(0deg); }
-    80% { transform: skew(0deg); }
     81% { transform: skew(-2deg); }
-    82% { transform: skew(0deg); }
-    100% { transform: skew(0deg); }
 }
 
 @keyframes glitch-anim-1 {
@@ -458,24 +379,13 @@ const clearFilters = () => {
     100% { clip-path: inset(30% 0 40% 0); }
 }
 
-/* Sombras neón personalizadas */
 .shadow-neon-primary {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
 }
-
-.shadow-neon-secondary {
-    box-shadow: 0 0 20px hsl(var(--secondary) / 0.3);
-}
-
-.shadow-neon-accent {
-    box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
-}
-
 .shadow-neon-cyan {
     box-shadow: 0 0 20px #00ffff80;
 }
 
-/* Efecto de borde neón para inputs */
 input:focus {
     box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2), 0 0 20px hsl(var(--primary) / 0.3);
 }

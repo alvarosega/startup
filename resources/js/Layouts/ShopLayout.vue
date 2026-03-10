@@ -101,12 +101,29 @@ const telemetryStatusColor = computed(() => {
                         <h3 class="text-[9px] font-mono font-black uppercase tracking-widest text-f1-red mb-1">DATA PILOTO</h3>
                         <p class="font-sans font-bold uppercase truncate text-xs text-primary">{{ user.name || user.email }}</p>
                     </div>
-                    <nav class="flex flex-col p-2 gap-1">
-                        <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)"
-                            class="flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase rounded-xl transition-all duration-300 border border-transparent"
-                            :class="route().current(item.route) ? 'bg-f1-red text-white shadow-neon-red' : 'text-primary hover:bg-background hover:border-tech'">
-                            <component :is="item.icon" :size="16" /> {{ item.name }}
+                    <nav class="flex flex-col gap-2">
+                        
+                        <template v-if="user">
+                            <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" @click="showHamburgerMenu = false"
+                                class="flex items-center gap-4 p-4 bg-surface/50 border border-tech rounded-2xl text-xs font-bold uppercase text-primary hover-neon-red transition-all">
+                                <component :is="item.icon" :size="18" class="text-muted" /> {{ item.name }}
+                            </Link>
+                            <div class="my-6 border-t border-tech"></div>
+                        </template>
+
+                        <div class="flex gap-4 p-4 bg-surface/50 border border-tech rounded-2xl">
+                            <ThemeToggler />
+                            <FullScreenToggler />
+                        </div>
+
+                        <button v-if="user" @click="logout" class="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-f1-red/10 border border-f1-red text-f1-red rounded-2xl font-bold uppercase hover:bg-f1-red hover:text-white transition-all">
+                            <LogOut :size="16" /> Cerrar Sesión
+                        </button>
+                        
+                        <Link v-else :href="route('login')" class="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-telemetry-green/10 border border-telemetry-green text-telemetry-green rounded-2xl font-bold uppercase hover:bg-telemetry-green hover:text-white transition-all">
+                            <User :size="16" /> Iniciar Sesión
                         </Link>
+
                     </nav>
                 </aside>
                 <div class="flex-1 bg-surface border border-tech rounded-[24px] p-6 shadow-sm">
@@ -203,17 +220,28 @@ const telemetryStatusColor = computed(() => {
                     </div>
 
                     <nav class="flex flex-col gap-2">
-                        <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" @click="showHamburgerMenu = false"
-                            class="flex items-center gap-4 p-4 bg-surface/50 border border-tech rounded-2xl text-xs font-bold uppercase text-primary hover-neon-red transition-all">
-                            <component :is="item.icon" :size="18" class="text-muted" /> {{ item.name }}
-                        </Link>
-                        <div class="my-6 border-t border-tech"></div>
+                        
+                        <template v-if="user">
+                            <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" @click="showHamburgerMenu = false"
+                                class="flex items-center gap-4 p-4 bg-surface/50 border border-tech rounded-2xl text-xs font-bold uppercase text-primary hover-neon-red transition-all">
+                                <component :is="item.icon" :size="18" class="text-muted" /> {{ item.name }}
+                            </Link>
+                            <div class="my-6 border-t border-tech"></div>
+                        </template>
+
                         <div class="flex gap-4 p-4 bg-surface/50 border border-tech rounded-2xl">
-                            <ThemeToggler /><FullScreenToggler />
+                            <ThemeToggler />
+                            <FullScreenToggler />
                         </div>
-                        <button @click="logout" class="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-f1-red/10 border border-f1-red text-f1-red rounded-2xl font-bold uppercase hover:bg-f1-red hover:text-white transition-all">
+
+                        <button v-if="user" @click="logout" class="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-f1-red/10 border border-f1-red text-f1-red rounded-2xl font-bold uppercase hover:bg-f1-red hover:text-white transition-all">
                             <LogOut :size="16" /> Cerrar Sesión
                         </button>
+                        
+                        <Link v-else :href="route('login')" class="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-telemetry-green/10 border border-telemetry-green text-telemetry-green rounded-2xl font-bold uppercase hover:bg-telemetry-green hover:text-white transition-all">
+                            <User :size="16" /> Iniciar Sesión
+                        </Link>
+
                     </nav>
                 </div>
             </div>

@@ -57,7 +57,8 @@ class UpsertBundleAction
                 Cache::forget('catalog_home_data');
                 Cache::forget('bundles_list_all');
                 
-                // Si hubo cambio de imagen, borrar la anterior
+                Cache::put('admin_bundles_version', now()->timestamp);
+
                 if ($newPath && $oldPath) {
                     Storage::disk('public')->delete($oldPath);
                 }

@@ -22,13 +22,15 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone'        => ['required', 'string', 'unique:customers,phone'],
-            'email'        => ['required', 'email', 'unique:customers,email'],
+            // REGLA APLICADA: Uso obligatorio de validación global
+            'phone'        => $this->globalPhoneRules(), 
+            'email'        => $this->globalEmailRules(), 
+            
             'password'     => ['required', 'confirmed', 'min:8'],
             'first_name'   => ['required', 'string', 'max:100'],
             'last_name'    => ['required', 'string', 'max:100'],
             'address'      => ['required', 'string'],
-            'country_code' => ['required', 'string', 'max:3'], // <--- ESTA REGLA ES OBLIGATORIA
+            'country_code' => ['required', 'string', 'max:3'],
             'latitude'     => ['required', 'numeric'],
             'longitude'    => ['required', 'numeric'],
             'avatar_type'  => ['required', 'string'],

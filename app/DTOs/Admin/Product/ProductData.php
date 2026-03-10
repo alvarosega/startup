@@ -17,22 +17,26 @@ readonly class ProductData
         public bool $isActive,
         public bool $isAlcoholic,
         public ?UploadedFile $image
-        // NOTA: Eliminado el array de SKUs. La gestión de SKUs debe tener su propio
-        // endpoint/Action para mantener la atomicidad. "1 Action = 1 Caso de Uso"
     ) {}
 
     public static function fromRequest(Request $request): self
     {
+        // LA LEY: Generador de Slug con soporte UTF-8 (ñ y acentos)
+        $name = $request->validated('name');
+        $slugBase = mb_strtolower(trim($name));
+        $slugBase = str_replace([' ', 'ñ'], ['-', 'ñ'], $slugBase);
+        $slugBase = preg_replace('/[^a-z0-9ñ\-]/u', '', $slugBase);
+        $finalSlug = $slugBase . '-' . Str::random(4);
+
         return new self(
-            name: $request->validated('name'),
-            // Generación de slug segura para evitar colisiones iniciales
-            slug: Str::slug($request->validated('name')) . '-' . Str::random(4),
-            brandId: $request->validated('brand_id'),
-            categoryId: $request->validated('category_id'),
+            name:        $name,
+            slug:        $finalSlug,
+            brandId:     $request->validated('brand_id'),
+            categoryId:  $request->validated('category_id'),
             description: $request->validated('description'),
-            isActive: $request->boolean('is_active', true),
+            isActive:    $request->boolean('is_active', true),
             isAlcoholic: $request->boolean('is_alcoholic', false),
-            image: $request->file('image')
+            image:       $request->file('image')
         );
     }
 }

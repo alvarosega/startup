@@ -24,13 +24,12 @@ const activeBranchId = ref(null);
 const editingType = ref(null);
 
 // --- FORMULARIO BLINDADO ---
-// Eliminado 'priority' (lo calcula el backend)
-// Añadido 'list_price' (requerido por auditoría financiera)
+// ELIMINA 'priority' y asegura 'list_price'
 const form = useForm({
     sku_id: '', 
     branch_id: '', 
     type: '', 
-    list_price: 0, 
+    list_price: 0, // <--- REQUERIDO PARA AUDITORÍA
     final_price: 0,
     min_quantity: 1, 
     valid_from: '', 
@@ -72,14 +71,16 @@ const startEdit = (type) => {
     const existing = getPriceByType(type);
     const regular = getPriceByType('regular');
     
-    // Si no existe, sugerimos el precio regular o el precio base del SKU
     const defaultPrice = regular?.final_price || activeSku.value.base_price || 0;
     
     form.sku_id = activeSku.value.id;
     form.branch_id = activeBranchId.value;
     form.type = type;
+    
+    // CAMBIO: Sincronizar list_price del registro existente o el default
     form.list_price = existing?.list_price || defaultPrice;
     form.final_price = existing?.final_price || defaultPrice;
+    
     form.min_quantity = existing?.min_quantity || (type === 'wholesale' ? 6 : 1);
     form.valid_from = existing?.valid_from?.split('T')[0] || new Date().toISOString().slice(0, 10);
     form.valid_to = existing?.valid_to?.split('T')[0] || null;
@@ -255,9 +256,16 @@ const saveInline = () => {
                                             <span v-else class="text-[9px] font-mono text-primary/30">PERPETUO</span>
                                         </td>
                                         <td class="py-4 px-4 text-center">
+                                            <span class="text-[9px] font-mono font-bold px-2 py-0.5 bg-primary/10 text-primary border border-primary/20">
+                                                P{{ getPriceByType(type)?.priority || '0' }}
+                                            </span>
+                                        </td>
+
+                                        <td class="py-4 px-4 text-center">
                                             <div v-if="getPriceByType(type)" class="flex flex-col items-center">
                                                 <span class="text-[8px] uppercase font-black text-muted-foreground flex items-center gap-1">
-                                                    <User :size="8"/> {{ getPriceByType(type).updater?.name || 'SISTEMA' }}
+                                                    <User :size="8"/> 
+                                                    {{ getPriceByType(type).updater?.name || 'SISTEMA' }}
                                                 </span>
                                             </div>
                                             <span v-else class="text-[8px] text-primary/20">---</span>

@@ -4,27 +4,30 @@ namespace App\Actions\Admin\MarketZone;
 
 use App\Models\MarketZone;
 use App\DTOs\Admin\MarketZone\MarketZoneData;
-use Illuminate\Support\Facades\{DB, Cache};
+use Illuminate\Support\Facades\Cache;
 
 class UpsertMarketZoneAction
 {
     public function execute(MarketZoneData $data, ?MarketZone $zone = null): MarketZone
     {
-        return DB::transaction(function () use ($data, $zone) {
-            
-            $attributes = $data->toArray();
+        $attributes = [
+            'name'        => $data->name,
+            'slug'        => $data->slug,
+            'hex_color'   => $data->hex_color,
+            'svg_id'      => $data->svg_id,
+            'description' => $data->description,
+            'is_active'   => $data->is_active,
+        ];
 
-            if (!$zone) {
-                $zone = MarketZone::create($attributes);
-            } else {
-                $zone->update($attributes);
-            }
+        if ($zone) {
+            $zone->update($attributes);
+        } else {
+            $zone = MarketZone::create($attributes);
+        }
 
-            // CORRECCIÓN: Invalidación por llave directa
-            Cache::forget('market_zones_admin_list');
-            Cache::forget('market_zones_minimal_list'); // Por si lo usas en selects
+        // Romper la caché estática que definiste en MarketZoneController
+        Cache::forget('market_zones_admin_list');
 
-            return $zone;
-        });
+        return $zone;
     }
 }

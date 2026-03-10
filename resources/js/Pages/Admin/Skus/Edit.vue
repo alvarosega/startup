@@ -5,7 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { 
     Barcode, DollarSign, Scale, Box, Cuboid, 
     ArrowLeft, Save, UploadCloud, ImageIcon, Info,
-    CheckCircle2, Package
+    CheckCircle2, Package, Wifi, WifiOff, Terminal, Cpu
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -16,8 +16,10 @@ const props = defineProps({
 // --- ESTADO LOCAL ---
 const skuImageInputRef = ref(null);
 const skuImagePreview = ref(null);
+const isShaking = ref(false);
 
-// --- FORMULARIO QUIRÚRGICO ---
+// --- FORMULARIO QUIRÚRGICO (DoD v2.0) ---
+// Eliminado .number en el template para evitar fallos de precisión en JS
 const form = useForm({
     _method: 'PUT',
     name: '',
@@ -33,9 +35,9 @@ onMounted(() => {
     if (props.sku) {
         form.name = props.sku.name || '';
         form.code = props.sku.code || '';
-        form.base_price = parseFloat(props.sku.price) || 0;
-        form.conversion_factor = parseInt(props.sku.conversion_factor) || 1;
-        form.weight = parseFloat(props.sku.weight) || 0;
+        form.base_price = props.sku.base_price || 0; // CORRECCIÓN: Alineado con el Resource (base_price)
+        form.conversion_factor = props.sku.conversion_factor || 1;
+        form.weight = props.sku.weight || 0;
         form.is_active = !!props.sku.is_active;
         skuImagePreview.value = props.sku.image_url || null;
     }
@@ -54,7 +56,10 @@ const submit = () => {
     form.post(route('admin.skus.update', props.sku.id), {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => console.log("Variante actualizada."),
+        onError: () => {
+            isShaking.value = true;
+            setTimeout(() => isShaking.value = false, 500);
+        }
     });
 };
 </script>
@@ -63,134 +68,165 @@ const submit = () => {
     <AdminLayout>
         <Head :title="`Editar SKU - ${sku.name}`" />
 
-        <div class="max-w-5xl mx-auto pb-12">
-            <div class="mb-8 px-4 md:px-0">
-                <div class="flex items-center gap-2 mb-2 text-muted-foreground">
-                    <Package :size="14" />
-                    <span class="text-[10px] font-black uppercase tracking-widest">{{ product.name }}</span>
-                </div>
-                <div class="flex justify-between items-end">
-                    <div>
-                        <h1 class="text-3xl font-black uppercase tracking-tighter text-foreground">
-                            Editar Variante
-                        </h1>
-                        <p class="text-xs font-mono text-muted-foreground mt-1">UUID: {{ sku.id }}</p>
+        <div class="max-w-5xl mx-auto pb-12 px-4 md:px-0">
+            
+            <div class="mb-8 border-b border-primary/30 pb-6 relative group/header">
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover/header:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[8px] font-mono text-cyan-500 border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 flex items-center gap-1">
+                                <Package :size="10" /> {{ product.name }}
+                            </span>
+                            <span class="text-[8px] font-mono text-primary/50 uppercase tracking-widest">
+                                UUID: {{ sku.id.substring(0,8) }}
+                            </span>
+                        </div>
+                        <Link :href="route('admin.products.index')" class="text-[9px] font-mono text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors uppercase">
+                            <ArrowLeft :size="12" /> ABORTAR EDICIÓN
+                        </Link>
                     </div>
-                    <Link :href="route('admin.products.index')" class="btn btn-ghost btn-sm gap-2">
-                        <ArrowLeft :size="16" /> Volver al Catálogo
-                    </Link>
+                    
+                    <h1 class="text-3xl font-display font-black tracking-widest text-primary uppercase glitch-text drop-shadow-[0_0_12px_hsl(var(--primary)/0.6)] leading-none"
+                        data-text="RECALIBRAR SKU">
+                        RECALIBRAR SKU
+                    </h1>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
                 <div class="lg:col-span-1 space-y-6">
-                    <div class="card p-6 border-border shadow-lg bg-card">
-                        <label class="text-[10px] font-black uppercase tracking-widest block mb-4">Imagen de Variante</label>
+                    <div class="border border-border/50 bg-background/50 backdrop-blur-sm p-6 relative group/img-card hover:border-primary/50 transition-colors">
+                        <div class="absolute top-0 left-0 w-full h-[1px] bg-primary/30"></div>
+                        <label class="text-[10px] font-mono font-black uppercase tracking-widest block mb-4 text-primary">/IMAGEN_ACTIVO</label>
+                        
                         <input ref="skuImageInputRef" type="file" class="hidden" accept="image/*" @change="handleImage">
                         
                         <div @click="skuImageInputRef.click()" 
-                             class="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-muted/10 flex items-center justify-center cursor-pointer group overflow-hidden transition-all hover:border-primary/50">
+                             class="relative aspect-square border-2 border-dashed border-primary/30 bg-primary/5 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-primary group/upload">
                             
-                            <img v-if="skuImagePreview" :src="skuImagePreview" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                            <img v-if="skuImagePreview" :src="skuImagePreview" class="w-full h-full object-cover group-hover/upload:scale-105 transition-transform duration-500">
                             
-                            <div v-else class="flex flex-col items-center text-muted-foreground">
-                                <UploadCloud :size="40" stroke-width="1.5" />
-                                <span class="text-[10px] font-bold mt-2 uppercase">Subir Imagen</span>
+                            <div v-else class="flex flex-col items-center text-primary/50">
+                                <UploadCloud :size="32" stroke-width="1.5" class="mb-2 group-hover/upload:text-primary transition-colors" />
+                                <span class="text-[8px] font-mono uppercase tracking-widest">SELECCIONAR</span>
                             </div>
 
-                            <div v-if="skuImagePreview" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <ImageIcon class="text-white" :size="24" />
+                            <div v-if="skuImagePreview" class="absolute inset-0 bg-background/80 opacity-0 group-hover/upload:opacity-100 flex items-center justify-center transition-opacity">
+                                <ImageIcon class="text-primary" :size="24" />
                             </div>
                         </div>
-                        <p class="text-[9px] text-muted-foreground mt-4 text-center leading-relaxed">
-                            Formatos: JPG, PNG. Máx 2MB. <br> Esta imagen es específica para este SKU.
+                        <p class="text-[8px] font-mono text-muted-foreground mt-4 text-center leading-relaxed uppercase">
+                            FORMATOS: JPG, PNG, WEBP. MÁX 2MB.<br>IMAGEN ESPECÍFICA PARA ESTA VARIANTE.
                         </p>
                     </div>
 
-                    <div class="card p-5 border-border bg-primary/5 border-primary/10">
-                        <div class="flex gap-3">
-                            <Info class="text-primary shrink-0" :size="18" />
-                            <div>
-                                <h4 class="text-xs font-black uppercase text-primary">Historial de Precios</h4>
-                                <p class="text-[10px] text-primary/70 mt-1 leading-tight">
-                                    Cualquier cambio en el <b>Precio Base</b> generará automáticamente un registro en el historial de precios.
-                                </p>
-                            </div>
+                    <div class="border border-cyan-500/30 bg-cyan-500/5 p-4 flex gap-3">
+                        <Info class="text-cyan-500 shrink-0" :size="16" />
+                        <div>
+                            <h4 class="text-[9px] font-mono font-black uppercase text-cyan-500">TRAZABILIDAD FINANCIERA</h4>
+                            <p class="text-[8px] font-mono text-muted-foreground mt-1 leading-relaxed uppercase">
+                                MODIFICAR EL PRECIO BASE DESDE AQUÍ REESCRIBIRÁ EL VALOR POR DEFECTO. LAS REGLAS DE SUCURSAL SE MANTIENEN.
+                            </p>
                         </div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-2">
                     <form @submit.prevent="submit" class="space-y-6">
-                        <div class="card p-8 border-border shadow-xl bg-card space-y-8">
+                        <div :class="{ 'shake': isShaking }"
+                             class="border border-border/50 bg-background shadow-2xl relative overflow-hidden group/form">
                             
-                            <div class="space-y-4">
+                            <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/30"></div>
+                            <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/30"></div>
+                            
+                            <div class="p-6 md:p-8 space-y-6">
+                                
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="md:col-span-2 space-y-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nombre de la Variante *</label>
-                                        <input v-model="form.name" type="text" class="form-input text-lg font-bold w-full" :class="{'border-error': form.errors.name}">
-                                        <p v-if="form.errors.name" class="text-error text-[10px] font-bold uppercase">{{ form.errors.name }}</p>
+                                    <div class="md:col-span-2 space-y-1 relative">
+                                        <label class="text-[9px] font-mono font-bold uppercase text-muted-foreground flex items-center gap-1">
+                                            <Terminal :size="10" class="text-primary"/> IDENTIFICADOR <span class="text-destructive">*</span>
+                                        </label>
+                                        <input v-model="form.name" type="text" 
+                                               class="w-full h-12 px-4 bg-background border border-border/50 font-mono text-sm font-bold focus:border-primary focus:shadow-neon-primary outline-none uppercase transition-all"
+                                               :class="{'border-destructive text-destructive shadow-[0_0_10px_rgba(239,68,68,0.2)]': form.errors.name}">
+                                        <span v-if="form.errors.name" class="text-[8px] text-destructive absolute -bottom-4 left-0 font-bold uppercase tracking-widest">{{ form.errors.name }}</span>
                                     </div>
 
-                                    <div class="space-y-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Código EAN / SKU</label>
-                                        <div class="relative">
-                                            <Barcode :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                            <input v-model="form.code" type="text" class="form-input pl-10 w-full font-mono" :class="{'border-error': form.errors.code}">
-                                        </div>
-                                        <p v-if="form.errors.code" class="text-error text-[10px] font-bold uppercase">{{ form.errors.code }}</p>
+                                    <div class="space-y-1 relative">
+                                        <label class="text-[9px] font-mono font-bold uppercase text-muted-foreground flex items-center gap-1">
+                                            <Barcode :size="10" class="text-primary"/> CÓDIGO_EAN
+                                        </label>
+                                        <input v-model="form.code" type="text" 
+                                               class="w-full h-12 px-4 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none tracking-widest transition-all"
+                                               :class="{'border-destructive text-destructive shadow-[0_0_10px_rgba(239,68,68,0.2)]': form.errors.code}">
+                                        <span v-if="form.errors.code" class="text-[8px] text-destructive absolute -bottom-4 left-0 font-bold uppercase tracking-widest">{{ form.errors.code }}</span>
                                     </div>
 
-                                    <div class="space-y-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-success">Precio Base Operativo *</label>
-                                        <div class="relative">
-                                            <DollarSign :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-success" />
-                                            <input v-model.number="form.base_price" type="number" step="0.01" class="form-input pl-10 w-full font-black text-success" :class="{'border-error': form.errors.base_price}">
-                                        </div>
-                                        <p v-if="form.errors.base_price" class="text-error text-[10px] font-bold uppercase">{{ form.errors.base_price }}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="h-px bg-border/50 w-full"></div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="space-y-1.5">
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Factor de Conversión</label>
-                                    <div class="relative">
-                                        <component :is="form.conversion_factor === 1 ? Cuboid : Box" :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                        <input v-model.number="form.conversion_factor" type="number" min="1" class="form-input pl-10 w-full font-bold" :class="{'border-error': form.errors.conversion_factor}">
-                                    </div>
-                                    <p class="text-[9px] text-muted-foreground uppercase font-bold mt-1">Unidades por empaque</p>
-                                </div>
-
-                                <div class="space-y-1.5">
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Peso Neto (kg)</label>
-                                    <div class="relative">
-                                        <Scale :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                        <input v-model.number="form.weight" type="number" step="0.001" class="form-input pl-10 w-full" :class="{'border-error': form.errors.weight}">
+                                    <div class="space-y-1 relative">
+                                        <label class="text-[9px] font-mono font-bold uppercase text-cyan-500 flex items-center gap-1">
+                                            <DollarSign :size="10" /> PRECIO_BASE <span class="text-destructive">*</span>
+                                        </label>
+                                        <input v-model="form.base_price" type="number" step="0.01" min="0"
+                                               class="w-full h-12 px-4 bg-cyan-500/5 border border-cyan-500/30 text-cyan-500 font-mono text-lg font-black focus:border-cyan-500 outline-none text-right shadow-[inset_0_0_10px_rgba(6,182,212,0.1)] transition-all"
+                                               :class="{'border-destructive text-destructive shadow-[0_0_10px_rgba(239,68,68,0.2)] bg-destructive/5': form.errors.base_price}">
+                                        <span v-if="form.errors.base_price" class="text-[8px] text-destructive absolute -bottom-4 left-0 font-bold uppercase tracking-widest">{{ form.errors.base_price }}</span>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div @click="form.is_active = !form.is_active" 
-                                 class="p-4 border rounded-2xl flex items-center justify-between cursor-pointer transition-colors"
-                                 :class="form.is_active ? 'bg-success/5 border-success/20' : 'bg-muted/5 border-border'">
-                                <div class="flex items-center gap-3">
-                                    <CheckCircle2 :class="form.is_active ? 'text-success' : 'text-muted-foreground'" :size="20" />
-                                    <span class="text-xs font-black uppercase tracking-widest">Variante Activa para Venta</span>
+                                <div class="border-t border-primary/20 my-6"></div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-1 relative">
+                                        <label class="text-[9px] font-mono font-bold uppercase text-muted-foreground flex items-center gap-1">
+                                            <Cuboid :size="10" class="text-primary"/> FACTOR_CONVERSIÓN (Uds) <span class="text-destructive">*</span>
+                                        </label>
+                                        <input v-model="form.conversion_factor" type="number" step="1" min="1"
+                                               class="w-full h-12 px-4 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none text-center font-bold transition-all"
+                                               :class="{'border-destructive text-destructive shadow-[0_0_10px_rgba(239,68,68,0.2)]': form.errors.conversion_factor}">
+                                        <span v-if="form.errors.conversion_factor" class="text-[8px] text-destructive absolute -bottom-4 left-0 font-bold uppercase tracking-widest">{{ form.errors.conversion_factor }}</span>
+                                    </div>
+
+                                    <div class="space-y-1 relative">
+                                        <label class="text-[9px] font-mono font-bold uppercase text-muted-foreground flex items-center gap-1">
+                                            <Scale :size="10" class="text-primary"/> MASA_FÍSICA (Kg)
+                                        </label>
+                                        <input v-model="form.weight" type="number" step="0.001" min="0"
+                                               class="w-full h-12 px-4 bg-background border border-border/50 font-mono text-sm focus:border-primary focus:shadow-neon-primary outline-none text-right transition-all"
+                                               :class="{'border-destructive text-destructive shadow-[0_0_10px_rgba(239,68,68,0.2)]': form.errors.weight}">
+                                        <span v-if="form.errors.weight" class="text-[8px] text-destructive absolute -bottom-4 left-0 font-bold uppercase tracking-widest">{{ form.errors.weight }}</span>
+                                    </div>
                                 </div>
-                                <div :class="`w-12 h-6 rounded-full p-1 transition-colors ${form.is_active ? 'bg-success' : 'bg-muted'}`">
-                                    <div :class="`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${form.is_active ? 'translate-x-6' : 'translate-x-0'}`"></div>
+
+                                <div @click="form.is_active = !form.is_active" 
+                                     class="mt-6 p-4 border flex items-center justify-between cursor-pointer transition-colors relative overflow-hidden group/toggle"
+                                     :class="form.is_active ? 'bg-cyan-500/5 border-cyan-500/30' : 'bg-background border-border/50 hover:border-primary/30'">
+                                    
+                                    <div class="flex items-center gap-3 relative z-10">
+                                        <component :is="form.is_active ? Wifi : WifiOff" :class="form.is_active ? 'text-cyan-500' : 'text-muted-foreground'" :size="18" />
+                                        <span class="text-[10px] font-mono font-black uppercase tracking-widest" :class="form.is_active ? 'text-cyan-500' : 'text-muted-foreground'">
+                                            ESTADO: {{ form.is_active ? 'ACTIVO_EN_LÍNEA' : 'FUERA_DE_SERVICIO' }}
+                                        </span>
+                                    </div>
+                                    <div :class="`w-10 h-5 border border-border/50 relative z-10`">
+                                        <div :class="`absolute top-0.5 left-0.5 w-4 h-4 transition-all duration-300 ${form.is_active ? 'translate-x-5 bg-cyan-500 shadow-[0_0_8px_hsl(var(--primary))]' : 'translate-x-0 bg-muted-foreground'}`"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="flex justify-end gap-4 mt-8">
-                            <Link :href="route('admin.products.index')" class="btn btn-ghost px-8 uppercase text-xs font-black tracking-widest">Descartar</Link>
-                            <button type="submit" :disabled="form.processing" class="btn btn-primary px-12 shadow-xl shadow-primary/20 uppercase text-xs font-black tracking-widest">
-                                <span v-if="form.processing" class="loading loading-spinner loading-xs mr-2"></span>
-                                <Save v-else :size="18" class="mr-2" /> Actualizar Variante
+                        <div class="flex flex-col md:flex-row justify-end gap-4 mt-8">
+                            <Link :href="route('admin.products.index')" 
+                                  class="px-8 py-3 border border-border/50 text-muted-foreground font-mono text-[10px] text-center hover:bg-background hover:text-foreground transition-colors uppercase tracking-widest">
+                                CANCELAR
+                            </Link>
+                            <button type="submit" :disabled="form.processing" 
+                                    class="px-12 py-3 bg-primary text-background font-mono font-black text-[10px] uppercase tracking-widest shadow-neon-primary hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                <Cpu v-if="form.processing" :size="14" class="animate-spin" />
+                                <Save v-else :size="14" /> 
+                                EJECUTAR_ACTUALIZACIÓN
                             </button>
                         </div>
                     </form>
@@ -201,6 +237,35 @@ const submit = () => {
 </template>
 
 <style scoped>
-.form-input { @apply rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20 transition-all; }
-.card { @apply rounded-3xl transition-all; }
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+
+.glitch-text { position: relative; animation: glitch-skew 4s infinite linear alternate-reverse; }
+.glitch-text::before, .glitch-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.8; }
+.glitch-text::before { color: #0ff; z-index: -1; animation: glitch-anim-1 0.4s infinite linear alternate-reverse; }
+.glitch-text::after { color: #f0f; z-index: -2; animation: glitch-anim-2 0.4s infinite linear alternate-reverse; }
+
+@keyframes glitch-skew {
+    0%, 20%, 22%, 80%, 82%, 100% { transform: skew(0deg); }
+    21% { transform: skew(2deg); }
+    81% { transform: skew(-2deg); }
+}
+
+@keyframes glitch-anim-1 {
+    0% { clip-path: inset(20% 0 30% 0); } 20% { clip-path: inset(50% 0 10% 0); } 40% { clip-path: inset(10% 0 60% 0); }
+    60% { clip-path: inset(80% 0 5% 0); } 80% { clip-path: inset(30% 0 40% 0); } 100% { clip-path: inset(40% 0 20% 0); }
+}
+
+@keyframes glitch-anim-2 {
+    0% { clip-path: inset(60% 0 10% 0); } 20% { clip-path: inset(20% 0 50% 0); } 40% { clip-path: inset(70% 0 5% 0); }
+    60% { clip-path: inset(10% 0 70% 0); } 80% { clip-path: inset(40% 0 30% 0); } 100% { clip-path: inset(30% 0 40% 0); }
+}
+
+.shadow-neon-primary { box-shadow: 0 0 15px hsl(var(--primary) / 0.3); }
 </style>

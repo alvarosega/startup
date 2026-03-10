@@ -51,33 +51,49 @@ const onInput = (phone, obj) => {
     if (form.errors.phone) form.clearErrors('phone');
 };
 
-// --- LÓGICA DE PASOS ---
-const nextStep = async () => {
+// REEMPLAZA TU FUNCIÓN nextStep ACTUAL POR ESTA:
+
+const nextStep = () => {
     if (currentStep.value === 1) {
+        // Validación local básica de contraseña
+        if (form.password !== form.password_confirmation) {
+            form.setError('password_confirmation', 'Las contraseñas no coinciden.');
+            return;
+        }
+
         form.clearErrors();
         validatingStep1.value = true;
-        try {
-            // Validación parcial en el servidor
-            await axios.post(route('driver.register.validate-step-1'), {
-                phone: form.phone, 
-                email: form.email,
-                password: form.password, 
-                password_confirmation: form.password_confirmation
-            });
-            currentStep.value = 2; 
-        } catch (error) {
-            if (error.response?.status === 422) {
-                form.setError(error.response.data.errors);
+        
+        // USAR INERTIA EN LUGAR DE AXIOS
+        form.post(route('driver.register.validate-step-1'), {
+            preserveScroll: true,
+            preserveState: true,
+            onError: (errors) => {
+                // Inertia atrapa el 422 automáticamente y llena form.errors
+                validatingStep1.value = false;
+            },
+            onSuccess: () => {
+                // El backend retorna back() sin errores, lo que Inertia interpreta como éxito
+                currentStep.value = 2;
+                validatingStep1.value = false;
+            },
+            onFinish: () => {
+                validatingStep1.value = false;
             }
-        } finally {
-            validatingStep1.value = false;
-        }
+        });
     } else if (currentStep.value === 2) {
         // Validación local básica para el paso 2
-        if (!form.first_name || !form.last_name || !form.license_number || !form.license_plate) {
-            return alert('Complete todos los campos del perfil operativo.');
+        form.clearErrors();
+        let isValid = true;
+        
+        if (!form.first_name) { form.setError('first_name', 'Requerido'); isValid = false; }
+        if (!form.last_name) { form.setError('last_name', 'Requerido'); isValid = false; }
+        if (!form.license_number) { form.setError('license_number', 'Requerido'); isValid = false; }
+        if (!form.license_plate) { form.setError('license_plate', 'Requerido'); isValid = false; }
+
+        if (isValid) {
+            currentStep.value = 3; 
         }
-        currentStep.value = 3; 
     }
 };
 

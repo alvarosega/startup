@@ -36,34 +36,23 @@ class RegisterController extends Controller
     // Cambiar el typehint del método
     public function validateStep1(ValidateStep1Request $request)
     {
-        // Si llega aquí, la validación del FormRequest ya pasó
-        return response()->json(['status' => 'success']);
+        return back(); 
     }
 
     // app/Http/Controllers/Web/Customer/Auth/RegisterController.php
 
     public function store(\App\Http\Requests\Customer\Auth\RegisterRequest $request, RegisterCustomerAction $action)
     {
-        // Ahora que inyectamos RegisterRequest, Laravel llama automáticamente 
-        // a prepareForValidation y normalizeIdentityData()
-        
-        Log::info('[CustomerRegister] Datos validados detectados:', $request->validated());
+        Log::info('[CustomerRegister] Datos validados detectados');
 
         try {
-            // Usamos el método validated() del FormRequest inyectado
             $data = RegisterCustomerData::fromRequest($request);
             
-            $customer = $action->execute($data);
+            $customer = $action->execute($data); // <--- La acción ya sincroniza el carrito por dentro
 
             Auth::guard('customer')->login($customer);
             $request->session()->regenerate();
-            if ($request->has('guest_client_uuid')) {
-                $syncAction->execute(new SyncCartDTO(
-                    customerId: Auth::guard('customer')->id(),
-                    guestUuid: $request->input('guest_client_uuid'),
-                    branchId: app(\App\Services\ShopContextService::class)->getActiveBranchId()
-                ));
-            }
+            
             return redirect()->intended('/');
 
         } catch (\Exception $e) {

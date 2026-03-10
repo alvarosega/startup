@@ -22,7 +22,6 @@ class DeleteMarketZoneAction
 
             // CORRECCIÓN: Invalidación por llave directa
             Cache::forget('market_zones_admin_list');
-            Cache::forget('market_zones_minimal_list');
 
             return $deleted;
         });

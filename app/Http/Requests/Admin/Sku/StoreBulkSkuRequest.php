@@ -18,8 +18,9 @@ class StoreBulkSkuRequest extends FormRequest
                 // LA LEY: Ignorar SKUs eliminados
                 Rule::unique('skus', 'code')->whereNull('deleted_at')
             ],
-            'skus.*.price' => ['required', 'numeric', 'min:0'],
-            'skus.*.conversion_factor' => ['required', 'numeric', 'min:0.001'], // Evitar divisiones por cero en el futuro
+            // CORRECCIÓN CRÍTICA: Alineado con el DTO y el Frontend
+            'skus.*.base_price' => ['required', 'numeric', 'min:0'], 
+            'skus.*.conversion_factor' => ['required', 'numeric', 'min:0.001'],
             'skus.*.weight' => ['required', 'numeric', 'min:0'],
             'skus.*.image' => ['nullable', 'image', 'max:2048'],
         ];
