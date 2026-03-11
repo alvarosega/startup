@@ -1,11 +1,15 @@
 <script setup>
 import { useForm, Link, Head } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue'; 
 import BaseInput from '@/Components/Base/BaseInput.vue'; 
-import { LogIn, Lock, Smartphone, UserPlus, ArrowRight, Truck } from 'lucide-vue-next';
+import { Lock, Smartphone, ArrowRight, Truck, UserCircle } from 'lucide-vue-next';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
+
+const isPhoneValid = ref(false);
+
 const form = useForm({
     phone: '',
     password: '',
@@ -13,13 +17,20 @@ const form = useForm({
     device_name: 'Web Browser',
     guest_client_uuid: localStorage.getItem('guest_id') || localStorage.getItem('guest_client_uuid')
 });
+
 const onInput = (phone, phoneObject) => {
+    isPhoneValid.value = phoneObject?.valid || false;
     if (phoneObject?.number) {
         form.phone = phoneObject.number;
     }
 };
 
+const canSubmit = computed(() => {
+    return isPhoneValid.value && form.password.length > 0 && !form.processing;
+});
+
 const submit = () => {
+    if (!canSubmit.value) return;
     form.clearErrors();
     form.post(route('login'), {
         preserveScroll: true,
@@ -29,116 +40,119 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Ingresar - Electric Luxury Logistics" />
-    <ShopLayout> <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
-    <div class="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-4">
-        
-        <div class="fixed inset-0 z-0">
-            <div class="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
-            <div class="absolute inset-0 bg-dots opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_70%)]" />
-        </div>
+    <Head title="Inicio de sesión" />
 
-        <div class="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-500">
-            
-            <div class="card bg-card/80 backdrop-blur-xl border-primary/10 shadow-xl overflow-hidden">
-                <div class="p-8 md:p-10">
+    <ShopLayout>
+        <div class="flex-1 flex items-center justify-center p-4 min-h-[calc(100svh-144px)]">
+            <div class="w-full max-w-md py-6 animate-in fade-in zoom-in-95 duration-500">
+                
+                <div class="bg-surface/20 backdrop-blur-2xl border border-white/10 dark:border-white/5 rounded-[40px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
                     
-                    <div class="text-center mb-10">
-                        <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-[0_0_20px_rgba(0,240,255,0.1)]">
-                            <LogIn :size="40" class="text-primary animate-neon-float" />
-                        </div>
-                        <h2 class="text-3xl font-display font-black text-navy tracking-tighter leading-none">
-                            ¡Hola de nuevo!
-                        </h2>
-                        <p class="text-sm text-muted-foreground mt-3 font-medium uppercase tracking-widest opacity-70">
-                            Bóveda de Acceso
-                        </p>
-                    </div>
-
-                    <form @submit.prevent="submit" class="space-y-6">
-                        
-                        <div class="space-y-2">
-                            <label class="flex items-center gap-2 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-navy/60">
-                                <Smartphone :size="14" class="text-primary" /> Celular de Contacto
-                            </label>
-                            <vue-tel-input 
-                                v-model="form.phone" 
-                                @on-input="onInput"
-                                mode="international"
-                                :preferredCountries="['BO']" 
-                                :defaultCountry="'BO'"
-                                class="custom-tel-input"
-                                :class="{ 'border-error shadow-[0_0_15px_rgba(255,0,100,0.2)]': form.errors.phone }"
-                            />
-                            <p v-if="form.errors.phone" class="text-[10px] text-error font-black mt-1 ml-1 uppercase animate-pulse">
-                                {{ form.errors.phone }}
+                    <div class="p-8 md:p-10">
+                        <div class="text-center mb-10">
+                            <div class="w-20 h-20 rounded-3xl bg-transparent border-4 border-foreground/10 flex items-center justify-center mx-auto mb-6 shadow-inner">
+                                <UserCircle :size="36" class="text-primary" stroke-width="2.5" />
+                            </div>
+                            <h2 class="text-3xl font-sans font-black text-foreground tracking-tighter leading-none">
+                                ¡Hola!
+                            </h2>
+                            <p class="text-[11px] uppercase font-black tracking-[0.1em] text-foreground/60 mt-3">
+                                Inicia sesión para continuar
                             </p>
                         </div>
 
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-center mb-1 ml-1">
-                                <label class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-navy/60">
-                                    <Lock :size="14" class="text-primary" /> Contraseña
+                        <form @submit.prevent="submit" class="space-y-6">
+                            
+                            <div class="space-y-2">
+                                <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
+                                    <Smartphone :size="14" stroke-width="3" /> Número de celular
                                 </label>
-                                <Link :href="route('password.request')" class="text-[10px] font-black text-primary hover:brightness-125 transition-all uppercase tracking-wider">
-                                    ¿Olvidaste tu clave?
-                                </Link>
+                                <vue-tel-input 
+                                    v-model="form.phone" 
+                                    @on-input="onInput"
+                                    mode="international"
+                                    :preferredCountries="['BO']" 
+                                    :defaultCountry="'BO'"
+                                    :autoFocus="true"
+                                    class="custom-tel-input !bg-transparent !backdrop-blur-xl !border-foreground/10 !rounded-2xl h-[56px] transition-all focus-within:!border-primary/50 shadow-inner"
+                                    :class="{ '!border-f1-red': form.errors.phone }"
+                                />
+                                <p v-if="form.errors.phone" class="text-[10px] text-f1-red font-bold mt-1 ml-1 uppercase">
+                                    {{ form.errors.phone }}
+                                </p>
                             </div>
-                            <BaseInput 
-                                v-model="form.password" 
-                                type="password" 
-                                placeholder="••••••••" 
-                                class="h-[52px] text-lg font-mono focus:shadow-[0_0_20px_rgba(0,240,255,0.15)]"
-                                :error="form.errors.password" 
-                            />
-                        </div>
 
-                        <div class="flex items-center ml-1 py-2">
-                            <BaseCheckbox v-model="form.remember" label="Mantener sesión activa" class="font-bold text-navy/70" />
-                        </div>
-
-                        <button 
-                            type="submit" 
-                            :disabled="form.processing" 
-                            class="btn btn-primary w-full h-14 shadow-lg shadow-primary/30 active:scale-95 group predictive-aura overflow-hidden"
-                        >
-                            <span v-if="form.processing" class="spinner spinner-md border-navy/30 border-t-navy"></span>
-                            <span v-else class="flex items-center justify-center gap-3 font-black text-lg uppercase tracking-tighter">
-                                Ingresar al Sistema <ArrowRight :size="20" class="group-hover:translate-x-2 transition-transform duration-300" />
-                            </span>
-                        </button>
-                    </form>
-
-                    <div class="mt-10 pt-8 border-t border-border/50 space-y-6">
-                        <p class="text-sm text-muted-foreground text-center font-medium">
-                            ¿Aún no tienes cuenta? 
-                            <Link :href="route('register')" class="font-black text-primary hover:underline underline-offset-4 ml-1">
-                                Regístrate ahora
-                            </Link>
-                        </p>
-
-                        <div class="bg-navy rounded-2xl p-5 border border-white/5 shadow-2xl relative group cursor-pointer overflow-hidden">
-                            <div class="absolute inset-0 bg-gradient-to-tr from-warning/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div class="flex items-center justify-between gap-4 relative z-10">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-12 h-12 rounded-xl bg-warning/20 text-warning flex items-center justify-center shrink-0 border border-warning/20">
-                                        <Truck :size="24" />
-                                    </div>
-                                    <div class="text-left">
-                                        <p class="text-[11px] font-black text-white uppercase tracking-widest leading-none">Acceso Profesional</p>
-                                        <p class="text-[10px] text-white/50 leading-none mt-1.5 font-medium">Panel para Conductores</p>
-                                    </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center mb-1 ml-1">
+                                    <label class="text-[12px] font-black uppercase tracking-tight text-foreground flex items-center gap-2 bg-transparent">
+                                        <Lock :size="14" stroke-width="3" /> Contraseña
+                                    </label>
+                                    <Link :href="route('password.request')" class="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">
+                                        ¿La olvidaste?
+                                    </Link>
                                 </div>
-                                <Link :href="route('driver.login')" class="px-4 py-2 bg-warning text-navy text-[11px] font-black uppercase rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-warning/20">
-                                    Entrar
-                                </Link>
+                                <BaseInput 
+                                    v-model="form.password" 
+                                    type="password" 
+                                    placeholder="••••••••" 
+                                    class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-mono font-bold shadow-inner"
+                                    :error="form.errors.password" 
+                                />
                             </div>
+
+                            <div class="flex items-center ml-1 py-1">
+                                <BaseCheckbox v-model="form.remember" label="Recordarme" class="font-black text-xs text-foreground" />
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                :disabled="!canSubmit" 
+                                class="w-full h-14 rounded-[20px] font-black text-sm uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-3 mt-4"
+                                :class="canSubmit 
+                                    ? 'bg-primary text-white shadow-xl shadow-primary/20 active:scale-95' 
+                                    : 'bg-foreground/5 text-foreground/40 border border-foreground/10 cursor-not-allowed'"
+                            >
+                                <span v-if="form.processing" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                <template v-else>
+                                    Entrar <ArrowRight :size="18" stroke-width="3" />
+                                </template>
+                            </button>
+                        </form>
+
+                        <div class="mt-10 text-center">
+                            <p class="text-[11px] text-foreground/60 font-black uppercase tracking-widest">
+                                ¿No tienes cuenta? 
+                                <Link :href="route('register')" class="text-primary hover:underline ml-1">
+                                    Crea una aquí
+                                </Link>
+                            </p>
                         </div>
                     </div>
+
+                    <div class="bg-foreground/5 backdrop-blur-md border-t border-white/5 dark:border-white/5 p-6 shrink-0">
+                        <Link :href="route('driver.login')" class="flex items-center justify-between group p-2 rounded-2xl hover:bg-foreground/10 transition-colors border border-transparent">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-transparent border-2 border-foreground/10 text-foreground flex items-center justify-center shadow-inner">
+                                    <Truck :size="20" stroke-width="2.5" />
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-[11px] font-black uppercase tracking-tight text-foreground">Soy Conductor</p>
+                                    <p class="text-[9px] text-foreground/50 font-bold uppercase tracking-widest">Panel logístico</p>
+                                </div>
+                            </div>
+                            <ArrowRight :size="16" stroke-width="3" class="text-foreground/50 group-hover:text-primary transition-colors" />
+                        </Link>
+                    </div>
+
                 </div>
             </div>
         </div>
-    </div>
-</div>
-</ShopLayout>
+    </ShopLayout>
 </template>
+
+<style>
+.custom-tel-input { box-shadow: inset 0 2px 4px rgba(0,0,0,0.05) !important; }
+.custom-tel-input .vti__input { background: transparent !important; color: currentColor !important; font-weight: 900 !important; font-size: 16px !important; }
+.custom-tel-input .vti__dropdown { background: transparent !important; border-radius: 16px 0 0 16px !important; border-right: 1px solid rgba(var(--foreground), 0.1) !important; }
+.custom-tel-input .vti__dropdown:hover { background: rgba(var(--foreground), 0.05) !important; }
+</style>

@@ -41,11 +41,11 @@ const processedZones = computed(() => {
 });
 
 const navigateToAisle = ({ item, zone }) => {
-    // Ahora enviamos brand_id al catálogo
     router.visit(route('customer.shop.zone', { zone: zone.slug }), {
-        data: { brand: item.id } // Cambiado de category a brand
+        data: { brand: item.id } 
     });
 };
+
 const navigateToZone = (zone) => {
     router.visit(route('customer.shop.zone', { zone: zone.slug }));
 };
@@ -57,14 +57,14 @@ watch(() => page.props.cart_summary?.count, () => {}, { immediate: true });
     <ShopLayout>
         <Head title="Explorar Catálogo" />
 
-        <div class="w-full flex flex-col relative">
+        <div class="w-full flex flex-col min-h-full">
             
             <BundleList 
                 :bundles="props.bundlesData" 
                 @select-bundle="openBundleModal" 
             />
 
-            <div class="flex-1">
+            <div class="flex-1 flex flex-col relative w-full">
                 <ZoneNavigator 
                     v-if="processedZones.length > 0"
                     :zones="processedZones" 
@@ -72,16 +72,24 @@ watch(() => page.props.cart_summary?.count, () => {}, { immediate: true });
                     @select-zone="navigateToZone"
                 />
 
-                <div v-else class="flex items-center justify-center p-6 mt-10">
-                    <div class="w-full max-w-sm cyber-glass border-l-4 border-f1-red p-6 shadow-neon-red clip-f1-br transition-all duration-300">
-                        <div class="flex items-center gap-3 mb-3 text-f1-red">
-                            <AlertTriangle :size="24" />
-                            <span class="text-[10px] font-mono font-black uppercase tracking-[0.2em]">Aviso de Sistema</span>
+                <div v-else class="flex-1 flex items-center justify-center p-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
+                    <div class="w-full max-w-sm bg-surface/20 backdrop-blur-2xl border border-white/10 dark:border-white/5 rounded-[40px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] p-10 text-center flex flex-col items-center">
+                        
+                        <div class="w-20 h-20 rounded-3xl bg-transparent border-4 border-f1-red/20 flex items-center justify-center mb-6 shadow-inner">
+                            <AlertTriangle :size="36" class="text-f1-red" stroke-width="2.5" />
                         </div>
-                        <h2 class="text-xl font-sans font-black uppercase text-foreground mb-2 tracking-tight">Sin Cobertura</h2>
-                        <p class="text-xs font-mono text-muted uppercase leading-relaxed">
-                            La ubicación de telemetría actual no cuenta con catálogo activo. Verifique sus coordenadas.
+                        
+                        <h2 class="text-3xl font-sans font-black text-foreground tracking-tighter leading-none mb-4">
+                            Fuera de Zona
+                        </h2>
+                        
+                        <p class="text-[11px] font-black text-foreground/60 uppercase tracking-[0.1em] leading-relaxed">
+                            No hay tiendas ni productos disponibles para tu ubicación actual.
                         </p>
+                        
+                        <button @click="router.visit(route('customer.profile.addresses'))" class="mt-8 h-12 px-6 bg-foreground/5 backdrop-blur-lg border border-foreground/10 rounded-[20px] font-black uppercase text-[11px] text-foreground hover:bg-foreground/10 transition-colors active:scale-95 shadow-inner">
+                            Cambiar Dirección
+                        </button>
                     </div>
                 </div>
             </div>

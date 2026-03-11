@@ -134,6 +134,8 @@ Route::middleware(['inertia.customer'])->group(function () {
                 Route::patch('/{id}/default', [AddressController::class, 'makeDefault'])->name('set-default');
             });
         });
+        Route::post('/favorites/{product}', [\App\Http\Controllers\Web\Customer\Catalog\FavoriteController::class, 'toggle'])->name('favorites.toggle');
+        Route::post('/products/{product}/reviews', [\App\Http\Controllers\Web\Customer\Catalog\ReviewController::class, 'store'])->name('reviews.store');
     
         Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
         Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');

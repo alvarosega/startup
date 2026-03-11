@@ -3,20 +3,13 @@
 namespace App\Http\Controllers\Web\Customer\Cart;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\{Request, RedirectResponse};
+use Inertia\{Inertia, Response};
 use Illuminate\Support\Facades\Auth;
 use App\Services\ShopContextService;
-use App\DTOs\Customer\Cart\SyncCartDTO;
-use App\DTOs\Customer\Cart\AddToCartDTO;
-use App\Http\Requests\Customer\Cart\AddToCartRequest;
-use App\Models\Cart;
-use App\Http\Resources\Customer\Cart\CartItemResource;
+use App\DTOs\Customer\Cart\{SyncCartDTO, AddToCartDTO};
+use App\Http\Requests\Customer\Cart\{AddToCartRequest, UpdateCartRequest};
 use App\Http\Resources\Customer\Cart\CartResource;
-use App\Models\CartItem; 
-use App\Models\InventoryLot;
 use App\Actions\Customer\Cart\{
     GetCustomerCartAction,
     UpdateCartItemAction,
@@ -25,35 +18,42 @@ use App\Actions\Customer\Cart\{
     AddItemToCartAction
 };
 
-
 class CartController extends Controller
 {
     public function __construct(
         protected ShopContextService $contextService
     ) {}
 
+    /**
+     * Renderiza el carrito con resolución de precios dinámica.
+     */
     public function index(Request $request, GetCustomerCartAction $getCartAction): Response
     {
-        $guestUuid = $request->query('guest_id') ?? $request->header('X-Guest-UUID');
+        // Prioridad: Header X-Guest-UUID > Query guest_id
+        $guestUuid = $request->header('X-Guest-UUID') ?? $request->query('guest_id');
         
         $cart = $getCartAction->execute($guestUuid);
     
         return Inertia::render('Customer/Cart/Index', [
+            // El Resource se encarga de llamar al PriceResolverService internamente
             'cart' => $cart ? (new CartResource($cart))->resolve() : null
         ]);
     }
 
-    public function update(Request $request, string $id, UpdateCartItemAction $action): RedirectResponse
+    /**
+     * Actualiza cantidades y dispara la recalificación de precios.
+     */
+    public function update(UpdateCartRequest $request, string $id, UpdateCartItemAction $action): RedirectResponse
     {
-        $request->validate(['quantity' => 'required|integer|min:1']);
-        
         $branchId = $this->contextService->getActiveBranchId();
 
         try {
-            $action->execute($id, $request->quantity, $branchId);
-            return back()->with('success', 'Cantidad actualizada.');
+            // La acción debe verificar stock y aplicar el nuevo escalón de precio
+            $action->execute($id, $request->validated('quantity'), $branchId);
+            
+            return back()->with('success', 'Carrito actualizado.');
         } catch (\Exception $e) {
-            return back()->withErrors(['cart' => $e->getMessage()]);
+            return back()->withErrors(['cart' => 'Error al actualizar: ' . $e->getMessage()]);
         }
     }
 
@@ -61,11 +61,15 @@ class CartController extends Controller
     {
         try {
             $action->execute($id);
-            return back()->with('success', 'Producto eliminado.');
+            return back()->with('success', 'Producto removido.');
         } catch (\Exception $e) {
-            return back()->withErrors(['cart' => 'No se pudo eliminar el producto.']);
+            return back()->withErrors(['cart' => 'No se pudo eliminar el ítem.']);
         }
     }
+
+    /**
+     * Fusión atómica de carritos tras el Login.
+     */
     public function sync(Request $request, SyncGuestCartAction $action): RedirectResponse
     {
         $branchId = $this->contextService->getActiveBranchId();
@@ -81,25 +85,21 @@ class CartController extends Controller
         try {
             $action->execute($dto);
             return redirect()->route('customer.cart.index')
-                ->with('success', 'Carrito fusionado correctamente.');
+                ->with('success', 'Carrito sincronizado.');
         } catch (\Exception $e) {
-            return back()->withErrors(['sync' => $e->getMessage()]);
+            return redirect()->route('customer.cart.index')
+                ->withErrors(['sync' => 'Error en sincronización: ' . $e->getMessage()]);
         }
     }
 
-    /**
-     * Adición de producto. El DTO maneja el tipado estricto de UUID Strings.
-     */
     public function store(AddToCartRequest $request, AddItemToCartAction $action): RedirectResponse
     {
         $branchId = $this->contextService->getActiveBranchId();
-        
-        // El DTO debe aceptar string para $branchId (UUID)
         $dto = AddToCartDTO::fromRequest($request, $branchId);
 
         try {
             $action->execute($dto);
-            return back()->with('success', 'Producto añadido al carrito.');
+            return back()->with('success', 'Añadido al pedido.');
         } catch (\Exception $e) {
             return back()->withErrors(['cart' => $e->getMessage()]);
         }

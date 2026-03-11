@@ -9,11 +9,12 @@
   *, *::before, *::after {
     border-color: hsl(var(--border));
   }
-
   html, body {
-    @apply bg-background text-foreground antialiased;
+    /* CAMBIO: Eliminamos bg-background. El Layout se encargará del color. */
+    @apply text-foreground antialiased; 
     font-family: 'Century Gothic', 'Inter', sans-serif;
     overscroll-behavior-y: none;
+    background-color: transparent; /* FUNDAMENTAL */
   }
 
   ::selection {

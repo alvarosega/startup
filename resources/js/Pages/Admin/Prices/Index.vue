@@ -38,16 +38,32 @@ const form = useForm({
 
 const priceTypes = ['regular', 'offer', 'member', 'wholesale', 'liquidation', 'staff'];
 
-// --- UTILIDADES DE ALTO RENDIMIENTO ---
-const getPricesForBranch = (sku, branchId) => sku?.prices_matrix?.[branchId] || [];
+// --- UTILIDADES DE ALTO RENDIMIENTO (CORREGIDAS) ---
 
-const getPriceByType = (type) => {
-    if (!activeSku.value || !activeBranchId.value) return null;
-    return getPricesForBranch(activeSku.value, activeBranchId.value).find(p => p.type === type);
+// 1. Desempaqueta sin piedad el array, ya sea que venga crudo, envuelto en proxy o en 'data'
+const getPricesForBranch = (sku, branchId) => {
+    let rawMatrix = sku?.prices_matrix?.[branchId];
+    if (!rawMatrix) return [];
+    
+    // Si Laravel Resource lo envolvió en un objeto con { data: [...] }
+    if (typeof rawMatrix === 'object' && !Array.isArray(rawMatrix) && rawMatrix.data) {
+        rawMatrix = rawMatrix.data;
+    }
+    
+    return Array.isArray(rawMatrix) ? rawMatrix : [];
 };
 
+// 2. Extrae un precio seguro y garantiza que devuelva null si no lo encuentra, no undefined.
+const getPriceByType = (type) => {
+    if (!activeSku.value || !activeBranchId.value) return null;
+    const prices = getPricesForBranch(activeSku.value, activeBranchId.value);
+    return prices.find(p => p.type === type) || null;
+};
+
+// 3. Función auxiliar para el template
 const getRegularPrice = (sku, branchId) => {
-    return getPricesForBranch(sku, branchId).find(p => p.type === 'regular');
+    const prices = getPricesForBranch(sku, branchId);
+    return prices.find(p => p.type === 'regular') || null;
 };
 
 // --- MOTOR DE BÚSQUEDA ---
@@ -65,23 +81,21 @@ const openManager = (sku, branchId) => {
     editingType.value = null;
     isDrawerOpen.value = true;
 };
-
 const startEdit = (type) => {
     editingType.value = type;
     const existing = getPriceByType(type);
     const regular = getPriceByType('regular');
     
-    const defaultPrice = regular?.final_price || activeSku.value.base_price || 0;
+    // El precio base del SKU viene directo del nivel superior
+    const defaultPrice = regular?.final_price ?? activeSku.value?.base_price ?? 0;
     
     form.sku_id = activeSku.value.id;
     form.branch_id = activeBranchId.value;
     form.type = type;
     
-    // CAMBIO: Sincronizar list_price del registro existente o el default
-    form.list_price = existing?.list_price || defaultPrice;
-    form.final_price = existing?.final_price || defaultPrice;
-    
-    form.min_quantity = existing?.min_quantity || (type === 'wholesale' ? 6 : 1);
+    form.list_price = existing?.list_price ?? defaultPrice;
+    form.final_price = existing?.final_price ?? defaultPrice;
+    form.min_quantity = existing?.min_quantity ?? (type === 'wholesale' ? 6 : 1);
     form.valid_from = existing?.valid_from?.split('T')[0] || new Date().toISOString().slice(0, 10);
     form.valid_to = existing?.valid_to?.split('T')[0] || null;
 };
@@ -94,6 +108,23 @@ const saveInline = () => {
         }
     });
 };
+watch(() => props.products, () => {
+    // Si el modal está abierto cuando llegan datos frescos del servidor
+    if (isDrawerOpen.value && activeSku.value) {
+        // Encontrar el producto actualizado en los nuevos props
+        const updatedProduct = productsList.value.find(p => 
+            p.skus.some(s => s.id === activeSku.value.id)
+        );
+        
+        // Si el producto existe, buscar el SKU exacto y actualizar la referencia activa
+        if (updatedProduct) {
+            const updatedSku = updatedProduct.skus.find(s => s.id === activeSku.value.id);
+            if (updatedSku) {
+                activeSku.value = updatedSku;
+            }
+        }
+    }
+}, { deep: true });
 </script>
 
 <template>

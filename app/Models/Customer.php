@@ -54,5 +54,9 @@ class Customer extends Authenticatable
         return $this->hasMany(CustomerAddress::class, 'customer_id', 'id');
     }
 
-
+    public function favoriteProducts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'favorites', 'customer_id', 'product_id')
+                    ->withTimestamps();
+    }
 }

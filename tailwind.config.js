@@ -13,6 +13,13 @@ module.exports = {
     },
     extend: {
       colors: {
+        tech: {
+          DEFAULT: 'hsl(var(--tech-bg) / <alpha-value>)',
+          dot1: 'hsl(var(--tech-dot-1) / <alpha-value>)',
+          dot2: 'hsl(var(--tech-dot-2) / <alpha-value>)',
+        },
+        'f1-red': 'hsl(var(--f1-red) / <alpha-value>)',
+        'telemetry-green': 'hsl(var(--telemetry-green) / <alpha-value>)',
         background: 'hsl(var(--background) / <alpha-value>)',
         foreground: 'hsl(var(--foreground) / <alpha-value>)',
         border: 'hsl(var(--border) / <alpha-value>)',

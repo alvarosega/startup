@@ -34,4 +34,13 @@ class Product extends Model
     {
         return $query->where('is_active', true);
     }
+    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function favoritedBy(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Customer::class, 'favorites', 'product_id', 'customer_id');
+    }
 }

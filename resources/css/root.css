@@ -98,6 +98,13 @@
   
   --radius: 0.75rem;
   --nav-height: 60px;
+  --tech-bg: 220 14% 96%;        /* #f4f5f7 - Gris muy claro */
+  --tech-dot-1: 0 0% 0%;         /* Negro (para usar con opacidad) */
+  --tech-dot-2: 0 0% 0%;         /* Negro (para usar con opacidad) */
+
+  /* Colores de Marca F1 (Añadidos para que Tailwind los compile) */
+  --f1-red: 0 100% 50%;          /* #FF0000 */
+  --telemetry-green: 120 100% 50%; /* #00FF00 */
 }
 
 .dark .customer-theme {
@@ -124,4 +131,11 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
   --shadow-lg: 0 20px 40px rgba(0,0,0,0.6);
+  --tech-bg: 230 23% 5%;         /* #0a0b10 - Asfalto profundo */
+  --tech-dot-1: 229 18% 12%;     /* #1a1c25 - Gris azulado oscuro */
+  --tech-dot-2: 0 100% 50%;      /* #FF0000 - Rojo F1 (para el punto secundario) */
+
+  /* Mantener colores de marca vibrantes en modo oscuro */
+  --f1-red: 0 100% 50%;
+  --telemetry-green: 120 100% 50%;
 }

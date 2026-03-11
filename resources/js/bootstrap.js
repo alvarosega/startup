@@ -1,8 +1,13 @@
 import axios from 'axios';
 window.axios = axios;
 
-window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
-
+let guestUuid = localStorage.getItem('guest_client_uuid');
+if (!guestUuid) {
+    guestUuid = crypto.randomUUID();
+    localStorage.setItem('guest_client_uuid', guestUuid);
+}
+// Adjuntamos el UUID a TODAS las peticiones Inertia/Axios silenciosamente
+window.axios.defaults.headers.common['X-Guest-UUID'] = guestUuid;
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 window.Pusher = Pusher;

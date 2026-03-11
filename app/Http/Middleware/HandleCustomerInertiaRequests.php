@@ -18,7 +18,15 @@ class HandleCustomerInertiaRequests extends Middleware
         $user = Auth::guard('customer')->user();
         if ($user) { $user->load('profile'); }
         
-        $guestUuid = $request->query('guest_id') ?? $request->header('X-Guest-UUID');
+        $guestUuid = $request->header('X-Guest-UUID') ?? $request->input('guest_client_uuid');
+
+        if ($guestUuid && !$user) {
+            // Si viaja en la petición y no hay usuario, lo grabamos en la sesión
+            $request->session()->put('guest_client_uuid', $guestUuid);
+        } else {
+            // Si es un "Hard Reload" (F5) o el usuario está logueado, leemos la sesión
+            $guestUuid = $request->session()->get('guest_client_uuid');
+        }
         $shopService = app(ShopContextService::class);
         $branchId = $shopService->getActiveBranchId();
 

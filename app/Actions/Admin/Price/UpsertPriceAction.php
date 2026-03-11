@@ -4,6 +4,7 @@ namespace App\Actions\Admin\Price;
 use App\Models\Price;
 use App\DTOs\Admin\Price\PriceData;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache; // <--- LA LEY: IMPORTAR CACHE
 
 class UpsertPriceAction
 {
@@ -19,7 +20,6 @@ class UpsertPriceAction
     public function execute(PriceData $dto): void
     {
         DB::transaction(function () use ($dto) {
-            // 1. Soft delete active rules of the exact same type for this SKU/Branch
             $existing = Price::where('sku_id', $dto->skuId)
                 ->where('branch_id', $dto->branchId)
                 ->where('type', $dto->type)
@@ -31,7 +31,6 @@ class UpsertPriceAction
                 $price->delete();
             }
 
-            // 2. Insert new rule with mapped priority
             Price::create([
                 'sku_id'        => $dto->skuId,
                 'branch_id'     => $dto->branchId,
@@ -46,5 +45,9 @@ class UpsertPriceAction
                 'updated_by_id' => $dto->adminId,
             ]);
         });
+
+        // LA LEY: Destruir la caché obsoleta del catálogo/matriz
+        Cache::forget('admin_products_list'); 
+        // Si en GetPricingMatrixAction usaste un nombre de caché distinto, agrégalo aquí.
     }
 }

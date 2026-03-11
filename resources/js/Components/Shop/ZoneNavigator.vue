@@ -2,7 +2,7 @@
 const props = defineProps({ zones: Array });
 const emit = defineEmits(['select-item', 'select-zone']);
 
-// Prevención de imágenes rotas
+// Prevención de imágenes rotas (Inyecta el placeholder PNG transparente)
 const getImageUrl = (path) => {
     if (!path) return '/assets/img/placeholder.png';
     if (path.startsWith('http')) return path;
@@ -11,49 +11,49 @@ const getImageUrl = (path) => {
 </script>
 
 <template>
-    <div class="w-full pb-12 pt-2 space-y-8 relative">
+    <div class="w-full pb-12 pt-4 space-y-10 relative">
         
         <div v-for="zone in zones" :key="zone.id" class="flex flex-col relative w-full">
             
-            <div class="sticky top-[160px] z-[40] cyber-glass border-y border-tech px-4 py-3 mb-4 flex items-center justify-between shadow-sm cursor-pointer group transition-all duration-300"
+            <div class="px-5 mb-4 flex items-center justify-between cursor-pointer group"
                  @click="emit('select-zone', zone)">
-                <h2 class="text-lg font-sans font-black uppercase text-foreground tracking-tight group-hover:text-f1-red transition-colors">
+                <h2 class="text-2xl font-sans font-black uppercase text-foreground tracking-tighter active:scale-95 transition-transform origin-left">
                     {{ zone.name }}
                 </h2>
-                <span class="text-muted group-hover:text-f1-red transition-colors text-xl leading-none">
+                <span class="text-foreground/30 text-2xl leading-none font-black">
                     &rarr;
                 </span>
             </div>
 
             <div v-if="zone.aisles && zone.aisles.length > 0" 
-                 class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 gap-4 pb-4">
+                 class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-5 gap-3 pb-4">
                  
                 <div v-for="aisle in zone.aisles" :key="aisle.id"
                      @click="emit('select-item', { item: aisle, zone: zone })"
-                     class="w-[70vw] md:w-[280px] h-[340px] shrink-0 snap-start bg-surface border border-tech rounded-[20px] flex flex-col relative group cursor-pointer hover-neon-red transition-all duration-500 overflow-hidden shadow-sm">
+                     class="w-[38vw] md:w-[160px] h-[190px] shrink-0 snap-start bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-[24px] flex flex-col relative cursor-pointer active:scale-95 transition-transform duration-300 overflow-hidden shadow-[0_15px_35px_-10px_rgba(0,0,0,0.4)]">
                      
-                     <div class="absolute inset-0 overflow-hidden rounded-[20px] pointer-events-none z-0">
-                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-tr from-f1-red/20 via-background to-telemetry-green/15 opacity-80 blur-[40px] group-hover:scale-125 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"></div>
+                     <div class="absolute inset-0 overflow-hidden rounded-[24px] pointer-events-none z-0">
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-primary/10 opacity-40 blur-[30px] rounded-full"></div>
                     </div>
                      
-                    <div class="absolute inset-0 flex items-center justify-center p-6 z-10 pointer-events-none">
+                    <div class="absolute inset-0 flex items-center justify-center p-4 pb-12 z-10 pointer-events-none">
                         <img :src="getImageUrl(aisle.image_url || aisle.image_path)" :alt="aisle.name" 
-                             class="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.35)] transition-transform duration-500 group-hover:scale-[1.15]">
+                             class="w-full h-full object-contain drop-shadow-[0_15px_15px_rgba(0,0,0,0.5)]">
                     </div>
 
-                    <div class="absolute bottom-0 left-0 right-0 z-20 cyber-glass border-t border-tech p-4 flex items-center justify-center">
-                        <h3 class="text-sm font-sans font-black uppercase text-foreground text-center line-clamp-2 tracking-wide drop-shadow-md">
+                    <div class="absolute bottom-0 left-0 right-0 z-20 bg-background/40 backdrop-blur-md border-t border-white/10 dark:border-white/5 p-3 flex items-center justify-center h-[48px]">
+                        <h3 class="text-[10px] font-sans font-black uppercase text-foreground text-center line-clamp-2 tracking-tight drop-shadow-md leading-none">
                             {{ aisle.name }}
                         </h3>
                     </div>
                 </div>
 
-                <div class="w-[10vw] shrink-0"></div>
+                <div class="w-[5vw] shrink-0"></div>
             </div>
 
-            <div v-else class="w-full px-4">
-                <div class="p-6 border border-tech cyber-glass rounded-[20px] flex items-center justify-center shadow-sm">
-                    <span class="text-xs font-mono font-bold text-muted uppercase tracking-widest">Zona sin inventario activo</span>
+            <div v-else class="w-full px-5">
+                <div class="p-6 border border-white/10 dark:border-white/5 bg-white/5 dark:bg-black/10 backdrop-blur-xl rounded-[24px] flex items-center justify-center shadow-inner">
+                    <span class="text-[10px] font-black text-foreground/50 uppercase tracking-widest">Zona inactiva</span>
                 </div>
             </div>
 
@@ -62,6 +62,7 @@ const getImageUrl = (path) => {
 </template>
 
 <style scoped>
+/* Ocultar la barra de scroll nativa para un diseño limpio en iOS/Android */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

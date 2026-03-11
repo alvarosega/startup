@@ -14,8 +14,9 @@ class GetPricingMatrixAction
                 $q->with(['prices' => function($sub) {
                     // Only fetch currently active prices
                     $sub->where(fn($p) => $p->whereNull('valid_to')->orWhere('valid_to', '>=', now()))
+                        ->with('updater') // <--- LA LEY: ESTA LÍNEA DEBE EXISTIR
                         ->orderBy('branch_id')
-                        ->orderByDesc('priority'); // Highest priority first
+                        ->orderByDesc('priority');
                 }]);
             }])
             ->when($request->search, function($q, $s) {

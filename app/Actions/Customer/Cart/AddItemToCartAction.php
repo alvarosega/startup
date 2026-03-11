@@ -2,28 +2,28 @@
 
 namespace App\Actions\Customer\Cart;
 
-use App\Models\{Cart, CartItem, InventoryLot};
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\InventoryLot;
 use App\DTOs\Customer\Cart\AddToCartDTO;
 use Illuminate\Support\Facades\DB;
-use Exception;
+use Illuminate\Validation\ValidationException;
 
 class AddItemToCartAction
 {
-    // --- MODIFICAR EL PASO 1 Y ELIMINAR LA ACTUALIZACIÓN ---
     public function execute(AddToCartDTO $dto): void
     {
         DB::transaction(function () use ($dto) {
-            $identifier = $dto->customerId 
-                ? ['customer_id' => $dto->customerId] 
-                : ['session_id' => $dto->guestUuid];
+            
+            // 1. AISLAMIENTO ZERO-TRUST (Customer vs Guest)
+            // Se define de forma explícita qué columnas son nulas para evitar inyecciones cruzadas.
+            $cart = Cart::firstOrCreate([
+                'branch_id'   => $dto->branchId,
+                'customer_id' => $dto->customerId,
+                'session_id'  => $dto->sessionUuid,
+            ]);
 
-            // 1. El branch_id ahora es un criterio de búsqueda, no solo de creación.
-            // Esto crea un carrito único por (Usuario + Sucursal)
-            $cart = Cart::firstOrCreate(
-                array_merge($identifier, ['branch_id' => $dto->branchId])
-            );
-
-            // 2. Obtener ítem y validar stock acumulado (se mantiene igual)
+            // 2. CÁLCULO DE STOCK ATÓMICO
             $existingItem = CartItem::where('cart_id', $cart->id)
                 ->where('sku_id', $dto->skuId)
                 ->first();
@@ -31,24 +31,31 @@ class AddItemToCartAction
             $currentInCart = $existingItem ? $existingItem->quantity : 0;
             $totalRequested = $currentInCart + $dto->quantity;
 
-            $availableStock = InventoryLot::where('branch_id', $dto->branchId)
+            $availableStock = (int) InventoryLot::where('branch_id', $dto->branchId)
                 ->where('sku_id', $dto->skuId)
-                ->where('is_safety_stock', false) // <--- CORTE QUIRÚRGICO AQUÍ
+                ->where('is_safety_stock', false)
                 ->sum(DB::raw('quantity - reserved_quantity'));
 
             if ($availableStock < $totalRequested) {
-                throw new Exception("Stock insuficiente en esta sucursal.");
-            }
-
-            if ($existingItem) {
-                $existingItem->update(['quantity' => $totalRequested]);
-            } else {
-                CartItem::create([
-                    'cart_id' => $cart->id,
-                    'sku_id'  => $dto->skuId,
-                    'quantity' => $dto->quantity
+                // Lanzamos ValidationException para que Inertia lo capture automáticamente en $page.props.errors
+                throw ValidationException::withMessages([
+                    'cart' => 'Stock insuficiente en esta sucursal.'
                 ]);
             }
+
+            // 3. UPSERT UNIFICADO (El motor decide si hace INSERT o UPDATE)
+            CartItem::updateOrCreate(
+                [
+                    'cart_id' => $cart->id,
+                    'sku_id'  => $dto->skuId,
+                ],
+                [
+                    'quantity' => $totalRequested,
+                ]
+            );
+            
+            // Si en el futuro agregas caché para el contador de carrito, aquí debes purgarlo:
+            // Cache::forget("cart_count_{$dto->branchId}_{$dto->customerId}_{$dto->sessionUuid}");
         });
     }
 }

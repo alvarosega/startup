@@ -9,21 +9,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('reviews', function (Blueprint $table) {
-            $table->id();
+            // CORRECCIÓN: De integer a uuid primary
+            $table->uuid('id')->primary(); 
             
-            // Usuario es UUID
-            $table->uuid('customer_id');
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
-            
-            // CORRECCIÓN CRÍTICA:
-            // Como Products y Bundles ahora son UUIDs, 
-            // no podemos usar 'morphs()' (que crea BIGINT).
-            // Debemos usar 'uuidMorphs()' (que crea CHAR 36).
-            $table->uuidMorphs('reviewable');
+            $table->foreignUuid('customer_id')->constrained()->onDelete('cascade');
+            $table->foreignUuid('product_id')->constrained()->onDelete('cascade');
             
             $table->unsignedTinyInteger('rating'); 
             $table->text('comment')->nullable();
             $table->boolean('is_verified_purchase')->default(false);
+            
+            $table->unique(['customer_id', 'product_id']);
             $table->timestamps();
         });
     }
