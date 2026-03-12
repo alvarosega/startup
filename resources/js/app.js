@@ -4,7 +4,12 @@ import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import axios from 'axios';
 
+const guestUuid = localStorage.getItem('guest_client_uuid');
+if (guestUuid) {
+    axios.defaults.headers.common['X-Guest-UUID'] = guestUuid;
+}
 // En JS usamos variables de entorno de Vite o un string fijo
 const appName = import.meta.env.VITE_APP_NAME || 'Bolivia Logistics';
 

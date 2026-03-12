@@ -30,8 +30,8 @@ class CartController extends Controller
     public function index(Request $request, GetCustomerCartAction $getCartAction): Response
     {
         // Prioridad: Header X-Guest-UUID > Query guest_id
-        $guestUuid = $request->header('X-Guest-UUID') ?? $request->query('guest_id');
-        
+        $guestUuid = $request->header('X-Guest-UUID'); 
+    
         $cart = $getCartAction->execute($guestUuid);
     
         return Inertia::render('Customer/Cart/Index', [

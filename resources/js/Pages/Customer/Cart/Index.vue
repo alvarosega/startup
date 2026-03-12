@@ -21,12 +21,7 @@ const hasStockErrors = computed(() => {
     return cartItems.value.some(item => item.quantity > item.max_stock);
 });
 
-onMounted(() => {
-    const guestId = localStorage.getItem('guest_client_uuid');
-    if (!user.value && guestId && !new URLSearchParams(window.location.search).has('guest_id')) {
-        router.reload({ data: { guest_id: guestId } });
-    }
-});
+
 
 const updateQuantity = (item, newQty) => {
     if (newQty < 1 || newQty > item.max_stock) return;
