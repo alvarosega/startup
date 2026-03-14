@@ -3,7 +3,6 @@
 namespace App\Actions\Customer\Profiles;
 
 use App\Models\Customer;
-use App\Models\CustomerAddress;
 use Illuminate\Support\Facades\DB;
 
 class SetDefaultAddressAction
@@ -13,16 +12,18 @@ class SetDefaultAddressAction
         $address = $customer->addresses()->findOrFail($addressId);
 
         DB::transaction(function () use ($customer, $address) {
-            // 1. Resetear todos los defaults del cliente
+            // 1. Resetear estados
             $customer->addresses()->update(['is_default' => false]);
 
-            // 2. Establecer la nueva dirección principal
+            // 2. Establecer nuevo default
             $address->update(['is_default' => true]);
 
-            // 3. Sincronizar el branch_id en el cliente para el catálogo
-            if ($address->branch_id) {
-                $customer->update(['branch_id' => $address->branch_id]);
-            }
+            // 3. REPLICACIÓN INTEGRAL AL NÚCLEO
+            $customer->update([
+                'branch_id' => $address->branch_id,
+                'latitude'  => $address->latitude,
+                'longitude' => $address->longitude,
+            ]);
         });
     }
 }

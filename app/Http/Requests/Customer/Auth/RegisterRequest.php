@@ -39,6 +39,9 @@ class RegisterRequest extends FormRequest
             'alias'        => ['nullable', 'string'],
             'details'      => ['nullable', 'string'],
             'guest_client_uuid' => ['nullable', 'string'],
+            'branch_id'    => ['nullable', 'uuid', 'exists:branches,id'], 
+            'latitude'     => ['required', 'numeric'],
+            'longitude'    => ['required', 'numeric'],
         ];
     }
 }

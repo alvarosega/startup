@@ -34,6 +34,8 @@ class RegisterCustomerAction
                 'country_code' => strtoupper($data->countryCode),
                 'branch_id'    => $assignedBranchId,
                 'is_active'    => true,
+                'latitude'     => $data->latitude,
+                'longitude'    => $data->longitude,
             ]);
     
             $user->profile()->create([

@@ -55,21 +55,18 @@ return new class extends Migration
             $table->timestamp('created_at')->nullable();
         });
 
-        // =================================================================================
-        // SILO 2: DRIVERS (Sin cambios, ya estaba bien)
+// =================================================================================
+        // SILO 2: DRIVERS
         // =================================================================================
         Schema::create('drivers', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
             $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
             $table->string('password');
             $table->string('status')->default('pending'); 
-            
             $table->boolean('is_online')->default(false);
             $table->boolean('is_available')->default(false);
-            
             $table->timestamp('last_login_at')->nullable(); 
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
@@ -77,27 +74,27 @@ return new class extends Migration
 
             $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
         });
-        Schema::create('driver_details', function (Blueprint $table) {
-            $table->uuid('driver_id')->primary(); // PK es el mismo UUID del driver
+
+        // RENOMBRADA: De driver_details a driver_profiles
+        Schema::create('driver_profiles', function (Blueprint $table) {
+            $table->uuid('driver_id')->primary(); // PK es el UUID del driver
             $table->string('first_name');
             $table->string('last_name');
             
-            // Campos de Vehículo
             $table->string('license_number')->unique()->nullable();
             $table->string('license_plate', 10)->nullable();
             $table->string('vehicle_type')->nullable(); 
 
-            // Campos de Interfaz
             $table->string('avatar_type')->default('icon'); 
             $table->string('avatar_source')->default('avatar_1.svg');
             
-            // CONSOLIDACIÓN: Campos de verificación documental (Ex DriverProfile)
             $table->text('rejection_reason')->nullable();
             $table->string('ci_front_path')->nullable();
             $table->string('license_photo_path')->nullable();
             $table->string('vehicle_photo_path')->nullable();
 
             $table->timestamps();
+            $table->softDeletes(); // Consistencia con el modelo
 
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
         });
@@ -158,6 +155,8 @@ return new class extends Migration
             $table->integer('trust_score')->default(50);
             $table->boolean('is_active')->default(true);
             $table->timestamp('email_verified_at')->nullable();
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
             $table->timestamps();

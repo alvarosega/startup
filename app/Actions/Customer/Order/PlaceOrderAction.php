@@ -2,10 +2,11 @@
 
 namespace App\Actions\Customer\Order;
 
-use App\Models\{Cart, Order, OrderItem, Customer, Branch, CustomerAddress};
+use App\Models\{Cart, Order, OrderItem, Customer, Branch};
 use App\DTOs\Customer\Order\CheckoutCartDTO;
 use App\Services\Order\OrderFinancialService;
 use App\Services\Inventory\InventoryOrchestrator;
+use App\Services\Finance\PriceResolverService; 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -13,88 +14,89 @@ class PlaceOrderAction
 {
     public function __construct(
         protected OrderFinancialService $financialService,
-        protected InventoryOrchestrator $inventoryOrchestrator
+        protected InventoryOrchestrator $inventoryOrchestrator,
+        protected PriceResolverService $priceResolver // <--- AÑADIR
     ) {}
 
     public function execute(CheckoutCartDTO $dto): Order
     {
         return DB::transaction(function () use ($dto) {
-            // 1. HIDRATACIÓN DE ENTIDADES
             $customer = Customer::findOrFail($dto->customerId);
             $branch   = Branch::findOrFail($dto->branchId);
-            $cart     = Cart::where('customer_id', $customer->id)
+            
+            // 1. Cargar carrito con relaciones para el Snapshot
+            $cart = Cart::where('customer_id', $customer->id)
                 ->where('branch_id', $branch->id)
-                ->with('items.sku.product')
-                ->lockForUpdate() // Evita cambios en el carrito mientras procesamos
+                ->with(['items.sku.product'])
+                ->lockForUpdate()
                 ->firstOrFail();
 
-            $address = $dto->addressId ? CustomerAddress::find($dto->addressId) : null;
+            // 2. Resolver precios de items y calcular subtotal neto
+            $itemsData = [];
+            $itemsSubtotal = 0;
 
-            // 2. CÁLCULO FINANCIERO FINAL (Zero-Trust)
-            // No confiamos en lo que el frontend mande, recalculamos aquí.
-            $subtotal = $cart->items->sum(fn($i) => $i->quantity * $i->unit_price);
-            $finances = $this->financialService->calculate($branch, $address, $customer, $subtotal, $dto->deliveryType);
+            foreach ($cart->items as $item) {
+                // CAMBIO AQUÍ: de ->resolve(...) a ->resolveWinningPrice(...)
+                $resolvedPrice = $this->priceResolver->resolveWinningPrice($item->sku, $branch->id, $item->quantity);
+                
+                $unitPrice = $resolvedPrice->final_price;
+                $lineSubtotal = $unitPrice * $item->quantity;
+            
+                $itemsSubtotal += $lineSubtotal;
+
+                $itemsData[] = [
+                    'sku_id'         => $item->sku_id,
+                    'product_name'   => $item->sku->product->name,
+                    'sku_name'       => $item->sku->name,
+                    'image_snapshot' => $item->sku->image_url,
+                    'quantity'       => $item->quantity,
+                    'unit_price'     => $unitPrice,
+                    'subtotal'       => $lineSubtotal,
+                ];
+            }
+
+            // 3. Cálculo financiero global (Envío + Fee)
+            $finances = $this->financialService->calculate($branch, $customer, $itemsSubtotal, $dto->deliveryType);
 
             if (!$finances['is_available']) {
                 throw new \Exception($finances['error_message']);
             }
 
-            // 3. CREACIÓN DE LA ORDEN (EL CONTRATO)
+            // 4. Crear la Orden
             $order = Order::create([
                 'id'            => Str::uuid(),
                 'code'          => 'ORD-' . strtoupper(Str::random(8)),
                 'customer_id'   => $customer->id,
                 'branch_id'     => $branch->id,
                 'delivery_type' => $dto->deliveryType,
-                'delivery_data' => $this->mapDeliveryData($address, $finances),
-                
-                'items_subtotal' => $finances['items_subtotal'],
+                'delivery_data' => [
+                    'lat' => $customer->latitude,
+                    'lng' => $customer->longitude,
+                    'address_snapshot' => $customer->addresses()->where('is_default', true)->first()?->address,
+                ],
+                'items_subtotal' => $itemsSubtotal,
                 'delivery_fee'   => $finances['delivery_fee'],
                 'service_fee'    => $finances['service_fee'],
                 'total_amount'   => $finances['total_amount'],
-                
-                'status'                 => 'pending_payment',
-                'payment_method'         => $dto->paymentMethod,
+                'status'         => 'pending_payment',
+                'payment_method' => $dto->paymentMethod,
                 'reservation_expires_at' => now()->addMinutes(10),
             ]);
 
-            // 4. PROCESAMIENTO DE ITEMS Y RESERVA DE STOCK
-            foreach ($cart->items as $item) {
-                // El orquestador maneja el FEFO y el lock de los lotes
-                $this->inventoryOrchestrator->reserve($item->sku_id, $branch->id, $item->quantity);
+            // 5. Insertar Items con Snapshot y Reservar Inventario
+            foreach ($itemsData as $data) {
+                // Reservar en lotes FEFO
+                $this->inventoryOrchestrator->reserve($data['sku_id'], $branch->id, $data['quantity']);
 
-                OrderItem::create([
-                    'id'             => Str::uuid(),
-                    'order_id'       => $order->id,
-                    'sku_id'         => $item->sku_id,
-                    'product_name'   => $item->sku->product->name, // SNAPSHOT
-                    'sku_name'       => $item->sku->name,         // SNAPSHOT
-                    'image_snapshot' => $item->sku->image_url,    // SNAPSHOT
-                    'quantity'       => $item->quantity,
-                    'unit_price'     => $item->unit_price,
-                    'subtotal'       => $item->quantity * $item->unit_price,
-                ]);
+                // Crear el registro con todos los campos (Incluso unit_price)
+                OrderItem::create(array_merge($data, ['order_id' => $order->id]));
             }
 
-            // 5. LIMPIEZA
+            // 6. Destrucción del Carrito
             $cart->items()->delete();
             $cart->delete();
 
             return $order;
         });
-    }
-
-    private function mapDeliveryData(?CustomerAddress $address, array $finances): ?array
-    {
-        if (!$address) return null;
-
-        return [
-            'address_id'  => $address->id,
-            'address'     => $address->address,
-            'latitude'    => $address->latitude,
-            'longitude'   => $address->longitude,
-            'reference'   => $address->reference,
-            'distance_km' => $finances['distance_km'],
-        ];
     }
 }

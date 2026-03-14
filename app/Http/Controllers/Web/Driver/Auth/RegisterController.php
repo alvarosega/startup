@@ -7,10 +7,9 @@ use App\Http\Requests\Driver\Auth\RegisterRequest;
 use App\DTOs\Driver\Auth\RegisterDriverData;
 use App\Http\Requests\Driver\Auth\ValidateStep1Request;
 use App\Actions\Driver\Auth\RegisterDriverAction;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log; // <--- IMPORTANTE
 use Inertia\Inertia;
-use App\Traits\ValidatesGlobalIdentity;
 
 class RegisterController extends Controller
 {
@@ -21,10 +20,9 @@ class RegisterController extends Controller
 
     public function validateStep1(ValidateStep1Request $request)
     {
-        // El FormRequest ya validó y normalizó todo usando el Trait
-        // Si llega aquí, significa que no hay colisiones en los 3 silos
         return back(); 
     }
+
     public function store(RegisterRequest $request, RegisterDriverAction $action)
     {
         try {
@@ -36,8 +34,8 @@ class RegisterController extends Controller
             return redirect()->route('driver.dashboard');
             
         } catch (\Exception $e) {
-            Log::error('[DriverRegister] Error: ' . $e->getMessage());
-            return back()->withErrors(['phone' => 'Error interno al registrar el conductor.'])->withInput();
+            Log::error('[DriverRegister] Fallo en la transacción: ' . $e->getMessage());
+            return back()->withErrors(['phone' => 'Hubo un problema al crear tu cuenta. Inténtalo de nuevo.'])->withInput();
         }
     }
 }

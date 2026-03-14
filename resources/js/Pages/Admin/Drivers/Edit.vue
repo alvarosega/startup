@@ -20,24 +20,22 @@ const d = props.driver.data || props.driver;
 const showQrCode = ref(false);
 const activeTab = ref('info'); 
 
-// HIDRATACIÓN DEL FORMULARIO CON CAMPOS COMPLETOS PARA EL UPSERT
 const form = useForm({
     branch_id: d.branch_id || '',
-    first_name: d.details?.first_name || '',
-    last_name: d.details?.last_name || '',
-    license_number: d.details?.license_number || '',
-    license_plate: d.details?.license_plate || '',
-    vehicle_type: d.details?.vehicle_type || 'moto',
+    // CAMBIO: details -> profile
+    first_name: d.profile?.first_name || '',
+    last_name: d.profile?.last_name || '',
+    license_number: d.profile?.license_number || '',
+    license_plate: d.profile?.license_plate || '',
+    vehicle_type: d.profile?.vehicle_type || 'moto',
     
-    // Estos campos no se ven en la UI de edición, pero el DTO los requiere para no romper la DB
     phone: d.phone,
     email: d.email,
 
-    // MAPEO DE ESTADOS
     is_identity_verified: d.status === 'active',
-    is_active: d.status !== 'inactive'
+    is_active: d.status !== 'inactive',
+    rejection_reason: d.profile?.rejection_reason || ''
 });
-
 const submit = () => {
     form.put(route('admin.drivers.update', d.id), {
         preserveScroll: true,
@@ -352,20 +350,19 @@ const getVehicleIcon = (type) => {
                                         <Camera :size="12" /> CARNET DE IDENTIDAD
                                     </span>
                                 </div>
-                                <div class="relative border-2 border-dashed border-primary/30 bg-background/50 aspect-video flex items-center justify-center overflow-hidden group/image">
-                                    
-                                    <img v-if="d.details?.ci_front_path" 
-                                         :src="d.details.ci_front_path" 
-                                         class="w-full h-full object-contain p-2" />
+                                <div class="relative border-2 border-dashed border-primary/30 bg-background/50 aspect-video ...">
+                                    <img v-if="d.profile?.ci_front_path" 
+                                        :src="d.profile.ci_front_path" 
+                                        class="w-full h-full object-contain p-2" />
                                     
                                     <div v-else class="text-muted-foreground flex flex-col items-center p-4">
                                         <AlertTriangle :size="32" class="mb-2 text-warning/50" />
                                         <span class="text-[10px] font-mono">DOCUMENTO AUSENTE</span>
                                     </div>
                                     
-                                    <a v-if="d.details?.ci_front_path" 
-                                       :href="d.details.ci_front_path" 
-                                       target="_blank" 
+                                    <a v-if="d.profile?.ci_front_path" 
+                                        :href="d.profile.ci_front_path" 
+                                        target="_blank"
                                        class="absolute inset-0 bg-background/80 opacity-0 group-hover/image:opacity-100 flex items-center justify-center transition-opacity duration-300">
                                         <span class="px-4 py-2 border border-primary text-primary text-[10px] font-mono flex items-center gap-2 bg-background">
                                             <ExternalLink :size="14" /> VER ORIGINAL

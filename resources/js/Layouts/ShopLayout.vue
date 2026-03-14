@@ -20,6 +20,37 @@ const user = computed(() => page.props.auth?.user);
 const location = computed(() => page.props.location_context || { label: 'SIN SEÑAL', type: 'branch' });
 const cartCount = computed(() => page.props.cart_summary?.count || 0);
 const activeOrder = computed(() => page.props.active_order || null); 
+
+// NUEVO: Blindaje del Enlace para evitar errores de Ziggy
+const activeOrderUrl = computed(() => {
+    // Si no hay orden activa, o el conteo es 0, o por alguna razón falta el ID
+    if (!activeOrder.value || !activeOrder.value.count || !activeOrder.value.latest?.id) {
+        return route('customer.orders.history');
+    }
+    
+    // Si hay exactamente 1 orden, lo mandamos directo al QR/OTP
+    if (activeOrder.value.count === 1) {
+        return route('customer.orders.show', activeOrder.value.latest.id);
+    }
+    
+    // Si hay más de 1, lo mandamos al historial para que elija
+    return route('customer.orders.history');
+});
+
+// Actualización de seguridad para la telemetría (si la usas)
+const telemetryStatusColor = computed(() => {
+    if (!activeOrder.value || !activeOrder.value.latest) return 'bg-tech';
+    const map = {
+        'pending_payment': 'bg-amber-500 shadow-[0_0_8px_#f59e0b]',
+        'under_review': 'bg-blue-400 shadow-[0_0_8px_#60a5fa]',
+        'preparing': 'bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]',
+        'dispatched': 'bg-f1-red animate-bounce shadow-[0_0_8px_#ff0000]',
+        'arrived': 'bg-telemetry-green shadow-[0_0_12px_#00ff00]',
+        'completed': 'bg-telemetry-green opacity-50'
+    };
+    return map[activeOrder.value.latest.status] || 'bg-f1-red';
+});
+
 const showHamburgerMenu = ref(false);
 
 const toggleHamburger = () => { showHamburgerMenu.value = !showHamburgerMenu.value; };
@@ -40,38 +71,16 @@ const isIndexPage = computed(() => route().current('customer.shop.index'));
 const isCartPage = computed(() => route().current('customer.cart.index'));
 const isOrdersPage = computed(() => route().current('customer.orders.*'));
 
-const telemetryStatusColor = computed(() => {
-    if (!activeOrder.value) return 'bg-tech';
-    const map = {
-        'pending_payment': 'bg-amber-500 shadow-[0_0_8px_#f59e0b]',
-        'under_review': 'bg-blue-400 shadow-[0_0_8px_#60a5fa]',
-        'preparing': 'bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]',
-        'dispatched': 'bg-f1-red animate-bounce shadow-[0_0_8px_#ff0000]',
-        'arrived': 'bg-telemetry-green shadow-[0_0_12px_#00ff00]',
-        'completed': 'bg-telemetry-green opacity-50'
-    };
-    return map[activeOrder.value.status] || 'bg-f1-red';
-});
+
 </script>
 
 <template>
     <div class="customer-theme text-foreground font-sans min-h-[100svh] relative w-full transition-colors duration-300">
         
         <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-tech">
-            
-            <div class="absolute -top-[10%] -right-[10%] w-[70vw] md:w-[45vw] aspect-square rounded-full blur-[100px] md:blur-[140px] 
-                        bg-fuchsia-200/30 dark:bg-[#FF007F]/10 transition-colors duration-1000">
-            </div>
-
-            <div class="absolute -bottom-[10%] -left-[10%] w-[70vw] md:w-[45vw] aspect-square rounded-full blur-[100px] md:blur-[140px] 
-                        bg-cyan-200/30 dark:bg-[#00FFFF]/10 transition-colors duration-1000">
-            </div>
-
-            <div v-if="page.props.active_color" 
-                 class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] aspect-square rounded-full blur-[180px] opacity-10 mix-blend-screen"
-                 :style="{ backgroundColor: page.props.active_color }">
-            </div>
-
+            <div class="absolute -top-[10%] -right-[10%] w-[70vw] md:w-[45vw] aspect-square rounded-full blur-[100px] md:blur-[140px] bg-fuchsia-200/30 dark:bg-[#FF007F]/10 transition-colors duration-1000"></div>
+            <div class="absolute -bottom-[10%] -left-[10%] w-[70vw] md:w-[45vw] aspect-square rounded-full blur-[100px] md:blur-[140px] bg-cyan-200/30 dark:bg-[#00FFFF]/10 transition-colors duration-1000"></div>
+            <div v-if="page.props.active_color" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] aspect-square rounded-full blur-[180px] opacity-10 mix-blend-screen" :style="{ backgroundColor: page.props.active_color }"></div>
             <div class="absolute inset-0 tech-dot-pattern opacity-60 dark:opacity-40"></div>
         </div>
 
@@ -82,6 +91,7 @@ const telemetryStatusColor = computed(() => {
 
             <nav class="fixed top-0 left-0 right-0 h-[64px] flex items-center bg-background/40 backdrop-blur-xl border-b border-tech z-[60] transition-all duration-300">
                 <div class="container mx-auto px-4 h-full flex items-center justify-between w-full">
+                    
                     <Link :href="route('customer.shop.index')" class="flex items-center group">
                         <div class="w-9 h-9 bg-f1-red text-white flex items-center justify-center rounded-lg shadow-neon-red">
                             <Flag :size="18" class="fill-current" />
@@ -103,9 +113,7 @@ const telemetryStatusColor = computed(() => {
                 </div>
             </nav>
 
-            <main class="w-full mx-auto transition-all pt-[64px] pb-[80px] flex flex-col flex-1" 
-                :class="isIndexPage ? 'max-w-full px-0' : 'max-w-7xl px-4 py-6'">
-                
+            <main class="w-full mx-auto transition-all pt-[64px] pb-[80px] flex flex-col flex-1" :class="isIndexPage ? 'max-w-full px-0' : 'max-w-7xl px-4 py-6'">
                 <div v-if="isProfileSection && user" class="flex flex-col md:flex-row gap-8 flex-1">
                     <aside class="hidden md:block w-64 shrink-0 bg-surface/30 backdrop-blur-xl border border-tech rounded-[24px] p-2 h-fit shadow-sm">
                         <div class="p-4 border-b border-tech">
@@ -136,16 +144,36 @@ const telemetryStatusColor = computed(() => {
                 </footer>
             </main>
 
-            <nav class="fixed bottom-0 left-0 right-0 h-[80px] bg-background/40 backdrop-blur-xl border-t border-tech z-[70] flex justify-around items-center px-6 md:hidden">
+            <nav class="fixed bottom-0 left-0 right-0 h-[80px] bg-background/40 backdrop-blur-xl border-t border-tech z-[70] flex justify-around items-center px-4 md:hidden">
+    
                 <Link :href="route('customer.shop.index')" class="flex flex-col items-center">
-                    <Home :size="24" :class="isIndexPage ? 'text-f1-red' : 'text-muted'" />
+                    <Home :size="24" :class="isIndexPage ? 'text-f1-red shadow-neon-red' : 'text-muted'" />
                 </Link>
+
                 <Link :href="route('customer.cart.index')" class="relative">
                     <ShoppingBag :size="24" :class="isCartPage ? 'text-f1-red' : 'text-muted'" />
                     <span v-if="cartCount > 0" class="absolute -top-2 -right-3 min-w-[16px] h-[16px] bg-f1-red text-white text-[9px] font-mono rounded-full flex items-center justify-center">{{ cartCount }}</span>
                 </Link>
-                <Link :href="route('customer.orders.history')">
-                    <ClipboardList :size="24" :class="isOrdersPage ? 'text-f1-red' : 'text-muted'" />
+
+                <Link v-if="activeOrder?.count > 0" :href="activeOrderUrl" class="relative group mx-2">
+                    <div class="absolute inset-0 rounded-full blur-md opacity-50" :class="telemetryStatusColor"></div>
+                    <div class="relative w-12 h-12 rounded-full border-2 border-tech flex items-center justify-center bg-background/80 transition-transform active:scale-90"
+                        :class="route().current('customer.orders.show') ? 'border-f1-red shadow-neon-red' : ''">
+                        
+                        <Truck v-if="activeOrder.latest?.status === 'arrived'" :size="22" class="text-telemetry-green animate-bounce" />
+                        <CreditCard v-else-if="activeOrder.latest?.status === 'pending_payment'" :size="22" class="text-amber-500 animate-pulse" />
+                        <Package v-else :size="22" class="text-primary animate-pulse" />
+                        
+                        <span class="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-f1-red border-2 border-background rounded-full flex items-center justify-center text-[8px] font-black text-white">
+                            {{ activeOrder.count }}
+                        </span>
+                    </div>
+                </Link>
+                
+                <div v-else class="w-12 h-12 opacity-0 pointer-events-none"></div>
+
+                <Link :href="route('customer.orders.history')" class="flex flex-col items-center">
+                    <ClipboardList :size="24" :class="isOrdersPage && !route().current('customer.orders.show') ? 'text-f1-red shadow-neon-red' : 'text-muted'" />
                 </Link>
             </nav>
 

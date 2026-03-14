@@ -39,20 +39,9 @@ class AddressController extends Controller
         return back()->with('success', 'Ubicación principal actualizada.');
     }
 
-    public function destroy($id)
+    public function destroy($id, \App\Actions\Customer\Profiles\DeleteAddressAction $action)
     {
-        $user = Auth::guard('customer')->user();
-        $address = $user->addresses()->findOrFail($id);
-        
-        if ($address->is_default) {
-            $newDefault = $user->addresses()->where('id', '!=', $id)->first();
-            if ($newDefault) {
-                $newDefault->update(['is_default' => true]);
-                $user->update(['branch_id' => $newDefault->branch_id]);
-            }
-        }
-
-        $address->delete();
-        return back()->with('success', 'Ubicación eliminada.');
+        $action->execute(Auth::guard('customer')->user(), $id);
+        return back()->with('success', 'Ubicación extraída del sistema.');
     }
 }

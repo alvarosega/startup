@@ -2,39 +2,49 @@
 
 namespace App\Services\Order;
 
-use App\Models\{Branch, CustomerAddress, Customer};
+use App\Models\{Branch, Customer};
 
 class OrderFinancialService
 {
     private const EARTH_RADIUS_KM = 6371;
     private const URBAN_TORTUOSITY_FACTOR = 1.40; // Contexto La Paz
-    private const MAX_DELIVERY_FEE_THRESHOLD = 200.00; // Techo de seguridad
+    private const MAX_DELIVERY_FEE_THRESHOLD = 200.00; // Blindaje económico
 
-    public function calculate(Branch $branch, ?CustomerAddress $address, Customer $customer, float $itemsSubtotal, string $type): array
+    public function calculate(Branch $branch, Customer $customer, float $itemsSubtotal, string $type): array
     {
         $deliveryFee = 0.00;
         $distanceKm = 0.00;
-        $isWithinSafetyCeiling = true;
+        $isAvailable = true;
+        $errorMessage = null;
 
         // 1. Lógica de Envío (Solo si es 'delivery')
-        if ($type === 'delivery' && $address) {
-            $distanceKm = $this->calculateRealDistance($branch, $address);
+        if ($type === 'delivery') {
+            // Validar que el cliente tenga coordenadas sincronizadas
+            if (!$customer->latitude || !$customer->longitude) {
+                return $this->errorResponse("Ubicación del cliente no configurada.");
+            }
+
+            $distanceKm = $this->calculateRealDistance(
+                $branch->latitude, $branch->longitude,
+                $customer->latitude, $customer->longitude
+            );
             
             $baseDistanceFee = $branch->delivery_base_fee + ($distanceKm * $branch->delivery_price_per_km);
             $deliveryFee = round($baseDistanceFee * $branch->surge_multiplier, 2);
 
-            // Penalización por pedido pequeño
+            // Penalización por pedido mínimo
             if ($itemsSubtotal < $branch->min_order_amount) {
                 $deliveryFee += $branch->small_order_fee;
             }
 
-            // Protección: Validar techo de seguridad
+            // Validación de Techo de Seguridad (200 Bs)
             if ($deliveryFee > self::MAX_DELIVERY_FEE_THRESHOLD) {
-                $isWithinSafetyCeiling = false;
+                $isAvailable = false;
+                $errorMessage = "La distancia excede el límite operativo permitido.";
             }
         }
 
-        // 2. Lógica de Servicio (Comisión Digital + Trust Score)
+        // 2. Lógica de Servicio (Comisión + Trust Score Manual)
         $baseServiceFee = $itemsSubtotal * ($branch->base_service_fee_percentage / 100);
         $trustDiscount = max(0, min(100, (int) $customer->trust_score)) / 100;
         $finalServiceFee = round($baseServiceFee * (1 - $trustDiscount), 2);
@@ -47,24 +57,31 @@ class OrderFinancialService
             'service_fee'     => (float) $finalServiceFee,
             'total_amount'    => round($itemsSubtotal + $deliveryFee + $finalServiceFee, 2),
             'savings_loyalty' => round($baseServiceFee - $finalServiceFee, 2),
-            'is_available'    => $isWithinSafetyCeiling,
-            'error_message'   => $isWithinSafetyCeiling ? null : "Distancia fuera de rango operativo estándar."
+            'is_available'    => $isAvailable,
+            'error_message'   => $errorMessage
         ];
     }
 
-    private function calculateRealDistance($branch, $address): float
+    private function calculateRealDistance($lat1, $lon1, $lat2, $lon2): float
     {
-        if (!$branch->latitude || !$address->latitude) return 0.00;
-
-        $dLat = deg2rad($address->latitude - $branch->latitude);
-        $dLon = deg2rad($address->longitude - $branch->longitude);
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
 
         $a = sin($dLat / 2) * sin($dLat / 2) +
-             cos(deg2rad($branch->latitude)) * cos(deg2rad($address->latitude)) *
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
              sin($dLon / 2) * sin($dLon / 2);
              
         $haversine = self::EARTH_RADIUS_KM * (2 * asin(sqrt($a)));
         
         return $haversine * self::URBAN_TORTUOSITY_FACTOR;
+    }
+
+    private function errorResponse(string $msg): array
+    {
+        return [
+            'is_available' => false,
+            'error_message' => $msg,
+            'total_amount' => 0
+        ];
     }
 }

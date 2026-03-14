@@ -1,11 +1,19 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use App\Models\Order;
+use App\Services\Order\OrderCancellationService;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+Schedule::call(function () {
+    $cancellationService = app(OrderCancellationService::class);
 
-Schedule::command('orders:cancel-expired')->everyMinute();
+    // Buscamos órdenes pendientes cuyo tiempo de reserva ya pasó
+    $expiredOrders = Order::where('status', 'pending_payment')
+        ->where('reservation_expires_at', '<', now())
+        ->with('items')
+        ->get();
+
+    foreach ($expiredOrders as $order) {
+        $cancellationService->handleExpiration($order);
+    }
+})->everyMinute();

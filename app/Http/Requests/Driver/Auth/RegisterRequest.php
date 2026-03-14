@@ -9,10 +9,7 @@ class RegisterRequest extends FormRequest
 {
     use ValidatesGlobalIdentity;
 
-    public function authorize(): bool 
-    { 
-        return true; 
-    }
+    public function authorize(): bool { return true; }
 
     protected function prepareForValidation(): void
     {
@@ -22,28 +19,26 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Identidad Global
             'phone'          => $this->globalPhoneRules(),
             'email'          => $this->globalEmailRules(),
             'password'       => ['required', 'string', 'min:8', 'confirmed'],
 
-            // Datos del DriverDetail
             'first_name'     => ['required', 'string', 'max:100'],
             'last_name'      => ['required', 'string', 'max:100'],
             
-            // CORRECCIÓN CRÍTICA: Validar que la licencia sea única
-            'license_number' => ['required', 'string', 'unique:driver_details,license_number'], 
+            // CORRECCIÓN: La tabla ahora es driver_profiles
+            'license_number' => ['required', 'string', 'unique:driver_profiles,license_number'], 
             
-            'license_plate'  => ['required', 'string', 'max:10'], // Coincide con tu BD
+            'license_plate'  => ['required', 'string', 'max:10'], 
             'vehicle_type'   => ['required', 'string', 'in:moto,car,truck'],
         ];
     }
-    
-    // Opcional pero recomendado para UX Premium:
+
     public function messages(): array
     {
         return [
-            'license_number.unique' => 'Este número de licencia ya pertenece a otro conductor.',
+            'license_number.unique' => 'Este número de licencia ya está registrado en nuestra base de datos.',
+            'vehicle_type.in'       => 'El tipo de vehículo seleccionado no es válido.',
         ];
     }
 }

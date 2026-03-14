@@ -26,7 +26,9 @@ class Customer extends Authenticatable
         'password', 
         'trust_score', 
         'is_active',
-        'last_login_at'
+        'last_login_at',
+        'latitude',
+        'longitude',
     ];
 
     // ASEGURAR que branch_id esté en hidden (Ya lo tienes, pero verifícalo)
@@ -40,6 +42,8 @@ class Customer extends Authenticatable
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
         'email_verified_at' => 'datetime',
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
 
     // --- 4. RELACIONES ---
@@ -53,7 +57,10 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(CustomerAddress::class, 'customer_id', 'id');
     }
-
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Order::class, 'customer_id', 'id');
+    }
     public function favoriteProducts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'favorites', 'customer_id', 'product_id')

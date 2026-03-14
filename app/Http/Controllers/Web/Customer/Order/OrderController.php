@@ -43,15 +43,12 @@ class OrderController extends Controller
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
-    // Añade estos métodos al final de tu clase OrderController
-    /**
-     * Renderiza la interfaz de seguimiento (Mapa Icono A e Icono B)
-     */
     public function track(string $id): \Inertia\Response
     {
         $order = \App\Models\Order::where('customer_id', auth()->guard('customer')->id())
             ->where('id', $id)
-            ->with(['driver.details', 'branch'])
+            // CORREGIDO: Usamos 'profile' en lugar de 'details'
+            ->with(['driver.profile', 'branch'])
             ->firstOrFail();
 
         $latestLocation = null;
@@ -62,7 +59,18 @@ class OrderController extends Controller
         }
 
         return Inertia::render('Customer/Orders/Track', [
-            'order' => $order,
+            'order' => [
+                'id' => $order->id,
+                'code' => $order->code,
+                'status' => $order->status,
+                'delivery_data' => $order->delivery_data,
+                // El cliente solo ve el código si el driver marcó llegada
+                'delivery_otp' => $order->status === 'arrived' ? $order->delivery_otp : null,
+                'driver' => $order->driver ? [
+                    'profile' => $order->driver->profile,
+                    'phone' => $order->driver->phone
+                ] : null
+            ],
             'initialDriverLocation' => $latestLocation
         ]);
     }

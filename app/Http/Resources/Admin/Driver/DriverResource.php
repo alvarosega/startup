@@ -10,40 +10,35 @@ class DriverResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'           => $this->id,
-            'branch_id'    => $this->branch_id,
-            'phone'        => $this->phone,
+            'id'            => $this->id,
+            'branch_id'     => $this->branch_id,
+            'phone'         => $this->phone,
+            'email'         => $this->email,
+            'status'        => $this->status, // 'pending', 'active', etc.
+            'is_online'     => (bool) $this->is_online,
             
-            // --- VARIABLES CRÍTICAS AÑADIDAS ---
-            'status'       => $this->status,
-            'is_online'    => (bool) $this->is_online,
-            // -----------------------------------
-            
-            // Mantenemos las variables calculadas por si otros componentes las usan
-            'is_active'    => $this->status === 'active', 
-            'is_verified'  => ($this->details?->verification_status === 'verified'),
-            
-            'full_name'    => $this->details ? trim("{$this->details->first_name} {$this->details->last_name}") : 'Sin Datos',
-            'license_plate'=> $this->details?->license_plate ?? 'N/A',
-            'vehicle_type' => $this->details?->vehicle_type ?? 'moto',
+            // Variables calculadas para la UI
+            'is_active'     => $this->status === 'active', 
+            'full_name'     => $this->profile ? trim("{$this->profile->first_name} {$this->profile->last_name}") : 'Sin Datos',
+            'license_plate' => $this->profile?->license_plate ?? 'N/A',
+            'vehicle_type'  => $this->profile?->vehicle_type ?? 'moto',
 
-            'branch'       => $this->whenLoaded('branch', function () {
+            'branch'        => $this->whenLoaded('branch', function () {
                 return $this->branch ? [
                     'id'   => $this->branch->id,
                     'name' => $this->branch->name,
                 ] : null;
             }),
 
-            'details'      => [
-                'first_name'          => $this->details?->first_name ?? '',
-                'last_name'           => $this->details?->last_name ?? '',
-                'license_number'      => $this->details?->license_number ?? '',
-                'license_plate'       => $this->details?->license_plate ?? '',
-                'vehicle_type'        => $this->details?->vehicle_type ?? 'moto',
-                'verification_status' => $this->details?->verification_status ?? 'pending',
-                'ci_front_path'       => $this->details?->ci_front_path,
-                'license_photo_path'  => $this->details?->license_photo_path,
-                'vehicle_photo_path'  => $this->details?->vehicle_photo_path,
+            'profile'       => [
+                'first_name'         => $this->profile?->first_name ?? '',
+                'last_name'          => $this->profile?->last_name ?? '',
+                'license_number'     => $this->profile?->license_number ?? '',
+                'license_plate'      => $this->profile?->license_plate ?? '',
+                'vehicle_type'       => $this->profile?->vehicle_type ?? 'moto',
+                'ci_front_path'      => $this->profile?->ci_front_path,
+                'license_photo_path' => $this->profile?->license_photo_path,
+                'vehicle_photo_path' => $this->profile?->vehicle_photo_path,
             ],
         ];
     }

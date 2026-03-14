@@ -2,31 +2,37 @@
 
 namespace App\Actions\Customer\Profiles;
 
-use App\Models\Customer;
-use App\Models\CustomerAddress;
+use App\Models\{Customer, CustomerAddress};
 use App\DTOs\Customer\Profiles\AddressData;
+use App\Services\Geo\BranchCoverageService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UpsertAddressAction
 {
+    public function __construct(
+        protected BranchCoverageService $geoService
+    ) {}
+
     public function execute(Customer $customer, AddressData $data, ?string $addressId = null): CustomerAddress
     {
-        // 1. Validar límite estricto de 3 direcciones (solo para nuevos registros)
-        if (!$addressId && $customer->addresses()->count() >= 3) {
-            throw ValidationException::withMessages(['limit' => 'Límite de 3 direcciones alcanzado.']);
+        // 1. LEY: Límite ampliado a 10 ubicaciones
+        if (!$addressId && $customer->addresses()->count() >= 10) {
+            throw ValidationException::withMessages(['limit' => 'Has alcanzado el máximo de 10 ubicaciones permitidas.']);
         }
 
         return DB::transaction(function () use ($customer, $data, $addressId) {
             $isFirst = $customer->addresses()->count() === 0;
             $shouldBeDefault = $isFirst || $data->isDefault;
 
-            // 2. Si es default, resetear los demás
+            // 2. Identificación automática de Sucursal por Polígono
+            $identifiedBranchId = $this->geoService->identifyBranch($data->latitude, $data->longitude);
+
             if ($shouldBeDefault) {
                 $customer->addresses()->update(['is_default' => false]);
             }
 
-            // 3. Crear o Actualizar (HasUuids maneja el ID automáticamente)
+            // 3. Persistencia de la dirección
             $address = $customer->addresses()->updateOrCreate(
                 ['id' => $addressId],
                 [
@@ -35,14 +41,18 @@ class UpsertAddressAction
                     'reference'  => $data->details,
                     'latitude'   => $data->latitude,
                     'longitude'  => $data->longitude,
-                    'branch_id'  => $data->branchId,
+                    'branch_id'  => $identifiedBranchId, // Asignación por cobertura
                     'is_default' => $shouldBeDefault
                 ]
             );
 
-            // 4. Sincronizar catálogo
+            // 4. LEY DE REPLICACIÓN: Sincronizar núcleo del Cliente
             if ($shouldBeDefault) {
-                $customer->update(['branch_id' => $address->branch_id]);
+                $customer->update([
+                    'branch_id' => $identifiedBranchId,
+                    'latitude'  => $data->latitude,
+                    'longitude' => $data->longitude,
+                ]);
             }
 
             return $address;

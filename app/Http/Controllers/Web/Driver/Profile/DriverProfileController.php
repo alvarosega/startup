@@ -3,42 +3,67 @@
 namespace App\Http\Controllers\Web\Driver\Profile;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Driver\Profile\UploadDocsRequest;
-use App\DTOs\Driver\Profile\UploadDocsData;
-use App\Actions\Driver\Profile\UploadDocsAction;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class DriverProfileController extends Controller
 {
     public function index()
     {
         $driver = Auth::guard('driver')->user();
-        $driver->load(['details', 'branch']);
+        $driver->load(['profile', 'branch']);
 
-        // Utilizamos el estado principal del conductor como fuente de verdad
-        $status = $driver->status; 
-        
-        // Verificamos si los documentos ya existen en el registro
-        $hasDocs = !empty($driver->details->ci_front_path) && !empty($driver->details->license_photo_path);
-
-        // SIEMPRE retornamos la misma vista. El frontend decidirá qué pintar basado en las variables.
         return Inertia::render('Driver/Profile/Index', [
-            'driver'  => $driver,
-            'status'  => $status,
-            'hasDocs' => $hasDocs
+            'driver' => $driver,
+            'status' => $driver->status,
+            // Calculamos si tiene los documentos básicos subidos
+            'hasDocs' => (bool)($driver->profile?->ci_front_path && $driver->profile?->license_photo_path)
         ]);
     }
 
-    public function uploadDocs(UploadDocsRequest $request, UploadDocsAction $action)
+    public function uploadDocs(Request $request)
     {
+        $request->validate([
+            'ci_front'      => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'license_photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+        ]);
+
         $driver = Auth::guard('driver')->user();
-        $data = UploadDocsData::fromRequest($request);
-        $action->execute($data, $driver);
+        $profile = $driver->profile;
 
-        // Cambiamos el estado a 'pending' (o 'under_review' según tu lógica) para indicar que subió docs
-        $driver->update(['status' => 'pending']); 
+        // Guardamos y actualizamos rutas
+        if ($request->hasFile('ci_front')) {
+            if ($profile->ci_front_path) Storage::disk('public')->delete($profile->ci_front_path);
+            $profile->ci_front_path = $request->file('ci_front')->store('drivers/documents', 'public');
+        }
 
-        return back()->with('success', 'Documentos enviados a revisión.');
+        if ($request->hasFile('license_photo')) {
+            if ($profile->license_photo_path) Storage::disk('public')->delete($profile->license_photo_path);
+            $profile->license_photo_path = $request->file('license_photo')->store('drivers/documents', 'public');
+        }
+
+        $profile->save();
+
+        // Opcional: Podrías cambiar el status del driver a 'reviewing' si lo deseas
+        // $driver->update(['status' => 'pending']); 
+
+        return back()->with('success', 'Documentos recibidos.');
+    }
+
+    public function update(Request $request)
+    {
+        $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name'  => ['required', 'string', 'max:100'],
+            'vehicle_type' => ['required', 'string', 'in:moto,car,truck'],
+        ]);
+
+        Auth::guard('driver')->user()->profile()->update($request->only([
+            'first_name', 'last_name', 'vehicle_type'
+        ]));
+
+        return back()->with('success', 'Información actualizada.');
     }
 }

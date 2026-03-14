@@ -5,12 +5,17 @@ namespace App\Actions\Driver\Order;
 use App\Models\Driver;
 use App\Models\Order;
 use Exception;
+use Illuminate\Support\Str;
 
 class TakeOrderAction
 {
+    /**
+     * El conductor acepta el pedido mientras está en preparación.
+     */
     public function execute(string $orderId, Driver $driver): void
     {
-        $otp = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        // Generamos un Pickup OTP corto y legible (ej: A4B2D)
+        $pickupOtp = strtoupper(Str::random(5)); 
 
         $affectedRows = Order::where('id', $orderId)
             ->where('branch_id', $driver->branch_id)
@@ -18,11 +23,11 @@ class TakeOrderAction
             ->whereNull('driver_id')
             ->update([
                 'driver_id' => $driver->id,
-                'delivery_otp' => $otp
+                'pickup_otp' => $pickupOtp, // Guardamos el código que el CAJERO dictará
             ]);
 
         if ($affectedRows === 0) {
-            throw new Exception('Objetivo no disponible. Es probable que otro conductor lo haya tomado.');
+            throw new Exception('Objetivo no disponible o ya asignado a otro conductor.');
         }
     }
 }

@@ -56,4 +56,9 @@ class Driver extends Authenticatable
     {
         return $this->hasMany(DriverLocationLog::class, 'driver_id', 'id');
     }
+    public function profile(): HasOne
+    {
+        // Forzamos la llave foránea para que coincida con la migración
+        return $this->hasOne(DriverProfile::class, 'driver_id', 'id');
+    }
 }

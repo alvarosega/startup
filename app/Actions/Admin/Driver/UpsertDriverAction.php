@@ -14,19 +14,16 @@ class UpsertDriverAction
     {
         return DB::transaction(function () use ($dto) {
             $isNew = empty($dto->id);
-            $driverId = $dto->id ?? Str::uuid()->toString();
+            $driverId = $dto->id ?? (string) Str::uuid();
 
-            // Lógica de Máquina de Estados (Rechazo vs Aprobación)
-            $finalStatus = 'inactive';
-            if ($dto->isActive) {
-                if ($dto->rejectionReason) {
-                    $finalStatus = 'rejected';
-                } else {
-                    $finalStatus = $dto->isIdentityVerified ? 'active' : 'pending';
-                }
+            // Lógica de Máquina de Estados
+            $finalStatus = $dto->isActive ? 'active' : 'inactive';
+            
+            // Si el admin escribe un motivo de rechazo, forzamos estado rejected
+            if ($dto->rejectionReason) {
+                $finalStatus = 'rejected';
             }
 
-            // 1. Data Core
             $driverData = [
                 'phone'     => $dto->phone,
                 'email'     => $dto->email,
@@ -38,16 +35,10 @@ class UpsertDriverAction
                 $driverData['password'] = Hash::make($dto->password);
             }
 
-            // Defaults de nacimiento
-            if ($isNew) {
-                $driverData['is_online'] = false;
-                $driverData['is_available'] = false;
-            }
-
             $driver = Driver::updateOrCreate(['id' => $driverId], $driverData);
 
-            // 2. Data Detalle Documental
-            $driver->details()->updateOrCreate(
+            // 2. Data Detalle Documental (Uso de 'profile')
+            $driver->profile()->updateOrCreate(
                 ['driver_id' => $driver->id],
                 [
                     'first_name'       => $dto->firstName,
@@ -60,6 +51,6 @@ class UpsertDriverAction
             );
 
             return $driver;
-        });
+        } );
     }
 }

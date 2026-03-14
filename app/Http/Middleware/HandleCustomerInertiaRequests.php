@@ -54,6 +54,24 @@ class HandleCustomerInertiaRequests extends Middleware
             'cart_summary' => [
                 'count' => $this->getCartCount($user?->id, $guestUuid, $branchId),
             ],
+
+            'active_order' => function () use ($user) {
+                if (!$user) return null;
+                
+                $activeStatuses = ['pending_payment', 'under_review', 'preparing', 'dispatched', 'arrived'];
+
+                // Usamos query builder para ser eficientes
+                $query = $user->orders()->whereIn('status', $activeStatuses);
+
+                // Clonamos la query para obtener el último y el conteo por separado
+                $latest = (clone $query)->latest()->first(['id', 'status', 'code']);
+                $count = $query->count();
+
+                return [
+                    'latest' => $latest, // Aquí viaja el ID que Ziggy necesita
+                    'count'  => $count,
+                ];
+            },
         ]);
     }
 

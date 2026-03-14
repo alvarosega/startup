@@ -18,23 +18,33 @@ class CustomerSeeder extends Seeder
         $branches = Branch::where('is_active', true)->pluck('id')->toArray();
         $customerRole = Role::firstOrCreate(['name' => 'customer']);
 
-        // Protegemos la inserción masiva
         DB::transaction(function () use ($faker, $branches, $customerRole) {
             
             for ($i = 0; $i < 10; $i++) {
                 $customerId = Str::uuid()->toString();
                 $branchId = !empty($branches) ? $faker->randomElement($branches) : null;
 
-                // 1. Core Customer
+                // --- 0. LÓGICA DE GEOPOSICIONAMIENTO PRE-PROCESADA ---
+                // Simulamos coordenadas en el eje central de operación
+                $lat = -16.5000 + ($faker->randomFloat(8, -0.05, 0.05));
+                $lng = -68.1500 + ($faker->randomFloat(8, -0.05, 0.05));
+
+                // 1. Core Customer (Persistencia de Coordenadas)
                 DB::table('customers')->insert([
                     'id'           => $customerId,
                     'branch_id'    => $branchId,
-                    'phone'        => '+5917' . $faker->randomNumber(7, true), // Formato Bolivia
+                    'phone'        => '+5917' . $faker->randomNumber(7, true),
                     'country_code' => 'BO',
                     'email'        => $faker->unique()->safeEmail(),
                     'password'     => Hash::make('password123'),
                     'trust_score'  => 50,
                     'is_active'    => true,
+                    
+                    // --- REPLICACIÓN INTEGRAL ---
+                    'latitude'     => $lat,
+                    'longitude'    => $lng,
+                    // ----------------------------
+
                     'created_at'   => now(),
                     'updated_at'   => now(),
                 ]);
@@ -50,7 +60,7 @@ class CustomerSeeder extends Seeder
                     'updated_at'    => now(),
                 ]);
 
-                // 3. Address (Simulando coordenadas céntricas)
+                // 3. Address (Sincronizada con el Core)
                 if ($branchId) {
                     DB::table('customer_addresses')->insert([
                         'id'          => Str::uuid()->toString(),
@@ -58,15 +68,19 @@ class CustomerSeeder extends Seeder
                         'branch_id'   => $branchId,
                         'alias'       => 'Casa Principal',
                         'address'     => $faker->streetAddress(),
-                        'latitude'    => -16.5000 + ($faker->randomFloat(4, -0.05, 0.05)),
-                        'longitude'   => -68.1500 + ($faker->randomFloat(4, -0.05, 0.05)),
+                        
+                        // --- REPLICACIÓN INTEGRAL ---
+                        'latitude'    => $lat,
+                        'longitude'   => $lng,
+                        // ----------------------------
+
                         'is_default'  => true,
                         'created_at'  => now(),
                         'updated_at'  => now(),
                     ]);
                 }
 
-                // 4. Role (Spatie Model Has Roles usa el modelo real para polimorfismo)
+                // 4. Role
                 DB::table('model_has_roles')->insert([
                     'role_id'    => $customerRole->id,
                     'model_type' => 'App\Models\Customer',
@@ -75,6 +89,6 @@ class CustomerSeeder extends Seeder
             }
         });
 
-        $this->command->info('✅ 10 Customers Generados (Silo Customer Blindado)');
+        $this->command->info('✅ 10 Customers Generados con Coordenadas Sincronizadas');
     }
 }

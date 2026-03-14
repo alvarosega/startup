@@ -15,21 +15,20 @@ class OrderItem extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'order_id', 'sku_id', 'quantity', 'unit_price', 'subtotal'
+        'id', 'order_id', 'sku_id', 
+        
+        // Snapshots Históricos (Crucial para integridad)
+        'product_name', 'sku_name', 'image_snapshot',
+        
+        'quantity', 'unit_price', 'subtotal'
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
-        'subtotal' => 'decimal:2'
+        'subtotal' => 'decimal:2',
+        'quantity' => 'integer'
     ];
 
-    public function order(): BelongsTo 
-    { 
-        return $this->belongsTo(Order::class); 
-    }
-
-    public function sku(): BelongsTo 
-    { 
-        return $this->belongsTo(Sku::class); 
-    }
+    public function order(): BelongsTo { return $this->belongsTo(Order::class); }
+    public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
 }

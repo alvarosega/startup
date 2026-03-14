@@ -23,7 +23,7 @@ class UpsertDriverRequest extends FormRequest
         $isUpdate = $driverId !== null;
 
         return [
-            'branch_id'      => ['nullable', 'uuid', 'exists:branches,id'],
+            'branch_id'      => ['required', 'uuid', 'exists:branches,id'],
             'first_name'     => ['required', 'string', 'max:100'],
             'last_name'      => ['required', 'string', 'max:100'],
             'password'       => $isUpdate ? ['nullable', 'string', 'min:8'] : ['required', 'string', 'min:8'],

@@ -4,6 +4,7 @@ namespace App\Actions\Admin\Order;
 use App\Models\Order;
 use App\DTOs\Admin\Order\ReviewPaymentDTO;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage; // <- IMPORTAR STORAGE
 use Exception;
 
 class RejectOrderPaymentAction
@@ -17,11 +18,17 @@ class RejectOrderPaymentAction
                 throw new Exception('El pago de esta orden no está en revisión.');
             }
 
+            // 1. LIMPIEZA ZERO-WASTE (Borrar archivo del disco)
+            if ($order->proof_of_payment) {
+                Storage::disk('public')->delete($order->proof_of_payment);
+            }
+
+            // 2. RETORNO DE ESTADO AL CLIENTE
             $order->update([
-                'status' => 'pending_payment', // Lo regresamos al cliente
+                'status' => 'pending_payment',
                 'rejection_reason' => $dto->rejectionReason,
-                'proof_of_payment' => null, // Borramos el comprobante malo de la BD
-                'reservation_expires_at' => now()->addMinutes(10) // Le damos 10 min extra
+                'proof_of_payment' => null, 
+                'reservation_expires_at' => now()->addMinutes(10) // 10 min extra
             ]);
         });
     }

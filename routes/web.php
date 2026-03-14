@@ -284,6 +284,7 @@ Route::prefix('driver')->name('driver.')->middleware(['inertia.driver'])->group(
         Route::post('/orders/{id}/take', [DashboardController::class, 'takeOrder'])->name('orders.take');
         Route::post('/orders/{id}/arrived', [DashboardController::class, 'markAsArrived'])->name('orders.arrived');
         Route::post('/orders/{id}/complete', [DashboardController::class, 'completeOrder'])->name('orders.complete');
+        Route::post('/orders/{id}/pickup', [DashboardController::class, 'verifyPickup'])->name('orders.verify-pickup');
         Route::post('/upload-docs', [DriverProfileController::class, 'uploadDocs'])->name('upload-docs');
         Route::get('/history', [DriverDashboardController::class, 'history'])->name('history');
         Route::post('logout', [DriverLoginController::class, 'destroy'])->name('logout');

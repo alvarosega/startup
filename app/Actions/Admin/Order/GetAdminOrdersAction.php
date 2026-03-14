@@ -11,7 +11,14 @@ class GetAdminOrdersAction
         return Order::with([
             'customer:id,phone', 
             'customer.profile:customer_id,first_name,last_name',
-            'branch:id,name'
+            'branch:id,name',
+            // CRÍTICO: Cargar Driver y su Perfil para evitar el error RelationNotFound
+            'driver' => function($query) {
+                $query->select('id');
+            },
+            'driver.profile' => function($query) {
+                $query->select('driver_id', 'first_name', 'last_name');
+            }
         ])
             ->whereNotIn('status', ['expired', 'cancelled', 'completed']) 
             ->orderByRaw("

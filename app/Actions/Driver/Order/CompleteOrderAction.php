@@ -15,18 +15,26 @@ class CompleteOrderAction
             $order = Order::where('id', $dto->orderId)
                 ->where('driver_id', $dto->driverId)
                 ->where('status', 'arrived')
-                ->lockForUpdate() // Evita race conditions
+                ->lockForUpdate() 
                 ->first();
 
             if (!$order) {
-                throw new Exception('Orden no válida para completar o estado incorrecto.');
+                throw new Exception('Operación inválida. La orden no está en estado de entrega.');
             }
 
+            // Validación estricta del OTP
             if ($order->delivery_otp !== $dto->otp) {
-                throw new Exception('Código PIN incorrecto. Intenta de nuevo.');
+                throw new Exception('Código PIN incorrecto. Solicítalo nuevamente al cliente.');
             }
 
-            $order->update(['status' => 'completed']);
+            $order->update([
+                'status' => 'completed',
+                'completed_at' => now(), // Registro para KPIs de logística
+                'delivery_otp' => null   // Limpieza de seguridad
+            ]);
+            
+            // Nota: Aquí podrías liberar al conductor en Redis si fuera necesario, 
+            // pero su estado 'is_online' lo mantiene en el radar para el siguiente pedido.
         });
     }
 }
