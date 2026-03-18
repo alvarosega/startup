@@ -41,14 +41,19 @@ class ShopController extends Controller
     {
         $branchId = $this->contextService->getActiveBranchId();
 
-        // El Action se encarga de todo el procesamiento pesado y la jerarquía
-        $data = $zoneAction->execute($zone, $branchId);
+        // CAPTURAMOS EL ID DE LA MARCA: 
+        // Si no viene (carga inicial), la Acción devolverá solo la navegación.
+        $brandId = $request->query('brand_id');
+
+        $data = $zoneAction->execute($zone, $branchId, $brandId);
 
         return Inertia::render('Customer/Shop/Zone', [
-            'zone'              => $data['zone'],
-            'groupedCategories' => $data['groupedCategories'],
-            'targetCategory'    => $request->query('category'),
-            'shop_context'      => ['branch_id' => $branchId] 
+            'zone'             => $data['zone'],
+            // LLAVE SINCRONIZADA: brandsNavigation en lugar de groupedCategories
+            'brandsNavigation' => $data['brandsNavigation'], 
+            'brandContent'     => $data['brandContent'],
+            'targetCategory'   => $request->query('category'),
+            'shop_context'     => ['branch_id' => $branchId] 
         ]);
     }
 }

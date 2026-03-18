@@ -14,11 +14,8 @@ class BundleSeeder extends Seeder
         $branches = Branch::all();
         $skus = Sku::where('is_active', true)->get();
 
-        if ($branches->isEmpty() || $skus->isEmpty()) {
-            return;
-        }
+        if ($branches->isEmpty() || $skus->isEmpty()) return;
 
-        // Definición de los 7 tipos de bundles solicitados
         $packDefinitions = [
             ['name' => 'Flash Sale Alpha', 'desc' => 'Oferta de tiempo limitado nivel 1.'],
             ['name' => 'Flash Sale Beta', 'desc' => 'Oferta de tiempo limitado nivel 2.'],
@@ -27,32 +24,35 @@ class BundleSeeder extends Seeder
             ['name' => 'Kit de Supervivencia', 'desc' => 'Básicos esenciales de la sucursal.'],
             ['name' => 'Pack de Temporada', 'desc' => 'Productos exclusivos del mes.'],
             ['name' => 'Mega Bundle Omega', 'desc' => 'El pack más completo del catálogo.'],
+            ['name' => 'Starter Kit Pro', 'desc' => 'Todo lo necesario para iniciar.'],
         ];
 
-        $startDate = Carbon::create(2026, 3, 3, 0, 0, 0);
-        $baseEndDate = Carbon::create(2026, 4, 3, 23, 59, 59);
+        $startDate = Carbon::now();
+        $baseEndDate = Carbon::now()->addMonth();
 
         foreach ($branches as $branch) {
             foreach ($packDefinitions as $index => $data) {
-                // Cálculo escalonado de fecha de vencimiento (Día 3, 4, 5...)
-                $endsAt = $baseEndDate->copy()->addDays($index);
-
+                // Lógica 50/50: Pares son Editables, Impares son Packs Fijos
+                $isEditable = ($index % 2 === 0);
+                
                 $bundle = Bundle::create([
-                    'branch_id'     => $branch->id,
-                    'name'          => "{$data['name']} - {$branch->name}",
-                    'slug'          => Str::slug($data['name'] . '-' . $branch->name) . '-' . Str::random(4),
-                    'description'   => $data['desc'],
-                    'fixed_price'   => rand(50, 500),
-                    'is_active'     => true,
-                    'starts_at'     => $startDate,
-                    'ends_at'       => $endsAt,
+                    'branch_id'   => $branch->id,
+                    'name'        => "{$data['name']} - {$branch->name}",
+                    'slug'        => Str::slug($data['name'] . '-' . $branch->name) . '-' . Str::random(4),
+                    'description' => $data['desc'],
+                    // Si es editable, el precio suele ser dinámico (NULL), si no, es fijo.
+                    'fixed_price' => $isEditable ? null : rand(100, 500),
+                    'is_editable' => $isEditable,
+                    'is_active'   => true,
+                    'starts_at'   => $startDate,
+                    'ends_at'     => $baseEndDate->copy()->addDays($index),
                 ]);
 
-                // Asignación de Items (Pivote sin ID)
-                $randomSkus = $skus->random(rand(2, 4));
+                // Asignar entre 2 y 4 SKUs aleatorios
                 $items = [];
+                $randomSkus = $skus->random(rand(2, 4));
                 foreach ($randomSkus as $sku) {
-                    $items[$sku->id] = ['quantity' => rand(1, 5)];
+                    $items[$sku->id] = ['quantity' => rand(1, 3)];
                 }
 
                 $bundle->skus()->sync($items);

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { AlertTriangle } from 'lucide-vue-next';
+import { AlertTriangle, MapPin } from 'lucide-vue-next';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import ZoneNavigator from '@/Components/Shop/ZoneNavigator.vue';
 import BundleList from '@/Components/Shop/BundleList.vue';
@@ -73,21 +73,23 @@ watch(() => page.props.cart_summary?.count, () => {}, { immediate: true });
                 />
 
                 <div v-else class="flex-1 flex items-center justify-center p-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-                    <div class="w-full max-w-sm bg-surface/20 backdrop-blur-2xl border border-white/10 dark:border-white/5 rounded-[40px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] p-10 text-center flex flex-col items-center">
+                    <div class="w-full max-w-sm bg-card rounded-xl p-10 text-center flex flex-col items-center shadow-apple-soft dark:shadow-none border-none dark:border dark:border-card-border">
                         
-                        <div class="w-20 h-20 rounded-3xl bg-transparent border-4 border-f1-red/20 flex items-center justify-center mb-6 shadow-inner">
-                            <AlertTriangle :size="36" class="text-f1-red" stroke-width="2.5" />
+                        <div class="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
+                            <AlertTriangle :size="36" class="text-primary" stroke-width="2.5" />
                         </div>
                         
-                        <h2 class="text-3xl font-sans font-black text-foreground tracking-tighter leading-none mb-4">
+                        <h2 class="text-2xl font-extrabold text-foreground tracking-tight mb-3">
                             Fuera de Zona
                         </h2>
                         
-                        <p class="text-[11px] font-black text-foreground/60 uppercase tracking-[0.1em] leading-relaxed">
-                            No hay tiendas ni productos disponibles para tu ubicación actual.
+                        <p class="text-sm font-medium text-muted-foreground leading-relaxed mb-8">
+                            No hay tiendas ni productos disponibles para tu ubicación actual. Por favor, selecciona un área de cobertura válida.
                         </p>
                         
-                        <button @click="router.visit(route('customer.profile.addresses'))" class="mt-8 h-12 px-6 bg-foreground/5 backdrop-blur-lg border border-foreground/10 rounded-[20px] font-black uppercase text-[11px] text-foreground hover:bg-foreground/10 transition-colors active:scale-95 shadow-inner">
+                        <button @click="router.visit(route('customer.profile.addresses'))" 
+                            class="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg transition-all duration-200 active:scale-95 hover:bg-primary/90 dark:hover:shadow-f1-glow w-full justify-center">
+                            <MapPin :size="18" />
                             Cambiar Dirección
                         </button>
                     </div>

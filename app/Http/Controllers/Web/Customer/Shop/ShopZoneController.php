@@ -19,14 +19,18 @@ class ShopZoneController extends Controller
     public function __invoke(Request $request, MarketZone $zone, GetShopZoneAction $zoneAction): Response 
     {
         $branchId = $this->contextService->getActiveBranchId();
-
-        $data = $zoneAction->execute($zone, $branchId);
-
+        
+        // Si la request trae 'brand_id', pedimos solo esa marca.
+        // Si no, cargamos la estructura inicial.
+        $brandId = $request->query('brand_id');
+    
+        $data = $zoneAction->execute($zone, $branchId, $brandId);
+    
         return Inertia::render('Customer/Shop/Zone', [
             'zone'              => $data['zone'],
-            'groupedCategories' => $data['groupedCategories'],
+            'brandsNavigation'  => $data['brands_navigation'],
+            'brandContent'      => $data['brand_content'], // Será null en el primer load
             'targetCategory'    => $request->query('category'),
-            'shop_context'      => ['branch_id' => $branchId] 
         ]);
     }
 }

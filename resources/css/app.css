@@ -1,4 +1,3 @@
-/* resources/css/app.css */
 @import './root.css';
 
 @tailwind base;
@@ -6,120 +5,46 @@
 @tailwind utilities;
 
 @layer base {
-  *, *::before, *::after {
-    border-color: hsl(var(--border));
-  }
-  html, body {
-    /* CAMBIO: Eliminamos bg-background. El Layout se encargará del color. */
-    @apply text-foreground antialiased; 
-    font-family: 'Century Gothic', 'Inter', sans-serif;
-    overscroll-behavior-y: none;
-    background-color: transparent; /* FUNDAMENTAL */
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  ::selection {
-    @apply bg-primary/20 text-primary;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight text-foreground;
-    font-family: 'Century Gothic', sans-serif;
-  }
-
-  /* Inputs modernos: borde inferior sutil, focus con anillo */
-  input, textarea, select {
-    @apply w-full bg-transparent border border-border rounded-lg px-4 py-2 text-foreground text-sm outline-none transition-all duration-200;
-    font-family: 'Century Gothic', sans-serif;
-  }
-
-  input:focus, textarea:focus, select:focus {
-    @apply border-primary ring-2 ring-primary/20;
-  }
-
-  /* Scrollbars elegantes */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary/60;
+  h1, h2, h3 {
+    @apply font-extrabold tracking-tight;
   }
 }
 
 @layer components {
-  /* Tarjetas modernas con sombra suave */
-  .card {
-    @apply bg-card text-card-foreground rounded-xl border border-border shadow-sm transition-all duration-200;
-  }
-  .card:hover {
-    @apply shadow-md border-primary/20;
+  /* CARD DE PRODUCTO: EQUILIBRIO APPLE/F1 */
+  .product-card {
+    @apply relative overflow-hidden transition-all duration-300 ease-out;
+    @apply bg-card rounded-lg border border-card-border;
+    /* En claro usa sombra, en oscuro usa el borde definido */
+    @apply shadow-apple-soft dark:shadow-none;
   }
 
-  /* Botones con microinteracciones rápidas */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 ease-out;
-    font-family: 'Century Gothic', sans-serif;
+  .product-card:hover {
+    @apply -translate-y-1 dark:border-primary/50;
+    @apply shadow-lg dark:shadow-f1-glow;
   }
+
+  /* BOTÓN PRINCIPAL */
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98];
-  }
-  .btn-outline {
-    @apply border border-border bg-transparent hover:bg-primary/5 hover:border-primary/30;
-  }
-  .btn-ghost {
-    @apply hover:bg-muted/10;
-  }
-  .btn-destructive {
-    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
-  }
-  .btn:active {
-    transform: scale(0.97);
+    @apply px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-md transition-all duration-200;
+    @apply active:scale-95;
+    @apply dark:hover:shadow-f1-glow;
   }
 
-  /* Badges modernos */
-  .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
-  }
-  .badge-success {
-    @apply bg-success/10 text-success border border-success/20;
-  }
-  .badge-warning {
-    @apply bg-warning/10 text-warning border border-warning/20;
-  }
-  .badge-destructive {
-    @apply bg-destructive/10 text-destructive border border-destructive/20;
+  /* BADGE DE OFERTA INDEPENDIENTE */
+  .badge-offer {
+    @apply px-2 py-1 text-xs font-bold uppercase rounded-sm;
+    @apply bg-accent/10 text-accent border border-accent/20;
+    @apply dark:bg-accent dark:text-black dark:shadow-[0_0_10px_rgba(0,255,0,0.4)];
   }
 
-  /* Tablas limpias */
-  .table-modern {
-    @apply w-full border-collapse;
-  }
-  .table-modern th {
-    @apply px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border;
-  }
-  .table-modern td {
-    @apply px-4 py-3 border-b border-border/60;
-  }
-  .table-modern tbody tr {
-    @apply transition-colors duration-150;
-  }
-  .table-modern tbody tr:hover {
-    @apply bg-muted/5;
-  }
-
-  /* Separadores */
-  .divider {
-    @apply h-px w-full bg-border/50 my-4;
-  }
-
-  /* Efecto de skeleton loader ultra rápido (opcional) */
-  .skeleton {
-    @apply animate-pulse bg-muted/20 rounded;
+  /* CONTENEDOR DE IMAGEN (TRANSPARENCIAS) */
+  .product-image-container {
+    @apply flex items-center justify-center p-4 mix-blend-multiply dark:mix-blend-normal;
   }
 }

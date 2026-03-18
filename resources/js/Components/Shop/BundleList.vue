@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Clock, AlertCircle } from 'lucide-vue-next';
+import { Clock, AlertCircle, Zap } from 'lucide-vue-next';
 
 const props = defineProps({
     bundles: {
@@ -26,28 +26,32 @@ onUnmounted(() => {
 });
 
 const getTimerData = (endsAt) => {
-    if (!endsAt) return { isExpired: false, h: '--', m: '--', s: '--' };
+    if (!endsAt) return { isExpired: false, isExpiringSoon: false, h: '--', m: '--', s: '--' };
     const endTime = new Date(endsAt).getTime();
     const diff = endTime - currentTime.value;
     
-    if (diff <= 0) return { isExpired: true, h: '00', m: '00', s: '00' };
+    if (diff <= 0) return { isExpired: true, isExpiringSoon: false, h: '00', m: '00', s: '00' };
 
     const h = Math.floor(diff / (1000 * 60 * 60)).toString().padStart(2, '0');
     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
     const s = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
     
-    return { isExpired: false, h, m, s };
+    // Si queda menos de 1 hora, se considera que expira pronto (para el modo oscuro)
+    const isExpiringSoon = diff < (1000 * 60 * 60);
+    
+    return { isExpired: false, isExpiringSoon, h, m, s };
 };
 
+// Limitamos a 4 imágenes exactas para el efecto de abanico
 const getSkuImages = (bundle) => {
     if (bundle.items && bundle.items.length > 0) {
-        return bundle.items.map(sku => sku.image_path || sku.image_url || null);
+        return bundle.items.map(sku => sku.image_path || sku.image_url || null).slice(0, 4);
     }
     return [];
 };
 
 const getImageUrl = (path) => {
-    if (!path) return '/assets/img/placeholder.png'; // Asegura PNG transparente de placeholder
+    if (!path) return '/assets/img/placeholder.png';
     if (path.startsWith('http')) return path;
     return `/storage/${path.replace(/^\/+/, '')}`;
 };
@@ -60,57 +64,68 @@ const handleBundleClick = (bundle, isExpired) => {
 
 <template>
     <div v-if="bundles && bundles.length > 0" 
-         class="w-full sticky top-[64px] z-[45] bg-surface/30 backdrop-blur-xl border-b border-tech pt-3 pb-2 transition-colors duration-500">
+        class="w-full sticky top-[64px] z-[45] bg-background/80 backdrop-blur-xl border-b border-border/50 dark:border-card-border pt-2 pb-4 transition-colors duration-500">
         
-        <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 gap-4 pb-2">
+        <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 gap-6 pb-2">
             
             <div v-for="bundle in bundles" :key="bundle.id" 
-                 class="w-[85vw] md:w-[340px] h-20 shrink-0 snap-start relative transition-all duration-300 cyber-border-card rounded-[16px]"
-                 :class="getTimerData(bundle.ends_at).isExpired ? 'is-offline opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'"
+                 class="relative w-[85vw] md:w-[360px] h-36 shrink-0 snap-start group"
+                 :class="getTimerData(bundle.ends_at).isExpired ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'"
                  @click="handleBundleClick(bundle, getTimerData(bundle.ends_at).isExpired)">
                  
-                <div class="cyber-border-content bg-surface/60 backdrop-blur-xl">
+                <div class="absolute inset-0 bg-card rounded-2xl transform translate-y-3 scale-[0.90] opacity-40 shadow-[0_10px_30px_rgba(0,0,0,0.1)] dark:shadow-none dark:border dark:border-card-border transition-transform group-hover:translate-y-4"></div>
+                <div class="absolute inset-0 bg-card rounded-2xl transform translate-y-1.5 scale-[0.95] opacity-70 shadow-[0_15px_40px_rgba(0,0,0,0.12)] dark:shadow-none dark:border dark:border-card-border transition-transform group-hover:translate-y-2"></div>
+
+                <div class="absolute inset-0 bg-card rounded-2xl border border-border/40 dark:border-card-border shadow-[0_20px_60px_-15px_rgba(0,0,0,0.18)] dark:shadow-none flex overflow-hidden transition-transform duration-300 group-hover:-translate-y-1 group-active:translate-y-0">
                     
                     <div v-if="getTimerData(bundle.ends_at).isExpired" 
-                         class="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-                        <div class="bg-foreground text-background font-mono font-black uppercase px-4 py-1 flex items-center gap-2 text-[10px] tracking-widest shadow-lg rounded-full">
+                         class="absolute inset-0 z-40 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                        <div class="bg-foreground text-background font-black uppercase px-4 py-1 flex items-center gap-2 text-[10px] tracking-widest rounded-md">
                             <AlertCircle :size="14" strokeWidth="3" /> OFFLINE
                         </div>
                     </div>
 
-                    <div class="flex w-full h-full items-center justify-between px-5 relative z-10">
-                    
-                        <div class="flex flex-col justify-center gap-1 w-[60%]">
-                            <h3 class="font-sans font-black uppercase text-foreground text-xs line-clamp-1 tracking-tight pr-2">
+                    <div class="flex flex-col justify-between p-4 w-[60%] z-20">
+                        <div>
+                            <div v-if="bundle.is_editable" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 mb-2">
+                                <Zap :size="10" class="fill-current" />
+                                <span class="text-[9px] font-black tracking-widest uppercase">MODULAR</span>
+                            </div>
+                            <div v-else class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-white/5 text-muted-foreground border border-white/10 mb-2">
+                                <AlertCircle :size="10" />
+                                <span class="text-[9px] font-black tracking-widest uppercase">PRESET</span>
+                            </div>
+                            <h3 class="font-extrabold text-foreground text-sm line-clamp-2 tracking-tight pr-2 leading-tight">
                                 {{ bundle.name }}
                             </h3>
-                            
-                            <div class="flex items-baseline gap-1.5 font-mono text-f1-red group-hover:drop-shadow-[0_0_8px_rgba(225,6,0,0.6)]">
-                                <span class="text-[14px] font-black tracking-tight">{{ getTimerData(bundle.ends_at).h }}<span class="text-[9px] text-muted-foreground ml-0.5">H</span></span>
-                                <span class="text-[14px] font-black tracking-tight">{{ getTimerData(bundle.ends_at).m }}<span class="text-[9px] text-muted-foreground ml-0.5">M</span></span>
-                                <span class="text-[14px] font-black tracking-tight">{{ getTimerData(bundle.ends_at).s }}<span class="text-[9px] text-muted-foreground ml-0.5">S</span></span>
-                            </div>
                         </div>
+                        
+                        <div class="flex items-center gap-1.5 font-mono bg-muted dark:bg-transparent px-2 py-1 rounded-md w-fit"
+                             :class="{
+                                 'dark:text-primary dark:drop-shadow-[0_0_8px_rgba(225,6,0,0.6)]': getTimerData(bundle.ends_at).isExpiringSoon,
+                                 'dark:text-accent dark:drop-shadow-[0_0_8px_rgba(0,255,0,0.4)]': !getTimerData(bundle.ends_at).isExpiringSoon
+                             }">
+                            <Clock :size="12" class="text-muted-foreground dark:text-inherit mb-0.5" />
+                            <span class="text-xs font-black tracking-tight">{{ getTimerData(bundle.ends_at).h }}<span class="text-[8px] text-muted-foreground ml-[1px]">H</span></span>
+                            <span class="text-xs font-black tracking-tight text-muted-foreground/30 dark:text-inherit">:</span>
+                            <span class="text-xs font-black tracking-tight">{{ getTimerData(bundle.ends_at).m }}<span class="text-[8px] text-muted-foreground ml-[1px]">M</span></span>
+                            <span class="text-xs font-black tracking-tight text-muted-foreground/30 dark:text-inherit">:</span>
+                            <span class="text-xs font-black tracking-tight">{{ getTimerData(bundle.ends_at).s }}<span class="text-[8px] text-muted-foreground ml-[1px]">S</span></span>
+                        </div>
+                    </div>
 
-                        <div class="flex items-center justify-end w-[40%] h-full py-3 overflow-hidden relative" @click.stop>
-                            <div class="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface/80 to-transparent z-20 pointer-events-none"></div>
-                            
-                            <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full items-center gap-2 w-full pr-4">
-                                
-                                <template v-if="getSkuImages(bundle).length === 0">
-                                    <div class="w-11 h-11 shrink-0 snap-start bg-transparent flex items-center justify-center overflow-hidden">
-                                        <img :src="getImageUrl(null)" class="w-full h-full object-contain opacity-40">
-                                    </div>
-                                </template>
-                                
-                                <template v-else>
-                                    <div v-for="(img, index) in getSkuImages(bundle)" :key="index"
-                                         class="w-11 h-11 shrink-0 snap-start bg-transparent flex items-center justify-center overflow-hidden">
-                                        <img :src="getImageUrl(img)" class="w-full h-full object-contain filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)] group-hover:scale-110 transition-transform duration-300">
-                                    </div>
-                                </template>
-
-                            </div>
+                    <div class="relative w-[40%] h-full flex items-center justify-center pr-4 overflow-hidden bg-muted/30 dark:bg-transparent z-10">
+                        <div class="relative w-24 h-24">
+                            <template v-for="(img, idx) in getSkuImages(bundle)" :key="idx">
+                                <img :src="getImageUrl(img)" 
+                                     class="absolute w-14 h-14 object-contain filter drop-shadow-md transition-all duration-300 group-hover:scale-110"
+                                     :style="{
+                                         right: `${idx * 14}px`,
+                                         top: `${16 + (idx % 2 === 0 ? 4 : -4)}px`,
+                                         zIndex: 10 - idx,
+                                         transform: `rotate(${(idx * 10) - 15}deg)`
+                                     }">
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -120,42 +135,8 @@ const handleBundleClick = (bundle, isExpired) => {
         </div>
     </div>
 </template>
+
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* FÍSICA DE BORDE NEÓN SUTIL (PULSO) v3.1 */
-.cyber-border-card {
-    background: transparent;
-    border: 1.5px solid hsl(var(--primary) / 0.5);
-    animation: neon_pulse 2.5s infinite alternate ease-in-out;
-}
-
-/* Capa interior aislante (Se ajusta al nuevo borde) */
-.cyber-border-content {
-    position: absolute;
-    inset: 0px; /* Ocupa todo el espacio interno sin dejar huecos */
-    border-radius: 15px; /* Respeta el borde exterior redondeado */
-    z-index: 10;
-    overflow: hidden;
-}
-
-/* Si la oferta expira, el borde pierde energía (se apaga) */
-.cyber-border-card.is-offline {
-    border-color: rgba(255, 255, 255, 0.1) !important;
-    animation: none;
-    box-shadow: none !important;
-}
-
-/* Animación matemática del parpadeo (Glow) */
-@keyframes neon_pulse {
-    0% {
-        box-shadow: 0 0 2px hsl(var(--primary) / 0.1), inset 0 0 2px hsl(var(--primary) / 0.1);
-        border-color: hsl(var(--primary) / 0.3);
-    }
-    100% {
-        box-shadow: 0 0 10px hsl(var(--primary) / 0.5), inset 0 0 5px hsl(var(--primary) / 0.2);
-        border-color: hsl(var(--primary) / 0.9);
-    }
-}
 </style>

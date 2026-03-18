@@ -1,141 +1,35 @@
-/* =========================================================
-   SILO ADMIN: PALETA MODERNA Y PROFESIONAL
-   Basada en colores propuestos:
-   Claro: #F2EFE7, #9ACBD0, #48A6A7, #2973B2
-   Oscuro: #061E29, #1D546D, #5F9598, #F3F4F4
-   ========================================================= */
-
-/* MODO CLARO (por defecto) */
 :root {
-  /* Neutros */
-  --background: 40 23% 95%;      /* #F2EFE7 */
-  --foreground: 200 10% 15%;      /* #222 */
+  /* MODO CLARO: APPLE/GOOGLE RETAIL */
+  --background: 0 0% 100%;
+  --foreground: 240 10% 12%; /* #1D1D1F */
+  
   --card: 0 0% 100%;
-  --card-foreground: 200 10% 15%;
-  --border: 40 10% 80%;           /* #D9D0C0 */
-  --input: 40 15% 92%;            /* #F0EBE2 */
-
-  /* Acento principal (azul técnico) */
-  --primary: 200 60% 45%;         /* #2973B2 */
+  --card-foreground: 240 10% 12%;
+  --card-border: 0 0% 92%;
+  
+  --primary: 211 100% 50%; /* Azul Apple #007AFF */
   --primary-foreground: 0 0% 100%;
-
-  /* Acentos secundarios */
-  --secondary: 180 30% 60%;       /* #9ACBD0 */
-  --secondary-foreground: 200 10% 15%;
-  --accent: 180 40% 50%;          /* #48A6A7 */
-  --accent-foreground: 0 0% 100%;
-
-  /* Estados */
-  --destructive: 0 70% 55%;       /* #D9534F */
-  --destructive-foreground: 0 0% 100%;
-  --success: 160 60% 45%;
-  --warning: 40 100% 60%;
-
-  /* Sombras suaves */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.04);
-
-  --radius: 0.75rem;              /* 12px */
-  --nav-height: 60px;
+  
+  --accent: 142 76% 45%; /* Verde Oferta */
+  
+  --border: 240 5% 90%;
+  --input: 240 5% 96%;
 }
 
-/* MODO OSCURO (admin) */
 .dark {
-  --background: 200 80% 8%;       /* #061E29 */
-  --foreground: 0 0% 95%;         /* #F3F4F4 */
-  --card: 200 70% 12%;            /* #0A2A38 */
-  --card-foreground: 0 0% 95%;
-  --border: 200 50% 20%;          /* #1D546D */
-  --input: 200 60% 15%;           /* #103545 */
-
-  --primary: 200 60% 55%;         /* #5F9598? (más claro) */
-  --primary-foreground: 0 0% 0%;
-
-  --secondary: 180 30% 40%;       /* Versión oscura de #9ACBD0 */
-  --secondary-foreground: 0 0% 100%;
-  --accent: 180 40% 45%;          /* #48A6A7 */
-  --accent-foreground: 0 0% 100%;
-
-  --destructive: 0 70% 60%;
-  --destructive-foreground: 0 0% 0%;
-  --success: 160 60% 50%;
-  --warning: 40 100% 55%;
-
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.6);
-}
-
-/* =========================================================
-   SILO CUSTOMER: PALETA CÁLIDA Y MODERNA (ya definida)
-   ========================================================= */
-.customer-theme {
-  /* Mantenemos la paleta que ya tenías para customer */
-  --background: 40 23% 97%;       /* #F8F5F0 */
-  --foreground: 20 10% 15%;       /* #2C2724 */
-  --card: 0 0% 100%;
-  --card-foreground: 20 10% 15%;
-  --border: 40 10% 85%;           /* #E0DBD1 */
-  --input: 40 15% 92%;            /* #F0EBE2 */
+  /* MODO OSCURO: F1 TELEMETRY */
+  --background: 0 0% 2%; /* Negro Pitch #050505 */
+  --foreground: 0 0% 100%;
   
-  --primary: 200 90% 50%;         /* #1A8CD8 */
+  --card: 240 10% 8%; /* #121217 */
+  --card-foreground: 0 0% 100%;
+  --card-border: 240 5% 15%; /* #262626 */
+  
+  --primary: 358 100% 44%; /* Rojo F1 #E10600 */
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 40 15% 55%;        /* #B8A692 */
-  --secondary-foreground: 20 10% 15%;
-  --accent: 160 60% 45%;          /* #2E9B7A */
-  --accent-foreground: 0 0% 100%;
+  --accent: 142 100% 50%; /* Verde Neón Telemetría */
   
-  --destructive: 0 80% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --success: 160 60% 45%;
-  --warning: 40 100% 65%;
-  
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.02);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.03);
-  --shadow-lg: 0 20px 40px rgba(0,0,0,0.04);
-  
-  --radius: 0.75rem;
-  --nav-height: 60px;
-  --tech-bg: 220 14% 96%;        /* #f4f5f7 - Gris muy claro */
-  --tech-dot-1: 0 0% 0%;         /* Negro (para usar con opacidad) */
-  --tech-dot-2: 0 0% 0%;         /* Negro (para usar con opacidad) */
-
-  /* Colores de Marca F1 (Añadidos para que Tailwind los compile) */
-  --f1-red: 0 100% 50%;          /* #FF0000 */
-  --telemetry-green: 120 100% 50%; /* #00FF00 */
-}
-
-.dark .customer-theme {
-  --background: 0 0% 4%;          /* #0A0A0A */
-  --foreground: 0 0% 95%;         /* #F2F2F2 */
-  --card: 0 0% 8%;                /* #141414 */
-  --card-foreground: 0 0% 95%;
-  --border: 0 0% 15%;             /* #262626 */
-  --input: 0 0% 12%;              /* #1F1F1F */
-  
-  --primary: 200 100% 60%;        /* #33B5FF */
-  --primary-foreground: 0 0% 0%;
-  
-  --secondary: 0 0% 25%;          /* #404040 */
-  --secondary-foreground: 0 0% 95%;
-  --accent: 160 70% 50%;          /* #2EB872 */
-  --accent-foreground: 0 0% 0%;
-  
-  --destructive: 0 80% 60%;
-  --destructive-foreground: 0 0% 0%;
-  --success: 160 70% 50%;
-  --warning: 45 100% 55%;
-  
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
-  --shadow-lg: 0 20px 40px rgba(0,0,0,0.6);
-  --tech-bg: 230 23% 5%;         /* #0a0b10 - Asfalto profundo */
-  --tech-dot-1: 229 18% 12%;     /* #1a1c25 - Gris azulado oscuro */
-  --tech-dot-2: 0 100% 50%;      /* #FF0000 - Rojo F1 (para el punto secundario) */
-
-  /* Mantener colores de marca vibrantes en modo oscuro */
-  --f1-red: 0 100% 50%;
-  --telemetry-green: 120 100% 50%;
+  --border: 0 0% 15%;
+  --input: 0 0% 10%;
 }

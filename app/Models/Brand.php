@@ -63,4 +63,23 @@ class Brand extends Model
     { 
         return $this->belongsTo(Category::class); 
     }
+
+    // app/Models/Brand.php
+
+    public function scopeWhereHasStockInBranch($query, string $branchId)
+    {
+        return $query->where('is_active', true)
+            ->whereExists(function ($query) use ($branchId) {
+                $query->select(\DB::raw(1))
+                    ->from('products')
+                    ->join('skus', 'products.id', '=', 'skus.product_id')
+                    ->join('inventory_lots', 'skus.id', '=', 'inventory_lots.sku_id')
+                    ->whereColumn('products.brand_id', 'brands.id')
+                    ->where('products.is_active', true)
+                    ->where('skus.is_active', true)
+                    ->where('inventory_lots.branch_id', $branchId)
+                    ->where('inventory_lots.is_safety_stock', false)
+                    ->whereRaw('(inventory_lots.quantity - inventory_lots.reserved_quantity) > 0');
+            });
+    }
 }

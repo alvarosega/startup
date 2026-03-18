@@ -2,11 +2,8 @@
 
 namespace App\Actions\Customer\Shop;
 
-use App\Models\MarketZone;
-use App\Models\Product;
-use App\Models\Brand;
+use App\Models\{MarketZone, Product, Brand, Price};
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use App\Services\Finance\PriceResolverService;
 
 class GetShopZoneAction
@@ -16,129 +13,78 @@ class GetShopZoneAction
         protected PriceResolverService $priceResolver
     ) {}
 
-    public function execute(MarketZone $zone, string $branchId): array
+
+    public function execute(MarketZone $zone, string $branchId, ?string $onlyBrandId = null): array
     {
-        // 1. Obtener Marcas activas de la zona (Ordenadas)
+        // Navegación: Solo marcas que REALMENTE tienen stock ahora mismo
         $brands = Brand::where('market_zone_id', $zone->id)
-            ->where('is_active', true)
+            ->whereHasStockInBranch($branchId)
             ->orderBy('sort_order')
+            ->get(['id', 'name']);
+
+        if (!$onlyBrandId) {
+            return [
+                'zone' => $zone,
+                'brandsNavigation' => $brands,
+                'brandContent' => null
+            ];
+        }
+
+        // Carga de contenido: Solo para la marca solicitada
+        $brand = Brand::whereHasStockInBranch($branchId)->findOrFail($onlyBrandId);
+        
+        // Obtenemos SKUs con stock y sus precios usando la relación que definiste
+        $products = Product::where('brand_id', $brand->id)
+            ->where('is_active', true)
+            ->with(['category', 'skus' => function($q) use ($branchId) {
+                $q->where('is_active', true)
+                ->addSelect([
+                    'available_stock' => \App\Models\InventoryLot::selectRaw('COALESCE(SUM(quantity - reserved_quantity), 0)')
+                        ->whereColumn('sku_id', 'skus.id')
+                        ->where('branch_id', $branchId)
+                        ->where('is_safety_stock', false)
+                ])
+                ->with(['prices' => function($pq) use ($branchId) {
+                    $pq->where('branch_id', $branchId)
+                        ->where('valid_from', '<=', now())
+                        ->where(fn($i) => $i->whereNull('valid_to')->orWhere('valid_to', '>=', now()))
+                        ->orderBy('priority', 'desc');
+                }]);
+            }])
             ->get();
 
-        $brandIds = $brands->pluck('id')->toArray();
-
-        // 2. Obtener los productos con sus agregados de rendimiento (REGLA 3.A)
-        // Usamos direct query con 'with' para evitar el error de Collection::loadAvg
-        $customerId = Auth::guard('customer')->id();
-
-        $productsData = Product::whereIn('brand_id', $brandIds)
-            ->where('is_active', true)
-            ->withAvg('reviews', 'rating')
-            ->withCount('reviews')
-            ->when($customerId, function ($query) use ($customerId) {
-                $query->withExists(['favoritedBy as is_favorited' => function ($q) use ($customerId) {
-                    $q->where('customer_id', $customerId);
-                }]);
-            })
-            ->with(['brand', 'category']) // Eager loading para la agrupación
-            ->get()
-            ->keyBy('id'); // Indexamos por ID para cruce rápido con SKUs
-
-        // 3. Obtener SKUs (Stock y Precios por Sucursal)
-        $skus = $this->getSkusAction->execute($productsData->keys()->toArray());
-
-// 4. AGRUPACIÓN COMPLEJA V3.0: Brand -> Category (Color) -> Product -> SKUs
-        // IMPORTANTE: Añadimos $branchId al primer 'use'
-        $structuredData = $brands->map(function ($brand) use ($productsData, $skus, $branchId) {
-            
-            $skusInBrand = $skus->filter(fn($sku) => $sku->product->brand_id === $brand->id);
-            if ($skusInBrand->isEmpty()) return null;
-
-            return [
-                'id'         => (string) $brand->id,
-                'name'       => (string) $brand->name,
-                // Pasamos $branchId al siguiente nivel
-                'categories' => $skusInBrand->groupBy('product.category_id')->map(function ($skusInCat) use ($productsData, $branchId) {
-                    $firstSku  = $skusInCat->first();
-                    $category  = $firstSku->product->category;
-                    
-                    return [
-                        'id'       => (string) ($category->id ?? 'uncategorized'),
-                        'name'     => (string) ($category->name ?? 'Otros'),
-                        'bg_color' => (string) ($category->bg_color ?? '#FFFFFF'),
-                        // Pasamos $branchId al nivel de productos
-                        'products' => $skusInCat->groupBy('product_id')->map(function ($skusForProd) use ($productsData, $branchId) {
-                            $productId = $skusForProd->first()->product_id;
-                            $product   = $productsData->get($productId);
-                            $totalStock = $skusForProd->sum('available_stock');
-
-                            // Resolvemos los precios de todos los SKUs (Aquí es donde se usaba $branchId)
-                            // ... dentro del map de skusForProd ...
-                            $resolvedSkus = $skusForProd->map(function($s) use ($branchId) {
-                                // Obtenemos TODOS los precios válidos para este SKU en esta sucursal
-                                $allAvailablePrices = \App\Models\Price::where('sku_id', $s->id)
-                                    ->where('branch_id', $branchId)
-                                    ->where('valid_from', '<=', now())
-                                    ->where(function ($q) {
-                                        $q->whereNull('valid_to')->orWhere('valid_to', '>=', now());
-                                    })
-                                    ->orderBy('priority', 'desc')
-                                    ->orderBy('min_quantity', 'desc')
-                                    ->get()
-                                    ->map(fn($p) => [
-                                        'type'         => (string) $p->type,
-                                        'final_price'  => (float) $p->final_price,
-                                        'list_price'   => (float) $p->list_price,
-                                        'min_quantity' => (int) $p->min_quantity,
-                                        'priority'     => (int) $p->priority,
-                                    ]);
-
-                                // El precio inicial (para cantidad 1) sigue siendo el ganador por defecto
-                                $initialPrice = $this->priceResolver->resolveWinningPrice($s, $branchId, 1);
-                                
-                                return [
-                                    'id'              => (string) $s->id,
-                                    'name'            => (string) $s->name,
-                                    'image_url'       => (string) ($s->image_url ?? $s->image_path),
-                                    'available_stock' => (int) $s->available_stock,
-                                    'stock_status'    => (string) $s->stock_status,
-                                    
-                                    // --- NUEVA LÓGICA: Array de precios para resolución en el Cliente ---
-                                    'all_prices'      => $allAvailablePrices, 
-                                    
-                                    // Datos iniciales para la grilla
-                                    'price'           => (float) $initialPrice->final_price,
-                                    'list_price'      => (float) $initialPrice->list_price,
-                                    'next_tier'       => $initialPrice->next_tier ? [
-                                        'min_qty' => (int) $initialPrice->next_tier->min_quantity,
-                                        'price'   => (float) $initialPrice->next_tier->final_price
-                                    ] : null
-                                ];
-                            })->values();
-
-                            $minPriceSku = $resolvedSkus->sortBy('price')->first();
-
-                            return [
-                                'id'                 => (string) $product->id,
-                                'name'               => (string) $product->name,
-                                'image_url'          => (string) ($product->image_path ?? $skusForProd->first()->image_url),
-                                'available_stock'    => (int) $totalStock,
-                                'stock_status'       => $totalStock > 0 ? 'in_stock' : 'out_of_stock',
-                                'min_price'          => (float) ($minPriceSku['price'] ?? 0),
-                                'list_price'         => (float) ($minPriceSku['list_price'] ?? 0),
-                                'reviews_avg_rating' => (float) ($product->reviews_avg_rating ?? 0),
-                                'reviews_count'      => (int) ($product->reviews_count ?? 0),
-                                'is_favorited'       => (bool) ($product->is_favorited ?? false),
-                                'skus'               => $resolvedSkus
-                            ];
-                        })->values()
-                    ];
-                })->values()
-            ];
-        })->filter()->values();
+        // Formateamos para que Vue no tenga que calcular nada pesado
+        $brandContent = [
+            'id' => $brand->id,
+            'categories' => $products->groupBy('category_id')->map(function($prods) {
+                $cat = $prods->first()->category;
+                return [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'bg_color' => $cat->bg_color,
+                    'products' => $prods->map(fn($p) => [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'image_url' => $p->image_path,
+                        'available_stock' => $p->skus->sum('available_stock'),
+                        'min_price' => (float) $p->skus->min('base_price'),
+                        'skus' => $p->skus->map(fn($s) => [
+                            'id' => $s->id,
+                            'name' => $s->name,
+                            'price' => (float) $s->base_price,
+                            'image_url' => $s->image_path,
+                            'available_stock' => (int) $s->available_stock,
+                            'all_prices' => $s->prices
+                        ])
+                    ])->filter(fn($p) => $p['available_stock'] > 0)->values()
+                ];
+            })->values()
+        ];
 
         return [
-            'zone'              => $zone,
-            'groupedCategories' => $structuredData
+            'zone' => $zone,
+            'brandsNavigation' => $brands,
+            'brandContent' => $brandContent
         ];
     }
 }

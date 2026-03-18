@@ -8,6 +8,7 @@ use App\Actions\Customer\Cart\{AddBundleToCartAction, GetBundleDetailsAction};
 use App\DTOs\Customer\Cart\AddBundleDTO;
 use App\Models\Bundle;
 use Illuminate\Http\{Request, RedirectResponse, JsonResponse};
+use App\Http\Resources\Customer\Bundle\BundleModalResource; // <-- AÑADIR ESTO
 
 class BundleController extends Controller
 {
@@ -15,11 +16,12 @@ class BundleController extends Controller
 
     public function show(Bundle $bundle, GetBundleDetailsAction $action): JsonResponse
     {
-        // El controlador solo orquestra: pide la sucursal y delega la carga
         $branchId = $this->contextService->getActiveBranchId();
+        
         $bundleWithData = $action->execute($bundle, $branchId);
         
-        return response()->json($bundleWithData);
+        // RESOLVE(): Formatea los datos a la fuerza bruta sin wrappers innecesarios
+        return response()->json((new BundleModalResource($bundleWithData))->resolve());
     }
 
     public function add(Request $request, AddBundleToCartAction $action): RedirectResponse

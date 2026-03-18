@@ -2,219 +2,285 @@
 import { computed, ref } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
-    MapPin, ShoppingBag, User, FileText, LogOut, Flag,
+    MapPin, ShoppingBag, User, FileText, LogOut, Search,
     Home, ShieldCheck, X, Menu, Settings, ClipboardList,
-    Facebook, Instagram, Twitter, CreditCard, Info, HelpCircle
+    CreditCard, Truck, Package, Flag, Bell, ChevronDown,
+    Facebook, Instagram, Twitter, Youtube, Mail, Phone, Globe
 } from 'lucide-vue-next';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue'; 
 import GlobalLoader from '@/Components/Base/GlobalLoader.vue';
 import Toast from '@/Components/Base/Toast.vue';
 
-const props = defineProps({
-    isProfileSection: { type: Boolean, default: false }
-});
-
+const props = defineProps({ isProfileSection: { type: Boolean, default: false } });
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
-const location = computed(() => page.props.location_context || { label: 'SIN SEÑAL', type: 'branch' });
+const location = computed(() => page.props.location_context || { label: 'ENTREGA NO DEFINIDA', type: 'branch' });
 const cartCount = computed(() => page.props.cart_summary?.count || 0);
 const activeOrder = computed(() => page.props.active_order || null); 
 
-// NUEVO: Blindaje del Enlace para evitar errores de Ziggy
+// Lógica de Órdenes Activas
 const activeOrderUrl = computed(() => {
-    // Si no hay orden activa, o el conteo es 0, o por alguna razón falta el ID
-    if (!activeOrder.value || !activeOrder.value.count || !activeOrder.value.latest?.id) {
-        return route('customer.orders.history');
-    }
-    
-    // Si hay exactamente 1 orden, lo mandamos directo al QR/OTP
-    if (activeOrder.value.count === 1) {
-        return route('customer.orders.show', activeOrder.value.latest.id);
-    }
-    
-    // Si hay más de 1, lo mandamos al historial para que elija
-    return route('customer.orders.history');
+    if (!activeOrder.value?.count || !activeOrder.value.latest?.id) return route('customer.orders.history');
+    return activeOrder.value.count === 1 ? route('customer.orders.show', activeOrder.value.latest.id) : route('customer.orders.history');
 });
 
-// Actualización de seguridad para la telemetría (si la usas)
 const telemetryStatusColor = computed(() => {
-    if (!activeOrder.value || !activeOrder.value.latest) return 'bg-tech';
+    if (!activeOrder.value?.latest) return 'bg-muted';
     const map = {
         'pending_payment': 'bg-amber-500 shadow-[0_0_8px_#f59e0b]',
-        'under_review': 'bg-blue-400 shadow-[0_0_8px_#60a5fa]',
-        'preparing': 'bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]',
-        'dispatched': 'bg-f1-red animate-bounce shadow-[0_0_8px_#ff0000]',
-        'arrived': 'bg-telemetry-green shadow-[0_0_12px_#00ff00]',
-        'completed': 'bg-telemetry-green opacity-50'
+        'preparing': 'bg-cyan-400 animate-pulse',
+        'dispatched': 'bg-primary animate-bounce',
+        'arrived': 'bg-accent shadow-[0_0_12px_#00ff00]',
     };
-    return map[activeOrder.value.latest.status] || 'bg-f1-red';
+    return map[activeOrder.value.latest.status] || 'bg-primary';
 });
 
-const showHamburgerMenu = ref(false);
+// Lógica del Sidebar
+const showSidebar = ref(false);
+const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
 
-const toggleHamburger = () => { showHamburgerMenu.value = !showHamburgerMenu.value; };
-
+// Datos y Menús
 const menuItems = [
-    { name: 'MI PERFIL', route: 'customer.profile.index', icon: User },
-    { name: 'DIRECCIONES', route: 'customer.profile.addresses', icon: MapPin },
-    { name: 'PEDIDOS', route: 'customer.orders.history', icon: FileText },
-    { name: 'SEGURIDAD', route: 'customer.profile.security', icon: ShieldCheck },
+    { name: 'Mi Perfil', route: 'customer.profile.index', icon: User },
+    { name: 'Direcciones', route: 'customer.profile.addresses', icon: MapPin },
+    { name: 'Mis Pedidos', route: 'customer.orders.history', icon: FileText },
+    { name: 'Seguridad', route: 'customer.profile.security', icon: ShieldCheck },
 ];
 
-const logout = () => {
-    showHamburgerMenu.value = false;
-    router.post(route('logout'));
-};
+const customerStats = [
+    { label: 'Nivel de Cliente', value: 'Platino', color: 'text-primary' },
+    { label: 'Puntos Acumulados', value: '1,250 pts', color: 'text-foreground' },
+    { label: 'Crédito Disponible', value: '$15.50', color: 'text-accent' },
+];
 
 const isIndexPage = computed(() => route().current('customer.shop.index'));
 const isCartPage = computed(() => route().current('customer.cart.index'));
 const isOrdersPage = computed(() => route().current('customer.orders.*'));
 
-
+const logout = () => { router.post(route('logout')); };
 </script>
 
 <template>
-    <div class="customer-theme text-foreground font-sans min-h-[100svh] relative w-full transition-colors duration-300">
+    <div class="text-foreground font-sans min-h-[100svh] relative w-full transition-colors duration-500 bg-background flex flex-col">
         
-        <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-tech">
-            <div class="absolute -top-[10%] -right-[10%] w-[70vw] md:w-[45vw] aspect-square rounded-full blur-[100px] md:blur-[140px] bg-fuchsia-200/30 dark:bg-[#FF007F]/10 transition-colors duration-1000"></div>
-            <div class="absolute -bottom-[10%] -left-[10%] w-[70vw] md:w-[45vw] aspect-square rounded-full blur-[100px] md:blur-[140px] bg-cyan-200/30 dark:bg-[#00FFFF]/10 transition-colors duration-1000"></div>
-            <div v-if="page.props.active_color" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] aspect-square rounded-full blur-[180px] opacity-10 mix-blend-screen" :style="{ backgroundColor: page.props.active_color }"></div>
-            <div class="absolute inset-0 tech-dot-pattern opacity-60 dark:opacity-40"></div>
+        <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+            <div class="absolute inset-0 hidden dark:block tech-dot-pattern"></div>
         </div>
 
         <div class="relative z-10 flex flex-col min-h-[100svh]">
-            
             <GlobalLoader />
             <Toast />
 
-            <nav class="fixed top-0 left-0 right-0 h-[64px] flex items-center bg-background/40 backdrop-blur-xl border-b border-tech z-[60] transition-all duration-300">
-                <div class="container mx-auto px-4 h-full flex items-center justify-between w-full">
+            <nav class="fixed top-0 left-0 right-0 h-[64px] flex items-center bg-background/80 backdrop-blur-xl border-b border-border/50 dark:border-card-border z-[60]">
+                <div class="container mx-auto px-4 flex items-center justify-between gap-4">
                     
-                    <Link :href="route('customer.shop.index')" class="flex items-center group">
-                        <div class="w-9 h-9 bg-f1-red text-white flex items-center justify-center rounded-lg shadow-neon-red">
-                            <Flag :size="18" class="fill-current" />
+                    <button @click="toggleSidebar" class="p-2 hover:bg-muted rounded-lg transition-colors text-foreground">
+                        <Menu :size="24" />
+                    </button>
+
+                    <div class="flex items-center gap-2 flex-1 justify-center max-w-md">
+                        <button @click="router.visit(route('customer.profile.addresses'))" class="flex flex-col items-center px-4 py-1 hover:bg-muted rounded-full transition-all group">
+                            <div class="flex items-center gap-1">
+                                <MapPin :size="12" class="text-primary" />
+                                <span class="text-[9px] font-black text-primary uppercase tracking-tighter">Entrega en</span>
+                            </div>
+                            <span class="text-[11px] font-bold truncate max-w-[150px] uppercase text-foreground group-hover:text-primary">{{ location.label }}</span>
+                        </button>
+                        
+                        <div class="h-6 w-px bg-border hidden sm:block"></div>
+                        
+                        <button class="p-2 hover:text-primary transition-colors hidden sm:block">
+                            <Search :size="18" />
+                        </button>
+                    </div>
+
+                    <Link :href="route('customer.shop.index')" class="flex items-center shrink-0">
+                        <div class="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center rounded-lg shadow-lg dark:shadow-f1-glow transition-transform active:scale-90">
+                            <Flag :size="20" class="fill-current" />
                         </div>
                     </Link>
 
-                    <div class="flex flex-col items-center justify-center cursor-pointer group" @click="router.visit(route('customer.profile.addresses'))">
-                        <span class="text-[7px] font-mono font-black uppercase tracking-[0.2em] text-f1-red">[SECTOR]</span>
-                        <div class="flex items-center gap-1 max-w-[150px]">
-                            <MapPin :size="10" class="text-muted shrink-0" />
-                            <span class="text-[10px] font-bold uppercase truncate text-primary">{{ location.label }}</span>
-                        </div>
-                    </div>
-
-                    <button @click="toggleHamburger" class="w-10 h-10 rounded-full border border-tech flex items-center justify-center bg-surface/50 backdrop-blur-md overflow-hidden transition-all hover:border-f1-red">
-                        <img v-if="user?.avatar" :src="user.avatar" class="w-full h-full object-cover">
-                        <User v-else :size="20" class="text-primary" />
-                    </button>
                 </div>
             </nav>
 
-            <main class="w-full mx-auto transition-all pt-[64px] pb-[80px] flex flex-col flex-1" :class="isIndexPage ? 'max-w-full px-0' : 'max-w-7xl px-4 py-6'">
-                <div v-if="isProfileSection && user" class="flex flex-col md:flex-row gap-8 flex-1">
-                    <aside class="hidden md:block w-64 shrink-0 bg-surface/30 backdrop-blur-xl border border-tech rounded-[24px] p-2 h-fit shadow-sm">
-                        <div class="p-4 border-b border-tech">
-                            <h3 class="text-[9px] font-mono font-black uppercase text-f1-red mb-1">DATA PILOTO</h3>
-                            <p class="font-sans font-bold uppercase truncate text-xs text-primary">{{ user.name }}</p>
-                        </div>
-                        <nav class="flex flex-col p-2 gap-1">
+            <main class="w-full mx-auto pt-[64px] pb-[100px] flex-1 flex flex-col" :class="isIndexPage ? 'max-w-full px-0' : 'max-w-7xl px-4'">
+                <div v-if="isProfileSection && user" class="flex flex-col md:flex-row gap-6 flex-1">
+                    <aside class="hidden md:block w-64 shrink-0 bg-card/80 backdrop-blur-md rounded-lg p-2 h-fit shadow-apple-soft dark:shadow-none border border-transparent dark:border-card-border">
+                        <nav class="flex flex-col gap-1">
                             <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)"
-                                class="flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase rounded-xl transition-all border border-transparent"
-                                :class="route().current(item.route) ? 'bg-f1-red text-white shadow-neon-red' : 'text-primary hover:bg-white/5'">
+                                class="flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-lg transition-all"
+                                :class="route().current(item.route) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'">
                                 <component :is="item.icon" :size="16" /> {{ item.name }}
                             </Link>
                         </nav>
                     </aside>
-                    <div class="flex-1 bg-surface/30 backdrop-blur-xl border border-tech rounded-[24px] p-6 shadow-sm">
+                    <div class="flex-1 bg-card/80 backdrop-blur-md rounded-lg p-6 shadow-apple-soft dark:shadow-none border border-transparent dark:border-card-border">
                         <slot />
                     </div>
                 </div>
-                
-                <div v-else class="flex-1 w-full relative">
+                <div v-else class="w-full flex-1">
                     <slot />
                 </div>
 
-                <footer class="mt-12 w-full bg-surface/20 backdrop-blur-md border-t border-tech py-10 px-6">
-                    <div class="container mx-auto text-center">
-                        <span class="text-[9px] font-mono text-muted uppercase tracking-[0.3em]">&copy; 2026 CYBER-SYSTEM</span>
+                <footer class="mt-auto w-full bg-card border-t border-border/50 dark:border-card-border pt-16 pb-24 md:pb-8 px-6">
+                    <div class="container mx-auto">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+                            
+                            <div class="flex flex-col gap-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center rounded-lg shadow-lg dark:shadow-f1-glow">
+                                        <Flag :size="20" class="fill-current" />
+                                    </div>
+                                    <span class="text-xl font-extrabold tracking-tighter">CYBER<span class="text-primary">MARKET</span></span>
+                                </div>
+                                <p class="text-sm text-muted-foreground leading-relaxed">
+                                    La nueva generación de supermercados digitales. Velocidad de entrega técnica y calidad premium garantizada.
+                                </p>
+                                <div class="flex flex-col gap-3">
+                                    <a href="#" class="flex items-center gap-3 text-xs font-semibold hover:text-primary transition-colors">
+                                        <Mail :size="16" class="text-primary" /> soporte@cybermarket.io
+                                    </a>
+                                    <a href="#" class="flex items-center gap-3 text-xs font-semibold hover:text-primary transition-colors">
+                                        <Phone :size="16" class="text-primary" /> +591 700 000 00
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-6">Departamentos</h4>
+                                <ul class="flex flex-col gap-4">
+                                    <li v-for="cat in ['Frutas y Verduras', 'Lácteos y Huevos', 'Carnes y Aves', 'Panadería', 'Bebidas']" :key="cat">
+                                        <a href="#" class="text-sm text-muted-foreground hover:text-foreground transition-colors">{{ cat }}</a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-6">Centro de Control</h4>
+                                <ul class="flex flex-col gap-4">
+                                    <li v-for="link in ['Centro de Ayuda', 'Estado del Envío', 'Términos de Servicio', 'Privacidad', 'Trabaja con nosotros']" :key="link">
+                                        <a href="#" class="text-sm text-muted-foreground hover:text-foreground transition-colors">{{ link }}</a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="flex flex-col gap-6">
+                                <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">Suscripción Técnica</h4>
+                                <div class="relative">
+                                    <input type="email" placeholder="email@dominio.com" class="w-full bg-muted border-none rounded-lg px-4 py-3 text-xs focus:ring-2 ring-primary/20 transition-all outline-none" />
+                                    <button class="absolute right-2 top-2 bottom-2 px-3 bg-primary text-primary-foreground rounded-md text-[10px] font-bold uppercase hover:bg-primary/90 transition-all">Unirse</button>
+                                </div>
+                                <div class="flex gap-4">
+                                    <a v-for="icon in [Facebook, Instagram, Twitter, Youtube]" :key="icon" href="#" class="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all">
+                                        <component :is="icon" :size="18" />
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-8 border-t border-border/50 dark:border-card-border flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div class="flex flex-col items-center md:items-start">
+                                <span class="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.3em]">&copy; 2026 CYBER-SYSTEM CORE v1.0.4</span>
+                                <span class="text-[9px] text-muted-foreground/60 mt-1">Diseñado bajo estándares de alto rendimiento.</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-6 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all">
+                                <CreditCard :size="24" />
+                                <Globe :size="24" />
+                                <div class="flex items-center gap-1 font-black text-lg italic">VISA</div>
+                                <div class="flex items-center gap-1 font-black text-lg italic tracking-tighter">mastercard</div>
+                            </div>
+                        </div>
                     </div>
                 </footer>
             </main>
 
-            <nav class="fixed bottom-0 left-0 right-0 h-[80px] bg-background/40 backdrop-blur-xl border-t border-tech z-[70] flex justify-around items-center px-4 md:hidden">
-    
-                <Link :href="route('customer.shop.index')" class="flex flex-col items-center">
-                    <Home :size="24" :class="isIndexPage ? 'text-f1-red shadow-neon-red' : 'text-muted'" />
-                </Link>
-
+            <nav class="fixed bottom-0 left-0 right-0 h-[72px] bg-black/95 dark:bg-background/80 backdrop-blur-xl border-t border-black dark:border-card-border z-[70] flex justify-around items-center px-6 md:hidden">
+                <Link :href="route('customer.shop.index')"><Home :size="24" :class="isIndexPage ? 'text-primary' : 'text-white dark:text-muted-foreground'" /></Link>
                 <Link :href="route('customer.cart.index')" class="relative">
-                    <ShoppingBag :size="24" :class="isCartPage ? 'text-f1-red' : 'text-muted'" />
-                    <span v-if="cartCount > 0" class="absolute -top-2 -right-3 min-w-[16px] h-[16px] bg-f1-red text-white text-[9px] font-mono rounded-full flex items-center justify-center">{{ cartCount }}</span>
+                    <ShoppingBag :size="24" :class="isCartPage ? 'text-primary' : 'text-white dark:text-muted-foreground'" />
+                    <span v-if="cartCount > 0" class="absolute -top-2 -right-2 w-4 h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">{{ cartCount }}</span>
                 </Link>
-
-                <Link v-if="activeOrder?.count > 0" :href="activeOrderUrl" class="relative group mx-2">
-                    <div class="absolute inset-0 rounded-full blur-md opacity-50" :class="telemetryStatusColor"></div>
-                    <div class="relative w-12 h-12 rounded-full border-2 border-tech flex items-center justify-center bg-background/80 transition-transform active:scale-90"
-                        :class="route().current('customer.orders.show') ? 'border-f1-red shadow-neon-red' : ''">
-                        
-                        <Truck v-if="activeOrder.latest?.status === 'arrived'" :size="22" class="text-telemetry-green animate-bounce" />
-                        <CreditCard v-else-if="activeOrder.latest?.status === 'pending_payment'" :size="22" class="text-amber-500 animate-pulse" />
-                        <Package v-else :size="22" class="text-primary animate-pulse" />
-                        
-                        <span class="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-f1-red border-2 border-background rounded-full flex items-center justify-center text-[8px] font-black text-white">
-                            {{ activeOrder.count }}
-                        </span>
+                <Link v-if="activeOrder?.count > 0" :href="activeOrderUrl" class="relative -mt-8">
+                    <div class="w-14 h-14 rounded-full bg-black dark:bg-card border-4 border-background flex items-center justify-center shadow-xl">
+                        <div class="absolute inset-1 rounded-full opacity-20" :class="telemetryStatusColor"></div>
+                        <Truck v-if="activeOrder.latest?.status === 'dispatched'" :size="24" class="text-primary animate-bounce" />
+                        <Package v-else :size="24" class="text-primary animate-pulse" />
                     </div>
                 </Link>
-                
-                <div v-else class="w-12 h-12 opacity-0 pointer-events-none"></div>
-
-                <Link :href="route('customer.orders.history')" class="flex flex-col items-center">
-                    <ClipboardList :size="24" :class="isOrdersPage && !route().current('customer.orders.show') ? 'text-f1-red shadow-neon-red' : 'text-muted'" />
-                </Link>
+                <Link :href="route('customer.orders.history')"><ClipboardList :size="24" :class="isOrdersPage ? 'text-primary' : 'text-white dark:text-muted-foreground'" /></Link>
             </nav>
+        </div>
 
-            <Transition name="fast-slide-right">
-                <div v-if="showHamburgerMenu" class="fixed inset-0 z-[100] flex justify-end">
-                    <div class="absolute inset-0 bg-background/20 backdrop-blur-sm" @click="showHamburgerMenu = false"></div>
-                    <div class="relative w-80 h-full bg-background/80 backdrop-blur-2xl border-l border-tech p-6 flex flex-col shadow-2xl">
-                        <button @click="showHamburgerMenu = false" class="self-end mb-8 p-2 text-muted hover:text-f1-red"><X :size="24" /></button>
-                        <nav class="flex flex-col gap-2">
-                            <template v-if="user">
-                                <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" @click="showHamburgerMenu = false"
-                                    class="flex items-center gap-4 p-4 bg-surface/30 border border-tech rounded-2xl text-[10px] font-bold uppercase text-primary transition-all">
-                                    <component :is="item.icon" :size="18" /> {{ item.name }}
-                                </Link>
-                                <button @click="logout" class="mt-4 p-4 bg-f1-red/10 border border-f1-red text-f1-red rounded-2xl font-bold uppercase">Cerrar Sesión</button>
-                            </template>
-                            <Link v-else :href="route('login')" class="mt-4 p-4 bg-telemetry-green/10 border border-telemetry-green text-telemetry-green rounded-2xl font-bold uppercase text-center">Acceso Piloto</Link>
-                            <div class="mt-6 flex gap-4">
-                                <ThemeToggler class="flex-1" />
-                                <FullScreenToggler class="flex-1" />
+        <Transition name="slide-left">
+            <div v-if="showSidebar" class="fixed inset-0 z-[100] flex">
+                <div class="absolute inset-0 bg-background/60 backdrop-blur-sm transition-opacity" @click="showSidebar = false"></div>
+                
+                <div class="relative w-[66vw] md:w-[350px] h-full bg-card/95 backdrop-blur-2xl border-r border-border/50 dark:border-card-border shadow-2xl flex flex-col overflow-hidden">
+                    
+                    <div class="p-6 border-b border-border/50 dark:border-card-border flex justify-between items-center bg-muted/30">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                <User :size="20" class="text-primary" />
                             </div>
-                        </nav>
+                            <div v-if="user">
+                                <p class="text-[10px] font-bold text-muted-foreground uppercase">Bienvenido</p>
+                                <p class="font-bold text-sm truncate max-w-[140px]">{{ user.name }}</p>
+                            </div>
+                            <div v-else>
+                                <p class="text-sm font-bold">Invitado</p>
+                            </div>
+                        </div>
+                        <button @click="showSidebar = false" class="p-2 hover:bg-muted rounded-full transition-colors">
+                            <X :size="20" />
+                        </button>
+                    </div>
+
+                    <div class="p-6 grid grid-cols-1 gap-4 bg-primary/[0.02]">
+                        <div v-for="stat in customerStats" :key="stat.label" class="flex justify-between items-center p-3 rounded-xl border border-border/50 dark:border-card-border bg-card shadow-sm">
+                            <span class="text-[10px] font-bold text-muted-foreground uppercase">{{ stat.label }}</span>
+                            <span :class="['text-xs font-black', stat.color]">{{ stat.value }}</span>
+                        </div>
+                    </div>
+
+                    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+                        <template v-if="user">
+                            <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" 
+                                @click="showSidebar = false"
+                                class="flex items-center gap-4 px-4 py-4 text-xs font-bold uppercase rounded-xl transition-all border border-transparent hover:bg-muted hover:border-border/50">
+                                <component :is="item.icon" :size="18" class="text-primary" />
+                                {{ item.name }}
+                            </Link>
+                        </template>
+                        <template v-else>
+                            <Link :href="route('login')" class="flex items-center gap-4 px-4 py-4 text-xs font-bold uppercase rounded-xl bg-primary text-primary-foreground shadow-md">
+                                <User :size="18" /> Iniciar Sesión
+                            </Link>
+                        </template>
+                    </nav>
+
+                    <div class="p-4 border-t border-border/50 dark:border-card-border flex flex-col gap-3">
+                        <div class="flex gap-2">
+                            <ThemeToggler class="flex-1" />
+                            <FullScreenToggler class="flex-1" />
+                        </div>
+                        <button v-if="user" @click="logout" class="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl transition-all">
+                            <LogOut :size="16" /> CERRAR SESIÓN
+                        </button>
                     </div>
                 </div>
-            </Transition>
-        </div>
+            </div>
+        </Transition>
     </div>
 </template>
 
 <style scoped>
-.fast-slide-right-enter-active, .fast-slide-right-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.fast-slide-right-enter-from, .fast-slide-right-leave-to { transform: translateX(100%); }
-
-/* GRILLA MATEMÁTICA ESTÁTICA */
-:global(.dark) .tech-dot-pattern {
-    background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1.5px);
-    background-size: 32px 32px;
+.slide-left-enter-active, .slide-left-leave-active {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-.tech-dot-pattern {
-    background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1.2px, transparent 1.5px);
-    background-size: 24px 24px;
+.slide-left-enter-from, .slide-left-leave-to {
+    transform: translateX(-100%);
+    opacity: 0;
 }
 </style>

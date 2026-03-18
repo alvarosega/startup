@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('image_path')->nullable();
             $table->boolean('is_active')->default(true)->index();
             $table->decimal('fixed_price', 10, 2)->nullable();
-        
+            $table->boolean('is_editable')->default(false);
             // --- NUEVOS CAMPOS PARA TEMPORIZADOR ---
             $table->timestamp('starts_at')->nullable()->index();
             $table->timestamp('ends_at')->nullable()->index();
