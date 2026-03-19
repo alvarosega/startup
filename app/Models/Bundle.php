@@ -15,54 +15,39 @@ class Bundle extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $hidden = ['deleted_at']; 
-
     protected $fillable = [
         'branch_id', 'name', 'slug', 'description', 
         'image_path', 'is_active', 'fixed_price', 
-        'is_editable', 'starts_at', 'ends_at' // Corregido a plural
+        'is_editable', 'starts_at', 'ends_at'
     ];
+
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'   => 'boolean',
+        'is_editable' => 'boolean', // Añadido para consistencia en Vue
         'fixed_price' => 'decimal:2',
         'starts_at'   => 'datetime', 
         'ends_at'     => 'datetime',
     ];
 
-    public static function getPaginatedForAdmin(array $filters)
+    // RELACIÓN ÚNICA Y MAESTRA
+    public function skus(): BelongsToMany
     {
-        return self::with(['branch', 'skus'])
-            ->withCount(['skus'])
-            ->when($filters['search'] ?? null, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->when($filters['branch_id'] ?? null, fn($q, $b) => $q->where('branch_id', $b))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+        return $this->belongsToMany(Sku::class, 'bundle_items')
+                    ->using(BundleItem::class) // Asegúrate de que el modelo BundleItem exista
+                    ->withPivot('quantity') 
+                    ->withTimestamps();
     }
+
+    // ELIMINAR EL MÉTODO items() PARA EVITAR CONFUSIÓN
 
     public function branch(): BelongsTo 
     { 
         return $this->belongsTo(Branch::class); 
     }
 
-    public function skus(): BelongsToMany
+    // Scope para facilitar filtrado en controladores
+    public function scopeActive(Builder $query): void
     {
-        return $this->belongsToMany(Sku::class, 'bundle_items')
-                    ->using(BundleItem::class)
-                    ->withPivot('quantity') 
-                    ->withTimestamps();
-    }
-
-    public function items()
-    {
-        // belongsToMany(ModeloDestino, tabla_pivote, llave_foranea_local, llave_foranea_destino)
-        return $this->belongsToMany(Sku::class, 'bundle_items', 'bundle_id', 'sku_id')
-                    ->withPivot('quantity')
-                    ->withTimestamps();
-    }
-
-    public function scopeForBranch(Builder $query, string $branchId): void
-    {
-        $query->where('branch_id', $branchId);
+        $query->where('is_active', true);
     }
 }

@@ -11,6 +11,11 @@ class Cart extends Model
 {
     use HasUuids;
 
+    protected $casts = [
+        'is_bundle' => 'boolean',
+        'price_at_addition' => 'decimal:2', // Crucial para no perder centavos
+    ];
+    
     protected $table = 'carts';
 
     // Se corrigió user_id por customer_id para alinearlo con la migración

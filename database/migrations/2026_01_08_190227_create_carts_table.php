@@ -21,17 +21,22 @@ return new class extends Migration {
             $table->index(['session_id', 'branch_id']);
         });
 
-        // 2. EL CONTENIDO (CartItems)
         Schema::create('cart_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
             $table->foreignUuid('cart_id')->constrained()->onDelete('cascade');
-            $table->foreignUuid('sku_id')->constrained()->onDelete('cascade');
+            
+            // Identificadores (Polimorfismo manual)
+            $table->foreignUuid('sku_id')->nullable()->constrained();
+            $table->foreignUuid('bundle_id')->nullable()->constrained();
             
             $table->integer('quantity')->default(1);
+            $table->decimal('price_at_addition', 10, 2); // El "Precio Congelado"
+            $table->boolean('is_bundle')->default(false)->index();
+            
             $table->timestamps();
             
-            $table->unique(['cart_id', 'sku_id']);
+            // Evita duplicados: un carrito tiene un SKU o un Bundle específico
+            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'cart_lookup_unique');
         });
     }
 

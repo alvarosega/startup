@@ -146,7 +146,7 @@ return new class extends Migration
         // =================================================================================
         Schema::create('customers', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('branch_id')->nullable()->index();
+            $table->uuid('branch_id')->index();
             
             $table->string('phone', 20)->unique();
             $table->string('country_code', 3)->default('BO');
@@ -162,7 +162,7 @@ return new class extends Migration
             $table->timestamps();
             $table->index(['phone', 'country_code']);
             
-            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
+            $table->foreign('branch_id')->references('id')->on('branches');
         });
 
         Schema::create('customer_profiles', function (Blueprint $table) {
@@ -180,7 +180,7 @@ return new class extends Migration
         Schema::create('customer_addresses', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('customer_id');
-            $table->uuid('branch_id')->nullable();
+            $table->uuid('branch_id')->index();
             
             $table->string('alias')->nullable(); 
             $table->string('address');
@@ -192,7 +192,7 @@ return new class extends Migration
             $table->softDeletes();
             
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
+            $table->foreign('branch_id')->references('id')->on('branches');
         });
 
         // ... (Resto de tablas customer igual) ...

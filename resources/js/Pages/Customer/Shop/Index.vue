@@ -6,10 +6,12 @@ import ShopLayout from '@/Layouts/ShopLayout.vue';
 import ZoneNavigator from '@/Components/Shop/ZoneNavigator.vue';
 import BundleList from '@/Components/Shop/BundleList.vue';
 import BundleModal from '@/Components/Shop/BundleModal.vue';
+import CategoryCarousel from '@/Components/Shop/CategoryCarousel.vue';
 
 const props = defineProps({ 
     zonesData: Object, 
-    bundlesData: Array
+    bundlesData: Array,
+    categories: Array
 });
 
 const page = usePage();
@@ -22,11 +24,12 @@ const openBundleModal = (slug) => {
     showBundleModal.value = true;
 };
 
+// Regla 3.C: Desempaquetado seguro y sanitización
 const processedZones = computed(() => {
     const rawZones = props.zonesData ? (Array.isArray(props.zonesData) ? props.zonesData : Object.values(props.zonesData)) : [];
     
     const getUrl = (path) => {
-        if (!path) return '/images/placeholder.png';
+        if (!path) return '/assets/img/placeholder.png'; // Fallback estandarizado
         if (path.startsWith('http')) return path;
         return `/storage/${path.replace(/^\/+/, '')}`;
     };
@@ -42,7 +45,7 @@ const processedZones = computed(() => {
 
 const navigateToAisle = ({ item, zone }) => {
     router.visit(route('customer.shop.zone', { zone: zone.slug }), {
-        data: { brand: item.id } 
+        data: { brand_id: item.id } 
     });
 };
 
@@ -57,11 +60,17 @@ watch(() => page.props.cart_summary?.count, () => {}, { immediate: true });
     <ShopLayout>
         <Head title="Explorar Catálogo" />
 
-        <div class="w-full flex flex-col min-h-full">
+        <div class="w-full flex flex-col min-h-screen pb-32">
             
             <BundleList 
+                v-if="props.bundlesData && props.bundlesData.length > 0"
                 :bundles="props.bundlesData" 
                 @select-bundle="openBundleModal" 
+            />
+            
+            <CategoryCarousel 
+                v-if="props.categories && props.categories.length > 0"
+                :categories="props.categories" 
             />
 
             <div class="flex-1 flex flex-col relative w-full">

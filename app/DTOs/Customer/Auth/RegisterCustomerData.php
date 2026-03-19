@@ -19,10 +19,10 @@ readonly class RegisterCustomerData
         public ?string $details,
         public float $latitude,
         public float $longitude,
-        public ?string $branchId, // <--- CAMBIAR A CamelCase
+        public ?string $branchId,
+        public ?string $guestUuid,
         public string $avatarType,
         public ?string $avatarSource,
-        public ?string $guestUuid,
         public ?UploadedFile $avatarFile,
     ) {}
 
@@ -43,11 +43,11 @@ readonly class RegisterCustomerData
             details:     $v['details'] ?? null,
             latitude:    (float) $v['latitude'],
             longitude:   (float) $v['longitude'],
-            branchId:    $v['branch_id'] ?? null,
+            branchId:   $v['branch_id'] ?? null,
+            guestUuid:  $v['guest_client_uuid'] ?? null,
+            avatarFile: $request->file('avatar_file'),
             avatarType:  $v['avatar_type'],
             avatarSource:$v['avatar_source'] ?? 'avatar_1.svg',
-            guestUuid:    $v['guest_client_uuid'] ?? null,
-            avatarFile:  $request->file('avatar_file'),
         );
     }
-}
+} 

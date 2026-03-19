@@ -41,19 +41,23 @@ class CategorySeeder extends Seeder
                     return $str;
                 }, $row);
 
-                // 3. Persistencia Atómica (Sin parent_id)
-                Category::updateOrCreate(
-                    ['slug' => $cleanRow['slug'] ?? Str::slug($cleanRow['name'])],
-                    [
-                        'name'               => $cleanRow['name'],
-                        'external_code'      => $cleanRow['external_code'] ?? null,
-                        'tax_classification' => $cleanRow['tax_classification'] ?? null,
-                        'requires_age_check' => (bool) ($cleanRow['requires_age_check'] ?? 0),
-                        'is_active'          => (bool) ($cleanRow['is_active'] ?? 1),
-                        'is_featured'        => (bool) ($cleanRow['is_featured'] ?? 0),
-                        'sort_order'         => (int) ($cleanRow['sort_order'] ?? 0),
-                    ]
-                );
+
+                    Category::updateOrCreate(
+                        ['slug' => $cleanRow['slug'] ?? Str::slug($cleanRow['name'])],
+                        [
+                            'name'               => $cleanRow['name'],
+                            'external_code'      => $cleanRow['external_code'] ?? null,
+                            'tax_classification' => $cleanRow['tax_classification'] ?? null,
+                            'requires_age_check' => (bool) ($cleanRow['requires_age_check'] ?? 0),
+                            'is_active'          => (bool) ($cleanRow['is_active'] ?? 1),
+                            'is_featured'        => (bool) ($cleanRow['is_featured'] ?? 0),
+                            
+                            // REGLA DE NEGOCIO: 1 es principal, prioridad ascendente.
+                            'sort_order'         => (int) ($cleanRow['sort_order'] ?? 99),
+                            
+                            'bg_color'           => $cleanRow['bg_color'] ?? null, 
+                        ]
+                    );
             }
         });
 

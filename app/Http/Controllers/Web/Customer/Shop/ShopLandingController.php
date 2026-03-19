@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Customer\Shop;
 use App\Http\Controllers\Controller;
 use App\Services\ShopContextService;
 use App\Actions\Customer\Shop\GetShopLandingAction;
+use App\DTOs\Customer\Shop\LandingQueryDTO;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,11 +19,14 @@ class ShopLandingController extends Controller
     {
         $branchId = $this->contextService->getActiveBranchId();
         
-        $landingData = $landingAction->execute($branchId);
+        $dto = LandingQueryDTO::fromRequest($branchId);
+        
+        $data = $landingAction->execute($dto);
         
         return Inertia::render('Customer/Shop/Index', [
-            'zonesData'   => $landingData['zones'],
-            'bundlesData' => $landingData['bundles'],
+            'zonesData'   => $data['zones'],
+            'bundlesData' => $data['bundles'],
+            'categories'  => $data['categories']
         ]);
     }
 }

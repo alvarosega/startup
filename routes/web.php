@@ -20,6 +20,7 @@ use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Shop\ShopLandingController;
 use App\Http\Controllers\Web\Customer\Shop\ShopCatalogController;
 use App\Http\Controllers\Web\Customer\Shop\ShopZoneController;
+use App\Http\Controllers\Web\Customer\Shop\ShopCategoryController; 
 
 // --- CONTROLADORES ADMIN ---
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
@@ -72,7 +73,7 @@ Route::middleware(['inertia.customer'])->group(function () {
         // 1. Catálogo
         Route::get('/', [ShopController::class, 'index'])->name('shop.index');
         Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('shop.zone');
-
+        Route::get('/category/{category:slug}', [ShopCategoryController::class, '__invoke'])->name('shop.category');
         // 2. Carrito (MOVER AQUÍ Y ELIMINAR EL OTRO BLOQUE)
 
         Route::prefix('cart')->name('cart.')->group(function () {

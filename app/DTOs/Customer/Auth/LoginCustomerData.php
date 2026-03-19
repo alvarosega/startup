@@ -13,14 +13,17 @@ readonly class LoginCustomerData
         public ?string $guestUuid = null
     ) {}
 
+
     public static function fromRequest(Request $request): self
     {
+        // Usamos validated() para todo lo que esté en las reglas por seguridad
+        $v = $request->validated();
+
         return new self(
-            phone:     $request->validated('phone'),
-            password:  $request->validated('password'),
-            remember:  (bool) $request->validated('remember', false),
-            // Capturamos cualquier variante que envíe el frontend
-            guestUuid: $request->input('guest_client_uuid') ?? $request->input('guest_id')
+            phone:     $v['phone'],
+            password:  $v['password'],
+            remember:  (bool) ($v['remember'] ?? false),
+            guestUuid: $v['guest_client_uuid'] ?? null // Ya validado en el Request
         );
     }
 }

@@ -3,46 +3,36 @@
 namespace App\Actions\Customer\Cart;
 
 use App\Models\{CartItem, InventoryLot};
-use Illuminate\Support\Facades\{DB, Auth};
-use Illuminate\Validation\ValidationException;
+use App\Services\Cart\CartService;
+use Illuminate\Support\Facades\DB;
+use Exception;
 
 class UpdateCartItemAction
 {
-    /**
-     * Actualiza la cantidad verificando stock y propiedad del ítem.
-     * * @throws ValidationException
-     */
-    public function execute(string $itemId, int $quantity, string $branchId): void
+    public function __construct(protected CartService $cartService) {}
+
+    public function execute(string $cartItemId, int $newQuantity, string $branchId): void
     {
-        // 1. Carga del ítem con su relación de carrito para validar propiedad
-        $item = CartItem::with('cart')->findOrFail($itemId);
+        // Cargamos la relación mínima necesaria
+        $item = CartItem::with(['bundle.skus'])->findOrFail($cartItemId);
 
-        // 2. REGLA ZERO-TRUST: Verificar identidad del actor
-        $customerId = Auth::guard('customer')->id();
-        $guestUuid = request()->header('X-Guest-UUID');
+        if ($item->is_bundle && $item->bundle) {
+            // 1. Caso Bundle: El Service ya tiene esta lógica pública y funcional
+            $this->cartService->validateBundleStock($item->bundle, $newQuantity, $branchId);
+        } else {
+            // 2. Caso SKU: Realizamos la validación directa aquí para no tocar el Service
+            $available = (int) InventoryLot::where('sku_id', $item->sku_id)
+                ->where('branch_id', $branchId)
+                ->where('is_safety_stock', false)
+                ->selectRaw('SUM(quantity - reserved_quantity) as total')
+                ->value('total') ?? 0;
 
-        $isOwner = ($customerId && $item->cart->customer_id === $customerId) || 
-                   ($guestUuid && $item->cart->session_id === $guestUuid);
-
-        if (!$isOwner) {
-            throw ValidationException::withMessages([
-                'quantity' => 'Acceso denegado: No puedes modificar este carrito.'
-            ]);
+            if ($available < $newQuantity) {
+                throw new Exception("Stock insuficiente. Solo quedan {$available} unidades.");
+            }
         }
 
-        // 3. CÁLCULO DE STOCK DISPONIBLE (Sin contar stock de seguridad)
-        $availableStock = (int) InventoryLot::where('branch_id', $branchId)
-            ->where('sku_id', $item->sku_id)
-            ->where('is_safety_stock', false)
-            ->sum(DB::raw('quantity - reserved_quantity'));
-
-        if ($quantity > $availableStock) {
-            throw ValidationException::withMessages([
-                'quantity' => "Lo sentimos, solo quedan {$availableStock} unidades disponibles."
-            ]);
-        }
-
-        // 4. PERSISTENCIA ATÓMICA
-        $item->update(['quantity' => $quantity]);
+        // 3. Actualización de cantidad
+        $item->update(['quantity' => $newQuantity]);
     }
 }

@@ -9,57 +9,72 @@ const getImageUrl = (path) => {
     if (path.startsWith('http')) return path;
     return `/storage/${path.replace(/^\/+/, '')}`;
 };
+
+/**
+ * Inyección de Variables para el Gradiente Radial
+ */
+const getZoneStyle = (hex) => {
+    if (!hex) return {};
+    const color = hex.startsWith('#') ? hex : '#' + hex;
+    return {
+        '--zone-color': color,
+        '--zone-color-10': `${color}1A`, // 10% opacidad
+        '--zone-color-40': `${color}66`, // 40% opacidad
+    };
+};
 </script>
 
 <template>
-    <div class="w-full pb-20 pt-6 space-y-12 relative">
-        
-        <div v-for="zone in zones" :key="zone.id" class="flex flex-col relative w-full">
+    <div class="w-full pb-20 pt-4 space-y-12 relative z-10">
+        <div v-for="zone in zones" :key="zone.id" class="flex flex-col relative w-full" :style="getZoneStyle(zone.color)">
             
-            <div class="px-6 mb-5 flex items-end justify-between cursor-pointer group"
+            <div class="px-6 mb-4 flex items-end justify-between cursor-pointer group"
                  @click="emit('select-zone', zone)">
-                <div class="flex flex-col">
-                    <h2 class="text-2xl font-extrabold text-foreground tracking-tight transition-colors group-hover:text-primary">
+                <div class="flex flex-col gap-0.5">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-[-0.02em] transition-all group-hover:translate-x-1">
                         {{ zone.name }}
                     </h2>
-                    <div class="h-1 w-8 bg-primary mt-1 rounded-full transform origin-left transition-transform group-hover:scale-x-150"></div>
+                    <div class="h-1 w-8 rounded-full bg-primary transition-all duration-500 group-hover:w-16"
+                         :style="{ backgroundColor: 'var(--zone-color)' }"></div>
                 </div>
-                <button class="flex items-center gap-1 text-[10px] font-bold text-primary uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                    Ver todo <ChevronRight :size="14" />
+                
+                <button class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider transition-all hover:gap-3"
+                        :style="{ color: 'var(--zone-color)' }">
+                    Explorar <ChevronRight :size="14" stroke-width="2.5" />
                 </button>
             </div>
 
             <div v-if="zone.aisles && zone.aisles.length > 0" 
-                 class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-4 pb-6">
+                 class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-4 pb-4">
                  
                 <div v-for="aisle in zone.aisles" :key="aisle.id"
                      @click="emit('select-item', { item: aisle, zone: zone })"
-                     class="w-[42vw] md:w-[180px] h-[220px] shrink-0 snap-start bg-card rounded-xl flex flex-col relative cursor-pointer overflow-hidden transition-all duration-300 group shadow-apple-soft hover:shadow-lg dark:shadow-none border border-transparent dark:border-card-border hover:-translate-y-1 active:scale-95">
+                     class="w-[42vw] md:w-[180px] aspect-[4/5] shrink-0 snap-start rounded-xl flex flex-col relative cursor-pointer overflow-hidden transition-all duration-500 group border border-gray-100 dark:border-[#262626] active:scale-95 shadow-sm">
                      
-                     <div class="absolute inset-0 bg-gradient-to-b from-transparent to-muted/20 dark:to-primary/5 z-0"></div>
+                     <div class="absolute inset-0 z-0 aisle-radial-background"></div>
                      
-                     <div class="absolute inset-0 flex items-center justify-center p-6 mb-8 z-10 transition-transform duration-500 group-hover:scale-110">
-                        <img :src="getImageUrl(aisle.image_url || aisle.image_path)" :alt="aisle.name" 
-                             class="w-full h-full object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_10px_20px_rgba(225,6,0,0.2)]">
+                     <div class="flex-1 flex items-center justify-center p-4 z-10 transition-transform duration-700 group-hover:scale-110">
+                        <img :src="getImageUrl(aisle.image_path)" :alt="aisle.name" 
+                             class="w-full h-full object-contain drop-shadow-xl dark:drop-shadow-none">
                      </div>
 
-                     <div class="absolute bottom-0 left-0 right-0 z-20 p-4 pt-10 bg-gradient-to-t from-card via-card/80 to-transparent">
-                        <h3 class="text-[11px] font-extrabold uppercase text-foreground text-center tracking-tight leading-tight group-hover:text-primary transition-colors">
+                     <div class="p-3 bg-gradient-to-t from-white dark:from-[#050505] via-transparent to-transparent z-20">
+                        <h3 class="text-[11px] font-bold uppercase text-gray-800 dark:text-gray-200 text-center tracking-tight leading-tight transition-colors group-hover:text-primary"
+                            :style="{ color: 'inherit', '--hover-color': 'var(--zone-color)' }">
                             {{ aisle.name }}
                         </h3>
                      </div>
                 </div>
 
-                <div class="w-[5vw] shrink-0"></div>
+                <div class="w-4 shrink-0"></div>
             </div>
 
             <div v-else class="w-full px-6">
-                <div class="py-10 border border-dashed border-border dark:border-card-border bg-muted/30 rounded-xl flex flex-col items-center justify-center gap-2">
-                    <Ban :size="20" class="text-muted-foreground/40" />
-                    <span class="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em]">Sin pasillos disponibles</span>
+                <div class="py-10 border border-dashed border-gray-200 dark:border-[#262626] bg-gray-50/50 dark:bg-white/5 rounded-xl flex flex-col items-center justify-center gap-2">
+                    <Ban :size="20" class="text-gray-300 dark:text-gray-700" />
+                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Zona en mantenimiento</span>
                 </div>
             </div>
-
         </div>
     </div>
 </template>
@@ -68,9 +83,41 @@ const getImageUrl = (path) => {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Refinamiento de sombras para modo oscuro F1 */
-.dark .group:hover {
-    border-color: hsl(var(--primary) / 0.4);
-    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.15);
+/**
+ * Implementación del Gradiente Radial Aurora
+ * Basado en la estructura de Uiverse.io
+ */
+.aisle-radial-background {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* MODO CLARO: Blanco #FFF -> Zone Color Soft */
+    background: #FFFFFF;
+    background: radial-gradient(125% 125% at 50% 10%, #FFFFFF 40%, var(--zone-color-40) 100%);
+    transition: background 0.5s ease;
+}
+
+.dark .aisle-radial-background {
+    /* MODO OSCURO: Negro Pitch #050505 -> Zone Color Soft */
+    background: #050505;
+    background: radial-gradient(125% 125% at 50% 10%, #050505 40%, var(--zone-color-40) 100%);
+}
+
+/* Efecto hover sobre el texto h3 usando la variable de zona */
+.group:hover h3 {
+    color: var(--zone-color) !important;
+}
+
+/* Animación de respiración sutil para la aurora en móvil */
+@keyframes aurora-subtle-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .aisle-radial-background {
+        animation: aurora-subtle-pulse 4s infinite ease-in-out;
+    }
 }
 </style>

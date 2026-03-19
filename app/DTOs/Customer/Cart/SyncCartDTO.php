@@ -7,7 +7,7 @@ readonly class SyncCartDTO
     public function __construct(
         public string $customerId,
         public string $guestUuid,
-        public ?string $branchId = null
+        public string $branchId // <--- ELIMINADO EL '?' (Obligatorio)
     ) {}
 
     public static function fromRequest(string $customerId, string $guestUuid, string $branchId): self

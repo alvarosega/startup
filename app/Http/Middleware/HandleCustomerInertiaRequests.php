@@ -119,12 +119,17 @@ class HandleCustomerInertiaRequests extends Middleware
     {
         if (!$customerId && !$guestUuid) return 0;
 
-        return CartItem::whereHas('cart', function($q) use ($customerId, $guestUuid, $branchId) {
-            $q->where('branch_id', $branchId)
-              ->where(function($sq) use ($customerId, $guestUuid) {
-                  $customerId ? $sq->where('customer_id', $customerId) 
-                              : $sq->where('session_id', $guestUuid);
-              });
-        })->sum('quantity') ?? 0;
+        return (int) CartItem::whereHas('cart', function($q) use ($customerId, $guestUuid, $branchId) {
+            $q->where('branch_id', $branchId);
+            
+            // CORRECCIÓN: Estructura IF explícita para garantizar la compilación SQL
+            if ($customerId) {
+                $q->where('customer_id', $customerId);
+            } else {
+                // Para invitados, blindamos asegurando que customer_id sea null
+                $q->where('session_id', $guestUuid)
+                  ->whereNull('customer_id');
+            }
+        })->sum('quantity');
     }
 }

@@ -22,17 +22,10 @@ class BundleSeeder extends Seeder
             ['name' => 'Pack Nocturno', 'desc' => 'Solo para compras de madrugada.'],
             ['name' => 'Combo Gamer', 'desc' => 'Energía y snacks para maratones.'],
             ['name' => 'Kit de Supervivencia', 'desc' => 'Básicos esenciales de la sucursal.'],
-            ['name' => 'Pack de Temporada', 'desc' => 'Productos exclusivos del mes.'],
-            ['name' => 'Mega Bundle Omega', 'desc' => 'El pack más completo del catálogo.'],
-            ['name' => 'Starter Kit Pro', 'desc' => 'Todo lo necesario para iniciar.'],
         ];
-
-        $startDate = Carbon::now();
-        $baseEndDate = Carbon::now()->addMonth();
 
         foreach ($branches as $branch) {
             foreach ($packDefinitions as $index => $data) {
-                // Lógica 50/50: Pares son Editables, Impares son Packs Fijos
                 $isEditable = ($index % 2 === 0);
                 
                 $bundle = Bundle::create([
@@ -40,19 +33,19 @@ class BundleSeeder extends Seeder
                     'name'        => "{$data['name']} - {$branch->name}",
                     'slug'        => Str::slug($data['name'] . '-' . $branch->name) . '-' . Str::random(4),
                     'description' => $data['desc'],
-                    // Si es editable, el precio suele ser dinámico (NULL), si no, es fijo.
                     'fixed_price' => $isEditable ? null : rand(100, 500),
                     'is_editable' => $isEditable,
+                    'max_quantity_per_order' => 5, // Límite de seguridad
                     'is_active'   => true,
-                    'starts_at'   => $startDate,
-                    'ends_at'     => $baseEndDate->copy()->addDays($index),
+                    'starts_at'   => Carbon::now(),
+                    'ends_at'     => Carbon::now()->addMonths(2),
                 ]);
 
-                // Asignar entre 2 y 4 SKUs aleatorios
+                // Asignar componentes a la receta del bundle
                 $items = [];
-                $randomSkus = $skus->random(rand(2, 4));
+                $randomSkus = $skus->random(rand(2, 3));
                 foreach ($randomSkus as $sku) {
-                    $items[$sku->id] = ['quantity' => rand(1, 3)];
+                    $items[$sku->id] = ['quantity' => rand(1, 2)];
                 }
 
                 $bundle->skus()->sync($items);

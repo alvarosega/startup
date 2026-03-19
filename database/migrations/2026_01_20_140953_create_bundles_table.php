@@ -19,6 +19,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true)->index();
             $table->decimal('fixed_price', 10, 2)->nullable();
             $table->boolean('is_editable')->default(false);
+            $table->integer('max_quantity_per_order')->default(5);
             // --- NUEVOS CAMPOS PARA TEMPORIZADOR ---
             $table->timestamp('starts_at')->nullable()->index();
             $table->timestamp('ends_at')->nullable()->index();

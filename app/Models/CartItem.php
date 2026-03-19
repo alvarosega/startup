@@ -12,10 +12,19 @@ class CartItem extends Model
 
     protected $table = 'cart_items';
 
+    // CORRECCIÓN CRÍTICA: Permitir la asignación de los nuevos campos
     protected $fillable = [
         'cart_id', 
         'sku_id', 
-        'quantity'
+        'bundle_id',         // <--- Añadido
+        'quantity',
+        'price_at_addition', // <--- Añadido
+        'is_bundle'          // <--- Añadido
+    ];
+
+    protected $casts = [
+        'is_bundle' => 'boolean',
+        'price_at_addition' => 'decimal:2',
     ];
 
     public function sku(): BelongsTo 
@@ -28,4 +37,9 @@ class CartItem extends Model
         return $this->belongsTo(Cart::class, 'cart_id'); 
     }
 
+    // NUEVO: Relación para los combos atómicos
+    public function bundle(): BelongsTo
+    {
+        return $this->belongsTo(Bundle::class, 'bundle_id');
+    }
 }

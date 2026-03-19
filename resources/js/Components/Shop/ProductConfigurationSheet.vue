@@ -4,10 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { X, ShoppingCart, Plus, Minus, PackageX, Loader2, Zap } from 'lucide-vue-next';
 
 const props = defineProps({
-    product: {
-        type: Object,
-        default: null
-    }
+    product: { type: Object, default: null }
 });
 
 const emit = defineEmits(['close']);
@@ -24,8 +21,8 @@ const activeSku = computed(() => {
 
 watch(() => props.product, (newProduct) => {
     if (newProduct && newProduct.skus) {
-        const availableSkus = [...newProduct.skus].sort((a, b) => a.price - b.price);
-        const startIndex = newProduct.skus.findIndex(s => s.id === availableSkus[0].id);
+        const sorted = [...newProduct.skus].sort((a, b) => a.price - b.price);
+        const startIndex = newProduct.skus.findIndex(s => s.id === sorted[0].id);
         
         currentSkuIndex.value = startIndex !== -1 ? startIndex : 0;
         quantity.value = 1;
@@ -61,30 +58,22 @@ const getSkuPriceData = (sku, qty) => {
     };
 };
 
-const currentPriceData = computed(() => {
-    return getSkuPriceData(activeSku.value, quantity.value);
-});
+const currentPriceData = computed(() => getSkuPriceData(activeSku.value, quantity.value));
 
 const scrollToIndex = (index, behavior = 'smooth') => {
     if (!carouselRef.value) return;
     const card = carouselRef.value.children[index];
     if (card) {
         card.scrollIntoView({ behavior, block: 'nearest', inline: 'center' });
-        if (currentSkuIndex.value !== index) {
-            currentSkuIndex.value = index;
-            quantity.value = 1; 
-        }
+        currentSkuIndex.value = index;
     }
 };
 
 const onCarouselScroll = () => {
     if (!carouselRef.value || !props.product) return;
-    
     const scrollLeft = carouselRef.value.scrollLeft;
-    const containerWidth = carouselRef.value.getBoundingClientRect().width;
-    const cardWidth = containerWidth * 0.70; 
-    
-    const newIndex = Math.round(scrollLeft / cardWidth);
+    const itemWidth = carouselRef.value.children[0].offsetWidth + 24; 
+    const newIndex = Math.round(scrollLeft / itemWidth);
     
     if (newIndex !== currentSkuIndex.value && newIndex >= 0 && newIndex < props.product.skus.length) {
         currentSkuIndex.value = newIndex;
@@ -100,10 +89,6 @@ const updateQty = (delta) => {
     }
 };
 
-const close = () => {
-    emit('close');
-};
-
 const addToCart = () => {
     if (!activeSku.value || activeSku.value.available_stock <= 0 || isSubmitting.value) return;
 
@@ -116,110 +101,113 @@ const addToCart = () => {
         preserveScroll: true,
         onSuccess: () => {
             isSubmitting.value = false;
-            close();
+            emit('close');
         },
-        onError: () => {
-            isSubmitting.value = false;
-        }
+        onError: () => isSubmitting.value = false
     });
 };
 </script>
 
 <template>
-    <div>
+    <div class="relative">
         <Transition name="fade">
-            <div v-if="product" @click="close" class="fixed inset-0 z-[90] bg-black/40 dark:bg-black/80 backdrop-blur-sm"></div>
+            <div v-if="product" @click="emit('close')" class="fixed inset-0 z-[100] bg-black/40 dark:bg-black/90 backdrop-blur-md"></div>
         </Transition>
 
         <Transition name="slide-up">
-            <div v-if="product" class="fixed inset-x-0 bottom-0 z-[100] bg-[#FFFFFF] dark:bg-[#050505] rounded-t-xl dark:border-t dark:border-[#262626] shadow-[0_-10px_40px_rgba(0,0,0,0.08)] dark:shadow-none flex flex-col h-[85vh] md:inset-0 md:m-auto md:w-full md:max-w-[420px] md:h-fit md:max-h-[85vh] md:rounded-xl md:border md:border-transparent md:dark:border-[#262626]">
+            <div v-if="product" class="fixed inset-x-0 bottom-0 z-[110] bg-[#FFFFFF] dark:bg-[#050505] rounded-t-xl border-t border-gray-100 dark:border-[#262626] shadow-[0_-20px_60px_rgba(0,0,0,0.2)] flex flex-col max-h-[90vh] md:inset-0 md:m-auto md:w-full md:max-w-[440px] md:h-fit md:rounded-xl md:border">
                 
-                <div class="shrink-0 pt-4 pb-3 flex flex-col items-center relative border-b border-gray-100 dark:border-[#262626]">
-                    <div @click="close" class="w-12 h-1.5 bg-gray-200 dark:bg-[#262626] rounded-full mb-3 cursor-pointer md:hidden"></div>
-                    <h3 class="text-base font-bold tracking-[-0.02em] text-gray-900 dark:text-white leading-none truncate px-12 text-center w-full md:mt-2 md:mb-1">
-                        {{ product.name }}
-                    </h3>
-                    <button @click="close" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 dark:bg-[#121217] border border-transparent dark:border-[#262626] active:scale-95 transition-transform">
+                <div class="w-12 h-1.5 bg-gray-200 dark:bg-[#262626] rounded-full mx-auto mt-3 mb-1 md:hidden"></div>
+
+                <div class="px-6 pt-4 pb-2 flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold tracking-[-0.02em] text-gray-900 dark:text-white leading-tight pr-8 capitalize">
+                            {{ product.name }}
+                        </h3>
+                    </div>
+                    <button @click="emit('close')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 dark:bg-[#121217] border border-transparent dark:border-[#262626] active:scale-90 transition-transform shrink-0">
                         <X class="w-4 text-gray-900 dark:text-white" stroke-width="2.5" />
                     </button>
                 </div>
 
-                <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-center py-4">
-                    
-                    <div ref="carouselRef" @scroll="onCarouselScroll" class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full items-center shrink-0" style="padding-left: 15%; padding-right: 15%;">
+                <div class="flex-1 overflow-y-auto no-scrollbar py-8">
+                    <div ref="carouselRef" @scroll="onCarouselScroll" class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-6 px-[15%]">
                         <div v-for="(sku, index) in product.skus" :key="sku.id"
                              @click="scrollToIndex(index)"
-                             class="shrink-0 snap-center flex justify-center items-center transition-all duration-300 ease-out cursor-pointer relative aspect-square rounded-xl bg-[#FFFFFF] dark:bg-[#121217] border border-transparent dark:border-[#262626]"
-                             style="width: 70%;"
-                             :class="[
-                                currentSkuIndex === index ? 'scale-100 opacity-100 shadow-sm dark:shadow-none' : 'scale-[0.85] opacity-40 grayscale-[30%]',
-                                {'dark:hover:border-[#E10600]/50': currentSkuIndex !== index}
-                             ]">
-                            <img :src="getImageUrl(sku.image_url)" class="w-full h-full object-contain p-4 transition-transform duration-300" :class="currentSkuIndex === index ? 'scale-105 drop-shadow-md dark:drop-shadow-none' : 'scale-100'">
+                             class="w-[70vw] md:w-[260px] shrink-0 snap-center flex flex-col items-center transition-all duration-500 ease-out"
+                             :class="currentSkuIndex === index ? 'opacity-100 scale-100' : 'opacity-20 scale-90 blur-[2px]'">
+                            
+                            <div class="relative w-full aspect-square flex items-center justify-center mb-8 overflow-visible">
+                                
+                                <div class="absolute inset-4 rounded-full transition-all duration-700 blur-[35px] opacity-40 dark:opacity-60"
+                                     :class="currentSkuIndex === index ? 'scale-125' : 'scale-75 opacity-0'"
+                                     :style="{ 
+                                         background: 'radial-gradient(circle at center, var(--primary) 0%, transparent 70%)' 
+                                     }"></div>
+                                
+                                <img :src="getImageUrl(sku.image_url)" 
+                                     class="relative z-10 w-full h-full object-contain transition-all duration-700"
+                                     :class="[
+                                         currentSkuIndex === index ? 'scale-110 drop-shadow-[0_20px_30px_rgba(0,0,0,0.15)]' : 'scale-90',
+                                         'dark:drop-shadow-none'
+                                     ]">
+                            </div>
+
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-1">Variante Seleccionada</span>
+                            <span class="text-sm font-semibold tracking-[-0.01em] text-gray-900 dark:text-white text-center">{{ sku.name }}</span>
                         </div>
                     </div>
 
-                    <div class="flex justify-center gap-2 mt-4 mb-4 shrink-0">
-                        <button v-for="(sku, index) in product.skus" :key="'ind-'+sku.id"
-                                @click="scrollToIndex(index)"
-                                class="w-4 h-4 rounded-lg border flex items-center justify-center transition-all duration-300"
-                                :class="currentSkuIndex === index ? 'border-[#007AFF] bg-[#007AFF]/10 dark:border-[#E10600] dark:bg-[#E10600]/10 dark:shadow-[0_0_10px_rgba(225,6,0,0.5)]' : 'border-gray-200 bg-gray-50 dark:border-[#262626] dark:bg-[#121217]'">
-                            <div v-if="currentSkuIndex === index" class="w-1.5 h-1.5 rounded-sm bg-[#007AFF] dark:bg-[#E10600]"></div>
-                        </button>
-                    </div>
-
-                    <div v-if="activeSku" class="px-4 flex flex-col items-center text-center shrink-0">
-                        <h4 class="text-lg font-bold tracking-[-0.02em] text-gray-900 dark:text-white leading-tight mb-2">{{ activeSku.name }}</h4>
-                        
-                        <div class="flex items-baseline gap-1 mb-3">
-                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Bs</span>
-                            <span class="text-4xl font-semibold text-gray-900 dark:text-white leading-none transition-colors duration-300">
-                                {{ currentPriceData.price.toFixed(2) }}
-                            </span>
-                        </div>
-
-                        <div v-if="currentPriceData.next_tier" class="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[-0.02em] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 py-1.5 px-3 rounded-lg border border-transparent dark:border-emerald-400/20 dark:shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                            <Zap :size="12" class="fill-current" />
-                            AÑADE {{ currentPriceData.next_tier.min_qty - quantity }} MÁS PARA BAJAR A BS {{ currentPriceData.next_tier.price.toFixed(2) }}
-                        </div>
+                    <div class="flex justify-center gap-1.5 mt-8">
+                        <div v-for="(_, i) in product.skus" :key="i" 
+                             class="h-1 rounded-full transition-all duration-500"
+                             :class="currentSkuIndex === i ? 'w-8 bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]' : 'w-1.5 bg-gray-100 dark:bg-[#262626]'"></div>
                     </div>
                 </div>
 
-                <div class="shrink-0 p-4 bg-[#FFFFFF] dark:bg-[#050505] border-t border-gray-100 dark:border-[#262626] md:rounded-b-xl">
-                    <div class="flex flex-col gap-4">
-                        
-                        <div class="flex items-center justify-between bg-gray-50 dark:bg-[#121217] border border-gray-200 dark:border-[#262626] rounded-lg p-1 h-12">
-                            <button @click="updateQty(-1)" class="w-12 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white active:scale-95 disabled:opacity-30 transition-transform" :disabled="!activeSku || activeSku.available_stock <= 0 || quantity <= 1">
+                <div class="p-6 bg-[#FFFFFF] dark:bg-[#050505] border-t border-gray-100 dark:border-[#262626] space-y-5">
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Precio Unitario</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-sm font-semibold text-gray-400">Bs</span>
+                                <span class="text-4xl font-bold tracking-[-0.02em] text-gray-900 dark:text-white">
+                                    {{ currentPriceData.price.toFixed(2) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div v-if="currentPriceData.next_tier" class="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 rounded-lg flex items-center gap-2 animate-pulse">
+                            <Zap :size="12" class="text-emerald-500 fill-current" />
+                            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">
+                                +{{ currentPriceData.next_tier.min_qty - quantity }} para bajar a Bs {{ currentPriceData.next_tier.price.toFixed(2) }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="flex-1 flex items-center justify-between bg-gray-50 dark:bg-[#121217] rounded-lg p-1 border border-gray-100 dark:border-[#262626]">
+                            <button @click="updateQty(-1)" class="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" :disabled="quantity <= 1">
                                 <Minus :size="18" stroke-width="2.5" />
                             </button>
-                            
-                            <span class="text-xl font-semibold text-gray-900 dark:text-white w-16 text-center" :class="{'text-gray-300 dark:text-[#262626]': !activeSku || activeSku.available_stock <= 0}">
-                                {{ activeSku && activeSku.available_stock > 0 ? quantity : 0 }}
-                            </span>
-                            
-                            <button @click="updateQty(1)" class="w-12 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white active:scale-95 disabled:opacity-30 transition-transform" :disabled="!activeSku || activeSku.available_stock <= 0 || quantity >= activeSku.available_stock">
+                            <span class="text-lg font-bold text-gray-900 dark:text-white">{{ quantity }}</span>
+                            <button @click="updateQty(1)" class="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" :disabled="quantity >= (activeSku?.available_stock || 1)">
                                 <Plus :size="18" stroke-width="2.5" />
                             </button>
                         </div>
 
-                        <button @click="addToCart" :disabled="!activeSku || activeSku.available_stock <= 0 || isSubmitting" class="w-full h-12 bg-[#007AFF] dark:bg-[#E10600] text-white font-semibold tracking-[-0.02em] rounded-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-[#121217] dark:disabled:border dark:disabled:border-[#262626] shadow-sm dark:shadow-[0_0_15px_rgba(225,6,0,0.5)] dark:hover:shadow-[0_0_25px_rgba(225,6,0,0.8)] disabled:shadow-none">
-                            <template v-if="isSubmitting">
-                                <Loader2 class="animate-spin" :size="18" stroke-width="2.5" />
-                                Procesando
-                            </template>
-                            <template v-else-if="activeSku && activeSku.available_stock <= 0">
-                                <PackageX :size="18" stroke-width="2.5" />
-                                Sin Stock
-                            </template>
+                        <button @click="addToCart" 
+                                :disabled="!activeSku || activeSku.available_stock <= 0 || isSubmitting"
+                                class="flex-[2] bg-primary text-white font-bold uppercase tracking-wider text-xs rounded-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-40 shadow-sm dark:shadow-[0_0_20px_rgba(var(--primary),0.4)]">
+                            <Loader2 v-if="isSubmitting" class="animate-spin" :size="18" />
                             <template v-else>
                                 <ShoppingCart :size="18" stroke-width="2.5" />
-                                Añadir Variante
+                                {{ activeSku?.available_stock > 0 ? 'Añadir al Pedido' : 'Sin Stock' }}
                             </template>
                         </button>
-
                     </div>
                 </div>
-
             </div>
         </Transition>
     </div>
@@ -228,11 +216,11 @@ const addToCart = () => {
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.2); border-radius: 8px; }
-.slide-up-enter-active, .slide-up-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); }
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.slide-up-enter-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+.slide-up-leave-active { transition: all 0.4s cubic-bezier(0.7, 0, 0.84, 0); }
+.slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); }
 </style>

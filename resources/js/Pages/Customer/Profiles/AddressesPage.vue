@@ -78,10 +78,13 @@ const deleteAddr = (id) => {
 
             <div class="mb-8 rounded-[2.5rem] overflow-hidden border border-border shadow-xl h-64 relative">
                 <UserAddressesMap :addresses="addresses" :activeBranches="activeBranches" />
-                <button @click="openCreate" v-if="addresses.length < 3" 
+                <button @click="openCreate" v-if="addresses.length < 10" 
                         class="absolute bottom-4 right-4 bg-primary text-primary-foreground p-4 rounded-2xl shadow-2xl z-[500] hover:scale-110 transition-transform active:scale-95">
                     <Plus :size="24" stroke-width="3" />
                 </button>
+                <div v-if="form.errors.limit" class="p-3 mb-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-xs font-black uppercase flex items-center gap-2">
+                    <AlertTriangle :size="14"/> {{ form.errors.limit }}
+                </div>
             </div>
 
             <div class="grid gap-4">

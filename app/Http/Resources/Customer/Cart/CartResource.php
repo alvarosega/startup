@@ -8,6 +8,7 @@ class CartResource extends JsonResource
 {
     public function toArray($request): array
     {
+        // Cargamos la colección resuelta de CartItemResource
         $items = CartItemResource::collection($this->whenLoaded('items'))->resolve();
         $itemsCollect = collect($items);
 
@@ -16,10 +17,11 @@ class CartResource extends JsonResource
             'branch_id'     => (string) $this->branch_id,
             'items'         => $items,
             
-            // Las subimos a la raíz para Index.vue
             'total_items'   => (int) $itemsCollect->sum('quantity'),
             'total_price'   => (float) $itemsCollect->sum('subtotal'),
-            'total_savings' => (float) $itemsCollect->sum('line_savings'),
+            
+            // CORRECCIÓN: Garantizamos que sume valores numéricos
+            'total_savings' => (float) $itemsCollect->sum(fn($item) => $item['line_savings'] ?? 0),
             
             'can_checkout'  => $itemsCollect->every('has_stock') && $itemsCollect->count() > 0,
             'last_activity' => $this->updated_at->diffForHumans(),

@@ -32,7 +32,12 @@ const canSubmit = computed(() => {
 const submit = () => {
     if (!canSubmit.value) return;
     form.clearErrors();
-    form.post(route('login'), {
+
+    // Captura dinámica justo antes del POST
+    form.transform((data) => ({
+        ...data,
+        guest_client_uuid: localStorage.getItem('guest_client_uuid')
+    })).post(route('login'), {
         preserveScroll: true,
         onFinish: () => form.reset('password'),
     });

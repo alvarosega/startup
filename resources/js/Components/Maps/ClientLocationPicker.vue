@@ -1,11 +1,10 @@
 <script setup>
-import { ref, onMounted, watch, computed, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import "leaflet/dist/leaflet.css";
-import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
+import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import L from 'leaflet';
 import debounce from 'lodash/debounce';
-import { Loader2, MapPin, CheckCircle2, AlertOctagon, Navigation, Crosshair } from 'lucide-vue-next';
-const coverageMessage = ref('');
+import { Loader2, Navigation, MapPin, AlertCircle } from 'lucide-vue-next';
 
 const props = defineProps({
     modelValueLat: Number,
@@ -13,263 +12,180 @@ const props = defineProps({
     modelValueAddress: String,
     activeBranches: { type: Array, default: () => [] },
     center: { type: Array, default: () => [-16.5000, -68.1500] },
-    zoom: { type: Number, default: 16 }
+    zoom: { type: Number, default: 15 }
 });
 
-const emit = defineEmits([
-    'update:modelValueLat',
-    'update:modelValueLng',
-    'update:modelValueAddress',
-    'update:modelValueBranchId',
-    'coverage-status-change'
-]);
+const emit = defineEmits(['update:modelValueLat', 'update:modelValueLng', 'update:modelValueAddress', 'update:modelValueBranchId']);
 
-// --- ESTADOS ---
+// ESTADOS LOCALES PARA EVITAR MUTAR PROPS
 const mapRef = ref(null);
-const zoom = ref(props.zoom);
-const mapReady = ref(false);
+const currentZoom = ref(props.zoom);
+const currentCenter = ref(props.center);
+
 const isLocating = ref(false);
-const isDragging = ref(false);
-const isInsideCoverage = ref(false);
-const closestBranchName = ref('');
+// El pin nace muerto. Solo revive si hay datos previos válidos o el usuario pulsa el botón.
+const locationActivated = ref(props.modelValueLat && Math.abs(props.modelValueLat) > 1);
+const mapMoving = ref(false);
+const showPrecisionHint = ref(false);
+const geoError = ref(false);
 
-const isValidCoordinate = (val) => typeof val === 'number' && !isNaN(val) && Math.abs(val) > 0.0001;
+const mapUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
-const hasSelectedLocation = computed(() => 
-    isValidCoordinate(props.modelValueLat) && isValidCoordinate(props.modelValueLng)
-);
-
-const markerPosition = ref(
-    hasSelectedLocation.value ? [props.modelValueLat, props.modelValueLng] : props.center
-);
-
-// --- ICONO TÁCTICO NEÓN ---
-const createTacticalIcon = () => {
-    return L.divIcon({
-        className: 'tactical-pin-container',
-        html: `
-            <div class="relative flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center border-[3px] border-white shadow-[0_0_20px_rgba(0,240,255,0.6)] animate-in zoom-in duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A192F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                </div>
-                <div class="w-1 h-4 bg-primary shadow-[0_0_10px_rgba(0,240,255,0.4)] -mt-1"></div>
-            </div>
-        `,
-        iconSize: [40, 50],
-        iconAnchor: [20, 50],
-    });
-};
-const tacticalIcon = createTacticalIcon();
-
-// --- LÓGICA ---
-
-const updateLocationData = (lat, lng) => {
-    markerPosition.value = [lat, lng];
-    emit('update:modelValueLat', lat);
-    emit('update:modelValueLng', lng);
-    validateCoverage(lat, lng);
-    reverseGeocode(lat, lng);
-};
-
-const onMapClick = (event) => {
-    if (!isDragging.value) {
-        updateLocationData(event.latlng.lat, event.latlng.lng);
-    }
-};
-
-const locateUser = () => {
-    if (!navigator.geolocation) return;
-    isLocating.value = true;
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const { latitude, longitude } = position.coords;
-            updateLocationData(latitude, longitude);
-            mapRef.value?.leafletObject?.flyTo([latitude, longitude], 17, { duration: 1.5 });
-            isLocating.value = false;
-        },
-        () => { isLocating.value = false; },
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
-};
-
-const refreshMap = () => {
-    if (mapRef.value?.leafletObject) {
-        mapRef.value.leafletObject.invalidateSize();
-    }
-};
-
-// Evitar que el mapa se rompa al redimensionar la ventana o el contenedor
-let resizeObserver;
-onMounted(() => {
-    resizeObserver = new ResizeObserver(() => refreshMap());
-    if (mapRef.value?.$el) resizeObserver.observe(mapRef.value.$el);
-});
-
-onUnmounted(() => {
-    if (resizeObserver) resizeObserver.disconnect();
-});
-
-const isPointInPolygon = (point, vs) => {
-    const formattedVs = vs.map(p => (p.lat && p.lng) ? [p.lat, p.lng] : p);
-    let x = point[0], y = point[1], inside = false;
-    for (let i = 0, j = formattedVs.length - 1; i < formattedVs.length; j = i++) {
-        let xi = formattedVs[i][0], yi = formattedVs[i][1];
-        let xj = formattedVs[j][0], yj = formattedVs[j][1];
-        let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
-    }
-    return inside;
-};
-
-const validateCoverage = (lat, lng) => {
-    let covered = false;
-    let detectedBranchId = null;
-    closestBranchName.value = '';
-    
-    if (props.activeBranches?.length > 0) {
-        for (const branch of props.activeBranches) {
-            // Ajuste de seguridad para el polígono
-            const polygon = typeof branch.coverage_polygon === 'string' 
-                ? JSON.parse(branch.coverage_polygon) 
-                : branch.coverage_polygon;
-                
-            if (polygon && isPointInPolygon([lat, lng], polygon)) {
-                covered = true;
-                closestBranchName.value = branch.name;
-                detectedBranchId = branch.id;
-                break;
-            }
-        }
-    }
-
-    isInsideCoverage.value = covered;
-    // ACTUALIZAR MENSAJE DE UX
-    coverageMessage.value = covered 
-        ? `📍 Estás en la zona de cobertura de ${closestBranchName.value}` 
-        : `⚠️ Estás fuera de zona: Tu pedido será gestionado por la Central.`;
-
-    emit('update:modelValueBranchId', detectedBranchId);
-    emit('coverage-status-change', covered);
-};
-
+// GEOLOCALIZACIÓN INVERSA
 const reverseGeocode = debounce(async (lat, lng) => {
+    if (mapMoving.value) return;
     try {
-        // LLAMADA AL PROXY INTERNO (Resuelve CORS y 403)
         const response = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
-        const data = await response.json();
+        if (!response.ok) throw new Error("Servicio de mapas no disponible");
         
+        const data = await response.json();
         if (data?.address) {
             const a = data.address;
             const short = `${a.road || a.pedestrian || ''} ${a.house_number || ''}, ${a.neighbourhood || a.suburb || ''}`.trim();
             emit('update:modelValueAddress', short || data.display_name.split(',')[0]);
+        } else {
+            emit('update:modelValueAddress', "Punto seleccionado (Sin nombre de calle)");
         }
     } catch (e) { 
-        console.error("Error en Geocodificación:", e); 
+        console.error("GeoError:", e);
+        emit('update:modelValueAddress', "Ubicación detectada (Ajuste manual)");
     }
-}, 800);
+}, 600);
 
-const onMapReady = () => {
-    mapReady.value = true;
-    setTimeout(refreshMap, 300);
-    if (hasSelectedLocation.value) {
-        validateCoverage(props.modelValueLat, props.modelValueLng);
-    }
+const handleMapMove = () => {
+    if (!locationActivated.value || !mapRef.value?.leafletObject) return;
+    const center = mapRef.value.leafletObject.getCenter();
+    
+    // Sincronizar datos con el padre
+    emit('update:modelValueLat', center.lat);
+    emit('update:modelValueLng', center.lng);
+    
+    // Feedback de carga
+    emit('update:modelValueAddress', 'Calculando dirección...');
+    reverseGeocode(center.lat, center.lng);
 };
 
-defineExpose({ refreshMap });
+const locateUser = () => {
+    if (!navigator.geolocation) {
+        alert("Tu navegador no tiene permisos de GPS.");
+        return;
+    }
+    
+    isLocating.value = true;
+    geoError.value = false;
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            // 1. Activamos la visibilidad del Pin
+            locationActivated.value = true;
+            
+            // 2. Movemos el mapa
+            currentCenter.value = [latitude, longitude];
+            mapRef.value?.leafletObject?.flyTo([latitude, longitude], 18, { duration: 1.5 });
+            
+            // 3. Al terminar el vuelo, recalculamos todo
+            setTimeout(() => {
+                isLocating.value = false;
+                showPrecisionHint.value = true;
+                fixMapLayout(); // Refresco preventivo
+                handleMapMove();
+            }, 1600);
+        },
+        (error) => { 
+            isLocating.value = false; 
+            geoError.value = true;
+            alert("Error: Debes activar el GPS y permitir el acceso."); 
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+};
+
+// REGLA DE ORO: Recalcular tamaño de Leaflet para evitar pantallas blancas
+const fixMapLayout = () => {
+    nextTick(() => {
+        if (mapRef.value?.leafletObject) {
+            mapRef.value.leafletObject.invalidateSize();
+        }
+    });
+};
+
+// Si el padre nos cambia de paso, refrescamos el mapa
+defineExpose({ fixMapLayout });
+
+onMounted(() => {
+    // Si ya viene con ubicación, inicializar
+    if (locationActivated.value) {
+        reverseGeocode(props.modelValueLat, props.modelValueLng);
+    }
+    fixMapLayout();
+});
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-background overflow-hidden border border-border/50">
+    <div class="relative w-full h-full min-h-[100%] bg-[#f0f2f5] overflow-hidden flex flex-col">
         
-        <div class="relative flex-1 bg-muted/10 isolate">
-            <l-map ref="mapRef" 
-                   v-model:zoom="zoom" 
-                   :center="center" 
-                   :use-global-leaflet="false"
-                   :options="{ zoomControl: false, attributionControl: false }"
-                   @ready="onMapReady"
-                   @click="onMapClick" 
-                   class="h-full w-full outline-none z-0">
-                
-                <l-tile-layer 
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                    class-name="map-tiles"
-                />
-                
-                <l-marker 
-                    v-if="hasSelectedLocation"
-                    :lat-lng="markerPosition" 
-                    :draggable="true" 
-                    :icon="tacticalIcon"
-                    :z-index-offset="1000"
-                    @dragend="(e) => updateLocationData(e.target.getLatLng().lat, e.target.getLatLng().lng)"
-                />
-            </l-map>
+        <l-map ref="mapRef" 
+               v-model:zoom="currentZoom" 
+               v-model:center="currentCenter"
+               :use-global-leaflet="false"
+               :options="{ zoomControl: false, attributionControl: false }"
+               @movestart="mapMoving = true; showPrecisionHint = false"
+               @moveend="mapMoving = false; handleMapMove()"
+               class="absolute inset-0 h-full w-full z-0 outline-none">
+            <l-tile-layer :url="mapUrl" />
+        </l-map>
 
-            <div class="absolute top-4 left-0 right-0 z-[500] flex justify-center pointer-events-none px-4">
-                <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform -translate-y-4 opacity-0" enter-to-class="transform translate-y-0 opacity-100">
-                    <div v-if="hasSelectedLocation" 
-                         class="backdrop-blur-xl border shadow-2xl rounded-2xl px-4 py-2 flex items-center gap-3 transition-all duration-500"
-                         :class="isInsideCoverage ? 'bg-success/20 border-success/40 text-success' : 'bg-error/20 border-error/40 text-error'">
-                        <div class="relative flex items-center justify-center">
-                            <span class="absolute w-3 h-3 rounded-full bg-current animate-ping opacity-40"></span>
-                            <CheckCircle2 v-if="isInsideCoverage" :size="16" stroke-width="3" />
-                            <AlertOctagon v-else :size="16" stroke-width="3" />
-                        </div>
-                        <span class="text-[11px] font-black uppercase tracking-[0.1em]">
-                            {{ coverageMessage }}
-                        </span>
-                    </div>
-                </Transition>
-            </div>
+        <div v-if="locationActivated" 
+             class="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
+            
+            <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform -translate-y-2 opacity-0" enter-to-class="transform translate-y-0 opacity-100">
+                <div v-if="showPrecisionHint" 
+                     class="absolute mb-44 bg-[#0A192F] text-white px-4 py-2 rounded-2xl shadow-2xl flex flex-col items-center">
+                    <p class="text-[10px] font-black uppercase tracking-tight">¿Punto exacto?</p>
+                    <p class="text-[8px] opacity-70 font-bold">MUEVE EL MAPA PARA AJUSTAR</p>
+                    <div class="absolute -bottom-1 w-3 h-3 bg-[#0A192F] rotate-45"></div>
+                </div>
+            </Transition>
 
-            <div class="absolute bottom-4 right-4 z-[500] flex flex-col gap-2">
-                <button type="button" @click.prevent="locateUser"
-                        class="w-12 h-12 rounded-2xl bg-card border border-border shadow-xl flex items-center justify-center text-primary hover:scale-105 active:scale-95 transition-all group">
-                    <Loader2 v-if="isLocating" :size="24" class="animate-spin" />
-                    <Navigation v-else :size="24" class="group-hover:drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]" fill="currentColor" />
-                </button>
+            <div class="relative flex flex-col items-center translate-y-[-22px] transition-transform duration-300"
+                 :class="{ 'scale-110 -translate-y-10': mapMoving }">
+                <div class="w-10 h-10 rounded-full bg-white shadow-2xl flex items-center justify-center border-[3px] border-primary">
+                    <div class="w-2 h-2 bg-primary rounded-full" :class="{'animate-ping': !mapMoving}"></div>
+                </div>
+                <div class="w-1 h-6 bg-primary shadow-lg"></div>
+                <div class="w-4 h-1.5 bg-black/20 rounded-full blur-[2px] mt-1 transition-all"
+                     :class="mapMoving ? 'scale-150 opacity-20' : 'scale-100 opacity-100'"></div>
             </div>
         </div>
 
-        <div class="bg-card/80 backdrop-blur-md border-t border-border p-4 flex items-center gap-4 shrink-0 relative z-[600]">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-inner shrink-0" 
-                 :class="hasSelectedLocation ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'">
-                <MapPin :size="20" stroke-width="2.5" />
+        <div v-if="!locationActivated" 
+             class="absolute inset-0 bg-white/60 backdrop-blur-[8px] z-[1001] flex flex-col items-center justify-center p-8 text-center">
+            <div class="w-24 h-24 bg-primary/10 rounded-[3rem] flex items-center justify-center text-primary mb-6 shadow-inner">
+                <MapPin :size="48" stroke-width="2.5" :class="{'animate-bounce': !isLocating}" />
             </div>
-            <div class="min-w-0 flex-1">
-                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1 leading-none">
-                    {{ hasSelectedLocation ? 'Punto de Entrega Confirmado' : 'Esperando Ubicación' }}
-                </p>
-                <p class="text-sm font-bold text-navy truncate leading-tight">
-                    {{ hasSelectedLocation ? (modelValueAddress || 'Buscando dirección...') : 'Selecciona un punto en el mapa' }}
-                </p>
-            </div>
-            <div v-if="!hasSelectedLocation" class="animate-pulse">
-                <Crosshair :size="18" class="text-primary/40" />
-            </div>
+            <h2 class="text-3xl font-black text-[#0A192F] uppercase italic mb-3 tracking-tighter">Sincronizar Ubicación</h2>
+            <p class="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-10 max-w-[280px] leading-relaxed">
+                El mapa está bloqueado hasta que sincronicemos tu posición real mediante satélite.
+            </p>
+            <button @click="locateUser" 
+                    class="bg-primary text-white px-12 py-5 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] shadow-xl flex items-center gap-4 active:scale-90 transition-all hover:bg-primary/90">
+                <Navigation :size="20" fill="currentColor" />
+                Sincronizar ahora
+            </button>
+            <p v-if="geoError" class="text-[10px] text-destructive font-bold uppercase mt-4">⚠️ Acceso denegado. Revisa tus ajustes de GPS.</p>
         </div>
+
+        <div v-if="isLocating" class="absolute inset-0 bg-white/90 backdrop-blur-md z-[2000] flex flex-col items-center justify-center">
+            <Loader2 :size="40" class="text-primary animate-spin mb-4" />
+            <p class="font-black text-[10px] uppercase tracking-[0.3em] text-[#0A192F] animate-pulse">Consultando Satélites...</p>
+        </div>
+
+        <button v-if="locationActivated && !isLocating" 
+                @click="locateUser" 
+                class="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-primary border border-black/5 active:scale-90 transition-all">
+            <Navigation :size="20" />
+        </button>
     </div>
 </template>
-
-<style>
-/* Filtro para el mapa en modo oscuro */
-.dark .map-tiles {
-    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-}
-
-.leaflet-container {
-    background: transparent !important;
-}
-
-.leaflet-div-icon {
-    background: transparent !important;
-    border: none !important;
-}
-
-/* Evitar que el mapa robe el foco de eventos touch del padre */
-.leaflet-control-container {
-    pointer-events: auto;
-}
-</style>

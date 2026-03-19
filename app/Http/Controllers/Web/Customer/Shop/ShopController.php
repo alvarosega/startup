@@ -1,16 +1,18 @@
 <?php
 
 namespace App\Http\Controllers\Web\Customer\Shop;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Models\MarketZone;
 use App\Services\ShopContextService;
+// 1. Importar solo los Actions desde su carpeta
 use App\Actions\Customer\Shop\{GetShopLandingAction, GetShopCatalogAction, GetShopZoneAction};
-use App\DTOs\Customer\Shop\CatalogQueryDTO;
+// 2. Importar los DTOs desde la carpeta DTOs (Aquí estaba el error)
+use App\DTOs\Customer\Shop\{CatalogQueryDTO, LandingQueryDTO}; 
 use App\Http\Resources\Customer\Shop\ShopProductResource;
+
 
 class ShopController extends Controller
 {
@@ -22,6 +24,7 @@ class ShopController extends Controller
     {
         $branchId = $this->contextService->getActiveBranchId();
     
+        // Modo Búsqueda / Filtros
         if ($request->anyFilled(['search', 'category_id']) || $request->input('type') === 'bundles') {
             $dto = CatalogQueryDTO::fromRequest($request, $branchId);
             return Inertia::render('Customer/Shop/Index', [
@@ -30,10 +33,16 @@ class ShopController extends Controller
             ]);
         } 
     
-        $landingData = $landingAction->execute($branchId);
+        // Modo Landing (3 Secciones)
+        // Regla 2.A: Instanciación del DTO obligatoria
+        $dto = LandingQueryDTO::fromRequest($branchId);
+        
+        $landingData = $landingAction->execute($dto); // Sincronizado con la firma de la Acción
+        
         return Inertia::render('Customer/Shop/Index', [
             'zonesData'   => $landingData['zones'],
             'bundlesData' => $landingData['bundles'],
+            'categories'  => $landingData['categories'], // Ahora sí fluye al componente Vue
         ]);
     }
 

@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, router, usePage, Link } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
-import { Trash2, Plus, Minus, ArrowRight, AlertTriangle, ShoppingBag, Loader2, PackageOpen, CreditCard, Tag, TrendingDown, Zap } from 'lucide-vue-next';
+import { Trash2, Plus, Minus, ArrowRight, AlertTriangle, ShoppingBag, Loader2, PackageOpen, CreditCard, Tag, TrendingDown, Zap, Layers } from 'lucide-vue-next';
 
 const props = defineProps({
     cart: Object 
@@ -21,8 +21,6 @@ const hasStockErrors = computed(() => {
     return cartItems.value.some(item => item.quantity > item.max_stock);
 });
 
-
-
 const updateQuantity = (item, newQty) => {
     if (newQty < 1 || newQty > item.max_stock) return;
     processingItem.value = item.id;
@@ -33,7 +31,7 @@ const updateQuantity = (item, newQty) => {
 };
 
 const removeItem = (id) => {
-    if(confirm('¿Quitar producto del carrito?')) {
+    if(confirm('¿Quitar elemento del carrito?')) {
         router.delete(route('customer.cart.remove', id), { preserveScroll: true });
     }
 };
@@ -74,7 +72,7 @@ const proceedToCheckout = () => {
                          :class="item.quantity > item.max_stock ? 'border-f1-red/50 bg-f1-red/5' : 'border-white/10'">
                         
                         <div v-if="item.quantity > item.max_stock" class="bg-f1-red text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 absolute top-0 inset-x-0 text-center flex items-center justify-center gap-2">
-                            <AlertTriangle :size="12" /> Stock insuficiente (Quedan {{ item.max_stock }})
+                            <AlertTriangle :size="12" /> Stock insuficiente (Disponibles: {{ item.max_stock }})
                         </div>
 
                         <div class="flex gap-5 relative z-10" :class="{'mt-4': item.quantity > item.max_stock}">
@@ -85,15 +83,27 @@ const proceedToCheckout = () => {
                             <div class="flex-1 flex flex-col justify-between">
                                 <div>
                                     <div class="flex justify-between items-start gap-4">
-                                        <h3 class="font-black text-sm uppercase leading-tight text-foreground/90">{{ item.name }}</h3>
-                                        <button @click="removeItem(item.id)" class="text-foreground/30 hover:text-f1-red hover:bg-f1-red/10 p-2 rounded-full transition-colors active:scale-90">
+                                        <div>
+                                            <h3 class="font-black text-sm uppercase leading-tight text-foreground/90">
+                                                {{ item.name }}
+                                            </h3>
+                                            
+                                            <div v-if="item.is_bundle && item.components" class="mt-2 flex flex-col gap-1">
+                                                <p v-for="(comp, i) in item.components" :key="i" class="text-[10px] text-foreground/50 font-bold flex items-center gap-1.5 leading-none">
+                                                    <span class="w-1 h-1 rounded-full bg-primary/50 shrink-0"></span>
+                                                    {{ comp.qty }}x {{ comp.name }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <button @click="removeItem(item.id)" class="text-foreground/30 hover:text-f1-red hover:bg-f1-red/10 p-2 rounded-full transition-colors active:scale-90 shrink-0">
                                             <Trash2 :size="18" stroke-width="2.5"/>
                                         </button>
                                     </div>
 
-                                    <div class="mt-1 flex items-center gap-2 flex-wrap">
+                                    <div class="mt-2 flex items-center gap-2 flex-wrap">
                                         <div class="flex items-baseline gap-1.5">
-                                            <span v-if="item.list_price > item.unit_price" class="text-[11px] font-mono font-bold text-foreground/40 line-through">
+                                            <span v-if="item.list_price && item.list_price > item.unit_price" class="text-[11px] font-mono font-bold text-foreground/40 line-through">
                                                 Bs. {{ item.list_price.toFixed(2) }}
                                             </span>
                                             <span class="text-lg font-mono font-black text-foreground">
@@ -103,8 +113,13 @@ const proceedToCheckout = () => {
                                         
                                         <span v-if="item.price_label !== 'REGULAR'" 
                                               class="text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 uppercase tracking-widest"
-                                              :class="item.price_label === 'OFFER' ? 'bg-warning/20 text-warning border border-warning/30' : 'bg-primary/20 text-primary border border-primary/30'">
+                                              :class="{
+                                                  'bg-warning/20 text-warning border border-warning/30': item.price_label === 'OFFER',
+                                                  'bg-purple-500/20 text-purple-400 border border-purple-500/30': item.is_bundle,
+                                                  'bg-primary/20 text-primary border border-primary/30': !item.is_bundle && item.price_label !== 'OFFER'
+                                              }">
                                             <Zap :size="10" v-if="item.price_label === 'OFFER'"/>
+                                            <Layers :size="10" v-else-if="item.is_bundle"/>
                                             <Tag :size="10" v-else/>
                                             {{ item.price_label }}
                                         </span>
@@ -112,7 +127,6 @@ const proceedToCheckout = () => {
                                 </div>
 
                                 <div class="flex items-end justify-between mt-4">
-                                    
                                     <div class="flex items-center bg-background/50 border border-white/10 rounded-xl p-1 shadow-inner">
                                         <button @click="updateQuantity(item, item.quantity - 1)" :disabled="processingItem === item.id || item.quantity <= 1" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30 transition-colors"><Minus :size="16" stroke-width="3"/></button>
                                         <span class="w-10 text-center font-mono font-black text-lg">
@@ -123,7 +137,7 @@ const proceedToCheckout = () => {
                                     </div>
                                     
                                     <div class="text-right">
-                                        <span v-if="item.line_savings > 0" class="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">
+                                        <span v-if="item.line_savings && item.line_savings > 0" class="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">
                                             Ahorras Bs. {{ item.line_savings.toFixed(2) }}
                                         </span>
                                         <span class="font-mono font-black text-2xl text-primary drop-shadow-sm leading-none">
@@ -134,7 +148,7 @@ const proceedToCheckout = () => {
                             </div>
                         </div>
 
-                        <div v-if="item.upsell" class="mt-2 bg-gradient-to-r from-primary/10 to-transparent border-l-2 border-primary p-3 rounded-r-xl">
+                        <div v-if="!item.is_bundle && item.upsell" class="mt-2 bg-gradient-to-r from-primary/10 to-transparent border-l-2 border-primary p-3 rounded-r-xl">
                             <p class="text-[11px] font-bold text-foreground/80 flex items-center gap-2">
                                 <TrendingDown :size="14" class="text-primary"/>
                                 <span>Lleva <strong class="text-primary font-black text-[13px]">{{ item.upsell.needed_quantity }}</strong> unidades más y paga solo <strong class="text-primary font-black text-[13px]">Bs. {{ item.upsell.potential_price.toFixed(2) }}</strong> c/u.</span>
@@ -173,8 +187,8 @@ const proceedToCheckout = () => {
 
                         <button @click="proceedToCheckout" 
                                 :disabled="hasStockErrors" 
-                                class="w-full h-16 bg-primary text-white font-black text-sm uppercase tracking-widest rounded-[20px] flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-xl shadow-primary/20">
-                            {{ user ? 'Continuar al Pago' : 'Iniciar Sesión para Pagar' }} <ArrowRight :size="18" stroke-width="3"/>
+                                class="w-full h-16 bg-primary text-black font-black text-sm uppercase tracking-widest rounded-[20px] flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-xl shadow-primary/20">
+                            {{ user ? 'Continuar al Pago' : 'Iniciar Sesión' }} <ArrowRight :size="18" stroke-width="3"/>
                         </button>
                     </div>
                 </div>
@@ -184,7 +198,7 @@ const proceedToCheckout = () => {
                 <PackageOpen :size="80" class="mx-auto text-foreground/20 mb-6" stroke-width="1.5"/>
                 <h2 class="text-2xl font-black uppercase tracking-tighter mb-3">Tu carrito está vacío</h2>
                 <p class="text-foreground/50 text-sm font-bold mb-8 max-w-md mx-auto">Parece que aún no has encontrado lo que buscas. Explora nuestras zonas y descubre los mejores precios.</p>
-                <Link :href="route('customer.shop.index')" class="inline-flex items-center gap-2 px-8 h-14 bg-primary text-white font-black text-sm uppercase tracking-widest rounded-full transition-transform active:scale-95 shadow-lg shadow-primary/30">
+                <Link :href="route('customer.shop.index')" class="inline-flex items-center gap-2 px-8 h-14 bg-primary text-black font-black text-sm uppercase tracking-widest rounded-full transition-transform active:scale-95 shadow-lg shadow-primary/30">
                     <ShoppingBag :size="18" stroke-width="2.5"/> Ir a la tienda
                 </Link>
             </div>

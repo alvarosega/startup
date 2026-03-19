@@ -1,85 +1,126 @@
 <script setup>
-import { ref, watch, computed } from 'vue'; 
+import { ref, computed, watch, nextTick } from 'vue'; 
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import ShopLayout from '@/Layouts/ShopLayout.vue';
 import ClientLocationPicker from '@/Components/Maps/ClientLocationPicker.vue';
+
+// Importamos componentes de Leaflet para la previsualización estática del Paso 3
+import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
+import L from 'leaflet';
+
 import { 
-    MapPin, UserPlus, Smartphone, Lock, Mail, 
-    CheckCircle, Upload, ArrowRight, ArrowLeft, Image, ShieldCheck, UserCircle
+    UserPlus, Lock, Mail, Upload, ArrowRight, ArrowLeft,
+    CheckCircle, Home, Briefcase, Users, MoreHorizontal, Navigation2, MapPin
 } from 'lucide-vue-next';
 
-const props = defineProps({
-    activeBranches: { type: Array, default: () => [] }
-});
+const props = defineProps({ activeBranches: Array });
 
+// --- REFERENCIAS ---
+const mapComponentRef = ref(null);
+const previewMapRef = ref(null); 
 const currentStep = ref(1);
-const step1Errors = ref({});
+
+// --- PASOS Y PRESETS ---
+const steps = [
+    { id: 1, title: 'CUENTA' },
+    { id: 2, title: 'UBICACIÓN' },
+    { id: 3, title: 'DETALLES' },
+    { id: 4, title: 'PERFIL' },
+];
+
+const presets = [
+    { id: 'casa', label: 'Casa', icon: Home },
+    { id: 'trabajo', label: 'Trabajo', icon: Briefcase },
+    { id: 'amigos', label: 'Amigos', icon: Users },
+    { id: 'otro', label: 'Otro', icon: MoreHorizontal },
+];
+
 const validatingStep1 = ref(false);
 const customPreview = ref(null);
 const isPhoneValid = ref(false);
 
+// --- FORMULARIO ESTATAL ---
 const form = useForm({
     first_name: '',
     last_name: '',  
     phone: '', 
-    country_code: '',
     email: '', 
     password: '', 
     password_confirmation: '', 
-    terms: true, 
+    country_code: 'BO',
+    alias: '', 
+    address: '', 
+    details: '', 
+    latitude: null, 
+    longitude: null, 
+    branch_id: null, 
     avatar_type: 'icon', 
     avatar_source: 'avatar_1.svg', 
     avatar_file: null,
-    alias: 'Mi casa', 
-    address: '', 
-    details: '', 
-    latitude: -16.5000, 
-    longitude: -68.1500, 
-    branch_id: null, 
-    role: 'client',
     guest_client_uuid: localStorage.getItem('guest_client_uuid')
 });
 
-const steps = [
-    { id: 1, title: 'Datos', icon: UserPlus },
-    { id: 2, title: 'Foto', icon: Image },
-    { id: 3, title: 'Ubicación', icon: MapPin },
-];
+// Icono personalizado para el "print" de ubicación
+const previewIcon = L.divIcon({
+    className: 'preview-pin',
+    html: `<div class="w-8 h-8 bg-primary rounded-full border-[3px] border-white shadow-2xl flex items-center justify-center text-white"><div class="w-2 h-2 bg-white rounded-full animate-ping"></div></div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+});
 
+// --- EVENTOS ---
 const onInput = (phone, obj) => { 
     isPhoneValid.value = obj?.valid ?? false; 
     if (obj?.country?.iso2) form.country_code = obj.country.iso2.toUpperCase();
     if (obj?.number) form.phone = obj.number; 
-    if (step1Errors.value.phone) delete step1Errors.value.phone;
+    form.clearErrors('phone');
 };
 
 const nextStep = () => {
     if (currentStep.value === 1) {
-        if (!isPhoneValid.value) {
-            step1Errors.value = { phone: ['Ingrese un número válido.'] };
+        if (!isPhoneValid.value && form.phone.length > 0) {
+            form.setError('phone', 'Formato de número inválido.');
             return;
         }
-        if (!form.country_code && isPhoneValid.value) {
-            // Intento de recuperación de emergencia si falló el evento
-            form.country_code = 'BO'; 
-        }
+        if (validatingStep1.value) return;
         validatingStep1.value = true;
+        
+        // VALIDACIÓN BACKEND PASO 1
         form.post(route('register.validate-step-1'), {
             preserveScroll: true,
-            onError: (errors) => {
-                step1Errors.value = errors;
-                validatingStep1.value = false;
-            },
+            only: ['first_name', 'last_name', 'phone', 'email', 'password', 'password_confirmation'],
             onSuccess: () => {
+                form.clearErrors();
                 currentStep.value = 2;
                 validatingStep1.value = false;
-            }
+                // PARCHE: Sincronizar dimensiones del mapa interactivo
+                setTimeout(() => mapComponentRef.value?.fixMapLayout(), 400);
+            },
+            onError: () => { validatingStep1.value = false; }
         });
     } else if (currentStep.value === 2) {
+        if (form.address === 'Calculando...' || !form.address) return;
+
+        // ASEGURAR QUE LOS DATOS SEAN NUMÉRICOS PARA EL "PRINT"
+        form.latitude = parseFloat(form.latitude);
+        form.longitude = parseFloat(form.longitude);
+        
         currentStep.value = 3;
+
+        // REFRESCAR EL MINI-MAPA DE CONFIRMACIÓN
+        nextTick(() => {
+            setTimeout(() => {
+                if (previewMapRef.value?.leafletObject) {
+                    const map = previewMapRef.value.leafletObject;
+                    map.invalidateSize(); // Corrige el tamaño (evita cuadros grises)
+                    map.setView([form.latitude, form.longitude], 17); // Enfoca la captura
+                }
+            }, 300); // Esperamos a que termine la animación de entrada del paso 3
+        });
+    } else {
+        currentStep.value++;
     }
 };
 
@@ -87,216 +128,205 @@ const submit = () => {
     if (form.processing) return;
     form.post(route('register'), {
         preserveScroll: true,
-        forceFormData: true
+        forceFormData: true 
     });
 };
+
+const progressWidth = computed(() => (currentStep.value / steps.length) * 100);
+
+// --- WATCHERS DE SEGURIDAD ---
+// Aseguramos que latitude/longitude siempre sean Float para Leaflet
+watch(() => form.latitude, (val) => form.latitude = parseFloat(val));
+watch(() => form.longitude, (val) => form.longitude = parseFloat(val));
 </script>
 
 <template>
-    <Head title="Crear cuenta" />
+    <Head title="Registro de Socio" />
 
-    <ShopLayout>
-        <div class="flex-1 flex items-center justify-center p-4 py-8 min-h-[calc(100svh-144px)]">
+    <div class="min-h-[100svh] bg-background text-foreground flex flex-col overflow-hidden selection:bg-primary/20">
+        
+        <div class="fixed top-0 left-0 w-full h-1 z-[1000] bg-foreground/5">
+            <div class="h-full bg-primary shadow-[0_0_15px_rgba(var(--primary),0.5)] transition-all duration-1000 ease-out"
+                 :style="{ width: progressWidth + '%' }"></div>
+        </div>
+
+        <main class="flex-1 flex flex-col relative h-full">
             
-            <div class="w-full max-w-xl animate-in fade-in zoom-in-95 duration-500">
-                
-                <div class="bg-surface/20 backdrop-blur-2xl border border-white/10 dark:border-white/5 rounded-[40px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
+            <div v-show="currentStep === 1" class="flex-1 flex flex-col items-center justify-center p-8 max-w-xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl font-black tracking-tighter uppercase italic mb-2">Comienza ahora</h1>
+                    <p class="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">Paso 1: Identidad y Seguridad</p>
+                </div>
+
+                <div class="w-full space-y-5">
+                    <div class="grid grid-cols-2 gap-4">
+                        <BaseInput v-model="form.first_name" label="Nombres" placeholder="Juan" :error="form.errors.first_name" />
+                        <BaseInput v-model="form.last_name" label="Apellidos" placeholder="Pérez" :error="form.errors.last_name" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Celular</label>
+                        <vue-tel-input v-model="form.phone" @on-input="onInput" mode="international" :defaultCountry="'BO'" 
+                                       class="custom-tel-input-full" :class="{ 'error-border': form.errors.phone }" />
+                        <div v-if="form.errors.phone" class="text-[10px] text-destructive font-black uppercase mt-1 ml-1">{{ form.errors.phone }}</div>
+                    </div>
+
+                    <BaseInput v-model="form.email" type="email" label="Email" placeholder="usuario@dominio.com" :error="form.errors.email" />
                     
-                    <div class="px-8 pt-10 pb-6 shrink-0 bg-transparent border-b border-white/10 dark:border-white/5">
-                        <div class="flex justify-between items-end mb-6">
-                            <div>
-                                <h2 class="text-3xl font-sans font-black text-foreground tracking-tighter leading-none">
-                                    Crea tu cuenta
-                                </h2>
-                                <p class="text-[11px] uppercase font-black tracking-[0.1em] text-foreground/60 mt-2">
-                                    Paso a paso hacia tu pedido
-                                </p>
-                            </div>
-                            <div class="text-[11px] font-black text-primary bg-primary/10 px-4 py-1.5 rounded-full uppercase border border-primary/30">
-                                {{ currentStep }} / 3
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center gap-2 h-2">
-                            <div v-for="step in steps" :key="step.id" 
-                                class="h-full rounded-full transition-all duration-700"
-                                :class="currentStep >= step.id ? 'bg-primary flex-[3] shadow-[0_0_15px_rgba(var(--primary),0.4)]' : 'bg-foreground/10 flex-1'">
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <BaseInput v-model="form.password" type="password" label="Contraseña" :error="form.errors.password" />
+                        <BaseInput v-model="form.password_confirmation" type="password" label="Confirmar" />
                     </div>
-
-                    <div class="flex-1 overflow-y-auto p-8 custom-scrollbar max-h-[60vh] md:max-h-none">
-                        <form id="registerForm" @submit.prevent="submit">
-                            
-                            <div v-show="currentStep === 1" class="space-y-6 animate-in slide-in-from-right-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div class="space-y-2">
-                                        <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                            <UserCircle :size="14" stroke-width="3" /> Nombre
-                                        </label>
-                                        <BaseInput v-model="form.first_name" placeholder="Tu nombre" :error="step1Errors.first_name?.[0]" 
-                                            class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-bold shadow-inner" />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                            <UserCircle :size="14" stroke-width="3" /> Apellido
-                                        </label>
-                                        <BaseInput v-model="form.last_name" placeholder="Tu apellido" :error="step1Errors.last_name?.[0]" 
-                                            class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-bold shadow-inner" />
-                                    </div>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                        <Smartphone :size="14" stroke-width="3" /> Número de celular
-                                    </label>
-                                    <vue-tel-input 
-                                        v-model="form.phone" 
-                                        @on-input="onInput"
-                                        @country-changed="(obj) => { 
-                                            if (obj?.iso2) form.country_code = obj.iso2.toUpperCase();
-                                        }"
-                                        mode="international" 
-                                        :preferredCountries="['BO', 'PE']" 
-                                        :defaultCountry="'BO'"
-                                        class="custom-tel-input !bg-transparent !backdrop-blur-xl !border-foreground/10 !rounded-2xl h-[56px] transition-all focus-within:!border-primary/50 shadow-inner"
-                                        :class="{ '!border-f1-red': step1Errors.phone || step1Errors.country_code }" 
-                                    />
-                                    <p v-if="step1Errors.phone" class="text-[10px] text-f1-red font-bold mt-1 ml-1 uppercase">{{ step1Errors.phone[0] }}</p>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                        <Mail :size="14" stroke-width="3" /> Correo electrónico
-                                    </label>
-                                    <BaseInput v-model="form.email" type="email" placeholder="ejemplo@correo.com" :error="step1Errors.email?.[0]" 
-                                        class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-bold shadow-inner" />
-                                </div>
-                                
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div class="space-y-2">
-                                        <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                            <Lock :size="14" stroke-width="3" /> Contraseña
-                                        </label>
-                                        <BaseInput v-model="form.password" type="password" placeholder="••••••••" :error="step1Errors.password?.[0]" 
-                                            class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-mono font-bold shadow-inner" />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                            <Lock :size="14" stroke-width="3" /> Confirmar clave
-                                        </label>
-                                        <BaseInput v-model="form.password_confirmation" type="password" placeholder="••••••••" 
-                                            class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-mono font-bold shadow-inner"/>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-show="currentStep === 2" class="space-y-8 animate-in slide-in-from-right-4 text-center py-4">
-                                <div class="relative inline-block">
-                                    <div class="w-32 h-32 rounded-[2.5rem] border-4 border-foreground/10 p-1 mx-auto bg-transparent backdrop-blur-xl overflow-hidden shadow-2xl">
-                                        <img v-if="form.avatar_type === 'custom' && customPreview" :src="customPreview" class="w-full h-full object-cover rounded-[2rem]" />
-                                        <img v-else :src="`/assets/avatars/${form.avatar_source}`" class="w-full h-full object-cover rounded-[2rem]" />
-                                    </div>
-                                    <label for="reg_avatar_upload" class="absolute -bottom-2 -right-2 p-3 bg-primary text-white rounded-2xl cursor-pointer shadow-xl border-4 border-transparent backdrop-blur-md hover:scale-110 transition-transform">
-                                        <Upload :size="18" stroke-width="3" />
-                                    </label>
-                                    <input type="file" id="reg_avatar_upload" class="hidden" @change="(e) => { const file = e.target.files[0]; if(file) { form.avatar_type='custom'; form.avatar_file=file; customPreview = URL.createObjectURL(file); } }">
-                                </div>
-
-                                <div class="grid grid-cols-4 gap-3 max-w-sm mx-auto">
-                                    <button type="button" v-for="i in 8" :key="i" 
-                                            @click="() => { form.avatar_type='icon'; form.avatar_source=`avatar_${i}.svg`; customPreview=null; }"
-                                            class="aspect-square rounded-2xl border-2 flex items-center justify-center p-2 transition-all"
-                                            :class="form.avatar_type === 'icon' && form.avatar_source === `avatar_${i}.svg` ? 'border-primary bg-primary/20 backdrop-blur-md scale-105' : 'border-transparent bg-foreground/5 backdrop-blur-sm opacity-60 hover:opacity-100'">
-                                        <img :src="`/assets/avatars/avatar_${i}.svg`" class="w-full h-full" />
-                                    </button>
-                                </div>
-                                <p class="text-xs font-black text-foreground uppercase tracking-widest">Elige una foto de perfil</p>
-                            </div>
-
-                            <div v-show="currentStep === 3" class="space-y-6 animate-in slide-in-from-right-4">
-                                <div class="h-64 rounded-[2rem] overflow-hidden border border-foreground/10 shadow-inner relative">
-                                    <ClientLocationPicker ref="mapComponentRef" v-model:modelValueLat="form.latitude" v-model:modelValueLng="form.longitude" v-model:modelValueAddress="form.address" v-model:modelValueBranchId="form.branch_id" :activeBranches="props.activeBranches" />
-                                    <div class="absolute top-4 right-4">
-                                        <span class="bg-background/40 backdrop-blur-xl px-3 py-1.5 rounded-xl text-[8px] font-black text-foreground uppercase tracking-widest border border-white/10 shadow-lg">Tu ubicación actual</span>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div class="space-y-2">
-                                        <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                            <MapPin :size="14" stroke-width="3" /> Alias
-                                        </label>
-                                        <BaseInput v-model="form.alias" placeholder="Ej: Mi casa" class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-bold shadow-inner" />
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label class="text-[12px] font-black uppercase tracking-tight text-foreground ml-1 flex items-center gap-2 bg-transparent">
-                                            <ShieldCheck :size="14" stroke-width="3" /> Notas
-                                        </label>
-                                        <BaseInput v-model="form.details" placeholder="Ej: Piso 4, timbre A" class="!bg-transparent !backdrop-blur-xl !border-foreground/10 focus:!border-primary/50 !rounded-2xl h-[56px] !text-foreground font-bold shadow-inner" />
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div class="p-8 bg-transparent shrink-0">
-                        <div class="flex gap-4">
-                            <button v-if="currentStep > 1" @click="currentStep--" 
-                                    class="h-14 px-6 bg-foreground/5 backdrop-blur-lg border border-foreground/10 rounded-[20px] font-black uppercase text-[11px] text-foreground hover:bg-foreground/10 transition-colors flex items-center gap-2">
-                                <ArrowLeft :size="16" stroke-width="3" /> Atrás
-                            </button>
-                            <Link v-else :href="route('login')" 
-                                  class="h-14 px-6 bg-foreground/5 backdrop-blur-lg border border-foreground/10 rounded-[20px] font-black uppercase text-[11px] text-foreground hover:bg-foreground/10 transition-colors flex items-center text-center leading-tight">
-                                ¿Ya tienes<br>cuenta?
-                            </Link>
-
-                            <button v-if="currentStep < 3" @click="nextStep" :disabled="validatingStep1" 
-                                    class="flex-1 h-14 bg-primary text-white rounded-[20px] font-black text-sm uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-3 active:scale-95 transition-all">
-                                <span v-if="validatingStep1" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                <template v-else>
-                                    Siguiente <ArrowRight :size="18" stroke-width="3" />
-                                </template>
-                            </button>
-
-                            <button v-else type="submit" form="registerForm" :disabled="form.processing" 
-                                    class="flex-1 h-14 bg-primary text-white rounded-[20px] font-black text-sm uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-3 active:scale-95 transition-all">
-                                <span v-if="form.processing" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                <template v-else>
-                                    Finalizar <CheckCircle :size="18" stroke-width="3" />
-                                </template>
-                            </button>
-                        </div>
-                    </div>
-
                 </div>
             </div>
-        </div>
-    </ShopLayout>
+
+            <div v-show="currentStep === 2" class="flex-1 relative flex flex-col h-full w-full animate-in fade-in duration-500">
+                <div class="absolute inset-0">
+                    <ClientLocationPicker 
+                        ref="mapComponentRef"
+                        v-model:modelValueLat="form.latitude" 
+                        v-model:modelValueLng="form.longitude" 
+                        v-model:modelValueAddress="form.address" 
+                        v-model:modelValueBranchId="form.branch_id" 
+                        :activeBranches="props.activeBranches" 
+                    />
+                </div>
+                
+                <div class="mt-auto z-[1001] p-6 animate-in slide-in-from-bottom-full duration-700 delay-200">
+                    <div class="bg-background/95 backdrop-blur-3xl border border-white/10 rounded-[32px] p-6 shadow-2xl max-w-lg mx-auto pointer-events-auto">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+                                <Navigation2 :size="16" fill="currentColor" />
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-primary">Punto de Entrega</span>
+                        </div>
+                        <p class="text-lg font-bold leading-tight min-h-[3rem] line-clamp-2 mb-4">{{ form.address || 'Esperando ubicación...' }}</p>
+                        <button @click="nextStep" :disabled="!form.address || form.address === 'Calculando...'" 
+                                class="w-full h-14 bg-foreground text-background rounded-2xl font-black uppercase text-xs tracking-widest active:scale-95 transition-all disabled:opacity-30">
+                            Confirmar Ubicación
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-show="currentStep === 3" class="flex-1 flex flex-col items-center justify-center p-8 max-w-xl mx-auto w-full animate-in fade-in slide-in-from-right-8 duration-700">
+                <div class="text-center mb-6">
+                    <h1 class="text-4xl font-black tracking-tighter uppercase italic mb-2">Confirmación</h1>
+                    <p class="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">Paso 3: Detalles de entrega</p>
+                </div>
+
+                <div class="w-full space-y-6">
+                    <div class="w-full rounded-[2.5rem] border-4 border-foreground/5 overflow-hidden bg-foreground/5 shadow-lg group">
+                        
+                        <div class="relative w-full h-40 border-b border-foreground/5">
+                            <l-map ref="previewMapRef"
+                                   :key="`preview-${form.latitude}-${form.longitude}`" 
+                                   :zoom="17" 
+                                   :center="[form.latitude || -16.5, form.longitude || -68.15]"
+                                   :options="{ zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false }"
+                                   class="h-full w-full grayscale-[0.3] contrast-[1.1]">
+                                <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+                                <l-marker :lat-lng="[form.latitude || -16.5, form.longitude || -68.15]" :icon="previewIcon" />
+                            </l-map>
+                            
+                            <div class="absolute top-3 right-3 bg-primary text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-lg z-[1000]">
+                                GPS_OK
+                            </div>
+                        </div>
+
+                        <div class="p-5 flex items-start gap-4 bg-background/40 backdrop-blur-md">
+                            <div class="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-inner">
+                                <Navigation2 :size="20" fill="currentColor" />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-1 leading-none">
+                                    Dirección Confirmada
+                                </p>
+                                <p class="text-sm font-bold text-foreground leading-snug">
+                                    {{ form.address || 'Ubicación seleccionada' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <label class="text-[10px] font-black uppercase text-muted-foreground ml-1">Etiquetar lugar como:</label>
+                        <div class="grid grid-cols-4 gap-3">
+                            <button v-for="p in presets" :key="p.id" type="button" @click="form.alias = p.label"
+                                    class="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all"
+                                    :class="form.alias === p.label ? 'border-primary bg-primary/10 text-primary shadow-lg scale-105' : 'border-foreground/5 bg-foreground/5 text-muted-foreground opacity-60 hover:opacity-100'">
+                                <component :is="p.icon" :size="20" stroke-width="2.5" />
+                                <span class="text-[9px] font-black uppercase">{{ p.label }}</span>
+                            </button>
+                        </div>
+                        <p v-if="form.errors.alias" class="text-[10px] text-destructive font-bold uppercase ml-1 animate-bounce">⚠️ {{ form.errors.alias }}</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <BaseInput v-model="form.alias" label="Nombre Personalizado" placeholder="Ej: Oficina de la esquina" :error="form.errors.alias" />
+                        <BaseInput v-model="form.details" label="Notas de Acceso" placeholder="Piso 4, puerta azul, tocar fuerte..." :error="form.errors.details" />
+                    </div>
+                </div>
+            </div>
+
+            <div v-show="currentStep === 4" class="flex-1 flex flex-col items-center justify-center p-8 max-w-xl mx-auto w-full animate-in fade-in slide-in-from-right-8 duration-700">
+                <div class="text-center mb-10">
+                    <h1 class="text-4xl font-black tracking-tighter uppercase italic mb-2">Finalizar</h1>
+                    <p class="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">Paso 4: Tu identidad visual</p>
+                </div>
+
+                <div class="relative mb-12">
+                    <div class="w-44 h-44 rounded-[3rem] border-[6px] border-foreground/5 p-2 bg-foreground/5 overflow-hidden shadow-2xl">
+                        <img v-if="form.avatar_type === 'custom' && customPreview" :src="customPreview" class="w-full h-full object-cover rounded-[2.2rem]" />
+                        <img v-else :src="`/assets/avatars/${form.avatar_source}`" class="w-full h-full object-cover rounded-[2.2rem]" />
+                    </div>
+                    <label for="reg_avatar_upload" class="absolute -bottom-2 -right-2 p-4 bg-primary text-white rounded-[20px] cursor-pointer shadow-xl border-4 border-background hover:scale-110 transition-transform">
+                        <Upload :size="20" stroke-width="3" />
+                    </label>
+                    <input type="file" id="reg_avatar_upload" class="hidden" @change="(e) => { const file = e.target.files[0]; if(file) { form.avatar_type='custom'; form.avatar_file=file; customPreview = URL.createObjectURL(file); } }">
+                </div>
+
+                <div class="grid grid-cols-4 gap-4 w-full">
+                    <button type="button" v-for="i in 8" :key="i" @click="() => { form.avatar_type='icon'; form.avatar_source=`avatar_${i}.svg`; customPreview=null; }"
+                            class="aspect-square rounded-2xl border-2 flex items-center justify-center p-3 transition-all"
+                            :class="form.avatar_source === `avatar_${i}.svg` ? 'border-primary bg-primary/10 scale-105 shadow-lg' : 'border-transparent bg-foreground/5 opacity-40 hover:opacity-100'">
+                        <img :src="`/assets/avatars/avatar_${i}.svg`" class="w-full h-full" />
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="currentStep !== 2" class="p-8 pb-12 flex gap-4 max-w-xl mx-auto w-full relative z-50">
+                <button v-if="currentStep > 1" @click="currentStep--" class="h-16 px-8 rounded-3xl bg-foreground/5 text-foreground font-black uppercase text-xs hover:bg-foreground/10 transition-colors">Atrás</button>
+                <Link v-else :href="route('login')" class="h-16 px-8 rounded-3xl bg-foreground/5 text-foreground font-black uppercase text-xs flex items-center">Login</Link>
+
+                <button v-if="currentStep < steps.length" @click="nextStep" :disabled="validatingStep1" 
+                        class="flex-1 h-16 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+                    <span v-if="validatingStep1" class="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <template v-else>Siguiente <ArrowRight :size="18" stroke-width="3" /></template>
+                </button>
+
+                <button v-if="currentStep === 4" @click="submit" :disabled="form.processing" 
+                        class="flex-1 h-16 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+                    <span v-if="form.processing" class="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <template v-else>Finalizar <CheckCircle :size="18" stroke-width="3" /></template>
+                </button>
+            </div>
+
+        </main>
+    </div>
 </template>
 
 <style>
-/* Forzar transparencia absoluta en componentes VueTelInput */
-.custom-tel-input {
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05) !important; /* Ligera sombra interna para profundidad */
-}
-
-.custom-tel-input .vti__input {
-    background: transparent !important;
-    color: currentColor !important;
-    font-weight: 700 !important;
-    font-size: 16px !important;
-}
-
-.custom-tel-input .vti__dropdown {
-    background: transparent !important;
-    border-radius: 16px 0 0 16px !important;
-    border-right: 1px solid rgba(var(--foreground), 0.1) !important;
-}
-
-.custom-tel-input .vti__dropdown:hover {
+.error-border { border-color: hsl(var(--destructive)) !important; background-color: hsla(var(--destructive), 0.05) !important; }
+.custom-tel-input-full {
+    height: 60px !important;
     background: rgba(var(--foreground), 0.05) !important;
+    border: 2px solid transparent !important;
+    border-radius: 20px !important;
+    transition: all 0.3s ease;
 }
-
-/* Ocultar barra de desplazamiento para mantener el diseño limpio */
-.custom-scrollbar::-webkit-scrollbar { width: 0px; }
+.custom-tel-input-full:focus-within { border-color: rgba(var(--primary), 0.5) !important; }
+.custom-tel-input-full .vti__input { background: transparent !important; font-weight: 800 !important; font-size: 16px !important; color: inherit !important;}
+.custom-tel-input-full .vti__dropdown { border-radius: 20px 0 0 20px !important; }
+::-webkit-scrollbar { width: 0px; }
 </style>

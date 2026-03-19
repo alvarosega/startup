@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
-    MapPin, ShoppingBag, User, FileText, LogOut, Search,
-    Home, ShieldCheck, X, Menu, Settings, ClipboardList,
+    MapPin, ShoppingCart, User, Receipt, LogOut, Search,
+    Home, ShieldCheck, X, Menu, Settings,
     CreditCard, Truck, Package, Flag, Bell, ChevronDown,
     Facebook, Instagram, Twitter, Youtube, Mail, Phone, Globe
 } from 'lucide-vue-next';
@@ -44,7 +44,7 @@ const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
 const menuItems = [
     { name: 'Mi Perfil', route: 'customer.profile.index', icon: User },
     { name: 'Direcciones', route: 'customer.profile.addresses', icon: MapPin },
-    { name: 'Mis Pedidos', route: 'customer.orders.history', icon: FileText },
+    { name: 'Mis Pedidos', route: 'customer.orders.history', icon: Receipt },
     { name: 'Seguridad', route: 'customer.profile.security', icon: ShieldCheck },
 ];
 
@@ -132,7 +132,7 @@ const logout = () => { router.post(route('logout')); };
                                     <div class="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center rounded-lg shadow-lg dark:shadow-f1-glow">
                                         <Flag :size="20" class="fill-current" />
                                     </div>
-                                    <span class="text-xl font-extrabold tracking-tighter">CYBER<span class="text-primary">MARKET</span></span>
+                                    <span class="text-xl font-bold tracking-[-0.02em]">CYBER<span class="text-primary">MARKET</span></span>
                                 </div>
                                 <p class="text-sm text-muted-foreground leading-relaxed">
                                     La nueva generación de supermercados digitales. Velocidad de entrega técnica y calidad premium garantizada.
@@ -196,20 +196,46 @@ const logout = () => { router.post(route('logout')); };
                 </footer>
             </main>
 
-            <nav class="fixed bottom-0 left-0 right-0 h-[72px] bg-black/95 dark:bg-background/80 backdrop-blur-xl border-t border-black dark:border-card-border z-[70] flex justify-around items-center px-6 md:hidden">
-                <Link :href="route('customer.shop.index')"><Home :size="24" :class="isIndexPage ? 'text-primary' : 'text-white dark:text-muted-foreground'" /></Link>
-                <Link :href="route('customer.cart.index')" class="relative">
-                    <ShoppingBag :size="24" :class="isCartPage ? 'text-primary' : 'text-white dark:text-muted-foreground'" />
-                    <span v-if="cartCount > 0" class="absolute -top-2 -right-2 w-4 h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">{{ cartCount }}</span>
+            <nav class="fixed bottom-0 left-0 right-0 h-[68px] bg-background border-t border-border z-[70] flex justify-around items-center px-2 md:hidden">
+                
+                <Link :href="route('customer.orders.history')" class="flex-1 flex justify-center items-center">
+                    <Receipt :size="24" 
+                    :class="isOrdersPage ? 'text-primary' : 'text-muted-foreground'" 
+                        :stroke-width="isOrdersPage ? 2.5 : 2" />
                 </Link>
-                <Link v-if="activeOrder?.count > 0" :href="activeOrderUrl" class="relative -mt-8">
-                    <div class="w-14 h-14 rounded-full bg-black dark:bg-card border-4 border-background flex items-center justify-center shadow-xl">
-                        <div class="absolute inset-1 rounded-full opacity-20" :class="telemetryStatusColor"></div>
-                        <Truck v-if="activeOrder.latest?.status === 'dispatched'" :size="24" class="text-primary animate-bounce" />
-                        <Package v-else :size="24" class="text-primary animate-pulse" />
+
+                <Link :href="route('customer.cart.index')" class="flex-1 flex justify-center items-center relative">
+                    <ShoppingCart :size="24" 
+                        :class="isCartPage ? 'text-[#007AFF] dark:text-[#E10600]' : 'text-gray-400 dark:text-[#525252]'" 
+                        :stroke-width="isCartPage ? 2.5 : 2" />
+                    
+                        <div v-if="cartCount > 0" 
+                            class="absolute -top-3 left-1/2 translate-x-1 w-6 h-6 bg-primary text-primary-foreground text-[11px] font-bold rounded-full flex items-center justify-center border-2 border-background shadow-sm dark:shadow-[0_0_15px_rgba(225,6,0,0.4)] transition-all">
+                        {{ cartCount }}
                     </div>
                 </Link>
-                <Link :href="route('customer.orders.history')"><ClipboardList :size="24" :class="isOrdersPage ? 'text-primary' : 'text-white dark:text-muted-foreground'" /></Link>
+
+                <Link :href="route('customer.shop.index')" class="flex-1 flex justify-center items-center relative -mt-6">
+                    <div class="w-14 h-14 rounded-xl bg-card border border-card-border flex items-center justify-center shadow-sm dark:shadow-none">
+                        <Home :size="28" 
+                            :class="isIndexPage ? 'text-primary' : 'text-muted-foreground'" 
+                            :stroke-width="2.5" />
+                        <div v-if="activeOrder?.count > 0" 
+                             class="absolute top-1 right-1 w-3 h-3 rounded-full border-2 border-[#FFFFFF] dark:border-[#121217]" 
+                             :class="telemetryStatusColor"></div>
+                    </div>
+                </Link>
+
+                <Link href="#" class="flex-1 flex justify-center items-center">
+                    <Search :size="24" class="text-gray-400 dark:text-[#525252]" :stroke-width="2" />
+                </Link>
+
+                <Link :href="route('customer.profile.index')" class="flex-1 flex justify-center items-center">
+                    <User :size="24" 
+                        :class="route().current('customer.profile.*') ? 'text-[#007AFF] dark:text-[#E10600]' : 'text-gray-400 dark:text-[#525252]'" 
+                        :stroke-width="route().current('customer.profile.*') ? 2.5 : 2" />
+                </Link>
+
             </nav>
         </div>
 
@@ -217,7 +243,7 @@ const logout = () => { router.post(route('logout')); };
             <div v-if="showSidebar" class="fixed inset-0 z-[100] flex">
                 <div class="absolute inset-0 bg-background/60 backdrop-blur-sm transition-opacity" @click="showSidebar = false"></div>
                 
-                <div class="relative w-[66vw] md:w-[350px] h-full bg-card/95 backdrop-blur-2xl border-r border-border/50 dark:border-card-border shadow-2xl flex flex-col overflow-hidden">
+                <div class="relative w-[66vw] md:w-[350px] h-full bg-card/95 backdrop-blur-2xl border-r border-border shadow-2xl flex flex-col overflow-hidden">
                     
                     <div class="p-6 border-b border-border/50 dark:border-card-border flex justify-between items-center bg-muted/30">
                         <div class="flex items-center gap-3">

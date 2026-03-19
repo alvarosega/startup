@@ -19,15 +19,15 @@ readonly class AddToCartDTO
     {
         $customerId = Auth::guard('customer')->id();
         
-        // Zero-Trust: Si hay cliente autenticado, ignoramos por completo el UUID del localstorage
-        $sessionUuid = $customerId ? null : (string) $request->input('guest_client_uuid');
-
+        // Captura limpia del UUID enviado desde Vue
+        $guestUuid = $request->input('guest_client_uuid');
+    
         return new self(
             skuId: (string) $request->input('sku_id'),
             quantity: (int) $request->input('quantity', 1),
             branchId: $activeBranchId,
             customerId: $customerId,
-            sessionUuid: $sessionUuid ?: null // Forzamos null si llega vacío
+            sessionUuid: $customerId ? null : $guestUuid // Si está logueado, el UUID no importa
         );
     }
 }
