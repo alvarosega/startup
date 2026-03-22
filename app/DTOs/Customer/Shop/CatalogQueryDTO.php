@@ -7,17 +7,19 @@ use Illuminate\Http\Request;
 readonly class CatalogQueryDTO
 {
     public function __construct(
-        public ?string $search,
-        public ?string $categoryId,
-        public string $branchId
+        public string $branchId,
+        public ?string $search = null,
+        public ?string $categoryId = null,
+        public ?string $type = null,
     ) {}
 
     public static function fromRequest(Request $request, string $branchId): self
     {
         return new self(
+            branchId: $branchId,
             search: $request->query('search'),
             categoryId: $request->query('category_id'),
-            branchId: $branchId
+            type: $request->query('type')
         );
     }
 }

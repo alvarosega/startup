@@ -34,11 +34,10 @@ class ProductSeeder extends Seeder
 
         DB::transaction(function () use ($file, $headers, $brands, $categories) {
             $rowNumber = 1;
+            $productOrder = 1;
 
             while (($data = fgetcsv($file, 0, ';')) !== false) {
                 $rowNumber++;
-
-                // Ignorar filas en blanco
                 if (empty(array_filter($data))) continue;
 
                 // Auditoría de Estructura CSV
@@ -93,6 +92,7 @@ class ProductSeeder extends Seeder
                         'description'  => $cleanRow['description'] ?? null,
                         'is_active'    => $cleanRow['is_active'] ?? 1,
                         'is_alcoholic' => $cleanRow['is_alcoholic'] ?? 0,
+                        'sort_order'   => $productOrder++,
                     ]
                 );
             }

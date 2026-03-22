@@ -16,13 +16,12 @@ class Sku extends Model
 
     protected $fillable = [
         'product_id', 'name', 'code', 'base_price', 
-        'conversion_factor', 'weight', 'image_path', 'is_active'
+        'conversion_factor', 'weight', 'image_path','sort_order', 'is_active'
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        // LA LEY: Eliminados base_price, conversion_factor y weight del cast 
-        // para que los Accessors tengan el control absoluto.
+        'is_active'  => 'boolean',
+        'sort_order' => 'integer', // <--- ASIGNACIÓN ESTRICTA
     ];
 
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
@@ -93,5 +92,9 @@ class Sku extends Model
     {
         $clean = str_replace(',', '.', (string) $value);
         return is_numeric($clean) ? (float) $clean : 1.00;
+    }
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

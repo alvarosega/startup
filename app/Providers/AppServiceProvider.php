@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 // Modelos
 use App\Models\Admin;
@@ -69,20 +70,9 @@ class AppServiceProvider extends ServiceProvider
         Auth::provider('drivers', function ($app, array $config) {
             return new \Illuminate\Auth\EloquentUserProvider($app['hash'], $config['model']);
         });
-
-        /*// --- DEBUG SQL (LIMPIO) ---
-        // Solo activamos esto en modo debug y SIN lógica binaria
-        if (config('app.debug')) {
-            DB::listen(function ($query) {
-                // Filtramos para no llenar el log, solo lo importante
-                if (str_contains($query->sql, 'admins') || str_contains($query->sql, 'drivers') || str_contains($query->sql, 'sessions')) {
-                    Log::info('SQL AUTH:', [
-                        'sql' => $query->sql,
-                        'bindings' => $query->bindings, // Bindings directos, sin conversión
-                        'time' => $query->time
-                    ]);
-                }
-            });
-        }*/
+        Relation::morphMap([
+            'sku'    => \App\Models\Sku::class,
+            'bundle' => \App\Models\Bundle::class,
+        ]);
     }
 }

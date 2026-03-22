@@ -17,16 +17,17 @@ class DatabaseSeeder extends Seeder
             LevelSeeder::class,
             CustomerSeeder::class,
             ComplianceSeeder::class,
-            // Nivel 0
-            MarketZoneSeeder::class,    // Nivel 0
+            MarketZoneSeeder::class,    
             CategorySeeder::class,    
-            ProviderSeeder::class,        // Nivel 1
-            BrandSeeder::class,         // Nivel 2
+            ProviderSeeder::class,      
+            BrandSeeder::class,         
             ProductSeeder::class,    
             SkuSeeder::class,
             PriceSeeder::class,
             InventorySeeder::class,
             BundleSeeder::class,
+            HeroBannerSeeder::class,
+            CategoryBannerSeeder::class,
         ]);
     }
 }

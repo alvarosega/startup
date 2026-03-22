@@ -15,9 +15,14 @@ class Product extends Model
 
     protected $fillable = [
         'brand_id', 'category_id', 'name', 'slug', 'description', 
-        'image_path', 'is_active', 'is_alcoholic'
+        'image_path','sort_order', 'is_active', 'is_alcoholic'
     ];
-
+    protected static function booted()
+    {
+        static::addGlobalScope('order', function ($builder) {
+            $builder->orderBy('sort_order', 'asc')->orderBy('name', 'asc');
+        });
+    }
     protected $casts = [
         'is_active' => 'boolean',
         'is_alcoholic' => 'boolean'

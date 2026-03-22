@@ -13,7 +13,7 @@ return new class extends Migration
             // LA LEY: Integridad Relacional en cascada
             $table->foreignUuid('brand_id')->constrained('brands')->cascadeOnDelete();
             $table->foreignUuid('category_id')->constrained('categories')->cascadeOnDelete();
-            
+            $table->integer('sort_order')->default(0)->index();
             // LA LEY: Indexación para rendimiento. La unicidad (unique) la maneja 
             // el StoreProductRequest ignorando los deleted_at.
             $table->string('name')->index(); 

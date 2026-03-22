@@ -12,7 +12,7 @@ return new class extends Migration
             $table->foreignUuid('product_id')->constrained('products')->cascadeOnDelete();
             
             $table->string('name'); 
-            
+            $table->integer('sort_order')->default(0)->index();
             // LA LEY: Indexado para velocidad. La unicidad se delega a la capa de aplicación.
             $table->string('code')->nullable()->index(); 
            

@@ -4,50 +4,64 @@ namespace App\Http\Resources\Customer\Shop;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage; // Importación obligatoria
+use App\Services\ShopContextService;
 
 class ShopProductResource extends JsonResource
 {
-    protected ?string $branchId = null;
-
-    public function setContextBranch(string $branchId): self
-    {
-        $this->branchId = $branchId;
-        return $this;
-    }
-
     public function toArray(Request $request): array
     {
-        $mainVariant = $this->skus->first();
+        // Accedemos al modelo subyacente de forma segura
+        $sku = $this->resource;
+        $branchId = app(ShopContextService::class)->getActiveBranchId();
+        $now = now();
+
+        // 1. Filtrado de precios en memoria (Pilar 3.A: No N+1)
+        $prices = collect($sku->prices ?? []);
         
-        // USAMOS EL ACCESSOR display_price que ya definimos en el modelo Sku
-        // El modelo ya sabe buscar en 'currentPrices' (que filtramos en el Action)
-        $finalPrice = $mainVariant ? $mainVariant->display_price : 0;
-    
+        $validPrices = $prices->where('branch_id', $branchId)
+            ->filter(function($p) use ($now) {
+                $fromOk = is_null($p->valid_from) || $p->valid_from <= $now;
+                $toOk   = is_null($p->valid_to) || $p->valid_to >= $now;
+                return $fromOk && $toOk;
+            });
+
+        // 2. Precio Ganador (Qty 1)
+        $winningPrice = $validPrices
+            ->where('min_quantity', '<=', 1)
+            ->sortByDesc('priority')
+            ->sortByDesc('min_quantity')
+            ->first();
+
+        $finalPrice = $winningPrice ? (float) $winningPrice->final_price : (float) $sku->base_price;
+        $listPrice  = $winningPrice ? (float) $winningPrice->list_price : (float) $sku->base_price;
+
+        // 3. Descuento
+        $discountPct = ($listPrice > $finalPrice) 
+            ? round((($listPrice - $finalPrice) / $listPrice) * 100) 
+            : 0;
+
+        // 4. Siguiente Escala (Upsell)
+        $nextTier = $validPrices
+            ->where('min_quantity', '>', 1)
+            ->where('final_price', '<', $finalPrice)
+            ->sortBy('min_quantity')
+            ->first();
+
         return [
-            'id'        => $this->id,
-            'name'      => $this->name,
-            'brand'     => $this->brand?->name,
-            'image_url' => $this->image_path 
-                ? Storage::disk('public')->url($this->image_path)
-                : asset('assets/img/placeholder.png'),
-            
-            // CORRECCIÓN: Usamos el atributo 'available_stock' calculado en el Action
-            'has_stock' => $mainVariant && $mainVariant->available_stock > 0,
-            'price'     => (float) $finalPrice,
-            
-            'variants'  => $this->skus->map(function ($sku) {
-                return [
-                    'id'        => $sku->id,
-                    'name'      => $sku->name,
-                    'code'      => $sku->code,
-                    'price'     => (float) $sku->display_price, // Usar accessor
-                    'image_url' => $sku->image_path 
-                        ? Storage::disk('public')->url($sku->image_path)
-                        : asset('assets/img/placeholder.png'),
-                    'has_stock' => $sku->available_stock > 0 // Usar atributo calculado
-                ];
-            }),
+            'id'         => (string) $sku->id,
+            'name'       => (string) mb_convert_encoding($sku->name, 'UTF-8', 'UTF-8'),
+            'brand_name' => (string) ($sku->product->brand->name ?? 'Genérico'),
+            'image'      => $sku->image_url ?? asset('assets/img/placeholder.png'),
+            'stock'      => (int) ($sku->available_stock ?? 0),
+            'price'      => [
+                'final'     => $finalPrice,
+                'list'      => $listPrice,
+                'discount'  => $discountPct,
+                'next_tier' => $nextTier ? [
+                    'min_qty' => $nextTier->min_quantity,
+                    'price'   => (float) $nextTier->final_price
+                ] : null
+            ]
         ];
     }
 }

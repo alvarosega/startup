@@ -29,10 +29,10 @@ class SkuSeeder extends Seeder
 
         DB::transaction(function () use ($file, $headers, $products) {
             $rowNumber = 1;
+            $skuOrder = 1;
 
             while (($data = fgetcsv($file, 0, ';')) !== false) {
                 $rowNumber++;
-
                 if (empty(array_filter($data))) continue;
 
                 if (count($headers) !== count($data)) {
@@ -79,6 +79,7 @@ class SkuSeeder extends Seeder
                         'weight'            => $cleanRow['weight'] ?? 0,
                         'conversion_factor' => $cleanRow['conversion_factor'] ?? 1,
                         'is_active'         => $cleanRow['is_active'] ?? 1,
+                        'sort_order'        => $skuOrder++,
                     ]
                 );
             }

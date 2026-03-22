@@ -6,7 +6,7 @@ import {
     RefreshCw, Tag, Layers, Factory, LogOut,
     Banknote, Gift, ClipboardList, Settings, X, 
     Building2, FolderTree, UserCog, Map, 
-    ArrowLeftRight, Store, Home, Radar
+    ArrowLeftRight, Store, Home, Megaphone, Radar
 } from 'lucide-vue-next';
 
 const activeMobileMenu = ref(null);
@@ -17,6 +17,7 @@ const roles = computed(() => user.value?.roles || []);
 
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
 const isAdmin = isSuperAdmin;
+const canManageAds = isSuperAdmin;
 const canManageUsers = isSuperAdmin;
 const canManageDrivers = isSuperAdmin;
 const canManageCatalog = isSuperAdmin;
@@ -136,7 +137,16 @@ const closeMobileMenu = () => {
                         <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Proveedores</span>
                     </Link>
                 </template>
-
+                <template v-if="canManageAds">
+                    <div class="w-6 h-px bg-border/50 mx-auto my-2"></div>
+                    
+                    <Link :href="route('admin.retail-media.ad-creatives.index')" class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150 hover:bg-primary/10">
+                        <Megaphone :size="20" class="text-muted-foreground transition-colors duration-150 group-hover:text-primary" />
+                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
+                            Retail Media
+                        </span>
+                    </Link>
+                </template>
                 <!-- User Management Section -->
                 <template v-if="canManageUsers">
                     <div class="w-6 h-px bg-border/50 mx-auto my-2"></div>
@@ -261,6 +271,10 @@ const closeMobileMenu = () => {
                         <Factory size="20" class="text-muted-foreground" />
                         <span class="text-xs font-medium text-center">Prov.</span>
                     </Link>
+                    <Link @click="closeMobileMenu" :href="route('admin.retail-media.ad-creatives.index')" class="bg-background border border-primary/30 p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:bg-primary/5 col-span-2">
+                        <Megaphone size="20" class="text-primary" />
+                        <span class="text-xs font-medium text-center text-primary">Retail Media (Ads)</span>
+                    </Link>
                 </div>
 
                 <!-- Management Menu -->
@@ -288,6 +302,7 @@ const closeMobileMenu = () => {
                         </Link>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>

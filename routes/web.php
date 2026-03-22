@@ -20,18 +20,18 @@ use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Shop\ShopLandingController;
 use App\Http\Controllers\Web\Customer\Shop\ShopCatalogController;
 use App\Http\Controllers\Web\Customer\Shop\ShopZoneController;
-use App\Http\Controllers\Web\Customer\Shop\ShopCategoryController; 
-
+use App\Http\Controllers\Web\Customer\Shop\Category\CategoryController as ShopCategoryController;
+use App\Http\Controllers\Web\Customer\Shop\ShopBundleController;
 // --- CONTROLADORES ADMIN ---
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\User\CustomerController;
 use App\Http\Controllers\Web\Admin\Branch\BranchController;
 use App\Http\Controllers\Web\Admin\Product\ProductController;
-use App\Http\Controllers\Web\Admin\Category\CategoryController;
+use App\Http\Controllers\Web\Admin\Category\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Web\Admin\MarketZone\MarketZoneController;
 use App\Http\Controllers\Web\Admin\Bundle\BundleController as AdminBundleController;
-
+use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
 use App\Http\Controllers\Web\Admin\Brand\BrandController;
 use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Sku\SkuController;
@@ -69,24 +69,27 @@ Route::middleware(['inertia.customer'])->group(function () {
 
     // --- ENVOLVEMOS TODO EN EL NAME 'customer.' PARA ALINEAR CON EL LAYOUT ---
     Route::name('customer.')->group(function () {
-        
-        // 1. Catálogo
-        Route::get('/', [ShopController::class, 'index'])->name('shop.index');
-        Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('shop.zone');
-        Route::get('/category/{category:slug}', [ShopCategoryController::class, '__invoke'])->name('shop.category');
-        // 2. Carrito (MOVER AQUÍ Y ELIMINAR EL OTRO BLOQUE)
+        // routes/web.php (Customer Group)
+        Route::name('shop.')->group(function () {
+            // Orquestador de Landing (Home)
+            Route::get('/', ShopLandingController::class)->name('index');
+            
+            // Exploración (Catalog, Zones, Categories)
+            Route::get('/search', ShopCatalogController::class)->name('search');
+            Route::get('/zone/{zone:slug}', ShopZoneController::class)->name('zone');
+            Route::get('/category/{category:slug}', ShopCategoryController::class)->name('category');
+            
+            // Configuración (Vista inmersiva del combo)
+            Route::get('/bundle/{bundle:slug}', ShopBundleController::class)->name('bundle');
+            
+        });
 
         Route::prefix('cart')->name('cart.')->group(function () {
-            Route::get('/', [CartController::class, 'index'])->name('index'); 
-            Route::post('/add', [CartController::class, 'store'])->name('add');
-            Route::post('/sync', [CartController::class, 'sync'])->name('sync');
-            
-            // --- RUTAS FALTANTES AÑADIDAS ---
-            Route::patch('/{id}', [CartController::class, 'update'])->name('update'); // Para updateQuantity
-            Route::delete('/{id}', [CartController::class, 'remove'])->name('remove'); // Para removeItem
-            
-            Route::get('/bundle/{bundle:slug}', [CustomerBundleController::class, 'show'])->name('bundle.show');
-            Route::post('/bundle/add', [CustomerBundleController::class, 'add'])->name('bundle.add');
+            Route::get('/', [CartController::class, 'index'])->name('index');
+            // UNIFICADO: Un solo endpoint para añadir cualquier cosa (SKU o Bundle)
+            Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
+            Route::patch('/{id}', [CartController::class, 'update'])->name('update');
+            Route::delete('/{id}', [CartController::class, 'remove'])->name('remove');
         });
     });
 
@@ -205,7 +208,15 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             Route::resource('products', ProductController::class);
             
             Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
-            Route::resource('categories', CategoryController::class);
+            Route::prefix('categories')->name('categories.')->group(function () {
+                // Estas rutas deben ir ANTES del resource para que no choquen con el ID
+                Route::get('{category}/sku-order', [AdminCategoryController::class, 'skuOrder'])->name('sku-order');
+                Route::patch('{category}/sku-order', [AdminCategoryController::class, 'updateSkuOrder'])->name('sku-order.update');
+            
+                Route::resource('/', AdminCategoryController::class)
+                    ->parameters(['' => 'category'])
+                    ->except(['show']);
+            });
             Route::resource('market-zones', MarketZoneController::class)
                 ->names('market-zones')
                 ->parameters(['market-zones' => 'market_zone']);
@@ -226,11 +237,11 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             // Operaciones
             Route::resource('purchases', PurchaseController::class);
             Route::resource('transfers', TransferController::class);
-   //         Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
+            //         Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
     
             Route::resource('removals', RemovalController::class);
-       //     Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
-         //   Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
+               //     Route::post('removals/{id}/approve', [RemovalController::class, 'approve'])->name('removals.approve');
+                //   Route::post('removals/{id}/reject', [RemovalController::class, 'reject'])->name('removals.reject');
             Route::get('/logistics/monitor', [\App\Http\Controllers\Web\Admin\Logistics\MonitorController::class, 'index'])->name('logistics.monitor');
             Route::resource('transformations', TransformationController::class);
     
@@ -243,6 +254,16 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
                 
                 // Motor Logístico
                 Route::post('/{id}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
+            });
+            Route::prefix('retail-media')->name('retail-media.')->group(function () {
+            
+                // ESTA ES LA RUTA: Debe estar ANTES del resource
+                Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])
+                    ->name('ad-creatives.search-skus'); 
+    
+                Route::resource('ad-creatives', AdCreativeController::class)
+                    ->parameters(['ad-creatives' => 'ad_creative']);
+                Route::resource('ad-campaigns', AdCampaignController::class);
             });
         });
 
