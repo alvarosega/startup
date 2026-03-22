@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             BrandSeeder::class,         
             ProductSeeder::class,    
             SkuSeeder::class,
-            //PriceSeeder::class,
+            PriceSeeder::class,
             InventorySeeder::class,
             BundleSeeder::class,
             HeroBannerSeeder::class,

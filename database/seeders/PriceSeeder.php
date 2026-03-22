@@ -7,7 +7,6 @@ use App\Models\{Price, Sku, Branch};
 use Illuminate\Support\Facades\DB;
 
 class PriceSeeder extends Seeder {
-    // Definición de jerarquía según requerimiento del usuario
     private const PRICE_HIERARCHY = [
         'regular'     => 1,
         'offer'       => 2,
@@ -32,10 +31,12 @@ class PriceSeeder extends Seeder {
 
                 $row = array_combine($headers, $data);
                 $skuId = $skus[$row['sku_code']] ?? null;
-                $branchId = $branches[strtolower($row['branch_slug'] ?? '')] ?? null;
+                $branchSlug = strtolower(trim($row['branch_slug'] ?? ''));
+                $branchId = $branches[$branchSlug] ?? null;
 
                 if (!$skuId || !$branchId) {
-                    throw new \Exception("ERROR INTEGRIDAD FILA {$rowNumber}: SKU o SUCURSAL no encontrados.");
+                    $this->command->warn("Saltando fila {$rowNumber}: SKU [{$row['sku_code']}] o Branch [{$branchSlug}] no existen.");
+                    continue;
                 }
 
                 $type = strtolower($row['type'] ?? 'regular');
@@ -45,14 +46,17 @@ class PriceSeeder extends Seeder {
                     'sku_id'       => $skuId,
                     'branch_id'    => $branchId,
                     'type'         => $type,
-                    'list_price'   => $row['list_price'],
-                    'final_price'  => $row['final_price'],
-                    'min_quantity' => $row['min_quantity'] ?? 1,
+                    // NORMALIZACIÓN: Reemplazamos coma por punto y forzamos float
+                    'list_price'   => (float) str_replace(',', '.', $row['list_price']),
+                    'final_price'  => (float) str_replace(',', '.', $row['final_price']),
+                    'min_quantity' => (int) ($row['min_quantity'] ?? 1),
                     'priority'     => $priority,
                     'valid_from'   => now(),
                 ]);
             }
         });
+        
         fclose($file);
+        $this->command->info('Estandarización de precios completada.');
     }
 }
