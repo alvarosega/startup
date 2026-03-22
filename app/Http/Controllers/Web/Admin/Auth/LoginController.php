@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Http\Resources\Admin\Auth\AdminResource;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse; // <--- NECESARIO
 
 class LoginController extends Controller
@@ -20,31 +21,26 @@ class LoginController extends Controller
         return Inertia::render('Admin/Auth/Login');
     }
 
-    /**
-     * Procesa el login.
-     * NOTA: Retornamos SymfonyResponse para aceptar Inertia::location
-     */
     public function login(LoginAdminRequest $request, LoginAdminAction $action): SymfonyResponse
     {
-        $request->authenticate();
+        // 1. Fase de Validación y Throttle
+        $request->checkRateLimit(); 
+    
+        // 2. Fase de Contrato
         $data = LoginAdminData::fromRequest($request);
-
+    
         try {
+            // 3. Fase de Ejecución Atómica
             $action->execute($data);
+            
             $request->session()->regenerate();
-            $request->session()->save(); 
-            $request->hitRateLimiter();
-
-            // CORRECCIÓN: Usar route() genera la URL correcta dinámicamente
-            // independientemente de lo que pongas en el .env
-            return redirect()->intended(route('admin.dashboard'));
-
-        } catch (\Exception $e) {
+            return redirect()->route('admin.dashboard');
+    
+        } catch (\Illuminate\Validation\ValidationException $e) {
             $request->hitRateLimiter();
             throw $e;
         }
     }
-
     public function logout(Request $request): RedirectResponse
     {
         Auth::guard('super_admin')->logout();

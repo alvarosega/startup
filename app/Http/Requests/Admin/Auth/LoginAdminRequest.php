@@ -9,30 +9,28 @@ use Illuminate\Validation\ValidationException;
 
 class LoginAdminRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
+    public function authorize(): bool { return true; }
 
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email'    => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
             'remember' => ['boolean'],
         ];
     }
 
-    public function authenticate(): void
+    // RENOMBRADO: De authenticate a checkRateLimit
+    public function checkRateLimit(): void
     {
         $this->ensureIsNotRateLimited();
     }
 
-    public function ensureIsNotRateLimited(): void
+    protected function ensureIsNotRateLimited(): void
     {
         $key = Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
 
-        if (! RateLimiter::tooManyAttempts($key, 5)) {
+        if (!RateLimiter::tooManyAttempts($key, 5)) {
             return;
         }
 
