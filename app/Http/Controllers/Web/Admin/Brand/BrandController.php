@@ -10,30 +10,23 @@ use App\Http\Requests\Admin\Brand\{StoreBrandRequest, UpdateBrandRequest};
 use App\Http\Resources\Admin\Brand\BrandResource;
 use Illuminate\Http\{Request, RedirectResponse};
 use Inertia\{Inertia, Response};
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Cache;
-
 
 class BrandController extends Controller
 {
     use AuthorizesRequests;
-    
     private string $guard = 'super_admin';
 
-    public function index(ListBrands $listAction, GetBrandStatsAction $statsAction): Response
+    public function index(Request $request, ListBrands $listAction, GetBrandStatsAction $statsAction): Response
     {
         $this->authorize('viewAny', Brand::class);
 
         return Inertia::render('Admin/Brands/Index', [
-            'brands'  => BrandResource::collection($listAction->execute(request()->all())),
+            'brands'  => BrandResource::collection($listAction->execute($request->all())),
             'stats'   => $statsAction->execute(),
-            'options' => [
-                'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as name']),
-                'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
-                'zones'      => MarketZone::active()->get(['id', 'name']),
-                'parents'    => Brand::whereNull('parent_id')->get(['id', 'name']), // Soporte Sub-marcas
-            ]
+            'filters' => $request->only(['search', 'provider_id', 'category_id', 'market_zone_id']),
+            'options' => $this->getBrandOptions(), // Contrato unificado
+            'can_manage' => $request->user($this->guard)->can('create', Brand::class)
         ]);
     }
 
@@ -41,46 +34,53 @@ class BrandController extends Controller
     {
         $this->authorize('create', Brand::class);
         return Inertia::render('Admin/Brands/Create', [
-            'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as company_name']),
-            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
-            'zones'      => MarketZone::getMinimalList()
+            'options' => $this->getBrandOptions()
         ]);
     }
 
     public function edit(Brand $brand): Response
     {
         $this->authorize('update', $brand);
+        $brand->load(['marketZones', 'provider', 'category']);
+
         return Inertia::render('Admin/Brands/Edit', [
-            'brand'      => new BrandResource($brand),
-            'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as company_name']),
-            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
-            'zones'      => MarketZone::getMinimalList()
+            'brand'   => new BrandResource($brand),
+            'options' => $this->getBrandOptions($brand->id)
         ]);
     }
-            
+
+    // --- MÉTODOS DE SOPORTE (LEY DE REUTILIZACIÓN) ---
+
+    private function getBrandOptions(?string $excludeId = null): array
+    {
+        // Nota: Podrías envolver esto en Cache::remember para optimizar
+        return [
+            'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as name']),
+            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
+            'zones'      => MarketZone::getMinimalList(),
+            'parents'    => Brand::whereNull('parent_id')
+                ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+                ->orderBy('name')
+                ->get(['id', 'name'])
+        ];
+    }
+
     public function store(StoreBrandRequest $request, UpsertBrandAction $action): RedirectResponse
     {
         $action->execute(BrandData::fromRequest($request));
-        return redirect()->route('admin.brands.index')->with('message', 'Operación exitosa.');
+        return redirect()->route('admin.brands.index')->with('message', 'Protocolo de creación completado.');
     }
 
     public function update(UpdateBrandRequest $request, Brand $brand, UpsertBrandAction $action): RedirectResponse
     {
         $this->authorize('update', $brand);
         $action->execute(BrandData::fromRequest($request), $brand);
-        return redirect()->route('admin.brands.index')->with('message', 'Marca actualizada.');
+        return redirect()->route('admin.brands.index')->with('message', 'Registro actualizado.');
     }
-
     public function destroy(Brand $brand, DeleteBrandAction $action): RedirectResponse
     {
         $this->authorize('delete', $brand);
-        
-        try {
-            // DELEGAR: El controlador orquesta, la Action ejecuta.
-            $action->execute($brand);
-            return redirect()->route('admin.brands.index')->with('message', 'Marca eliminada del catálogo.');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', $e->getMessage());
-        }
+        $action->execute($brand);
+        return redirect()->route('admin.brands.index')->with('message', 'Registro neutralizado.');
     }
 }

@@ -55,10 +55,8 @@ class CategoryController extends Controller
         $this->authorize('create', Category::class);
         
         return Inertia::render('Admin/Categories/Create', [
-            // Necesario para el selector de jerarquía del CategoryForm
-            'parents' => Category::whereNull('parent_id')
-                ->orderBy('name')
-                ->get(['id', 'name'])
+            // Jerarquía: Permitimos cualquier categoría como padre (excepto en edit)
+            'parents' => Category::orderBy('name')->get(['id', 'name'])
         ]);
     }
 
@@ -126,17 +124,18 @@ class CategoryController extends Controller
         
         return back()->with('success', 'Góndola actualizada.');
     }
-    public function update(StoreCategoryRequest $request, Category $category, UpsertCategoryAction $action): RedirectResponse
+    public function update(UpdateCategoryRequest $request, Category $category, UpsertCategoryAction $action): RedirectResponse
     {
         $this->authorize('update', $category);
-        
-        // Pasamos la categoría actual al Action para que sepa que es UPDATE
         $action->execute(CategoryData::fromRequest($request), $category);
 
-        // Invalidación agresiva de caché. MD5 es complejo, flush es seguro.
-        Cache::flush(); 
+        // INVALIDACIÓN SELECTIVA: Solo borramos el catálogo de categorías
+        // En lugar de flush(), usamos la llave específica o borrado por prefijo
+        Cache::forget('admin_cat_list_all'); 
+        // Nota: Para borrar los MD5 se requiere un iterador de archivos o un Version Hash.
+        // Por ahora, flush() es aceptable solo si no hay otros datos críticos en caché.
 
-        return redirect()->route('admin.categories.index')->with('success', 'Atributos de nodo sincronizados.');
+        return redirect()->route('admin.categories.index')->with('success', 'Atributos sincronizados.');
     }
     public function destroy(Category $category, DeleteCategoryAction $action): RedirectResponse
     {

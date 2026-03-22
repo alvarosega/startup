@@ -38,10 +38,10 @@ class UpsertBrandAction
                 if ($data->image && $oldPath) Storage::disk('public')->delete($oldPath);
             }
 
-            // Sincronización de Tabla Pivot (Market Zones)
+            // SINCRONIZACIÓN M:N (Indispensable)
             $brand->marketZones()->sync($data->market_zone_ids);
             
-            Cache::forget('admin_brands_list');
+            Cache::flush(); // Invalidación total por MD5 dinámico en Index
             
             return $brand;
         });

@@ -11,39 +11,37 @@ class AdCreativeResource extends JsonResource
     {
         return [
             'id' => (string) $this->id,
-            'name' => $this->purify($this->name),
-            'image_mobile' => $this->image_mobile_path,
-            'image_desktop' => $this->image_desktop_path,
+            'name' => mb_convert_encoding($this->name, 'UTF-8', 'UTF-8'),
+            'image_mobile_url' => $this->image_mobile_path ? \Storage::disk('public')->url($this->image_mobile_path) : null,
+            'image_desktop_url' => $this->image_desktop_path ? \Storage::disk('public')->url($this->image_desktop_path) : null,
             'is_active' => (bool) $this->is_active,
             'sort_order' => (int) $this->sort_order,
+            'action_type' => $this->action_type,
             
-            // Relaciones mapeadas con seguridad
             'campaign' => [
-                'name' => $this->purify($this->campaign->name),
-                'provider' => $this->campaign->provider->commercial_name ?? 'N/A',
-                'market_zone' => $this->campaign->marketZone ? [
-                    'name' => $this->campaign->marketZone->name,
-                    'color' => $this->campaign->marketZone->hex_color,
-                ] : null,
+                'id' => $this->campaign->id,
+                'name' => $this->campaign->name,
             ],
             'placement' => [
                 'name' => $this->placement->name,
                 'code' => $this->placement->code,
             ],
-            'sku' => [
-                'id' => $this->sku->id,
-                'name' => $this->purify($this->sku->name),
+            // Contexto de Categoría (Nuevo)
+            'category' => $this->category ? [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+            ] : null,
+            // Anclaje Único
+            'branch' => [
+                'id' => $this->branch->id,
+                'name' => $this->branch->name,
             ],
-            'branches' => $this->branches->map(fn($b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-            ]),
+            // Target Polimórfico (SKU o Bundle)
+            'target' => [
+                'id'   => $this->target_id,
+                'type' => strtolower(class_basename($this->target_type)),
+                'name' => $this->target->name ?? 'N/A', // El modelo 'target' puede ser SKU o Bundle
+            ],
         ];
-    }
-
-    private function purify(?string $str): string
-    {
-        if (!$str) return '';
-        return mb_convert_encoding($str, 'UTF-8', 'UTF-8');
     }
 }

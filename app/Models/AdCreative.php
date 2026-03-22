@@ -5,18 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\{MorphTo, BelongsTo};
 
 class AdCreative extends Model
 {
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'branch_id',
+        'branch_id',    // Anclaje único
         'campaign_id', 
         'placement_id', 
-        'category_id', // <--- NUEVO ANCLAJE
+        'category_id',  // Anclaje a categoría
         'target_type', 
         'target_id',
         'name', 
@@ -27,28 +26,14 @@ class AdCreative extends Model
         'is_active'
     ];
 
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(Category::class);
-    }
+    protected $casts = [
+        'is_active' => 'boolean',
+        'sort_order' => 'integer',
+    ];
 
-    public function target(): MorphTo
-    {
-        return $this->morphTo();
-    }
-
-    public function campaign(): BelongsTo
-    {
-        return $this->belongsTo(AdCampaign::class);
-    }
-
-    public function placement(): BelongsTo
-    {
-        return $this->belongsTo(AdPlacement::class);
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
-    }
+    public function category(): BelongsTo { return $this->belongsTo(Category::class); }
+    public function target(): MorphTo { return $this->morphTo(); }
+    public function campaign(): BelongsTo { return $this->belongsTo(AdCampaign::class); }
+    public function placement(): BelongsTo { return $this->belongsTo(AdPlacement::class); }
+    public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
 }

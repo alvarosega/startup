@@ -28,4 +28,8 @@ class Category extends Model
     public function parent(): BelongsTo { return $this->belongsTo(self::class, 'parent_id'); }
     public function children(): HasMany { return $this->hasMany(self::class, 'parent_id'); }
     public function brands(): HasMany { return $this->hasMany(Brand::class); }
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }

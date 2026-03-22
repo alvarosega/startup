@@ -162,16 +162,13 @@ const clearSearch = () => {
                                 <div class="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
                                     <span class="flex items-center gap-1">
                                         <Factory :size="12" class="text-primary/60" />
-                                        {{ brand.provider_name }}
-                                    </span>
+                                        {{ brand.provider_name }} </span>
                                     <span class="flex items-center gap-1">
                                         <LayoutGrid :size="12" class="text-primary/60" />
-                                        {{ brand.category_name }}
-                                    </span>
+                                        {{ brand.category_name }} </span>
                                     <span class="flex items-center gap-1">
                                         <MapPin :size="12" class="text-primary/60" />
-                                        {{ brand.market_zone }}
-                                    </span>
+                                        {{ brand.market_zone }} </span>
                                 </div>
                             </div>
                         </div>

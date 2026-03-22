@@ -15,4 +15,12 @@ class MarketZone extends Model
     public function brands(): BelongsToMany { 
         return $this->belongsToMany(Brand::class, 'brand_market_zone'); 
     }
+    public static function getMinimalList()
+    {
+        return \Illuminate\Support\Facades\Cache::remember('market_zones_minimal', 86400, function () {
+            return self::where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        });
+    }
 }

@@ -11,7 +11,11 @@ use Illuminate\Support\Facades\Storage;
 class Brand extends Model
 {
     use SoftDeletes, HasUv7;
-
+    protected $casts = [
+        'is_active'   => 'boolean',
+        'is_featured' => 'boolean',
+        'sort_order'  => 'integer',
+    ];
     protected $fillable = [
         'parent_id', 'provider_id', 'category_id', 'name', 'slug', 
         'image_path', 'website', 'is_active', 'is_featured', 'sort_order', 'description'
@@ -26,7 +30,9 @@ class Brand extends Model
             ? Storage::disk('public')->url($this->image_path) 
             : null);
     }
-
+    public function provider(): BelongsTo { 
+        return $this->belongsTo(Provider::class); 
+    }
     public function marketZones(): BelongsToMany { 
         return $this->belongsToMany(MarketZone::class, 'brand_market_zone'); 
     }
