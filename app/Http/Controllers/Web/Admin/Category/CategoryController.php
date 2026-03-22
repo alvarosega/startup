@@ -14,62 +14,81 @@ use Illuminate\Http\{Request, RedirectResponse};
 use Illuminate\Support\Facades\{Cache, Storage};
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
+
 class CategoryController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request): Response
+    public function index(): Response
     {
         $this->authorize('viewAny', Category::class);
-
-        // RENDIMIENTO EXTREMO: Cache de 24h
-        $categories = Cache::remember('admin_categories_list', 86400, function () use ($request) {
-            return Category::getAllForAdmin($request->only(['search']));
+    
+        $search = request('search');
+        $cacheKey = "admin_cat_list_" . md5($search ?? 'all');
+    
+        $categories = Cache::remember($cacheKey, 3600, function () use ($search) {
+            return Category::query()
+                ->select([
+                    'id', 'name', 'slug', 'parent_id', 'is_active', 'is_featured', // Faltaba is_featured
+                    'sort_order', 'image_path', 'icon_path', 'bg_color', 
+                    'external_code', 'tax_classification', 'requires_age_check', 'description'
+                ])
+                ->with(['parent:id,name'])
+                ->when($search, function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%") // Búsqueda más flexible
+                      ->orWhere('external_code', 'like', "%{$search}%");
+                })
+                ->orderBy('sort_order')
+                ->get();
         });
-
+    
         return Inertia::render('Admin/Categories/Index', [
             'categories' => CategoryResource::collection($categories),
-            'filters'    => $request->only(['search']),
-            'can_manage' => auth('super_admin')->user()->can('create', Category::class)
+            'filters'    => [
+                'search' => $search // Esto soluciona el error "undefined search"
+            ],
+            'can_manage' => request()->user()->can('create', Category::class)
         ]);
     }
-
     public function create(): Response
     {
         $this->authorize('create', Category::class);
-        return Inertia::render('Admin/Categories/Create'); // Sin 'parents'
+        
+        return Inertia::render('Admin/Categories/Create', [
+            // Necesario para el selector de jerarquía del CategoryForm
+            'parents' => Category::whereNull('parent_id')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+        ]);
     }
 
     public function store(StoreCategoryRequest $request, UpsertCategoryAction $action): RedirectResponse
     {
         $this->authorize('create', Category::class);
+        
         $action->execute(CategoryData::fromRequest($request));
 
-        return redirect()->route('admin.categories.index')->with('success', 'Categoría operativa.');
-    }
+        // Limpiar toda la caché del catálogo para que el nuevo nodo aparezca
+        Cache::flush(); 
 
+        return redirect()->route('admin.categories.index')->with('success', 'Categoría materializada en el sistema.');
+    }
     public function edit(Category $category): Response
     {
         $this->authorize('update', $category);
-        $skus = Sku::query()
-        ->whereHas('product', fn($q) => $q->where('category_id', $category->id))
-        ->with('product:id,name') // Para contexto visual
-        ->orderBy('sort_order')
-        ->get()
-        ->map(fn($sku) => [
-            'id' => $sku->id,
-            'name' => $sku->name,
-            'product_name' => $sku->product->name,
-            'code' => $sku->code,
-            'sort_order' => $sku->sort_order,
-            'image' => $sku->image_path ? Storage::disk('public')->url($sku->image_path) : null,
-        ]);
-        return Inertia::render('Admin/Categories/Edit', [
-            // CORRECCIÓN: Quitamos el ->load(['parent']) porque la relación ya no existe.
-            'category' => new CategoryResource($category) 
-        ]);
         
+        // Carga diferida de relaciones necesarias para el form
+        $category->load(['parent']);
+
+        return Inertia::render('Admin/Categories/Edit', [
+            'category' => new CategoryResource($category),
+            // PROTOCOLO: Lista de potenciales padres excluyendo el nodo actual
+            'parents'  => Category::where('id', '!=', $category->id)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+        ]);
     }
+    
     public function skuOrder(Category $category): Response
     {
         $this->authorize('update', $category);
@@ -110,11 +129,15 @@ class CategoryController extends Controller
     public function update(StoreCategoryRequest $request, Category $category, UpsertCategoryAction $action): RedirectResponse
     {
         $this->authorize('update', $category);
+        
+        // Pasamos la categoría actual al Action para que sepa que es UPDATE
         $action->execute(CategoryData::fromRequest($request), $category);
 
-        return redirect()->route('admin.categories.index')->with('success', 'Atributos actualizados.');
-    }
+        // Invalidación agresiva de caché. MD5 es complejo, flush es seguro.
+        Cache::flush(); 
 
+        return redirect()->route('admin.categories.index')->with('success', 'Atributos de nodo sincronizados.');
+    }
     public function destroy(Category $category, DeleteCategoryAction $action): RedirectResponse
     {
         $this->authorize('delete', $category);

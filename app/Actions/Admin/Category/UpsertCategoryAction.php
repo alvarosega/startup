@@ -16,11 +16,13 @@ class UpsertCategoryAction
             $pathsToClean = [];
 
             $attributes = $data->toArray();
-            if ($isNew || empty($attributes['slug'])) {
-                $attributes['slug'] = $attributes['slug'] ?? Str::slug($data->name);
+            
+            // Forzar slug si está vacío
+            if (empty($attributes['slug'])) {
+                $attributes['slug'] = Str::slug($data->name);
             }
 
-            // Gestión de Assets (Revert-Ready)
+            // Gestión de Assets con rollback manual en caso de fallo de DB
             if ($data->image) {
                 if ($category?->image_path) $oldImage = $category->image_path;
                 $attributes['image_path'] = $data->image->store('categories/images', 'public');
@@ -40,16 +42,13 @@ class UpsertCategoryAction
                     $category->update($attributes);
                 }
 
-                // Limpieza de archivos antiguos tras éxito en DB
                 if (isset($oldImage)) Storage::disk('public')->delete($oldImage);
                 if (isset($oldIcon)) Storage::disk('public')->delete($oldIcon);
 
-                // REDIS: Invalidación de la verdad absoluta
-                Cache::forget('admin_categories_list');
-                
                 return $category;
 
             } catch (\Exception $e) {
+                // Si la DB falla, borramos las imágenes que acabamos de subir
                 foreach ($pathsToClean as $path) Storage::disk('public')->delete($path);
                 throw $e;
             }

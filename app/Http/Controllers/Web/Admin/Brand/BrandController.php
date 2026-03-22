@@ -14,31 +14,26 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Cache;
 
+
 class BrandController extends Controller
 {
     use AuthorizesRequests;
     
     private string $guard = 'super_admin';
 
-    public function index(Request $request, ListBrands $listAction, GetBrandStatsAction $statsAction): Response
+    public function index(ListBrands $listAction, GetBrandStatsAction $statsAction): Response
     {
         $this->authorize('viewAny', Brand::class);
-    
-        // LA LEY v2.0: NO CACHEAR PAGINADORES CON MODELOS ELOQUENT.
-        // Si requieres rendimiento extremo aquí, se cachea la salida del Resource, no el Paginador.
-        // Para este nivel de administración, es más seguro ejecutar la query.
-        $brandsPaginator = $listAction->execute($request->all());
-    
+
         return Inertia::render('Admin/Brands/Index', [
-            'brands'  => BrandResource::collection($brandsPaginator),
+            'brands'  => BrandResource::collection($listAction->execute(request()->all())),
             'stats'   => $statsAction->execute(),
-            'filters' => $request->only(['search', 'provider_id', 'category_id', 'market_zone_id']),
             'options' => [
                 'providers'  => Provider::active()->orderBy('commercial_name')->get(['id', 'commercial_name as name']),
                 'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
-                'zones'      => MarketZone::getMinimalList(),
-            ],
-            'can_manage' => Auth::guard($this->guard)->user()->can('create', Brand::class)
+                'zones'      => MarketZone::active()->get(['id', 'name']),
+                'parents'    => Brand::whereNull('parent_id')->get(['id', 'name']), // Soporte Sub-marcas
+            ]
         ]);
     }
 
@@ -65,9 +60,8 @@ class BrandController extends Controller
             
     public function store(StoreBrandRequest $request, UpsertBrandAction $action): RedirectResponse
     {
-        $this->authorize('create', Brand::class);
         $action->execute(BrandData::fromRequest($request));
-        return redirect()->route('admin.brands.index')->with('message', 'Protocolo de creación de marca completado.');
+        return redirect()->route('admin.brands.index')->with('message', 'Operación exitosa.');
     }
 
     public function update(UpdateBrandRequest $request, Brand $brand, UpsertBrandAction $action): RedirectResponse

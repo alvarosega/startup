@@ -193,7 +193,7 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         // --- RECURSOS ---
-        Route::middleware('role:super_admin,super_admin')->group(function () {
+        Route::middleware('role:super_admin')->group(function () {
             Route::resource('users', CustomerController::class);
             Route::post('users/identify-branch', [CustomerController::class, 'identifyBranch'])->name('users.identify-branch');
             Route::get('drivers/{driver}/documents/{path}', [DriverController::class, 'showDocument'])
@@ -213,17 +213,12 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             
             Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
             Route::prefix('categories')->name('categories.')->group(function () {
-                // Estas rutas deben ir ANTES del resource para que no choquen con el ID
                 Route::get('{category}/sku-order', [AdminCategoryController::class, 'skuOrder'])->name('sku-order');
                 Route::patch('{category}/sku-order', [AdminCategoryController::class, 'updateSkuOrder'])->name('sku-order.update');
-            
-                Route::resource('/', AdminCategoryController::class)
-                    ->parameters(['' => 'category'])
-                    ->except(['show']);
             });
+            Route::resource('categories', AdminCategoryController::class)->except(['show']);
             Route::resource('market-zones', MarketZoneController::class)
-                ->names('market-zones')
-                ->parameters(['market-zones' => 'market_zone']);
+            ->parameters(['market-zones' => 'market_zone']);
             Route::resource('bundles', AdminBundleController::class);
             Route::resource('brands', BrandController::class);
             Route::resource('providers', ProviderController::class);

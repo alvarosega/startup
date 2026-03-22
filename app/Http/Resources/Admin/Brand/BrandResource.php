@@ -2,44 +2,39 @@
 
 namespace App\Http\Resources\Admin\Brand;
 
+use App\Http\Resources\Admin\MarketZone\MarketZoneResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class BrandResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         return [
-            'id'             => (string) $this->id,
-            'name'           => $this->sanitizeUtf8($this->name),
-            'slug'           => (string) $this->slug,
-            'is_active'      => (bool) $this->is_active,
-            'is_featured'    => (bool) $this->is_featured,
-            'image_url'      => $this->image_url,
+            'id'          => (string) $this->id,
+            'parent_id'   => (string) $this->parent_id,
+            'name'        => mb_convert_encoding($this->name, 'UTF-8'),
+            'slug'        => (string) $this->slug,
+            'image_url'   => $this->image_path ? Storage::disk('public')->url($this->image_path) : null,
+            'website'     => (string) $this->website,
+            'description' => (string) $this->description,
             
-            // DATOS CRUDOS NECESARIOS PARA EL FORMULARIO (Edit.vue)
-            'provider_id'    => (string) $this->provider_id,
-            'category_id'    => (string) $this->category_id,
-            'market_zone_id' => (string) $this->market_zone_id,
-            'website'        => $this->website,
-            'description'    => $this->sanitizeUtf8($this->description),
-            'sort_order'     => (int) $this->sort_order,
-            
-            // DATOS PRESENTACIONALES (Index.vue)
-            'provider_name'  => $this->sanitizeUtf8($this->provider?->commercial_name) ?? 'S/P',
-            'category_name'  => $this->sanitizeUtf8($this->category?->name) ?? 'S/C',
-            'market_zone'    => $this->sanitizeUtf8($this->marketZone?->name) ?? 'GLOBAL',
-        ];
-    }
+            // Estado
+            'is_active'   => (bool) $this->is_active,
+            'is_featured' => (bool) $this->is_featured,
+            'sort_order'  => (int) $this->sort_order,
 
-    private function sanitizeUtf8(?string $str): ?string
-    {
-        if (!$str) return null;
-        
-        if (!mb_check_encoding($str, 'UTF-8')) {
-            return mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
-        }
-        
-        return $str;
+            // Relaciones Críticas
+            'provider'     => $this->whenLoaded('provider', fn() => [
+                'id' => $this->provider->id,
+                'name' => $this->provider->commercial_name
+            ]),
+            'category'     => $this->whenLoaded('category', fn() => [
+                'id' => $this->category->id,
+                'name' => $this->category->name
+            ]),
+            'market_zones' => MarketZoneResource::collection($this->whenLoaded('marketZones')),
+        ];
     }
 }

@@ -27,7 +27,7 @@ return new class extends Migration {
             
             // Identificadores (Polimorfismo manual)
             $table->foreignUuid('sku_id')->nullable()->constrained();
-            $table->foreignUuid('bundle_id')->nullable()->constrained();
+            $table->uuid('bundle_id')->nullable()->index()->comment('Polimorfismo suelto hacia bundles');
             
             $table->integer('quantity')->default(1);
             $table->decimal('price_at_addition', 10, 2); // El "Precio Congelado"

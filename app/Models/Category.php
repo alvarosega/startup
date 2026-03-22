@@ -2,66 +2,30 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Traits\HasUv7;
+use Illuminate\Database\Eloquent\{Model, SoftDeletes};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 
 class Category extends Model
 {
-    use HasFactory, SoftDeletes, HasUuids;
-
-    public $incrementing = false;
-    protected $keyType = 'string';
+    use SoftDeletes, HasUv7;
 
     protected $fillable = [
-        'name', 'slug', 'external_code', 'tax_classification',
+        'parent_id', 'name', 'slug', 'external_code', 'tax_classification',
         'requires_age_check', 'is_active', 'is_featured', 'sort_order',
-        'image_path', 'icon_path', 'bg_color', 'description',
-        'seo_title', 'seo_description',
+        'image_path', 'icon_path', 'bg_color', 'description'
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'is_featured' => 'boolean',
+        'is_active'          => 'boolean',
+        'is_featured'        => 'boolean', // Faltaba este
         'requires_age_check' => 'boolean',
-        'sort_order' => 'integer',
+        'sort_order'         => 'integer',
     ];
 
-    protected $hidden = ['deleted_at'];
+    protected $hidden = ['created_at', 'updated_at', 'deleted_at'];
 
-    // =================================================================================
-    // RELACIONES (SOLO HACIA ABAJO)
-    // =================================================================================
-
-    public function brands(): HasMany
-    {
-        return $this->hasMany(Brand::class);
-    }
-
-    public function products(): HasMany
-    {
-        return $this->hasMany(Product::class);
-    }
-
-    // =================================================================================
-    // LÓGICA DE CONSULTA (ENCAPSULACIÓN)
-    // =================================================================================
-
-    public static function getAllForAdmin(array $filters = [])
-    {
-        return self::query()
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%");
-            })
-            ->orderBy('sort_order')
-            ->get();
-    }
-
-    public function scopeActive(Builder $query): Builder
-    {
-        return $query->where('is_active', true);
-    }
+    public function parent(): BelongsTo { return $this->belongsTo(self::class, 'parent_id'); }
+    public function children(): HasMany { return $this->hasMany(self::class, 'parent_id'); }
+    public function brands(): HasMany { return $this->hasMany(Brand::class); }
 }

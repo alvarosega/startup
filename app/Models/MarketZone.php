@@ -1,53 +1,18 @@
-<?php
-
+<?php 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
+use App\Traits\HasUv7;
+use Illuminate\Database\Eloquent\{Model, SoftDeletes};
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MarketZone extends Model
 {
-    use HasFactory, SoftDeletes, HasUuids;
+    use SoftDeletes, HasUv7;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
+    protected $fillable = ['name', 'slug', 'hex_color', 'svg_id', 'description', 'is_active'];
+    protected $hidden = ['created_at', 'updated_at', 'deleted_at'];
 
-    protected $fillable = [
-        'name',
-        'slug',
-        'hex_color',
-        'svg_id',
-        'description',
-        'is_active',
-    ];
-
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
-
-    protected $hidden = [
-        'deleted_at', // Regla 3: Zero-Trust Leakage
-    ];
-
-
-
-    public function scopeActive(Builder $query): Builder
-    {
-        return $query->where('is_active', true);
-    }
-
-    public static function getMinimalList()
-    {
-        return self::active()
-            ->orderBy('name')
-            ->get(['id', 'name', 'hex_color']); // Solo carga lo necesario
-    }
-    public function brands(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(Brand::class, 'market_zone_id');
+    public function brands(): BelongsToMany { 
+        return $this->belongsToMany(Brand::class, 'brand_market_zone'); 
     }
 }

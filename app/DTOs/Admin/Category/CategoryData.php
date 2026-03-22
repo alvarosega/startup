@@ -9,36 +9,41 @@ readonly class CategoryData
 {
     public function __construct(
         public string $name,
-        public ?UploadedFile $icon,
-        public ?string $bgColor,
-        public ?string $externalCode,
-        public ?string $description,
         public ?string $slug,
-        public ?string $seoTitle,
-        public ?string $seoDescription,
+        public ?string $parent_id,
+        public ?string $externalCode,
         public ?string $taxClassification,
         public bool $requiresAgeCheck,
         public bool $isActive,
         public bool $isFeatured,
+        public int $sortOrder,
+        public ?string $bgColor,
+        public ?string $description,
+        public ?string $seoTitle,
+        public ?string $seoDescription,
         public ?UploadedFile $image,
+        public ?UploadedFile $icon,
     ) {}
 
     public static function fromRequest(Request $request): self
     {
         return new self(
             name: (string) $request->validated('name'),
-            icon: $request->file('icon'),
-            bgColor: $request->validated('bg_color'),
-            externalCode: $request->validated('external_code'),
-            description: $request->validated('description'),
             slug: $request->validated('slug'),
-            seoTitle: $request->validated('seo_title'),
-            seoDescription: $request->validated('seo_description'),
+            // PROTOCOLO: Convertir cadena vacía de HTML a NULL real
+            parent_id: $request->validated('parent_id') ?: null,
+            externalCode: $request->validated('external_code'),
             taxClassification: $request->validated('tax_classification'),
             requiresAgeCheck: $request->boolean('requires_age_check'),
             isActive: $request->boolean('is_active', true),
             isFeatured: $request->boolean('is_featured'),
+            sortOrder: (int) $request->validated('sort_order', 0),
+            bgColor: $request->validated('bg_color'),
+            description: $request->validated('description'),
+            seoTitle: $request->validated('seo_title'),
+            seoDescription: $request->validated('seo_description'),
             image: $request->file('image'),
+            icon: $request->file('icon'),
         );
     }
 
@@ -46,16 +51,18 @@ readonly class CategoryData
     {
         return [
             'name'               => $this->name,
-            'external_code'      => $this->externalCode,
-            'description'        => $this->description,
             'slug'               => $this->slug,
-            'seo_title'          => $this->seoTitle,
-            'seo_description'    => $this->seoDescription,
+            'parent_id'          => $this->parent_id,
+            'external_code'      => $this->externalCode,
             'tax_classification' => $this->taxClassification,
             'requires_age_check' => $this->requiresAgeCheck,
             'is_active'          => $this->isActive,
             'is_featured'        => $this->isFeatured,
+            'sort_order'         => $this->sortOrder,
             'bg_color'           => $this->bgColor,
+            'description'        => $this->description,
+            'seo_title'          => $this->seoTitle,
+            'seo_description'    => $this->seoDescription,
         ];
     }
 }

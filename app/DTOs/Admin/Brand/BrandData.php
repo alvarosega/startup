@@ -4,7 +4,6 @@ namespace App\DTOs\Admin\Brand;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
 
 readonly class BrandData
 {
@@ -13,7 +12,8 @@ readonly class BrandData
         public string $slug,
         public string $provider_id,
         public string $category_id,
-        public string $market_zone_id,
+        public array $market_zone_ids, // Corregido: M:N
+        public ?string $parent_id,    // Corregido: Sub-marcas
         public ?string $website,
         public ?string $description,
         public bool $is_active,
@@ -26,10 +26,11 @@ readonly class BrandData
     {
         return new self(
             name: (string) $request->validated('name'),
-            slug: Str::slug((string) $request->validated('name')),
+            slug: (string) $request->validated('slug'),
             provider_id: (string) $request->validated('provider_id'),
             category_id: (string) $request->validated('category_id'),
-            market_zone_id: (string) $request->validated('market_zone_id'),
+            market_zone_ids: (array) $request->validated('market_zone_ids', []),
+            parent_id: $request->validated('parent_id'),
             website: $request->validated('website'),
             description: $request->validated('description'),
             is_active: $request->boolean('is_active', true),
