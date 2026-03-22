@@ -58,7 +58,7 @@ class Driver extends Authenticatable
     }
     public function profile(): HasOne
     {
-        // Forzamos la llave foránea para que coincida con la migración
+        // Eliminar recursividad detectada. Relación limpia.
         return $this->hasOne(DriverProfile::class, 'driver_id', 'id');
     }
 }

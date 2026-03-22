@@ -5,6 +5,7 @@ namespace App\Http\Requests\Customer\Profiles;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Traits\ValidatesGlobalIdentity;
 
 class UpdateProfileRequest extends FormRequest
 {
@@ -26,13 +27,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             'first_name' => ['required', 'string', 'max:100'],
             'last_name'  => ['required', 'string', 'max:100'],
-            'email'      => [
-                'required', 
-                'email', 
-                'max:255', 
-                // Regla de Oro: Único en la tabla customers ignorando al usuario actual
-                Rule::unique('customers', 'email')->ignore($userId)
-            ],
+            'email'      => $this->globalEmailRules($userId),
             'birth_date' => ['nullable', 'date', 'before:today'],
             'gender'     => ['nullable', 'string', 'in:M,F,O'],
         ];

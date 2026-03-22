@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\DB;
 
-class GlobalUniqueMobile implements ValidationRule
+class GlobalUniqueIdentity implements ValidationRule
 {
     public function __construct(protected $ignoreId = null) {}
 

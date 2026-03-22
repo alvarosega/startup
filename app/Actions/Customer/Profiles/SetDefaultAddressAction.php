@@ -9,21 +9,25 @@ class SetDefaultAddressAction
 {
     public function execute(Customer $customer, string $addressId): void
     {
-        $address = $customer->addresses()->findOrFail($addressId);
+        DB::transaction(function () use ($customer, $addressId) {
+            // Bloqueamos la dirección para asegurar que no sea eliminada durante el proceso
+            $address = $customer->addresses()->where('id', $addressId)->lockForUpdate()->firstOrFail();
 
-        DB::transaction(function () use ($customer, $address) {
-            // 1. Resetear estados
+            // 1. Resetear flags
             $customer->addresses()->update(['is_default' => false]);
 
-            // 2. Establecer nuevo default
+            // 2. Aplicar nuevo default
             $address->update(['is_default' => true]);
 
-            // 3. REPLICACIÓN INTEGRAL AL NÚCLEO
+            // 3. Replicar al núcleo (User table)
             $customer->update([
                 'branch_id' => $address->branch_id,
                 'latitude'  => $address->latitude,
                 'longitude' => $address->longitude,
             ]);
+
+            // 4. Invalida alias en sesión para el Middleware
+            session()->forget('user_addr_alias');
         });
     }
 }

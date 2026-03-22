@@ -24,7 +24,7 @@ return new class extends Migration
 
             // ELIMINADO: role_level (Spatie gestiona esto en model_has_roles)
             
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(false);
             $table->string('mfa_secret')->nullable();
             
             // Campos de actividad (Correctos para los 3 silos)
@@ -60,6 +60,7 @@ return new class extends Migration
         // =================================================================================
         Schema::create('drivers', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->uuid('driver_id');
             $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
@@ -71,7 +72,7 @@ return new class extends Migration
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
             $table->softDeletes(); 
-
+            $table->index(['driver_id', 'created_at']);
             $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
         });
 

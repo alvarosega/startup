@@ -16,15 +16,13 @@ class ResetPasswordAction
         DB::transaction(function () use ($dto) {
             $record = DB::table('password_reset_codes_customers')
                 ->where('email', $dto->email)
-                ->where('token', $dto->code)
                 ->first();
 
-            if (!$record || Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
+            if (!$record || !Hash::check($dto->code, $record->token) || Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
                 throw ValidationException::withMessages([
                     'code' => 'El código es incorrecto o ha expirado.',
                 ]);
             }
-
             $customer = Customer::where('email', $dto->email)->first();
             
             if (!$customer) {

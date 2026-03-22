@@ -16,103 +16,79 @@ class HandleCustomerInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = Auth::guard('customer')->user();
-        if ($user) { $user->load('profile'); }
         
-        $guestUuid = $request->header('X-Guest-UUID') ?? $request->input('guest_client_uuid');
-
-        if ($guestUuid && !$user) {
-            // Si viaja en la petición y no hay usuario, lo grabamos en la sesión
-            $request->session()->put('guest_client_uuid', $guestUuid);
-        } else {
-            // Si es un "Hard Reload" (F5) o el usuario está logueado, leemos la sesión
-            $guestUuid = $request->session()->get('guest_client_uuid');
-        }
+        // Obtención de IDs sin hits adicionales a DB si es posible
+        $guestUuid = $request->header('X-Guest-UUID') ?? $request->session()->get('guest_client_uuid');
         $shopService = app(ShopContextService::class);
         $branchId = $shopService->getActiveBranchId();
-
-        // 1. Resolvemos el contexto de la sucursal (Badge del Logo)
-        $shopContext = $this->resolveShopContext($branchId);
-
+    
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $user ? [
-                    'id'        => $user->id,
-                    'email'     => $user->email,
-                    'name'      => $user->profile ? "{$user->profile->first_name} {$user->profile->last_name}" : 'Cliente',
+                    'id'        => (string) $user->id,
+                    'name'      => $user->profile?->first_name ?? 'Cliente',
                     'avatar'    => $user->profile?->avatar_source ?? 'avatar_1.svg',
-                    'branch_id' => $user->branch_id,
+                    'branch_id' => (string) $user->branch_id,
                 ] : null,
             ],
-            
-            // 2. Contexto de Ubicación (Cápsula Central)
-            'location_context' => $this->resolveLocationContext($user, $shopContext['branch_name']),
-
-            // 3. Contexto de Sucursal (Identidad Técnica)
-            'shop_context' => $shopContext,
-
-            // 4. Resumen de Carrito (Punto Rojo)
-            'cart_summary' => [
+    
+            // 1. CONTEXTOS: Cacheamos por petición (Request-Bound)
+            'shop_context'     => $this->resolveShopContext($branchId),
+            'location_context' => $this->resolveLocationContext($user, $branchId),
+    
+            // 2. DATOS PESADOS: Lazy Loading (Solo si el frontend los pide)
+            'cart_summary' => \Inertia\Inertia::lazy(fn () => [
                 'count' => $this->getCartCount($user?->id, $guestUuid, $branchId),
-            ],
-
-            'active_order' => function () use ($user) {
+            ]),
+    
+            'active_order' => \Inertia\Inertia::lazy(function () use ($user) {
                 if (!$user) return null;
                 
-                $activeStatuses = ['pending_payment', 'under_review', 'preparing', 'dispatched', 'arrived'];
-
-                // Usamos query builder para ser eficientes
-                $query = $user->orders()->whereIn('status', $activeStatuses);
-
-                // Clonamos la query para obtener el último y el conteo por separado
-                $latest = (clone $query)->latest()->first(['id', 'status', 'code']);
-                $count = $query->count();
-
-                return [
-                    'latest' => $latest, // Aquí viaja el ID que Ziggy necesita
-                    'count'  => $count,
-                ];
-            },
+                // Cacheamos el estado del pedido por 60 segundos para evitar hammering
+                return cache()->remember("active_order_{$user->id}", 60, function() use ($user) {
+                    $query = $user->orders()->whereIn('status', [
+                        'pending_payment', 'under_review', 'preparing', 'dispatched', 'arrived'
+                    ]);
+                    
+                    $latest = (clone $query)->latest()->first(['id', 'status', 'code']);
+                    return [
+                        'latest' => $latest,
+                        'count'  => $query->count(),
+                    ];
+                });
+            }),
         ]);
     }
-
-    /**
-     * Define qué texto mostrar en la cápsula central del header.
-     */
-    private function resolveLocationContext($user, string $branchName): array
+    private function resolveLocationContext($user, string $branchId): array
     {
-        if ($user) {
-            // Buscamos el alias de la dirección predeterminada
-            $defaultAddress = $user->addresses()->where('is_default', true)->first();
-            
-            return [
-                'label' => $defaultAddress?->alias ?? 'Mi Ubicación',
-                'type'  => 'address'
-            ];
+        if (!$user) {
+            $branchName = cache()->remember("branch_name_{$branchId}", 86400, function() use ($branchId) {
+                return \App\Models\Branch::where('id', $branchId)->value('name') ?? 'Sucursal';
+            });
+            return ['label' => $branchName, 'type' => 'branch'];
         }
-
-        return [
-            'label' => $branchName,
-            'type'  => 'branch'
-        ];
+    
+        // Corrección: Usar la sesión correctamente (Session no tiene 'remember')
+        $alias = session('user_addr_alias');
+        if (!$alias) {
+            $alias = $user->addresses()->where('is_default', true)->value('alias') ?? 'Mi Ubicación';
+            session(['user_addr_alias' => $alias]);
+        }
+    
+        return ['label' => $alias, 'type' => 'address'];
     }
-
+    
     private function resolveShopContext(string $activeId): array
     {
-        try {
+        // Blindaje: Cachear el objeto de la sucursal para evitar el SELECT find() en cada request
+        return cache()->remember("shop_context_{$activeId}", 3600, function() use ($activeId) {
             $branch = Branch::select('id', 'name', 'is_default')->find($activeId);
-    
             return [
                 'branch_id'   => $branch?->id ?? $activeId,
                 'branch_name' => $branch?->name ?? 'Sucursal Central',
                 'is_fallback' => $branch ? (bool)$branch->is_default : true,
             ];
-        } catch (\Exception $e) {
-            return [
-                'branch_id'   => null,
-                'branch_name' => 'Sin Cobertura',
-                'is_fallback' => true,
-            ];
-        }
+        });
     }
 
     private function getCartCount($customerId, $guestUuid, $branchId): int

@@ -2,7 +2,7 @@
 
 namespace App\Traits;
 
-use App\Rules\GlobalUniqueMobile; // <--- OBLIGATORIO
+use App\Rules\GlobalUniqueIdentity; // <--- OBLIGATORIO
 
 trait ValidatesGlobalIdentity
 {
@@ -34,7 +34,7 @@ trait ValidatesGlobalIdentity
             'string', 
             'min:8', 
             'max:20', 
-            new GlobalUniqueMobile($ignoreId) // <--- Ahora la variable sí existe aquí
+            new GlobalUniqueIdentity($ignoreId) // <--- Ahora la variable sí existe aquí
         ];
     }
 
@@ -47,7 +47,7 @@ trait ValidatesGlobalIdentity
             'required', 
             'email', 
             'max:255', 
-            new GlobalUniqueMobile($ignoreId)
+            new GlobalUniqueIdentity($ignoreId)
         ];
     }
 }

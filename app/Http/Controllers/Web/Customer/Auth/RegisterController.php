@@ -11,14 +11,18 @@ use App\Http\Requests\Customer\Auth\RegisterRequest;
 use App\Http\Requests\Customer\Auth\ValidateStep1Request;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
 use App\Actions\Customer\Auth\RegisterCustomerAction;
+use App\Actions\Customer\Auth\GetActiveBranchesAction; 
+use App\Http\Resources\Customer\Branch\BranchResource; 
+use App\Exceptions\IdentityCollisionException;
+use Illuminate\Support\Facades\Auth;
 
 class RegisterController extends Controller
 {
-    public function create()
+    public function create(GetActiveBranchesAction $branchAction)
     {
         return Inertia::render('Customer/Auth/Register', [
-            'activeBranches' => Branch::where('is_active', true)
-                ->get(['id', 'name', 'latitude', 'longitude', 'coverage_polygon'])
+            // .resolve() extrae el array de la envoltura 'data'
+            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
         ]);
     }
 
@@ -33,22 +37,17 @@ class RegisterController extends Controller
         try {
             $data = RegisterCustomerData::fromRequest($request);
             
-            /** * El Action ejecuta la lógica atómica:
-             * 1. Resuelve Sucursal (Geo o Default)
-             * 2. Crea Customer y Address (NOT NULL branch_id)
-             * 3. Login Automático
-             * 4. Sync Carrito
-             */
-            $action->execute($data); 
-
+            // El Action ahora recibe la llave de idempotencia del Header
+            $action->execute($data, $request->header('X-Idempotency-Key')); 
+    
             $request->session()->regenerate();
-            
             return redirect()->route('customer.shop.index');
-
+    
+        } catch (IdentityCollisionException $e) { // Excepción específica
+            return back()->withErrors(['phone' => $e->getMessage()])->withInput();
         } catch (\Exception $e) {
-            Log::emergency('[CustomerRegister] Error:', ['msg' => $e->getMessage()]);
-            return back()->withErrors(['phone' => 'No pudimos crear tu cuenta. Verifica tus datos.'])
-                         ->withInput();
+            Log::emergency('[CustomerRegister] Critical Failure', ['exception' => $e]);
+            return back()->withErrors(['phone' => 'Error interno de registro.'])->withInput();
         }
     }
 }

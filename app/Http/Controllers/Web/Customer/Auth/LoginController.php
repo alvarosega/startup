@@ -8,6 +8,8 @@ use Inertia\Inertia;
 use App\Http\Requests\Customer\Auth\LoginRequest; 
 use App\Actions\Customer\Auth\LoginCustomerAction;
 use App\DTOs\Customer\Auth\LoginCustomerData;
+use App\Http\Resources\Customer\CustomerResource;
+use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
@@ -20,22 +22,19 @@ class LoginController extends Controller
 
     public function store(LoginRequest $request, LoginCustomerAction $action)
     {
-        // El DTO captura el guest_client_uuid enviado dinámicamente desde Vue
         $data = LoginCustomerData::fromRequest($request);
     
         try {
-            // El Action realiza: attempt -> sync carritos (por sucursal)
             $action->execute($data); 
-            
             $request->session()->regenerate();
             
-            return redirect()->intended(route('customer.shop.index'));
+            // Forzamos el Resource para que el estado inicial de Inertia sea limpio
+            $customer = new CustomerResource(Auth::guard('customer')->user());
+    
+            return redirect()->route('customer.shop.index')->with('user', $customer);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('[LoginFailure] ' . $e->getMessage());
-            return back()->withErrors(['phone' => 'Credenciales incorrectas o error de sistema.']);
         }
     }
 

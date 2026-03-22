@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Support\Str;
 
 class Admin extends Authenticatable
 {
@@ -40,5 +41,9 @@ class Admin extends Authenticatable
 
     public function branch() { 
         return $this->belongsTo(Branch::class); 
+    }
+    public function newUniqueId(): string
+    {
+        return (string) Str::orderedUuid(); // Genera UUIDv7-like (time-ordered)
     }
 }

@@ -11,8 +11,14 @@ use Inertia\Inertia;
 
 class ResetPasswordController extends Controller
 {
-    public function showResetForm($email)
+    public function showResetForm()
     {
+        $email = session('reset_email');
+    
+        if (!$email) {
+            return redirect()->route('password.request');
+        }
+    
         return Inertia::render('Customer/Auth/ResetPassword', [
             'email' => $email
         ]);

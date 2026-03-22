@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Customer\CustomerResetCodeMail;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Hash;
 
 class SendResetCodeAction
 {
@@ -20,7 +21,7 @@ class SendResetCodeAction
         DB::table('password_reset_codes_customers')->updateOrInsert(
             ['email' => $email],
             [
-                'token' => $code, 
+                'token' => Hash::make($code),
                 'created_at' => Carbon::now()
             ]
         );

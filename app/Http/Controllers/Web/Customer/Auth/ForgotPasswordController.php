@@ -18,15 +18,17 @@ class ForgotPasswordController extends Controller
     public function sendResetCode(ForgotPasswordRequest $request, SendResetCodeAction $action)
     {
         try {
-            // El request ya viene validado y asegurado
-            $action->execute($request->validated('email'));
+            $email = $request->validated('email');
+            $action->execute($email);
     
-            return redirect()->route('password.reset', ['email' => $request->validated('email')])
+            // Almacenamos el email en sesión (flash) en lugar de la URL
+            return redirect()->route('password.reset')
+                ->with('reset_email', $email)
                 ->with('status', 'Código enviado con éxito.');
                 
         } catch (\Exception $e) {
             Log::error('[ResetCode] ' . $e->getMessage());
-            return back()->withErrors(['email' => 'No se pudo enviar el código. Intente de nuevo.']);
+            return back()->withErrors(['email' => 'Proceso no disponible temporalmente.']);
         }
     }
 }
