@@ -11,7 +11,6 @@ class DriverProfile extends Model
 {
     use HasFactory, SoftDeletes;
 
-    // Indicamos que la PK no es autoincremental y es el UUID del Driver
     protected $primaryKey = 'driver_id';
     public $incrementing = false;
     protected $keyType = 'string';
@@ -27,7 +26,7 @@ class DriverProfile extends Model
         'avatar_source',
         'rejection_reason',
         'ci_front_path',
-        'license_photo_path',
+        'license_path',
         'vehicle_photo_path',
     ];
 
@@ -35,9 +34,6 @@ class DriverProfile extends Model
     {
         return $this->belongsTo(Driver::class, 'driver_id', 'id');
     }
-    public function profile(): HasOne
-    {
-        // IMPORTANTE: El segundo parámetro debe coincidir con el campo en tu migración
-        return $this->hasOne(DriverProfile::class, 'driver_id', 'id');
-    }
+
+    // ELIMINADO: El método profile() que causaba recursividad.
 }

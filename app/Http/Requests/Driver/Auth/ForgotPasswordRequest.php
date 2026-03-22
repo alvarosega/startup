@@ -11,10 +11,9 @@ class ForgotPasswordRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'exists:drivers,email'],
+            'email' => ['required', 'email'], // Sin exists
         ];
     }
-
     public function messages(): array
     {
         return [

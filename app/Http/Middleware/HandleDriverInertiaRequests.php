@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Resources\Driver\Auth\DriverResource;
 
 class HandleDriverInertiaRequests extends Middleware
 {
@@ -11,32 +13,26 @@ class HandleDriverInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        $user = $request->user('driver');
+        $driver = Auth::guard('driver')->user();
+
+        if ($driver) {
+            // LEY DE EFICIENCIA: Solo actualizamos 'last_seen_at' si han pasado > 5 min
+            $lastSeen = session('driver_last_seen_at');
+            if (!$lastSeen || now()->diffInMinutes($lastSeen) >= 5) {
+                $driver->updateQuietly(['last_seen_at' => now()]);
+                session(['driver_last_seen_at' => now()]);
+            }
+        }
 
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $user ? [
-                    'id'    => $user->id,
-                    'email' => $user->email,
-                    'name'  => $this->resolveDriverName($user),
-                    'status'=> $user->status, // <--- CRÍTICO para la reactividad en el Frontend
-                ] : null,
+                // Uso del Resource para garantizar tipado estricto y blindaje de datos
+                'user' => $driver ? (new DriverResource($driver))->resolve() : null,
             ],
-            // Compartimos los mensajes de éxito/error de la sesión
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
         ]);
-    }
-
-    private function resolveDriverName($user): string
-    {
-        // CORRECCIÓN: Apuntar a la relación 'profile' (antes details)
-        if ($user->relationLoaded('profile') && $user->profile) {
-            return trim($user->profile->first_name . ' ' . $user->profile->last_name);
-        }
-
-        return 'Conductor';
     }
 }

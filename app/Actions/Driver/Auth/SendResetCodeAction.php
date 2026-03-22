@@ -12,17 +12,16 @@ class SendResetCodeAction
 {
     public function execute(SendResetCodeData $data): void
     {
-        $code = strtoupper(Str::random(6)); // Convertido a mayúsculas para mejor legibilidad
-
-        DB::table('password_reset_codes_drivers')->updateOrInsert(
+        $code = (string) random_int(100000, 999999);
+    
+        \Illuminate\Support\Facades\DB::table('password_reset_codes_drivers')->updateOrInsert(
             ['email' => $data->email],
             [
-                'token' => $code,
+                'token' => \Illuminate\Support\Facades\Hash::make($code), // Cifrado obligatorio
                 'created_at' => now(),
             ]
         );
-
-        // Envío del correo usando tu clase Mailable
-        Mail::to($data->email)->send(new DriverResetCodeMail($code));
+    
+        \Illuminate\Support\Facades\Mail::to($data->email)->send(new DriverResetCodeMail($code));
     }
 }

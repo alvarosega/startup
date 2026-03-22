@@ -42,12 +42,15 @@ class Driver extends Authenticatable
         'last_login_at' => 'datetime',
         'last_seen_at' => 'datetime',
     ];
-
-    public function details(): HasOne 
-    { 
-        return $this->hasOne(DriverDetail::class, 'driver_id', 'id'); 
+    public function newUniqueId(): string
+    {
+        return (string) \Illuminate\Support\Str::orderedUuid(); // UUIDv7-like
     }
-
+    
+    public function profile(): HasOne
+    {
+        return $this->hasOne(DriverProfile::class, 'driver_id', 'id');
+    }
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class, 'branch_id', 'id');
@@ -56,9 +59,5 @@ class Driver extends Authenticatable
     {
         return $this->hasMany(DriverLocationLog::class, 'driver_id', 'id');
     }
-    public function profile(): HasOne
-    {
-        // Eliminar recursividad detectada. Relación limpia.
-        return $this->hasOne(DriverProfile::class, 'driver_id', 'id');
-    }
+
 }

@@ -17,8 +17,7 @@ readonly class UpsertDriverDTO
         public string $licenseNumber,
         public string $licensePlate,
         public string $vehicleType,
-        public bool $isIdentityVerified,
-        public bool $isActive,
+        public string $status, // <--- CAMBIO: Usar el string directamente
         public ?string $rejectionReason,
     ) {}
 
@@ -27,19 +26,18 @@ readonly class UpsertDriverDTO
         $v = $request->validated();
         
         return new self(
-            id:                 $id,
-            branchId:           $v['branch_id'] ?? null,
-            firstName:          $v['first_name'],
-            lastName:           $v['last_name'],
-            phone:              $v['phone'],
-            email:              $v['email'],
-            password:           $v['password'] ?? null,
-            licenseNumber:      $v['license_number'],
-            licensePlate:       $v['license_plate'],
-            vehicleType:        $v['vehicle_type'],
-            isIdentityVerified: (bool) ($v['is_identity_verified'] ?? false),
-            isActive:           (bool) ($v['is_active'] ?? true),
-            rejectionReason:    $v['rejection_reason'] ?? null,
+            id:              $id,
+            branchId:        $v['branch_id'] ?? null,
+            firstName:       $v['first_name'],
+            lastName:        $v['last_name'],
+            phone:           $v['phone'],
+            email:           $v['email'],
+            password:        $v['password'] ?? null,
+            licenseNumber:   $v['license_number'],
+            licensePlate:    $v['license_plate'],
+            vehicleType:     $v['vehicle_type'],
+            status:          $v['status'], // <--- Sincronizado con el Request
+            rejectionReason: $v['rejection_reason'] ?? null,
         );
     }
 }

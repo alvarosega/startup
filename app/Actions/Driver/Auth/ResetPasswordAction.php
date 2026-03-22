@@ -11,26 +11,21 @@ class ResetPasswordAction
 {
     public function execute(ResetPasswordData $data): void
     {
-        $resetRecord = DB::table('password_reset_codes_drivers')
+        $record = \Illuminate\Support\Facades\DB::table('password_reset_codes_drivers')
             ->where('email', $data->email)
-            ->where('token', $data->code)
             ->first();
-
-        if (! $resetRecord) {
-            throw ValidationException::withMessages([
-                'code' => 'El código proporcionado es inválido o ha expirado.',
+    
+        if (!$record || !\Illuminate\Support\Facades\Hash::check($data->code, $record->token) || 
+            \Carbon\Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'code' => 'Código inválido o expirado.',
             ]);
         }
-
-        DB::transaction(function () use ($data) {
-            // Se instancia el modelo para forzar la ejecución del cast 'hashed'
+    
+        \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
             $driver = Driver::where('email', $data->email)->firstOrFail();
-            
-            $driver->update([
-                'password' => $data->password, 
-            ]);
-
-            DB::table('password_reset_codes_drivers')->where('email', $data->email)->delete();
+            $driver->update(['password' => $data->password]);
+            \Illuminate\Support\Facades\DB::table('password_reset_codes_drivers')->where('email', $data->email)->delete();
         });
     }
 }

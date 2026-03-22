@@ -2,6 +2,7 @@
 
 namespace App\DTOs\Driver\Auth;
 
+use Illuminate\Http\UploadedFile;
 use App\Http\Requests\Driver\Auth\RegisterRequest;
 
 readonly class RegisterDriverData
@@ -15,6 +16,8 @@ readonly class RegisterDriverData
         public string $licenseNumber,
         public string $licensePlate,
         public string $vehicleType,
+        public ?UploadedFile $ciFront, // Foto C.I. Anverso
+        public ?UploadedFile $licensePhoto, // Foto Licencia
     ) {}
 
     public static function fromRequest(RegisterRequest $request): self
@@ -28,6 +31,8 @@ readonly class RegisterDriverData
             licenseNumber: $request->validated('license_number'),
             licensePlate:  $request->validated('license_plate'),
             vehicleType:   $request->validated('vehicle_type'),
+            ciFront:       $request->file('ci_front'),
+            licensePhoto:  $request->file('license_photo'),
         );
     }
 }

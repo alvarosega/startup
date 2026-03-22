@@ -196,6 +196,10 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
         Route::middleware('role:super_admin,super_admin')->group(function () {
             Route::resource('users', CustomerController::class);
             Route::post('users/identify-branch', [CustomerController::class, 'identifyBranch'])->name('users.identify-branch');
+            Route::get('drivers/{driver}/documents/{path}', [DriverController::class, 'showDocument'])
+            ->where('path', '.*') // ESTO ES VITAL: permite que el {path} contenga slashes (/)
+            ->name('drivers.documents.show');
+
             Route::resource('drivers', DriverController::class);
         
             Route::resource('branches', BranchController::class);

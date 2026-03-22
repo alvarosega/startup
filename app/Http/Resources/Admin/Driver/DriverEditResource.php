@@ -11,32 +11,31 @@ class DriverEditResource extends JsonResource
     {
         return [
             'id'        => (string) $this->id,
-            'branch_id' => $this->branch_id ? (string) $this->branch_id : null,
-            'phone'     => (string) $this->phone,
-            'email'     => (string) $this->email,
+            'branch_id' => $this->branch_id,
+            'phone'     => (string) $this->phone, // <--- CRÍTICO
+            'email'     => (string) $this->email, // <--- CRÍTICO
             'status'    => (string) $this->status,
-            'is_online' => (bool) $this->is_online,
-            
             'profile'   => [
-                'first_name'     => (string) ($this->profile?->first_name ?? ''),
-                'last_name'      => (string) ($this->profile?->last_name ?? ''),
-                'license_number' => (string) ($this->profile?->license_number ?? ''),
-                'license_plate'  => (string) ($this->profile?->license_plate ?? ''),
-                'vehicle_type'   => (string) ($this->profile?->vehicle_type ?? 'moto'),
-                
-                // URLs públicas para que el Admin verifique los documentos
-                'ci_front_path'      => $this->formatUrl($this->profile?->ci_front_path),
-                'license_photo_path' => $this->formatUrl($this->profile?->license_photo_path),
-                'vehicle_photo_path' => $this->formatUrl($this->profile?->vehicle_photo_path),
-                'rejection_reason'   => $this->profile?->rejection_reason,
+                'first_name'     => $this->profile?->first_name,
+                'last_name'      => $this->profile?->last_name,
+                'license_number' => $this->profile?->license_number,
+                'license_plate'  => $this->profile?->license_plate,
+                'vehicle_type'   => $this->profile?->vehicle_type,
+                'ci_front_path'  => $this->formatPrivateUrl($this->profile?->ci_front_path),
+                'license_path'   => $this->formatPrivateUrl($this->profile?->license_path),
             ]
         ];
     }
-
-    private function formatUrl(?string $path): ?string
+    private function formatPrivateUrl(?string $fullPath): ?string
     {
-        if (!$path) return null;
-        if (filter_var($path, FILTER_VALIDATE_URL)) return $path;
-        return asset('storage/' . $path);
+        if (!$fullPath) return null;
+        
+        // Extraemos solo el nombre del archivo (ej: drivers/uuid/docs/img.png -> img.png)
+        $fileName = basename($fullPath);
+        
+        return route('admin.drivers.documents.show', [
+            'driver' => $this->id,
+            'path'   => $fileName
+        ]);
     }
 }

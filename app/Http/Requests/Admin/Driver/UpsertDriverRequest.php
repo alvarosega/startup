@@ -19,42 +19,19 @@ class UpsertDriverRequest extends FormRequest
 
     public function rules(): array
     {
-        $driverId = $this->route('driver'); // Captura el UUID desde la ruta si es Update
-        $isUpdate = $driverId !== null;
-
+        $driverId = $this->route('driver');
+    
         return [
-            'branch_id'      => ['required', 'uuid', 'exists:branches,id'],
-            'first_name'     => ['required', 'string', 'max:100'],
-            'last_name'      => ['required', 'string', 'max:100'],
-            'password'       => $isUpdate ? ['nullable', 'string', 'min:8'] : ['required', 'string', 'min:8'],
-            
-            // Validación Cruzada Zero-Trust
-            'phone' => [
-                'required', 
-                'string', 
-                'max:20',
-                Rule::unique('drivers', 'phone')->ignore($driverId),
-                Rule::unique('admins', 'phone'),
-                Rule::unique('customers', 'phone'),
-            ],
-            // Si el Admin le puede cambiar/asignar el correo:
-            'email' => [
-                'required', 
-                'email', 
-                'max:255',
-                Rule::unique('drivers', 'email')->ignore($driverId),
-                Rule::unique('admins', 'email'),
-                Rule::unique('customers', 'email'),
-            ],
-
-            'license_number' => ['required', 'string', 'max:50'],
-            'license_plate'  => ['required', 'string', 'max:20'],
-            'vehicle_type'   => ['required', 'string', 'in:moto,car,truck'],
-            
-            // Controles de estado que maneja el Admin
-            'is_identity_verified' => ['nullable', 'boolean'],
-            'is_active'            => ['nullable', 'boolean'],
-            'rejection_reason'     => ['nullable', 'string'],
+            'branch_id'      => ['required', 'uuid', 'exists:branches,id'], // Siempre obligatorio ahora
+            'status'         => ['required', 'in:pending,active,inactive,rejected'],
+            'first_name'     => ['required', 'string'],
+            'last_name'      => ['required', 'string'],
+            'phone'          => ['required', 'string', Rule::unique('drivers')->ignore($driverId)],
+            'email'          => ['required', 'email', Rule::unique('drivers')->ignore($driverId)],
+            'license_number' => ['required', 'string'],
+            'license_plate'  => ['required', 'string'],
+            'vehicle_type'   => ['required', 'in:moto,car,truck'],
+            'rejection_reason' => ['nullable', 'string'],
         ];
     }
 }

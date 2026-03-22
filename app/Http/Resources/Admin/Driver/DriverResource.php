@@ -37,7 +37,7 @@ class DriverResource extends JsonResource
                 'license_plate'      => $this->profile?->license_plate ?? '',
                 'vehicle_type'       => $this->profile?->vehicle_type ?? 'moto',
                 'ci_front_path'      => $this->profile?->ci_front_path,
-                'license_photo_path' => $this->profile?->license_photo_path,
+                'license_path'  => $this->profile?->license_path,
                 'vehicle_photo_path' => $this->profile?->vehicle_photo_path,
             ],
         ];

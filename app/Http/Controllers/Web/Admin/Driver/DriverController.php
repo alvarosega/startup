@@ -18,6 +18,8 @@ use App\Actions\Admin\Branch\GetActiveBranchesListAction; // <--- USAR SIEMPRE
 
 // Resources
 use App\Http\Resources\Admin\Driver\{DriverResource, DriverEditResource};
+use Illuminate\Support\Facades\Storage;
+
 
 class DriverController extends Controller
 {
@@ -65,5 +67,17 @@ class DriverController extends Controller
 
         return redirect()->route('admin.drivers.index')
             ->with('success', 'Perfil y Estado actualizados de forma atómica.');
+    }
+    public function showDocument(Driver $driver, string $path)
+    {
+        // LEY: Reconstruir el path completo usando el ID del conductor para seguridad
+        $fullPath = "drivers/{$driver->id}/documents/{$path}";
+    
+        if (!Storage::disk('private')->exists($fullPath)) {
+            \Illuminate\Support\Facades\Log::error("DriverDoc 404: " . $fullPath);
+            abort(404, 'Documento no encontrado.');
+        }
+    
+        return Storage::disk('private')->response($fullPath);
     }
 }

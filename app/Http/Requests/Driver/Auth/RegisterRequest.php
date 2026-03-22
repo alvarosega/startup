@@ -25,7 +25,9 @@ class RegisterRequest extends FormRequest
 
             'first_name'     => ['required', 'string', 'max:100'],
             'last_name'      => ['required', 'string', 'max:100'],
-            
+            // Dentro de rules()
+            'ci_front'      => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:4096'],
+            'license_photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:4096'],
             // CORRECCIÓN: La tabla ahora es driver_profiles
             'license_number' => ['required', 'string', 'unique:driver_profiles,license_number'], 
             

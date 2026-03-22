@@ -2,11 +2,9 @@
 
 namespace App\Actions\Driver\Auth;
 
+use App\Models\{Driver, DriverProfile};
 use App\DTOs\Driver\Auth\RegisterDriverData;
-use App\Models\Driver;
-use App\Models\DriverProfile; // <--- Cambio de modelo
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\{DB, Hash, Storage};
 
 class RegisterDriverAction
 {
@@ -14,28 +12,39 @@ class RegisterDriverAction
     {
         return DB::transaction(function () use ($data) {
             
-            // 1. Crear el Driver (Entidad de Autenticación)
+            // 1. Entidad de Autenticación
             $driver = Driver::create([
-                'phone'        => $data->phone,
-                'email'        => $data->email,
-                'password'     => Hash::make($data->password),
-                'status'       => 'pending', 
-                'is_online'    => false,     
-                'is_available' => false,     
+                'phone'    => $data->phone,
+                'email'    => $data->email,
+                'password' => Hash::make($data->password),
+                'status'   => 'pending', // Espera de validación Admin
+                'branch_id'=> null,      // Se asigna en la aprobación
             ]);
-    
-            // 2. Crear el Perfil (Entidad Biográfica y Documental)
-            DriverProfile::create([
-                'driver_id'      => $driver->id, // <--- FK correcta
-                'first_name'     => $data->firstName,
-                'last_name'      => $data->lastName,
-                'license_number' => $data->licenseNumber,
-                'license_plate'  => $data->licensePlate,
-                'vehicle_type'   => $data->vehicleType,
-                'avatar_type'    => 'icon',
-                'avatar_source'  => 'avatar_1.svg',
+
+            // 2. Persistencia de Documentos en Disco Privado
+            $ciPath = $data->ciFront 
+                ? $data->ciFront->store("drivers/{$driver->id}/documents", 'private') 
+                : null;
+                
+            $licensePath = $data->licensePhoto 
+                ? $data->licensePhoto->store("drivers/{$driver->id}/documents", 'private') 
+                : null;
+
+            // 3. Entidad Biográfica y Legal
+            $driver->profile()->create([
+                'first_name'      => $data->firstName,
+                'last_name'       => $data->lastName,
+                'license_number'  => $data->licenseNumber,
+                'license_plate'   => $data->licensePlate,
+                'vehicle_type'    => $data->vehicleType,
+                'ci_front_path'   => $ciPath,
+                'license_path'    => $licensePath,
+                'avatar_type'     => 'icon',
+                'avatar_source'   => 'avatar_1.svg',
             ]);
-    
+
+            $driver->assignRole('driver');
+
             return $driver;
         });
     }
