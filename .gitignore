@@ -1,4 +1,4 @@
-# --- TUS REGLAS ACTUALES (LARAVEL/PHP) ---
+# --- LARAVEL & PHP ---
 *.log
 .DS_Store
 .env
@@ -6,7 +6,24 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
-# --- Project IDX (Google) ---
+/node_modules
+/vendor
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# --- BASE DE DATOS Y DATOS SENSIBLES ---
+.db/
+*.sqlite*
+database/data/*.csv
+/storage/*.key
+
+# --- PROJECT IDX (GOOGLE) ---
 .idx/.data/
 .idx/dev.nix.lock
 /.fleet
@@ -16,27 +33,10 @@
 /.vscode
 /.zed
 /auth.json
-/node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/vendor
-Homestead.json
-Homestead.yaml
-Thumbs.db
 
-# --- REGLAS CRÍTICAS DE FIREBASE (AÑADIDAS) ---
-# Cache y emuladores de Firebase
+# --- FIREBASE ---
 .firebase/
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-
-# Credenciales de servicio (NUNCA SUBIR)
-# Asegúrate de que tus llaves tengan estos nombres o agrégalos si son distintos
+*-debug.log
 serviceAccountKey.json
 google-services.json
 GoogleService-Info.plist
-database/data/*.csv
