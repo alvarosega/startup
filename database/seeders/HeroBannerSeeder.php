@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\{AdPlacement, AdCampaign, AdCreative, Sku, Bundle, Branch, Provider};
@@ -46,10 +48,11 @@ class HeroBannerSeeder extends Seeder
             );
         }
 
-        // --- VARIANTE 2: BUNDLE EDITABLE (Configurable) ---
-        if ($eb = Bundle::active()->where('is_editable', true)->first()) {
+        // --- VARIANTE 2: SHOPPING TEMPLATE (Antiguo Editable) ---
+        // RECTIFICACIÓN: Filtrar por type = 'template'
+        if ($eb = Bundle::active()->where('type', 'template')->first()) {
             AdCreative::updateOrCreate(
-                ['name' => 'HERO_BUNDLE_EDITABLE_' . $eb->name, 'branch_id' => $branch->id],
+                ['name' => 'HERO_TEMPLATE_' . $eb->name, 'branch_id' => $branch->id],
                 [
                     'campaign_id' => $campaign->id, 'placement_id' => $placement->id,
                     'target_type' => 'bundle', 'target_id' => $eb->id,
@@ -60,10 +63,11 @@ class HeroBannerSeeder extends Seeder
             );
         }
 
-        // --- VARIANTE 3: BUNDLE FIJO (Pack Directo) ---
-        if ($fb = Bundle::active()->where('is_editable', false)->first()) {
+        // --- VARIANTE 3: BUNDLE ATÓMICO (Antiguo Fijo) ---
+        // RECTIFICACIÓN: Filtrar por type = 'atomic'
+        if ($fb = Bundle::active()->where('type', 'atomic')->first()) {
             AdCreative::updateOrCreate(
-                ['name' => 'HERO_BUNDLE_FIJO_' . $fb->name, 'branch_id' => $branch->id],
+                ['name' => 'HERO_BUNDLE_ATOMIC_' . $fb->name, 'branch_id' => $branch->id],
                 [
                     'campaign_id' => $campaign->id, 'placement_id' => $placement->id,
                     'target_type' => 'bundle', 'target_id' => $fb->id,

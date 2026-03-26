@@ -3,18 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\HasUv7; // Estandarización a UUIDv7
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryLot extends Model
 {
-    use HasUuids;
+    use HasUv7;
 
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
         'purchase_id',
+        'transfer_id', // Añadido para trazabilidad de transferencias
         'branch_id',
         'sku_id',
         'lot_code',

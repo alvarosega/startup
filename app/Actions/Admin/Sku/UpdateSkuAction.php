@@ -1,35 +1,36 @@
 <?php
+
 namespace App\Actions\Admin\Sku;
 
 use App\Models\Sku;
 use App\DTOs\Admin\Sku\SkuDataDTO;
-use Illuminate\Support\Facades\{DB, Storage, Cache};
+use Illuminate\Support\Facades\{DB, Storage};
 
 class UpdateSkuAction
 {
-    public function execute(Sku $sku, SkuDataDTO $dto): void
+    public function execute(Sku $sku, SkuDataDTO $data): void
     {
-        DB::transaction(function () use ($sku, $dto) {
-            $data = [
-                'name'              => $dto->name,
-                'code'              => $dto->code,
-                'base_price'        => $dto->price,
-                'conversion_factor' => $dto->conversionFactor,
-                'weight'            => $dto->weight,
-                'is_active'         => $dto->isActive,
+        DB::transaction(function () use ($sku, $data) {
+            // LA LEY: Bloqueo de fila antes de mutar
+            $lockedSku = Sku::where('id', $sku->id)->lockForUpdate()->firstOrFail();
+
+            $attributes = [
+                'name'              => $data->name,
+                'code'              => $data->code,
+                'base_price'        => $data->price,
+                'conversion_factor' => $data->conversionFactor,
+                'weight'            => $data->weight,
+                'is_active'         => $data->isActive,
             ];
 
-            if ($dto->image) {
-                if ($sku->image_path) {
-                    Storage::disk('public')->delete($sku->image_path);
+            if ($data->image) {
+                if ($lockedSku->image_path) {
+                    Storage::disk('public')->delete($lockedSku->image_path);
                 }
-                $data['image_path'] = $dto->image->store('skus', 'public');
+                $attributes['image_path'] = $data->image->store('skus', 'public');
             }
 
-            $sku->update($data);
-            
-            // LA LEY: Siempre invalidar la caché al mutar datos estructurales
-            Cache::forget('admin_products_list');
+            $lockedSku->update($attributes);
         });
     }
 }

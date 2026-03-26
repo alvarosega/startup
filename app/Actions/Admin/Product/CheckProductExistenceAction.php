@@ -8,11 +8,11 @@ class CheckProductExistenceAction
 {
     public function execute(?string $name): bool
     {
-        // Blindaje contra nulos o strings vacíos
-        if (empty(trim($name))) {
-            return false;
-        }
+        $cleanName = trim($name ?? '');
+        if (strlen($cleanName) < 3) return false;
 
-        return Product::where('name', trim($name))->exists();
+        // LA LEY: Solo verificamos contra productos VIVOS. 
+        // Si uno fue borrado, permitimos reutilizar el nombre.
+        return Product::where('name', $cleanName)->exists();
     }
 }

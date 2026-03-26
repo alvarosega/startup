@@ -1,19 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Customer\Shop;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Models\MarketZone;
 use App\Services\ShopContextService;
-// 1. Importar solo los Actions desde su carpeta
-use App\Actions\Customer\Shop\{GetShopLandingAction, GetShopCatalogAction, GetShopZoneAction};
-// 2. Importar los DTOs desde la carpeta DTOs (Aquí estaba el error)
-use App\DTOs\Customer\Shop\{CatalogQueryDTO, LandingQueryDTO}; 
+use App\Actions\Customer\Shop\{GetShopCatalogAction, GetShopZoneAction};
+use App\DTOs\Customer\Shop\CatalogQueryDTO; 
 use App\Http\Resources\Customer\Shop\ShopProductResource;
-use App\Actions\Customer\RetailMedia\GetActiveHeroBannersAction;
-
+use App\Actions\Customer\RetailMedia\GetActiveAdCreativesAction;
+use App\Http\Resources\Customer\RetailMedia\HeroBannerResource;
 
 class ShopController extends Controller
 {
@@ -21,49 +22,45 @@ class ShopController extends Controller
         protected ShopContextService $contextService
     ) {}
 
+    /**
+     * Motor de Búsqueda y Catálogo
+     */
     public function index(
         Request $request, 
-        GetShopCatalogAction $catalogAction, 
-        GetShopLandingAction $landingAction,
-        GetActiveHeroBannersAction $bannerAction // <--- Inyectamos el nuevo experto
-    ): Response{
+        GetShopCatalogAction $catalogAction,
+        GetActiveAdCreativesAction $adAction
+    ): Response {
         $branchId = $this->contextService->getActiveBranchId();
     
-        // Modo Búsqueda / Filtros
-        if ($request->anyFilled(['search', 'category_id']) || $request->input('type') === 'bundles') {
-            $dto = CatalogQueryDTO::fromRequest($request, $branchId);
-            return Inertia::render('Customer/Shop/Index', [
-                'products' => ShopProductResource::collection($catalogAction->execute($dto)),
-                'filters'  => $request->only(['search', 'category_id', 'type']),
-            ]);
-        } 
-    
-        // Modo Landing (3 Secciones)
-        // Regla 2.A: Instanciación del DTO obligatoria
-        $dto = LandingQueryDTO::fromRequest($branchId);
-        $landingData = $landingAction->execute($dto);
-        $heroBanners = $bannerAction->execute($branchId);
-        return Inertia::render('Customer/Shop/Index', [
-            'heroBanners' => $heroBanners,
-            'zonesData'   => $landingData['zones'],
-            'bundlesData' => $landingData['bundles'],
-            'categories'  => $landingData['categories'], // Ahora sí fluye al componente Vue
+        // 1. Ejecución del Catálogo
+        $dto = CatalogQueryDTO::fromRequest($request, $branchId);
+        $products = $catalogAction->execute($dto);
+
+        // 2. Publicidad Contextual para Búsqueda (Opcional)
+        $heroBanners = $adAction->execute($branchId, 'SEARCH_HERO');
+
+        return Inertia::render('Customer/Shop/Search', [
+            'products' => ShopProductResource::collection($products),
+            'filters'  => $request->only(['search', 'category_id', 'type']),
+            'heroBanners' => HeroBannerResource::collection($heroBanners),
         ]);
     }
 
-    public function showZone(Request $request, MarketZone $zone, GetShopZoneAction $zoneAction): Response 
-    {
+    /**
+     * Vista de Zona de Mercado (Pasillos)
+     */
+    public function showZone(
+        Request $request, 
+        MarketZone $zone, 
+        GetShopZoneAction $zoneAction
+    ): Response {
         $branchId = $this->contextService->getActiveBranchId();
-
-        // CAPTURAMOS EL ID DE LA MARCA: 
-        // Si no viene (carga inicial), la Acción devolverá solo la navegación.
         $brandId = $request->query('brand_id');
 
         $data = $zoneAction->execute($zone, $branchId, $brandId);
 
         return Inertia::render('Customer/Shop/Zone', [
             'zone'             => $data['zone'],
-            // LLAVE SINCRONIZADA: brandsNavigation en lugar de groupedCategories
             'brandsNavigation' => $data['brandsNavigation'], 
             'brandContent'     => $data['brandContent'],
             'targetCategory'   => $request->query('category'),

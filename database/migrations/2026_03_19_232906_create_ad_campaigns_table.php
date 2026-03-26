@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -8,12 +10,15 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('ad_campaigns', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('provider_id')->constrained('providers'); // Quién paga
+            $table->foreignUuid('provider_id')->constrained('providers'); 
+            
             $table->string('name');
             $table->enum('type', ['PAID', 'INTERNAL'])->default('PAID');
-            $table->timestamp('starts_at')->nullable();
-            $table->timestamp('ends_at')->nullable();
-            $table->boolean('is_active')->default(true);
+            
+            $table->timestamp('starts_at')->nullable()->index();
+            $table->timestamp('ends_at')->nullable()->index();
+            $table->boolean('is_active')->default(true)->index();
+            
             $table->timestamps();
             $table->softDeletes();
         });

@@ -10,32 +10,18 @@ class AdPlacementSeeder extends Seeder
     public function run(): void
     {
         $placements = [
-            [
-                'name' => 'Home Hero Carousel',
-                'code' => 'HOME_HERO',
-                'max_items' => 5,
-            ],
-            [
-                'name' => 'Search Results Top',
-                'code' => 'SEARCH_TOP',
-                'max_items' => 2,
-            ],
-            [
-                'name' => 'Checkout Impulse',
-                'code' => 'CHECKOUT_IMPULSE',
-                'max_items' => 3,
-            ]
+            ['name' => 'Home Hero Main', 'code' => 'HOME_HERO', 'max_items' => 5],
+            ['name' => 'Pasillo Categoría', 'code' => 'CATEGORY_HERO', 'max_items' => 1], // FALTABA ESTE
+            ['name' => 'Cabecera de Packs', 'code' => 'BUNDLE_HERO', 'max_items' => 1],   // FALTABA ESTE
+            ['name' => 'Resultados Búsqueda', 'code' => 'SEARCH_TOP', 'max_items' => 2],
         ];
-
-        foreach ($placements as $placement) {
-            AdPlacement::updateOrCreate(
-                ['code' => $placement['code']],
-                [
-                    'name' => $placement['name'],
-                    'max_items' => $placement['max_items'],
-                    'is_active' => true,
-                ]
-            );
+    
+        foreach ($placements as $p) {
+            AdPlacement::updateOrCreate(['code' => $p['code']], [
+                'name' => $p['name'],
+                'max_items' => $p['max_items'],
+                'is_active' => true,
+            ]);
         }
     }
 }

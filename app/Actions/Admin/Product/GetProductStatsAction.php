@@ -2,21 +2,26 @@
 
 namespace App\Actions\Admin\Product;
 
-use App\Models\{Product, Sku};
+use Illuminate\Support\Facades\DB;
 
 class GetProductStatsAction
 {
-    /**
-     * Ejecuta el conteo global del catálogo.
-     * Al estar fuera del controlador, permite ser cacheado o movido a reportes fácilmente.
-     */
     public function execute(): array
     {
+        $stats = DB::table('products')
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
+                (SELECT COUNT(*) FROM skus) as total_skus,
+                COUNT(CASE WHEN NOT EXISTS (SELECT 1 FROM skus WHERE skus.product_id = products.id) THEN 1 END) as incomplete
+            ")
+            ->first();
+
         return [
-            'total'      => Product::count(),
-            'active'     => Product::where('is_active', true)->count(),
-            'incomplete' => Product::has('skus', '=', 0)->count(),
-            'total_skus' => Sku::count(),
+            'total'      => (int) $stats->total,
+            'active'     => (int) $stats->active,
+            'total_skus' => (int) $stats->total_skus,
+            'incomplete' => (int) $stats->incomplete,
         ];
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Web\Admin\Sku;
 
 use App\Http\Controllers\Controller;
@@ -16,7 +17,7 @@ class SkuController extends Controller
 
     public function create(Product $product): InertiaResponse
     {
-        $this->authorize('create', Sku::class); // Si tienes SkuPolicy
+        $this->authorize('create', Sku::class);
         return Inertia::render('Admin/Skus/Create', [
             'product' => ['id' => $product->id, 'name' => $product->name]
         ]);
@@ -25,7 +26,12 @@ class SkuController extends Controller
     public function store(StoreBulkSkuRequest $request, Product $product, CreateBulkSkuAction $action): RedirectResponse
     {
         $this->authorize('create', Sku::class);
-        $action->execute($product->id, CreateBulkSkuDTO::fromRequest($request));
+
+        // LA LEY: Transformamos el Request en el DTO envoltorio
+        $dto = CreateBulkSkuDTO::fromRequest($request);
+
+        // RECTIFICACIÓN: Pasamos solo el array de SKUs ($dto->skus)
+        $action->execute($product->id, $dto->skus);
 
         return redirect()->route('admin.products.index')
             ->with('success', 'Variantes inyectadas al catálogo.');
@@ -45,7 +51,9 @@ class SkuController extends Controller
     public function update(UpdateSkuRequest $request, Sku $sku, UpdateSkuAction $action): RedirectResponse
     {
         $this->authorize('update', $sku);
-        $action->execute($sku, SkuDataDTO::fromRequest($request)); // Usamos el DTO estricto
+        
+        // LA LEY: SkuDataDTO individual para edición simple
+        $action->execute($sku, SkuDataDTO::fromRequest($request)); 
     
         return redirect()->route('admin.products.index')
             ->with('success', 'Parámetros de variante actualizados.');

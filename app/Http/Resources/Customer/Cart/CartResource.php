@@ -1,30 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\Customer\Cart;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class CartResource extends JsonResource
 {
-    public function toArray($request): array
+    public function toArray(Request $request): array
     {
-        // Cargamos la colección resuelta de CartItemResource
-        $items = CartItemResource::collection($this->whenLoaded('items'))->resolve();
-        $itemsCollect = collect($items);
+        // Delegamos el detalle de cada línea al CartItemResource
+        $items = CartItemResource::collection($this->items)->resolve();
+        
+        $totalPrice = collect($items)->sum('subtotal');
+        $totalSavings = collect($items)->sum('line_savings');
 
         return [
             'id'            => (string) $this->id,
-            'branch_id'     => (string) $this->branch_id,
             'items'         => $items,
-            
-            'total_items'   => (int) $itemsCollect->sum('quantity'),
-            'total_price'   => (float) $itemsCollect->sum('subtotal'),
-            
-            // CORRECCIÓN: Garantizamos que sume valores numéricos
-            'total_savings' => (float) $itemsCollect->sum(fn($item) => $item['line_savings'] ?? 0),
-            
-            'can_checkout'  => $itemsCollect->every('has_stock') && $itemsCollect->count() > 0,
-            'last_activity' => $this->updated_at->diffForHumans(),
+            'total_items'   => (int) collect($items)->sum('quantity'),
+            'total_price'   => (float) $totalPrice,
+            'total_savings' => (float) $totalSavings,
         ];
     }
 }

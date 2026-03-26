@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -28,12 +30,21 @@ return new class extends Migration {
             $table->string('seo_title')->nullable();
             $table->text('seo_description')->nullable();
             
+            // --- AUDITORÍA Y ESTADO (Única declaración) ---
             $table->timestamps();
             $table->softDeletes();
 
-            // LEY DE CONSULTAS: Índice compuesto para carga de menús y jerarquías
+            // --- LEY DE CONSULTAS: ÍNDICES COMPUESTOS ---
+            
+            // 1. Carga de menús y jerarquías (Admin/Customer)
             $table->index(['is_active', 'parent_id', 'sort_order'], 'idx_active_hierarchy');
+            
+            // 2. Resolución rápida por Slug (Punto de entrada único)
+            $table->index(['slug', 'is_active'], 'idx_customer_slug_lookup');
         });
     }
-    public function down(): void { Schema::dropIfExists('categories'); }
+
+    public function down(): void { 
+        Schema::dropIfExists('categories'); 
+    }
 };

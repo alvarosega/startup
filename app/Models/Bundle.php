@@ -1,12 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\{BelongsToMany, BelongsTo, MorphMany};
+use Illuminate\Database\Eloquent\Relations\{BelongsToMany, BelongsTo};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Carbon\Carbon;
 
 class Bundle extends Model
 {
@@ -16,38 +19,66 @@ class Bundle extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'branch_id', 'name', 'slug', 'description', 
-        'image_path', 'is_active', 'fixed_price', 
-        'is_editable', 'starts_at', 'ends_at'
+        'branch_id', 
+        'name', 
+        'slug', 
+        'type', // Discriminador: 'atomic' | 'template'
+        'description', 
+        'image_path', 
+        'is_active', 
+        'fixed_price', 
+        'max_quantity_per_order',
+        'starts_at', 
+        'ends_at'
     ];
 
     protected $casts = [
         'is_active'   => 'boolean',
-        'is_editable' => 'boolean', // Añadido para consistencia en Vue
         'fixed_price' => 'decimal:2',
         'starts_at'   => 'datetime', 
         'ends_at'     => 'datetime',
+        'max_quantity_per_order' => 'integer',
     ];
 
-    // RELACIÓN ÚNICA Y MAESTRA
     public function skus(): BelongsToMany
     {
         return $this->belongsToMany(Sku::class, 'bundle_items')
-                    ->using(BundleItem::class) // Asegúrate de que el modelo BundleItem exista
-                    ->withPivot('quantity') 
-                    ->withTimestamps();
+                    ->withPivot('quantity')
+                    ->withTimestamps()
+                    ->using(BundleItem::class);
     }
-
-    // ELIMINAR EL MÉTODO items() PARA EVITAR CONFUSIÓN
 
     public function branch(): BelongsTo 
     { 
         return $this->belongsTo(Branch::class); 
     }
 
-    // Scope para facilitar filtrado en controladores
+    // --- SCOPES DE TELEMETRÍA ---
+
+    /**
+     * Filtra solo bundles activos y dentro de ventana de tiempo válida.
+     */
     public function scopeActive(Builder $query): void
     {
-        $query->where('is_active', true);
+        $now = Carbon::now();
+        $query->where('is_active', true)
+              ->where(function ($q) use ($now) {
+                  $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
+              })
+              ->where(function ($q) use ($now) {
+                  $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now);
+              });
+    }
+
+    // --- HELPERS DE LÓGICA ---
+
+    public function isAtomic(): bool
+    {
+        return $this->type === 'atomic';
+    }
+
+    public function isTemplate(): bool
+    {
+        return $this->type === 'template';
     }
 }

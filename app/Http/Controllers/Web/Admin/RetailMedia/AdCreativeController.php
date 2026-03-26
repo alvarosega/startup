@@ -1,28 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\RetailMedia;
 
 use App\Http\Controllers\Controller;
-use App\DTOs\Admin\RetailMedia\AdCreativeFilterDTO;
-use App\Actions\Admin\RetailMedia\ListAdCreativesAction;
-use App\Http\Resources\Admin\RetailMedia\AdCreativeResource;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
-use App\Models\AdCampaign;
-use App\Models\AdPlacement;
-use App\Models\Branch;
-use App\Models\Sku;
-use App\DTOs\Admin\RetailMedia\UpsertAdCreativeDTO;
+use App\Models\{AdCreative, AdCampaign, AdPlacement, Branch, Sku, Bundle, Category};
+use App\DTOs\Admin\RetailMedia\{AdCreativeFilterDTO, UpsertAdCreativeDTO};
 use App\Http\Requests\Admin\RetailMedia\UpsertAdCreativeRequest;
-use App\Actions\Admin\RetailMedia\UpsertAdCreativeAction;
-use Illuminate\Http\RedirectResponse;
-use App\Actions\Admin\RetailMedia\SearchSkusAction;
-use Illuminate\Http\JsonResponse;
-use App\Actions\Admin\RetailMedia\DeleteAdCreativeAction;
+use App\Actions\Admin\RetailMedia\{
+    ListAdCreativesAction, 
+    UpsertAdCreativeAction, 
+    SearchSkusAction, 
+    DeleteAdCreativeAction
+};
+use App\Http\Resources\Admin\RetailMedia\AdCreativeResource;
+use Illuminate\Http\{Request, RedirectResponse, JsonResponse};
+use Inertia\{Inertia, Response};
 
 class AdCreativeController extends Controller
 {
+    /**
+     * Listado maestro de creativos con filtrado táctico.
+     */
     public function index(
         Request $request, 
         ListAdCreativesAction $action
@@ -32,19 +32,28 @@ class AdCreativeController extends Controller
 
         return Inertia::render('Admin/RetailMedia/AdCreatives/Index', [
             'items' => AdCreativeResource::collection($results),
-            'filters' => $request->only(['placement_code', 'market_zone_id', 'branch_id', 'is_active'])
-        ]);
-    }
-    public function create(): Response
-    {
-        return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
-            'campaigns' => AdCampaign::where('is_active', true)->get(['id', 'name']),
-            'placements' => AdPlacement::where('is_active', true)->get(['id', 'name', 'code']),
-            'branches' => Branch::active()->get(['id', 'name']),
-            'initial_skus' => Sku::where('is_active', true)->limit(10)->get(['id', 'name']), // Para el select inicial
+            'filters' => $request->only(['placement_code', 'branch_id', 'is_active']),
+            'placements' => AdPlacement::where('is_active', true)->get(['code', 'name']), // <--- Añadir
+            'branches' => Branch::active()->get(['id', 'name']),                         // <--- Añadir
         ]);
     }
 
+    /**
+     * Formulario de creación: Inyecta dependencias de anclaje y target.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
+            'campaigns'  => AdCampaign::where('is_active', true)->get(['id', 'name']),
+            'placements' => AdPlacement::where('is_active', true)->get(['code', 'name']),
+            'branches'   => Branch::active()->get(['id', 'name']),
+            'categories' => Category::active()->get(['id', 'name']), // Necesario para banners por pasillo
+        ]);
+    }
+
+    /**
+     * Persistencia de nuevo creativo (Soporta archivos Mobile/Desktop).
+     */
     public function store(
         UpsertAdCreativeRequest $request,
         UpsertAdCreativeAction $action
@@ -53,48 +62,96 @@ class AdCreativeController extends Controller
         $action->execute($dto);
 
         return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Creativo publicitario creado exitosamente.');
+            ->with('success', 'Creativo publicitario desplegado exitosamente.');
     }
-    public function searchSkus(Request $request, SearchSkusAction $action): \Illuminate\Http\JsonResponse
-    {
-        // 1. Verifica si llega el término: dd($request->query('q'));
-        $term = $request->query('q');
-        
-        // 2. Ejecuta la lógica
-        $results = $action->execute($term);
-    
-        // 3. Retorna JSON puro
-        return response()->json($results);
-    }
+
+    /**
+     * Formulario de edición: Carga relaciones de categorías y sucursales.
+     */
     public function edit(string $id): Response
     {
-        $creative = AdCreative::with(['branches:id', 'sku:id,name'])->findOrFail($id);
+        $creative = AdCreative::with([
+            'campaign', 
+            'placement', 
+            'branch', 
+            'category', 
+            'sku.product', 
+            'bundle'
+        ])->findOrFail($id);
 
         return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
-            'creative' => new AdCreativeResource($creative),
-            'campaigns' => AdCampaign::where('is_active', true)->get(['id', 'name']),
+            'creative'   => new AdCreativeResource($creative),
+            'campaigns'  => AdCampaign::where('is_active', true)->get(['id', 'name']),
             'placements' => AdPlacement::where('is_active', true)->get(['id', 'name', 'code']),
-            'branches' => Branch::active()->get(['id', 'name']),
+            'branches'   => Branch::active()->get(['id', 'name']),
+            'categories' => Category::active()->get(['id', 'name']),
         ]);
     }
 
+    /**
+     * Actualización de creativo existente.
+     */
     public function update(
         UpsertAdCreativeRequest $request,
         UpsertAdCreativeAction $action,
         string $id
     ): RedirectResponse {
+        // El DTO captura el ID desde la ruta automáticamente si está configurado, 
+        // o lo pasamos manualmente.
         $dto = UpsertAdCreativeDTO::fromRequest($request);
         $action->execute($dto);
 
         return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Creativo actualizado correctamente.');
+            ->with('success', 'Creativo actualizado y sincronizado.');
     }
 
+    /**
+     * Eliminación física y de archivos.
+     */
     public function destroy(string $id, DeleteAdCreativeAction $action): RedirectResponse
     {
         $action->execute($id);
 
         return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Creativo y sus archivos eliminados.');
+            ->with('success', 'Creativo eliminado del sistema.');
+    }
+
+    // =========================================================================
+    // MOTORES DE BÚSQUEDA AJAX (Utilizados por el Formulario Vue)
+    // =========================================================================
+
+    /**
+     * Buscador de SKUs para el destino del banner.
+     */
+    public function searchSkus(Request $request, SearchSkusAction $action): JsonResponse
+    {
+        $term = $request->query('q', '');
+        $results = $action->execute($term);
+    
+        return response()->json($results);
+    }
+
+    /**
+     * Buscador de Bundles (Packs) para el destino del banner.
+     */
+    public function searchBundles(Request $request): JsonResponse
+    {
+        $q = $request->query('q', '');
+
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $bundles = Bundle::where('name', 'like', "%{$q}%")
+            ->active()
+            ->limit(10)
+            ->get()
+            ->map(fn($b) => [
+                'id'   => $b->id,
+                'name' => $b->name,
+                'code' => strtoupper($b->type) . ": " . $b->slug
+            ]);
+
+        return response()->json($bundles);
     }
 }

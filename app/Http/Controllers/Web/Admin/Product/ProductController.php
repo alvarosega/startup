@@ -21,20 +21,17 @@ class ProductController extends Controller
 {
     use AuthorizesRequests;
     private string $guard = 'super_admin';
-    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction): InertiaResponse 
+    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction)
     {
         $this->authorize('viewAny', Product::class);
-
-        $productsPaginator = $listAction->execute($request);
-
+        $products = $listAction->execute($request);
+    
         return Inertia::render('Admin/Products/Index', [
-            'filters'  => $request->only(['search', 'category', 'brand', 'status']),
-            'products' => ProductResource::collection($productsPaginator),
-            'stats'    => $statsAction->execute(),
-            'options'  => app(GetProductFormDataAction::class)->execute(),
-            
-            // LA CORRECCIÓN CRÍTICA: Enviar la directiva de autorización a la vista
-            'can_manage' => Auth::guard($this->guard)->user()?->can('create', Product::class) ?? false,
+            'products'   => ProductResource::collection($products),
+            'filters'    => $request->only(['search', 'category', 'brand', 'status']),
+            'stats'      => $statsAction->execute(),
+            'options'    => app(GetProductFormDataAction::class)->execute(),
+            'can_manage' => auth()->user()->can('create', Product::class),
         ]);
     }
 
@@ -46,9 +43,13 @@ class ProductController extends Controller
     public function create(GetProductFormDataAction $dataAction): InertiaResponse
     {
         $this->authorize('create', Product::class);
-        return Inertia::render('Admin/Products/Create', $dataAction->execute());
+        
+        // LA LEY: Pre-generación de llave de idempotencia
+        return Inertia::render('Admin/Products/Create', array_merge(
+            $dataAction->execute(),
+            ['idempKey' => (string) \Illuminate\Support\Str::uuid7()]
+        ));
     }
-
     public function store(StoreProductRequest $request, UpsertProductAction $action): RedirectResponse
     {
         $this->authorize('create', Product::class);
@@ -61,8 +62,9 @@ class ProductController extends Controller
     public function edit(Product $product, GetProductFormDataAction $dataAction): InertiaResponse
     {
         $this->authorize('update', $product);
+        
         return Inertia::render('Admin/Products/Edit', array_merge(
-            ['product' => new ProductResource($product->load(['brand', 'category']))],
+            ['product' => new ProductResource($product)],
             $dataAction->execute()
         ));
     }

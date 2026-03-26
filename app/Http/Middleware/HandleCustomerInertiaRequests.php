@@ -17,46 +17,41 @@ class HandleCustomerInertiaRequests extends Middleware
     {
         $user = Auth::guard('customer')->user();
         
-        // Obtención de IDs sin hits adicionales a DB si es posible
-        $guestUuid = $request->header('X-Guest-UUID') ?? $request->session()->get('guest_client_uuid');
-        $shopService = app(ShopContextService::class);
+        // --- PROTOCOLO DE PERSISTENCIA DE IDENTIDAD ---
+        // 1. Capturamos el UUID del header (enviado por el front)
+        $headerUuid = $request->header('X-Guest-UUID');
+        
+        // 2. Si viene en el header y no está en la sesión, lo "fijamos" para futuros refrescos (F5)
+        if ($headerUuid && $request->session()->get('guest_client_uuid') !== $headerUuid) {
+            $request->session()->put('guest_client_uuid', $headerUuid);
+        }
+
+        // 3. Recuperamos el ID final (Prioridad: Sesión ya fijada)
+        $guestUuid = $request->session()->get('guest_client_uuid');
+
+        $shopService = app(\App\Services\ShopContextService::class);
         $branchId = $shopService->getActiveBranchId();
-    
+
         return array_merge(parent::share($request), [
+            // Ahora $guestUuid persistirá incluso si el header no se envía en un GET normal
+            'cart' => app(\App\Actions\Customer\Cart\GetCustomerCartAction::class)->execute($guestUuid),
+
+            'categories_menu' => app(\App\Actions\Customer\Shop\GetGlobalMenuAction::class)->execute(),
+
             'auth' => [
                 'user' => $user ? [
                     'id'        => (string) $user->id,
                     'name'      => $user->profile?->first_name ?? 'Cliente',
-                    'avatar'    => $user->profile?->avatar_source ?? 'avatar_1.svg',
                     'branch_id' => (string) $user->branch_id,
                 ] : null,
             ],
-    
-            // 1. CONTEXTOS: Cacheamos por petición (Request-Bound)
+
             'shop_context'     => $this->resolveShopContext($branchId),
             'location_context' => $this->resolveLocationContext($user, $branchId),
-    
-            // 2. DATOS PESADOS: Lazy Loading (Solo si el frontend los pide)
-            'cart_summary' => \Inertia\Inertia::lazy(fn () => [
-                'count' => $this->getCartCount($user?->id, $guestUuid, $branchId),
-            ]),
-    
-            'active_order' => \Inertia\Inertia::lazy(function () use ($user) {
-                if (!$user) return null;
-                
-                // Cacheamos el estado del pedido por 60 segundos para evitar hammering
-                return cache()->remember("active_order_{$user->id}", 60, function() use ($user) {
-                    $query = $user->orders()->whereIn('status', [
-                        'pending_payment', 'under_review', 'preparing', 'dispatched', 'arrived'
-                    ]);
-                    
-                    $latest = (clone $query)->latest()->first(['id', 'status', 'code']);
-                    return [
-                        'latest' => $latest,
-                        'count'  => $query->count(),
-                    ];
-                });
-            }),
+
+            'active_order' => \Inertia\Inertia::lazy(fn () => 
+                $user ? $this->resolveActiveOrder($user->id) : null
+            ),
         ]);
     }
     private function resolveLocationContext($user, string $branchId): array

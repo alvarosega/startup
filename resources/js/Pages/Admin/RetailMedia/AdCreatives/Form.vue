@@ -5,36 +5,35 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import axios from 'axios';
 import { 
     Save, ArrowLeft, Image as ImageIcon, Smartphone, 
-    Monitor, CheckCircle2, Search, Loader2, PackageCheck,
-    Layers, Tag, MapPin, LayoutGrid, X
+    Monitor, CheckCircle2, Search, Loader2, Package,
+    Layers, Tag, MapPin, LayoutGrid, X, MousePointerClick
 } from 'lucide-vue-next';
 
 const props = defineProps({
     campaigns: Array,
     placements: Array,
     branches: Array,
-    categories: Array, // Prop inyectada por el controlador
+    categories: Array,
     creative: { type: Object, default: null }
 });
 
 const isEdit = !!props.creative;
 const creativeData = computed(() => props.creative?.data || props.creative);
 
-// --- ESTADO DEL BUSCADOR ---
+// --- BUSCADOR DE TARGET ---
 const targets = ref([]);
 const isSearching = ref(false);
-const searchQuery = ref(creativeData.value?.target?.name || '');
+const searchQuery = ref(creativeData.value?.target_name || '');
 let searchTimeout = null;
 
-// --- FORMULARIO UNIFICADO ---
 const form = useForm({
     id: creativeData.value?.id || null,
-    campaign_id: creativeData.value?.campaign?.id || '',
-    placement_id: creativeData.value?.placement_id || '', // Asumiendo ID directo desde BD
-    branch_id: creativeData.value?.branch?.id || '', // Anclaje Único
-    category_id: creativeData.value?.category?.id || '', // Nuevo Anclaje Opcional
-    target_type: creativeData.value?.target?.type || 'sku', // 'sku' o 'bundle'
-    target_id: creativeData.value?.target?.id || '',
+    campaign_id: creativeData.value?.campaign_id || '',
+    placement_id: creativeData.value?.placement_id || '',
+    branch_id: creativeData.value?.branch_id || '', 
+    category_id: creativeData.value?.category_id || '', 
+    target_type: creativeData.value?.target_type || 'sku', 
+    target_id: creativeData.value?.target_id || '',
     name: creativeData.value?.name || '',
     action_type: creativeData.value?.action_type || 'ADD_TO_CART',
     sort_order: creativeData.value?.sort_order || 0,
@@ -44,35 +43,26 @@ const form = useForm({
 });
 
 const handleSearch = () => {
-    if (searchQuery.value.length < 2) {
-        targets.value = [];
-        return;
-    }
-
+    if (searchQuery.value.length < 2) return;
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(async () => {
         isSearching.value = true;
         try {
-            // Reutilizamos el buscador de SKUs o Bundles según el tipo
-            const endpoint = form.target_type === 'sku' 
+            // Decidimos endpoint basado en target_type
+            const url = form.target_type === 'sku' 
                 ? route('admin.retail-media.ad-creatives.search-skus')
-                : route('admin.bundles.index'); // O un buscador específico de bundles si lo tienes
+                : route('admin.retail-media.ad-creatives.search-bundles');
 
-            const { data } = await axios.get(endpoint, {
-                params: { q: searchQuery.value }
-            });
+            const { data } = await axios.get(url, { params: { q: searchQuery.value } });
             targets.value = data;
-        } catch (e) {
-            console.error("Fallo en telemetría de búsqueda:", e);
-        } finally {
-            isSearching.value = false;
-        }
+        } catch (e) { console.error(e); } 
+        finally { isSearching.value = false; }
     }, 300);
 };
 
-const selectTarget = (target) => {
-    form.target_id = target.id;
-    searchQuery.value = target.name;
+const selectTarget = (t) => {
+    form.target_id = t.id;
+    searchQuery.value = t.name;
     targets.value = [];
 };
 
@@ -81,153 +71,143 @@ const submit = () => {
         ? route('admin.retail-media.ad-creatives.update', creativeData.value.id) 
         : route('admin.retail-media.ad-creatives.store');
 
-    form.post(url, {
-        forceFormData: true,
-        preserveScroll: true,
-    });
+    form.post(url, { forceFormData: true, preserveScroll: true });
 };
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Editar Banner' : 'Nuevo Banner - Retail Media'" />
-
+    <Head :title="isEdit ? 'Editar Banner' : 'Nuevo Banner'" />
     <AdminLayout>
-        <div class="p-6 max-w-6xl mx-auto pb-24">
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-4">
-                    <Link :href="route('admin.retail-media.ad-creatives.index')" class="p-2 hover:bg-muted rounded-full text-muted-foreground">
+        <div class="p-8 max-w-7xl mx-auto pb-32">
+            
+            <div class="flex items-center justify-between mb-10">
+                <div class="flex items-center gap-5">
+                    <Link :href="route('admin.retail-media.ad-creatives.index')" class="p-3 bg-card border border-border rounded-2xl hover:bg-muted transition-colors">
                         <ArrowLeft :size="20" />
                     </Link>
                     <div>
-                        <h1 class="text-2xl font-bold text-foreground">{{ isEdit ? 'Actualizar Creativo' : 'Nuevo Creativo' }}</h1>
-                        <p class="text-xs font-mono text-primary uppercase tracking-tighter">Silo: Retail Media // Sucursal: {{ form.branch_id || 'PENDIENTE' }}</p>
+                        <h1 class="text-3xl font-black uppercase italic tracking-tighter">{{ isEdit ? 'Editar Creativo' : 'Desplegar Banner' }}</h1>
+                        <p class="text-[10px] font-mono text-primary uppercase tracking-widest">Silo: Retail Media // Intelligence System</p>
                     </div>
                 </div>
-                
-                <button @click="submit" :disabled="form.processing"
-                        class="bg-primary text-primary-foreground px-8 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg flex items-center gap-2">
-                    <Save :size="18" />
-                    {{ isEdit ? 'SINCRONIZAR' : 'DESPLEGAR' }}
+                <button @click="submit" :disabled="form.processing" 
+                        class="bg-primary text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
+                    <Save :size="18" stroke-width="3" />
+                    {{ isEdit ? 'Sincronizar' : 'Publicar' }}
                 </button>
             </div>
 
-            <form @submit.prevent="submit" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                <div class="lg:col-span-2 space-y-6">
+                <div class="lg:col-span-2 space-y-8">
                     
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm space-y-6">
-                        <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest border-b border-border pb-3">
-                            <Tag :size="14" /> Datos de Identidad
+                    <div class="bg-card border border-border rounded-[2.5rem] p-8 shadow-sm">
+                        <div class="flex items-center gap-3 mb-8">
+                            <div class="p-2 bg-primary/10 text-primary rounded-xl"><Tag :size="18"/></div>
+                            <h3 class="text-sm font-black uppercase tracking-widest">Configuración Base</h3>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="md:col-span-2">
-                                <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Nombre del Creativo</label>
-                                <input v-model="form.name" type="text" class="w-full bg-background border border-border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 font-medium" placeholder="Ej: BANNER_VERANO_2026" />
-                                <p v-if="form.errors.name" class="text-destructive text-[10px] mt-1">{{ form.errors.name }}</p>
+                                <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2 ml-1">Nombre Identificador</label>
+                                <input v-model="form.name" type="text" class="w-full bg-background border-2 border-border rounded-2xl px-5 py-4 outline-none focus:border-primary transition-colors font-bold" placeholder="Ej: BANNER_HERO_VERANO_BOLIVIA" />
                             </div>
-
                             <div>
-                                <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Campaña Madre</label>
-                                <select v-model="form.campaign_id" class="w-full bg-background border border-border rounded-lg px-3 py-2.5 outline-none">
-                                    <option value="" disabled>Seleccionar Campaña</option>
+                                <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2 ml-1">Campaña Vinculada</label>
+                                <select v-model="form.campaign_id" class="w-full bg-background border-2 border-border rounded-2xl px-4 py-4 outline-none focus:border-primary font-bold appearance-none">
+                                    <option value="">Seleccionar Campaña...</option>
                                     <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
                             </div>
-
                             <div>
-                                <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Ubicación (Placement)</label>
-                                <select v-model="form.placement_id" class="w-full bg-background border border-border rounded-lg px-3 py-2.5 outline-none">
-                                    <option value="" disabled>Seleccionar Espacio</option>
+                                <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2 ml-1">Ubicación (Placement)</label>
+                                <select v-model="form.placement_id" class="w-full bg-background border-2 border-border rounded-2xl px-4 py-4 outline-none focus:border-primary font-bold appearance-none">
+                                    <option value="">Seleccionar Espacio...</option>
                                     <option v-for="p in placements" :key="p.id" :value="p.id">{{ p.name }} [{{ p.code }}]</option>
                                 </select>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm space-y-6">
-                        <div class="flex items-center justify-between border-b border-border pb-3">
-                            <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-                                <PackageCheck :size="14" /> Destino del Click (Target)
+                    <div class="bg-card border-2 border-primary/20 rounded-[2.5rem] p-8 shadow-lg relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-8">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-primary text-white rounded-xl"><MousePointerClick :size="18"/></div>
+                                <h3 class="text-sm font-black uppercase tracking-widest">Destino del Click</h3>
                             </div>
-                            <div class="flex bg-muted rounded-md p-1">
+                            <div class="flex bg-muted rounded-xl p-1.5 border border-border">
                                 <button type="button" @click="form.target_type = 'sku'; form.target_id = ''; searchQuery = ''"
                                         :class="form.target_type === 'sku' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'"
-                                        class="px-3 py-1 text-[10px] font-bold rounded transition-all">SKU</button>
+                                        class="px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all">Producto</button>
                                 <button type="button" @click="form.target_type = 'bundle'; form.target_id = ''; searchQuery = ''"
                                         :class="form.target_type === 'bundle' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'"
-                                        class="px-3 py-1 text-[10px] font-bold rounded transition-all">BUNDLE</button>
+                                        class="px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all">Pack</button>
                             </div>
                         </div>
 
                         <div class="relative">
-                            <div class="relative">
-                                <Search class="absolute left-3 top-3 text-muted-foreground" :size="18" />
-                                <input v-model="searchQuery" @input="handleSearch" type="text" 
-                                       :placeholder="`Buscar ${form.target_type.toUpperCase()}...`"
-                                       class="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-3 outline-none focus:ring-2 focus:ring-primary/20 font-bold" />
-                                <Loader2 v-if="isSearching" class="absolute right-3 top-3 animate-spin text-primary" :size="20" />
-                                <button v-if="form.target_id" @click="form.target_id = ''; searchQuery = ''" type="button" class="absolute right-3 top-3 text-muted-foreground hover:text-destructive">
-                                    <X :size="20" />
-                                </button>
-                            </div>
-
-                            <div v-if="targets.length > 0" class="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-2xl max-h-60 overflow-y-auto">
+                            <Search class="absolute left-5 top-5 text-muted-foreground" :size="20" />
+                            <input v-model="searchQuery" @input="handleSearch" type="text" 
+                                   :placeholder="`Buscar ${form.target_type === 'sku' ? 'Producto' : 'Pack'} por nombre...`"
+                                   class="w-full bg-background border-2 border-border rounded-2xl pl-14 pr-14 py-5 outline-none focus:border-primary font-bold text-lg" />
+                            <Loader2 v-if="isSearching" class="absolute right-5 top-5 animate-spin text-primary" :size="24" />
+                            
+                            <div v-if="targets.length > 0" class="absolute z-50 w-full mt-2 bg-card border-2 border-primary/20 rounded-2xl shadow-2xl max-h-64 overflow-y-auto backdrop-blur-xl">
                                 <div v-for="t in targets" :key="t.id" @click="selectTarget(t)"
-                                     class="p-4 hover:bg-muted cursor-pointer flex items-center justify-between border-b border-border last:border-0 transition-colors">
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-black">{{ t.name }}</span>
-                                        <span class="text-[10px] font-mono text-primary uppercase">{{ t.code || t.id.substring(0,8) }}</span>
+                                     class="p-5 hover:bg-primary/5 cursor-pointer flex items-center justify-between border-b border-border last:border-0 transition-all">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 bg-muted rounded-lg flex items-center justify-center text-primary"><Package :size="20"/></div>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-black uppercase italic">{{ t.name }}</span>
+                                            <span class="text-[9px] font-mono text-muted-foreground">{{ t.code }}</span>
+                                        </div>
                                     </div>
-                                    <div class="bg-primary/10 text-primary p-2 rounded-lg"><CheckCircle2 :size="16" /></div>
+                                    <CheckCircle2 class="text-primary/20" :size="20" />
                                 </div>
                             </div>
-                            
-                            <p v-if="form.errors.target_id" class="text-destructive text-[10px] mt-2 font-bold uppercase italic">// Error: {{ form.errors.target_id }}</p>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                             <div>
-                                <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Acción al Click</label>
-                                <select v-model="form.action_type" class="w-full bg-background border border-border rounded-lg px-3 py-2.5 outline-none font-bold">
+                                <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2">Acción Directa</label>
+                                <select v-model="form.action_type" class="w-full bg-background border-2 border-border rounded-xl px-4 py-3 outline-none font-bold">
                                     <option value="ADD_TO_CART">🛒 AÑADIR AL CARRITO</option>
-                                    <option value="NAVIGATE">🔗 NAVEGAR AL PRODUCTO</option>
+                                    <option value="NAVIGATE">🔗 VER DETALLES</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Prioridad (Sort)</label>
-                                <input v-model="form.sort_order" type="number" class="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                                <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2">Prioridad de Aparición</label>
+                                <input v-model="form.sort_order" type="number" class="w-full bg-background border-2 border-border rounded-xl px-4 py-3 outline-none font-bold" />
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm space-y-6">
-                        <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest border-b border-border pb-3">
-                            <ImageIcon :size="14" /> Activos Gráficos
+                    <div class="bg-card border border-border rounded-[2.5rem] p-8 shadow-sm">
+                        <div class="flex items-center gap-3 mb-8">
+                            <div class="p-2 bg-primary/10 text-primary rounded-xl"><ImageIcon :size="18"/></div>
+                            <h3 class="text-sm font-black uppercase tracking-widest">Creatividades Web</h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div class="space-y-3">
-                                <label class="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground"><Smartphone :size="14" /> Resolución Móvil (1:1)</label>
-                                <div class="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-muted/50 transition-all relative group h-40 flex flex-col justify-center items-center">
+                            <div class="space-y-4">
+                                <label class="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground"><Smartphone :size="14" /> Móvil (1080x1080)</label>
+                                <div class="border-2 border-dashed border-border rounded-3xl p-8 text-center hover:border-primary transition-all relative aspect-square flex flex-col justify-center items-center bg-muted/20">
                                     <input type="file" @input="form.image_mobile = $event.target.files[0]" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                    <div v-if="!form.image_mobile" class="space-y-1">
-                                        <ImageIcon class="mx-auto text-muted-foreground/40" :size="32" />
-                                        <p class="text-[10px] text-muted-foreground font-mono">1080x1080 WEBP</p>
+                                    <div v-if="!form.image_mobile" class="space-y-2">
+                                        <ImageIcon class="mx-auto text-muted-foreground/20" :size="48" />
+                                        <p class="text-[10px] font-black text-muted-foreground uppercase">Soltar WEBP/PNG</p>
                                     </div>
-                                    <div v-else class="text-primary text-[10px] font-bold animate-pulse"><CheckCircle2 class="mx-auto" :size="24" /> {{ form.image_mobile.name }}</div>
+                                    <div v-else class="text-primary font-black text-xs uppercase animate-pulse"><CheckCircle2 class="mx-auto mb-2" :size="32" /> {{ form.image_mobile.name }}</div>
                                 </div>
-                                <p v-if="creativeData?.image_mobile_url && !form.image_mobile" class="text-[9px] text-center text-primary underline">Ver imagen actual</p>
                             </div>
-
-                            <div class="space-y-3">
-                                <label class="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground"><Monitor :size="14" /> Resolución Desktop (Wide)</label>
-                                <div class="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-muted/50 transition-all relative h-40 flex flex-col justify-center items-center">
+                            <div class="space-y-4">
+                                <label class="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground"><Monitor :size="14" /> Desktop (1920x600)</label>
+                                <div class="border-2 border-dashed border-border rounded-3xl p-8 text-center hover:border-primary transition-all relative aspect-video flex flex-col justify-center items-center bg-muted/20">
                                     <input type="file" @input="form.image_desktop = $event.target.files[0]" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                    <div v-if="!form.image_desktop" class="space-y-1">
-                                        <ImageIcon class="mx-auto text-muted-foreground/40" :size="32" />
-                                        <p class="text-[10px] text-muted-foreground font-mono">1920x600 WEBP</p>
+                                    <div v-if="!form.image_desktop" class="space-y-2">
+                                        <ImageIcon class="mx-auto text-muted-foreground/20" :size="48" />
+                                        <p class="text-[10px] font-black text-muted-foreground uppercase">Soltar Banner Wide</p>
                                     </div>
-                                    <div v-else class="text-primary text-[10px] font-bold animate-pulse"><CheckCircle2 class="mx-auto" :size="24" /> {{ form.image_desktop.name }}</div>
+                                    <div v-else class="text-primary font-black text-xs uppercase animate-pulse"><CheckCircle2 class="mx-auto mb-2" :size="32" /> {{ form.image_desktop.name }}</div>
                                 </div>
                             </div>
                         </div>
@@ -235,54 +215,45 @@ const submit = () => {
                 </div>
 
                 <div class="space-y-6">
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                        <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-                            <MapPin :size="14" /> Segmentación Geográfica
+                    <div class="bg-card border border-border rounded-[2rem] p-6 shadow-sm space-y-6">
+                        <div class="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.2em] border-b border-border pb-4">
+                            <MapPin :size="16" /> Segmentación
                         </div>
+                        
                         <div>
-                            <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Sucursal Destino</label>
-                            <select v-model="form.branch_id" class="w-full bg-background border border-border rounded-lg px-3 py-2.5 outline-none font-bold">
-                                <option value="" disabled>Seleccionar Sucursal</option>
+                            <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2">Sucursal</label>
+                            <select v-model="form.branch_id" class="w-full bg-background border-2 border-border rounded-xl px-4 py-3 outline-none font-bold">
+                                <option value="">Todas las Sucursales</option>
                                 <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
                             </select>
-                            <p v-if="form.errors.branch_id" class="text-destructive text-[10px] mt-1 italic font-bold">// {{ form.errors.branch_id }}</p>
                         </div>
-                    </div>
 
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                        <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-                            <LayoutGrid :size="14" /> Anclaje Contextual
-                        </div>
                         <div>
-                            <label class="block text-[10px] font-bold uppercase text-muted-foreground mb-1">Categoría (Opcional)</label>
-                            <select v-model="form.category_id" class="w-full bg-background border border-border rounded-lg px-3 py-2.5 outline-none">
-                                <option value="">Global (Home / Todo el sitio)</option>
+                            <label class="block text-[10px] font-black uppercase text-muted-foreground mb-2">Anclaje en Categoría</label>
+                            <select v-model="form.category_id" class="w-full bg-background border-2 border-border rounded-xl px-4 py-3 outline-none font-bold">
+                                <option value="">Global (Solo Home)</option>
                                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                             </select>
-                            <p class="text-[9px] text-muted-foreground mt-2 italic">Si selecciona una categoría, el banner solo aparecerá dentro de esa sección.</p>
+                            <p class="text-[9px] text-muted-foreground mt-3 italic leading-relaxed">
+                                Si eliges una categoría, el banner solo aparecerá cuando el usuario esté navegando en esa sección específica.
+                            </p>
                         </div>
                     </div>
 
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                        <div class="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
-                            <span class="text-xs font-bold uppercase">Estado de Publicación</span>
+                    <div class="bg-card border border-border rounded-[2rem] p-6 shadow-sm">
+                        <div class="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border">
+                            <span class="text-[10px] font-black uppercase">Estado Vivo</span>
                             <button type="button" @click="form.is_active = !form.is_active"
                                     :class="form.is_active ? 'bg-primary' : 'bg-muted-foreground/30'"
-                                    class="w-12 h-6 rounded-full relative transition-all duration-200 shadow-inner">
-                                <div :class="form.is_active ? 'translate-x-6' : 'translate-x-1'"
-                                     class="absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm"></div>
+                                    class="w-14 h-7 rounded-full relative transition-all duration-300">
+                                <div :class="form.is_active ? 'translate-x-7' : 'translate-x-1'"
+                                     class="absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-md"></div>
                             </button>
                         </div>
                     </div>
                 </div>
 
-            </form>
+            </div>
         </div>
     </AdminLayout>
 </template>
-
-<style scoped>
-.shadow-neon { box-shadow: 0 0 15px hsl(var(--primary) / 0.2); }
-.fade-enter-active, .fade-leave-active { transition: all 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(10px); }
-</style>

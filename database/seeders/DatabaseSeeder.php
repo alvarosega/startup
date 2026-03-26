@@ -26,8 +26,10 @@ class DatabaseSeeder extends Seeder
             PriceSeeder::class,
             InventorySeeder::class,
             BundleSeeder::class,
+            AdPlacementSeeder::class,
             HeroBannerSeeder::class,
             CategoryBannerSeeder::class,
+            BundleBannerSeeder::class,
         ]);
     }
 }

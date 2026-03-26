@@ -1,14 +1,14 @@
 <?php
 namespace App\Models;
 
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\{HasMany, BelongsTo, HasManyThrough};
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Product extends Model
 {
-    use SoftDeletes, HasUuids;
+    use SoftDeletes, HasUv7;
 
     public $incrementing = false;
     protected $keyType = 'string';

@@ -1,34 +1,41 @@
 <?php
+
 namespace App\Actions\Admin\Sku;
 
-use App\Models\Sku;
-use App\DTOs\Admin\Sku\CreateBulkSkuDTO;
-use Illuminate\Support\Facades\{DB, Cache};
+use App\Models\{Product, Sku};
+use App\DTOs\Admin\Sku\SkuDataDTO;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CreateBulkSkuAction
 {
-    public function execute(string $productId, CreateBulkSkuDTO $dto): void
+    /**
+     * @param string $productId
+     * @param SkuDataDTO[] $skusData
+     */
+    public function execute(string $productId, array $skusData): void
     {
-        DB::transaction(function () use ($productId, $dto) {
-            foreach ($dto->skus as $skuData) {
+        // LA LEY: Límite de 50 registros por transacción (Control de Hostinger)
+        if (count($skusData) > 50) {
+            throw new \InvalidArgumentException("EXCESO_DE_CARGA: Máximo 50 SKUs por bloque.");
+        }
+
+        DB::transaction(function () use ($productId, $skusData) {
+            // Bloqueo del Maestro
+            Product::where('id', $productId)->lockForUpdate()->firstOrFail();
+
+            foreach ($skusData as $data) {
+                // El modelo Sku se encargará del EAN-13 si code es null (booted event)
                 Sku::create([
                     'product_id'        => $productId,
-                    'name'              => $skuData->name,
-                    'code'              => $skuData->code,
-                    'base_price'        => $skuData->price, // Aquí sí es base_price porque el DTO lo mapeó así
-                    'conversion_factor' => $skuData->conversionFactor,
-                    'weight'            => $skuData->weight,
-                    'image_path'        => $skuData->image ? $skuData->image->store('skus', 'public') : null,
-                    'is_active'         => true,
+                    'name'              => $data->name,
+                    'code'              => $data->code,
+                    'base_price'        => $data->price,
+                    'conversion_factor' => $data->conversionFactor,
+                    'weight'            => $data->weight,
+                    'is_active'         => $data->isActive,
                 ]);
-
-                // LA LEY: ELIMINADO el bloque de $sku->prices()->create(...)
-                // Los precios financieros reales (list/final) se gestionan 
-                // en el módulo PriceController. El SKU solo guarda su base_price referencial.
             }
-            
-            // Invalida la caché del catálogo para que Vue lo detecte de inmediato
-            Cache::forget('admin_products_list');
         });
     }
 }

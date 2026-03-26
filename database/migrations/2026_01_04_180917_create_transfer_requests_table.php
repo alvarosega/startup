@@ -3,32 +3,19 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // IMPORTANTE
 
-return new class extends Migration
-{
-    // database/migrations/xxxx_xx_xx_create_transfers_table.php
-
-    public function up(): void
-    {
-        // 1. PRIMERO CREAMOS LA TABLA TRANSFERS
-        // (Verificamos si ya existe para evitar errores en ejecuciones manuales raras, aunque el fresh debería borrarla)
+return new class extends Migration {
+    public function up(): void {
+        // 1. CREACIÓN DE TABLAS DE SOPORTE (TRANSFERS Y ITEMS)
         if (!Schema::hasTable('transfers')) {
             Schema::create('transfers', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->string('code')->unique();
-                
-                $table->uuid('origin_branch_id');
-                $table->foreign('origin_branch_id')->references('id')->on('branches');
-
-                $table->uuid('destination_branch_id');
-                $table->foreign('destination_branch_id')->references('id')->on('branches');
-
-                $table->uuid('created_by');
-                $table->foreign('created_by')->references('id')->on('admins');
-
-                $table->uuid('received_by')->nullable();
-                $table->foreign('received_by')->references('id')->on('admins');
-                
+                $table->foreignUuid('origin_branch_id')->constrained('branches');
+                $table->foreignUuid('destination_branch_id')->constrained('branches');
+                $table->foreignUuid('created_by')->constrained('admins');
+                $table->foreignUuid('received_by')->nullable()->constrained('admins');
                 $table->string('status')->default('in_transit'); 
                 $table->text('notes')->nullable();
                 $table->timestamp('shipped_at')->useCurrent();
@@ -37,44 +24,38 @@ return new class extends Migration
             });
         }
 
-        // 2. CREAMOS LOS ITEMS DE TRANSFERENCIA
         if (!Schema::hasTable('transfer_items')) {
             Schema::create('transfer_items', function (Blueprint $table) {
                 $table->uuid('id')->primary();
-                
-                $table->uuid('transfer_id');
-                $table->foreign('transfer_id')->references('id')->on('transfers')->onDelete('cascade');
-                
-                $table->uuid('sku_id');
-                $table->foreign('sku_id')->references('id')->on('skus');
-
+                $table->foreignUuid('transfer_id')->constrained()->onDelete('cascade');
+                $table->foreignUuid('sku_id')->constrained('skus');
                 $table->integer('qty_sent');
                 $table->integer('qty_received')->nullable();
-                $table->decimal('unit_cost', 10, 2); 
+                $table->decimal('unit_cost', 12, 2); 
                 $table->timestamps();
             });
         }
 
-        // 3. ALTER TABLE INVENTORY LOTS
-        // --- CORRECCIÓN CLAVE: Verificar si la columna ya existe ---
+        // 2. ALTERACIÓN DE TABLA VERSIONADA (CRÍTICO)
         if (Schema::hasTable('inventory_lots') && !Schema::hasColumn('inventory_lots', 'transfer_id')) {
+            // PROTOCOLO DE BYPASS PARA TABLAS VERSIONADAS
+            DB::statement('SET SESSION system_versioning_alter_history = 1');
+
             Schema::table('inventory_lots', function (Blueprint $table) {
-                $table->uuid('transfer_id')->nullable();
+                $table->uuid('transfer_id')->nullable()->after('purchase_id');
                 $table->foreign('transfer_id')->references('id')->on('transfers')->nullOnDelete();
             });
         }
     }
-    public function down(): void
-    {
+
+    public function down(): void {
         if (Schema::hasColumn('inventory_lots', 'transfer_id')) {
+            DB::statement('SET SESSION system_versioning_alter_history = 1');
             Schema::table('inventory_lots', function (Blueprint $table) {
-                // Laravel a veces necesita el nombre exacto de la foránea para borrarla
-                // El nombre default suele ser: tabla_columna_foreign
                 $table->dropForeign(['transfer_id']); 
                 $table->dropColumn('transfer_id');
             });
         }
-
         Schema::dropIfExists('transfer_items');
         Schema::dropIfExists('transfers');
     }

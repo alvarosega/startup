@@ -12,18 +12,21 @@ class SkuResource extends JsonResource
         return [
             'id'                => (string) $this->id,
             'name'              => $this->sanitizeUtf8($this->name),
-            'code'              => (string) $this->code,
+            'code'              => (string) ($this->code ?? 'S/C'),
             
-            // LA LEY: Sincronización con base_price (DB y Vue)
             'base_price'        => (float) $this->base_price,
             'weight'            => (float) $this->weight,
             'conversion_factor' => (float) $this->conversion_factor,
+            
+            // CONTRATO DE VISTA: Evita el 'undefined' en el acordeón de Index.vue
+            // Por ahora es referencial (0), pero la clave DEBE existir.
+            'stock'             => (int) ($this->stock ?? 0), 
             
             'is_active'         => (bool) $this->is_active,
             
             'image_url'         => $this->image_path 
                 ? Storage::disk('public')->url($this->image_path) 
-                : asset('assets/img/placeholder.png'),
+                : asset('assets/img/placeholders/sku-default.png'),
         ];
     }
 

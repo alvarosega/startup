@@ -6,16 +6,15 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\DTOs\Admin\Inventory\Stock\StockFilterDTO;
+use App\Actions\Admin\Inventory\Stock\GetConsolidatedStockAction;
+use App\Http\Resources\Admin\Inventory\Stock\InventoryResource;
 
-// Arquitectura Estricta
-use App\DTOs\Admin\Inventory\StockFilterDTO;
-use App\Actions\Admin\Inventory\GetConsolidatedStockAction;
-use App\Actions\Admin\Inventory\GetPurchaseFormDataAction; // Reutilizamos para el selector de sucursales
-use App\Http\Resources\Admin\Inventory\InventoryResource;
-use App\DTOs\Admin\Inventory\KardexFilterDTO;
-use App\Actions\Admin\Inventory\GetStockFilterDataAction;
-use App\Actions\Admin\Inventory\GetKardexAction;
-use App\Http\Resources\Admin\Inventory\InventoryMovementResource;
+use App\Actions\Admin\Inventory\Purchase\GetPurchaseFormDataAction; // Reutilizamos para el selector de sucursales
+use App\DTOs\Admin\Inventory\Stock\KardexFilterDTO;
+use App\Actions\Admin\Inventory\Stock\GetStockFilterDataAction;
+use App\Actions\Admin\Inventory\Stock\GetKardexAction;
+use App\Http\Resources\Admin\Inventory\Stock\InventoryMovementResource;
 use App\Models\Sku;
 
 class InventoryController extends Controller

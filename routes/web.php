@@ -4,24 +4,21 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
-// --- CONTROLADORES CUSTOMER ---
 use App\Http\Controllers\Web\Customer\Auth\LoginController as CustomerLoginController;
 use App\Http\Controllers\Web\Customer\Shop\ShopController;
 use App\Http\Controllers\Web\Customer\Cart\CartController;
 use App\Http\Controllers\Web\Customer\Profiles\ProfileController;
 use App\Http\Controllers\Web\Customer\Profiles\AddressController;
-use App\Http\Controllers\Web\Customer\Auth\RegisterController;
 use App\Http\Controllers\Web\Customer\OrderController as CustomerOrderController;
 use App\Http\Controllers\Web\Customer\Auth\RegisterController as CustomerRegisterController;
 use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Customer\Auth\ResetPasswordController;
-use App\Http\Controllers\Web\Customer\Cart\BundleController as CustomerBundleController;
 use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Shop\ShopLandingController;
-use App\Http\Controllers\Web\Customer\Shop\ShopCatalogController;
 use App\Http\Controllers\Web\Customer\Shop\ShopZoneController;
-use App\Http\Controllers\Web\Customer\Shop\Category\CategoryController as ShopCategoryController;
-use App\Http\Controllers\Web\Customer\Shop\ShopBundleController;
+use App\Http\Controllers\Web\Customer\Category\CategoryController as ShopCategoryController;
+use App\Http\Controllers\Web\Customer\Bundle\BundleController as MasterBundleController;
+use App\Http\Controllers\Web\Customer\Product\ProductShowController;
 // --- CONTROLADORES ADMIN ---
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
@@ -64,37 +61,38 @@ $adminPath = env('ADMIN_PATH', 'admin');
 // =============================================================================
 // Este middleware carga el carrito, branches y datos específicos del cliente.
 // Evita cargar datos pesados para rutas que no son de cliente.
-
 Route::middleware(['inertia.customer'])->group(function () {
 
-    // --- ENVOLVEMOS TODO EN EL NAME 'customer.' PARA ALINEAR CON EL LAYOUT ---
     Route::name('customer.')->group(function () {
-        // routes/web.php (Customer Group)
+        Route::get('/product/{id}', ProductShowController::class)->name('product.show');
+        
+        Route::get('/product/{id}', ProductShowController::class)->name('product.show');
+        
         Route::name('shop.')->group(function () {
-            // Orquestador de Landing (Home)
+            // 1. HOME: Invocable (ShopLandingController tiene __invoke) - CORRECTO
             Route::get('/', ShopLandingController::class)->name('index');
             
-            // Exploración (Catalog, Zones, Categories)
-            Route::get('/search', ShopCatalogController::class)->name('search');
-            Route::get('/zone/{zone:slug}', ShopZoneController::class)->name('zone');
+            // 2. BÚSQUEDA: Estándar (Apuntamos al método 'index' de ShopController) - CORREGIDO
+            Route::get('/search', [ShopController::class, 'index'])->name('search');
+            
+            // 3. ZONAS: Estándar (Apuntamos al método 'showZone' de ShopController) - CORREGIDO
+            Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
+            
             Route::get('/category/{category:slug}', ShopCategoryController::class)->name('category');
             
-            // Configuración (Vista inmersiva del combo)
-            Route::get('/bundle/{bundle:slug}', ShopBundleController::class)->name('bundle');
-            
+            // 4. BUNDLES: Invocable (MasterBundleController tiene __invoke) - CORRECTO
+            Route::get('/bundle/{slug}', MasterBundleController::class)->name('bundle');
         });
 
         Route::prefix('cart')->name('cart.')->group(function () {
             Route::get('/', [CartController::class, 'index'])->name('index');
-            // UNIFICADO: Un solo endpoint para añadir cualquier cosa (SKU o Bundle)
             Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
             Route::patch('/{id}', [CartController::class, 'update'])->name('update');
             Route::delete('/{id}', [CartController::class, 'remove'])->name('remove');
         });
     });
 
-    // --- AUTENTICACIÓN CLIENTE (GUEST) ---
-    // Mantener fuera del grupo de nombre 'customer.' si usas los nombres estándar de Laravel (login, register)
+    // --- AUTENTICACIÓN CLIENTE ---
     Route::middleware('guest:customer')->group(function () {
         Route::get('login', [CustomerLoginController::class, 'show'])->name('login');
         Route::post('login', [CustomerLoginController::class, 'store']);
@@ -103,34 +101,22 @@ Route::middleware(['inertia.customer'])->group(function () {
         Route::post('register/validate-step-1', [CustomerRegisterController::class, 'validateStep1'])->name('register.validate-step-1');
         Route::get('password/forgot', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
         Route::post('password/email', [ForgotPasswordController::class, 'sendResetCode'])->name('password.email');
-
-        // Paso 2: Ingresar código y nueva clave
         Route::get('password/reset/{email}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
         Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
     });
 
-    // --- AUTENTICACIÓN CLIENTE (LOGOUT) ---
     Route::post('logout', [CustomerLoginController::class, 'destroy'])->name('logout');
 
     // --- ZONA PRIVADA CLIENTE (AUTH) ---
     Route::middleware(['auth:customer', 'inertia.customer'])->prefix('customer')->name('customer.')->group(function () {
-
-        // --- MÓDULO: PERFIL (Páginas Independientes) ---
+        
         Route::prefix('profile')->name('profile.')->group(function () {
-            
-            // A. VISTA: Información Personal (PersonalInfoPage.vue)
             Route::get('/', [ProfileController::class, 'index'])->name('index');
             Route::patch('/', [ProfileController::class, 'update'])->name('update');
             Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('avatar.update');
-    
-            // B. VISTA: Gestión de Direcciones (AddressesPage.vue)
-            // La ruta GET renderiza la lista y el mapa
             Route::get('/addresses', [AddressController::class, 'index'])->name('addresses');
-    
-            // C. VISTA: Seguridad (SecurityPage.vue)
             Route::get('/security', [ProfileController::class, 'security'])->name('security');
     
-            // --- ACCIONES CRUD DE DIRECCIONES (Lógica de Negocio) ---
             Route::prefix('addresses')->name('addresses.')->group(function () {
                 Route::post('/', [AddressController::class, 'store'])->name('store');
                 Route::put('/{id}', [AddressController::class, 'update'])->name('update');
@@ -138,33 +124,25 @@ Route::middleware(['inertia.customer'])->group(function () {
                 Route::patch('/{id}/default', [AddressController::class, 'makeDefault'])->name('set-default');
             });
         });
+
         Route::post('/favorites/{product}', [\App\Http\Controllers\Web\Customer\Catalog\FavoriteController::class, 'toggle'])->name('favorites.toggle');
         Route::post('/products/{product}/reviews', [\App\Http\Controllers\Web\Customer\Catalog\ReviewController::class, 'store'])->name('reviews.store');
     
         Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
         Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+
         Route::prefix('orders')->name('orders.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'index'])->name('history');// El listado general (customer.orders.history)
-            
-            // Vista de detalle y pago
-            Route::get('/{id}', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'show'])
-                ->name('show'); // customer.orders.show
-                
-            // Acción de subir comprobante
-            Route::post('/{id}/proof', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'uploadProof'])
-                ->name('upload-proof'); // customer.orders.upload-proof
+            Route::get('/', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'index'])->name('history');
+            Route::get('/{id}', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'show'])->name('show');
+            Route::post('/{id}/proof', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'uploadProof'])->name('upload-proof');
             Route::get('/{id}/track', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'track'])->name('track');
             Route::get('/{id}/telemetry', [\App\Http\Controllers\Web\Customer\Order\OrderController::class, 'getTelemetry'])->name('telemetry');
         });
-    
     });
 
-
-
-    // --- DEBUGGING (Solo Local) ---
     if (app()->environment('local')) {
         Route::get('/debug-auth', function () {
-             $customer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
+             $customer = Auth::guard('customer')->user();
              return response()->json([
                  'status' => $customer ? 'LOGUEADO' : 'GUEST',
                  'id' => $customer?->id
@@ -172,8 +150,6 @@ Route::middleware(['inertia.customer'])->group(function () {
         });
     }
 });
-
-
 // =============================================================================
 // GRUPO 2: ADMIN / BACKOFFICE (Middleware: inertia.admin)
 // =============================================================================
@@ -204,14 +180,17 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
         
             Route::resource('branches', BranchController::class);
             Route::resource('products', ProductController::class);
+            // --- PRODUCTOS ---
             Route::get('products/check-name', [ProductController::class, 'checkName'])->name('products.check-name');
+            Route::resource('products', ProductController::class);
+
+            // --- SKUS (Inyectados bajo el contexto del Producto) ---
             Route::get('products/{product}/skus/create', [SkuController::class, 'create'])->name('products.skus.create');
             Route::post('products/{product}/skus', [SkuController::class, 'store'])->name('products.skus.store');
-            
-            // AHORA SÍ, EL RECURSO MAESTRO
-            Route::resource('products', ProductController::class);
-            
+
+            // --- SKUS (Gestión Individual) ---
             Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
+            Route::resource('skus', SkuController::class)->only(['update', 'destroy']);
             Route::prefix('categories')->name('categories.')->group(function () {
                 Route::get('{category}/sku-order', [AdminCategoryController::class, 'skuOrder'])->name('sku-order');
                 Route::patch('{category}/sku-order', [AdminCategoryController::class, 'updateSkuOrder'])->name('sku-order.update');
@@ -234,6 +213,9 @@ Route::prefix($adminPath)->name('admin.')->group(function () {
             Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
             Route::get('inventory/{sku}/kardex', [InventoryController::class, 'kardex'])->name('inventory.kardex');
             // Operaciones
+            Route::get('purchases/{purchase}/items', [PurchaseController::class, 'items'])
+                ->name('purchases.items'); 
+
             Route::resource('purchases', PurchaseController::class);
             Route::resource('transfers', TransferController::class);
             //         Route::post('transfers/{id}/receive', [TransferController::class, 'receive'])->name('transfers.receive');

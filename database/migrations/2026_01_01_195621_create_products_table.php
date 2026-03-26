@@ -9,22 +9,19 @@ return new class extends Migration
     public function up(): void {
         Schema::create('products', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            // LA LEY: Integridad Relacional en cascada
-            $table->foreignUuid('brand_id')->constrained('brands')->cascadeOnDelete();
-            $table->foreignUuid('category_id')->constrained('categories')->cascadeOnDelete();
-            $table->integer('sort_order')->default(0)->index();
-            // LA LEY: Indexación para rendimiento. La unicidad (unique) la maneja 
-            // el StoreProductRequest ignorando los deleted_at.
-            $table->string('name')->index(); 
-            $table->string('slug')->index();
+            $table->foreignUuid('brand_id')->index()->constrained('brands');
+            $table->foreignUuid('category_id')->index()->constrained('categories');
+            $table->fullText('name', 'idx_product_name_fulltext');
+            // LA LEY: Unicidad estricta. El slug es la identidad pública, el name la administrativa.
+            $table->string('name')->unique(); 
+            $table->string('slug')->unique();
             
             $table->text('description')->nullable();
             $table->string('image_path')->nullable();
             
-            // Flags operacionales indexados para filtros rápidos
             $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_alcoholic')->default(false);
+            $table->integer('sort_order')->default(0)->index();
             
             $table->timestamps();
             $table->softDeletes();

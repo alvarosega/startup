@@ -3,32 +3,38 @@
 namespace App\Actions\Admin\Product;
 
 use App\Models\Product;
-use Illuminate\Support\Facades\{DB, Cache};
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class DeleteProductAction
 {
-    public function execute(Product $product): void
+    public function execute(string $productId): void
     {
-        // LA LEY: Verificación de Integridad Física antes del borrado
-        // Si el producto tiene SKUs con lotes de inventario, bloqueamos.
-        $hasStock = $product->skus()->whereHas('inventoryLots', function($q) {
-            $q->where('current_stock', '>', 0);
-        })->exists();
+        DB::transaction(function () use ($productId) {
+            // BLOQUEO PESIMISTA: Nadie toca este producto mientras decidimos su baja
+            $product = Product::where('id', $productId)->lockForUpdate()->firstOrFail();
 
-        if ($hasStock) {
-            throw ValidationException::withMessages([
-                'product' => "BLOQUEO_SEGURIDAD: No es posible eliminar el maestro '{$product->name}' porque existen existencias físicas activas en el inventario."
-            ]);
-        }
+            // LA LEY: Bloqueo de seguridad por existencias
+            $hasPhysicalStock = DB::table('inventory_lots')
+                ->whereIn('sku_id', function($query) use ($productId) {
+                    $query->select('id')->from('skus')->where('product_id', $productId);
+                })
+                ->where('current_stock', '>', 0)
+                ->exists();
 
-        DB::transaction(function () use ($product) {
-            // Borrado en cascada suave (SoftDelete)
-            $product->skus()->delete(); 
-            $product->delete();
-            
-            // DoD v2.0: Invalida la caché del catálogo
-            Cache::forget('admin_products_list');
+            if ($hasPhysicalStock) {
+                throw ValidationException::withMessages([
+                    'product' => 'BLOQUEO_SEGURIDAD: No es posible dar de baja un producto con stock activo en almacén.'
+                ]);
+            }
+
+            // ACCIÓN: Hibernación Atómica (Desactivar + SoftDelete)
+            // Desactivamos SKUs para que desaparezcan de preventas/compras inmediatamente
+            $product->skus()->update(['is_active' => false]);
+            $product->skus()->delete(); // SoftDelete (Lógica de recuperación)
+
+            $product->update(['is_active' => false]);
+            $product->delete(); // SoftDelete del Maestro
         });
     }
 }

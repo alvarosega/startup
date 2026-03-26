@@ -1,139 +1,102 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Customer\Cart;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\{Request, RedirectResponse};
-use Inertia\{Inertia, Response};
-use Illuminate\Support\Facades\Auth;
+use App\Actions\Customer\Cart\CartUpsertAction;
+use App\Actions\Customer\Cart\GetCustomerCartAction;
+use App\Actions\Customer\Cart\UpdateCartItemAction;
+use App\Actions\Customer\Cart\RemoveCartItemAction;
 use App\Services\ShopContextService;
-use App\DTOs\Customer\Cart\{SyncCartDTO, AddToCartDTO};
-use App\Http\Requests\Customer\Cart\{AddToCartRequest, UpdateCartRequest};
-use App\Http\Resources\Customer\Cart\CartResource;
-use App\Actions\Customer\Cart\{
-    GetCustomerCartAction,
-    UpdateCartItemAction,
-    RemoveCartItemAction,
-    SyncGuestCartAction,
-    AddItemToCartAction
-};
+use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class CartController extends Controller
 {
     public function __construct(
-        protected ShopContextService $contextService
+        protected ShopContextService $shopContext
     ) {}
 
     /**
-     * Renderiza el carrito con resolución de precios dinámica.
+     * Renderiza el agrupador de ítems (Soft-Cart).
      */
-    public function index(Request $request, GetCustomerCartAction $getCartAction): Response
+    public function index(Request $request, GetCustomerCartAction $action): Response
     {
-        // Prioridad: Header X-Guest-UUID > Query guest_id
-        $guestUuid = $request->header('X-Guest-UUID'); 
-    
-        $cart = $getCartAction->execute($guestUuid);
-    
+        $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
+        $cart = $action->execute($guestUuid);
+
         return Inertia::render('Customer/Cart/Index', [
-            // El Resource se encarga de llamar al PriceResolverService internamente
-            'cart' => $cart ? (new CartResource($cart))->resolve() : null
+            'cart' => $cart,
+            'shopContext' => [
+                'branch_id' => $this->shopContext->getActiveBranchId()
+            ]
         ]);
     }
 
     /**
-     * Actualiza cantidades y dispara la recalificación de precios.
+     * Protocolo de Persistencia Atómica (+ o botón añadir).
      */
-    public function update(UpdateCartRequest $request, string $id, UpdateCartItemAction $action): RedirectResponse
+    public function upsert(Request $request, CartUpsertAction $action): RedirectResponse
     {
-        $branchId = $this->contextService->getActiveBranchId();
+        // Validación técnica de entrada
+        $request->validate([
+            'target_id'   => ['required', 'string'],
+            'target_type' => ['required', 'in:sku,bundle'],
+            'quantity'    => ['required', 'integer', 'min:1', 'max:99'],
+        ]);
 
         try {
-            // La acción debe verificar stock y aplicar el nuevo escalón de precio
-            $action->execute($id, $request->validated('quantity'), $branchId);
+            $action->execute($request);
             
-            return back()->with('success', 'Carrito actualizado.');
-        } catch (\Exception $e) {
-            return back()->withErrors(['cart' => 'Error al actualizar: ' . $e->getMessage()]);
-        }
-    }
-
-    public function remove(string $id, RemoveCartItemAction $action): RedirectResponse
-    {
-        try {
-            $action->execute($id);
-            return back()->with('success', 'Producto removido.');
-        } catch (\Exception $e) {
-            return back()->withErrors(['cart' => 'No se pudo eliminar el ítem.']);
-        }
-    }
-
-    /**
-     * Fusión atómica de carritos tras el Login.
-     */
-    public function sync(Request $request, SyncGuestCartAction $action): RedirectResponse
-    {
-        $branchId = $this->contextService->getActiveBranchId();
-        $guestUuid = $request->input('guest_client_uuid');
-        $customerId = Auth::guard('customer')->id();
-
-        if (!$guestUuid || !$customerId) {
-            return redirect()->route('customer.shop.index');
-        }
-
-        $dto = SyncCartDTO::fromRequest($customerId, $guestUuid, $branchId);
-        
-        try {
-            $action->execute($dto);
-            return redirect()->route('customer.cart.index')
-                ->with('success', 'Carrito sincronizado.');
-        } catch (\Exception $e) {
-            return redirect()->route('customer.cart.index')
-                ->withErrors(['sync' => 'Error en sincronización: ' . $e->getMessage()]);
-        }
-    }
-
-    public function store(AddToCartRequest $request, AddItemToCartAction $action): RedirectResponse
-    {
-        $branchId = $this->contextService->getActiveBranchId();
-        $dto = AddToCartDTO::fromRequest($request, $branchId);
-
-        try {
-            $action->execute($dto);
-            return back()->with('success', 'Añadido al pedido.');
+            return back()->with('toast', [
+                'type'    => 'success',
+                'message' => 'Ítem sincronizado con el carrito.'
+            ]);
         } catch (\Exception $e) {
             return back()->withErrors(['cart' => $e->getMessage()]);
         }
     }
+
     /**
- * Procesa la adición de un bundle configurable al carrito.
- */
-    public function addConfigurableBundle(Request $request)
+     * Actualización manual de cantidades (Selector del carrito).
+     */
+    public function update(string $id, Request $request, UpdateCartItemAction $action): RedirectResponse
     {
         $request->validate([
-            'bundle_id' => 'required|exists:bundles,id',
-            'items'     => 'required|array', // [sku_id => quantity]
+            'quantity' => ['required', 'integer', 'min:1', 'max:99']
         ]);
 
-        $branchId = $this->contextService->getActiveBranchId();
-        $bundle = Bundle::with('items')->findOrFail($request->bundle_id);
+        try {
+            $branchId = $this->shopContext->getActiveBranchId();
+            $action->execute($id, (int) $request->quantity, $branchId);
 
-        // LOGICA DE SEGURIDAD:
-        foreach ($request->items as $skuId => $quantity) {
-            $bundleItem = $bundle->items->where('sku_id', $skuId)->first();
-            
-            // 1. ¿El SKU pertenece realmente a este bundle?
-            if (!$bundleItem) abort(403, "SKU no pertenece al bundle.");
-
-            // 2. ¿Excede el límite permitido por el bundle?
-            if ($quantity > $bundleItem->quantity) {
-                abort(422, "Excede la cantidad permitida para este ítem.");
-            }
+            return back()->with('toast', [
+                'type'    => 'success',
+                'message' => 'Cantidad actualizada.'
+            ]);
+        } catch (\Exception $e) {
+            return back()->withErrors(['cart' => $e->getMessage()]);
         }
+    }
 
-        // Si todo es correcto, guardamos en la tabla 'cart_items'
-        // El 'cart_id' se obtiene del middleware o sesión
-        // ... lógica de persistencia en DB ...
+    /**
+     * Eliminación de línea del agrupador.
+     */
+    public function remove(string $id, RemoveCartItemAction $action): RedirectResponse
+    {
+        try {
+            $action->execute($id);
 
-        return back()->with('success', 'Combo añadido correctamente.');
+            return back()->with('toast', [
+                'type'    => 'info',
+                'message' => 'Ítem removido del carrito.'
+            ]);
+        } catch (\Exception $e) {
+            return back()->withErrors(['cart' => $e->getMessage()]);
+        }
     }
 }
