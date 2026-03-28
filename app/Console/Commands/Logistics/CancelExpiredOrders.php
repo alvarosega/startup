@@ -1,6 +1,6 @@
 <?php
 
-namespace App\App\Console\Commands\Logistics;
+namespace App\Console\Commands\Logistics;
 
 use Illuminate\Console\Command;
 use App\Models\{Order, InventoryLot};

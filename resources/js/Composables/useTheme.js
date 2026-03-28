@@ -1,34 +1,47 @@
 import { ref } from 'vue';
 
-// Creamos la variable reactiva fuera de la función para que el estado se comparta
-// entre todos los componentes que usen este composable (Singleton pattern).
-const isDark = ref(false);
+// Estado global único
+const isDark = ref(localStorage.getItem('theme') !== 'light');
 
 export function useTheme() {
     
-    // Función para inicializar al cargar la app
-    const initTheme = () => {
-        // Verifica si hay preferencia guardada O si el sistema operativo está en modo oscuro
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            isDark.value = true;
-            document.documentElement.classList.add('dark');
+    /**
+     * Aplica las clases al HTML y persiste en Storage
+     */
+    const applyTheme = (dark) => {
+        const html = document.documentElement;
+        if (dark) {
+            html.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
         } else {
-            isDark.value = false;
-            document.documentElement.classList.remove('dark');
+            html.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
         }
     };
 
-    // Función para alternar
+    /**
+     * Inicialización Táctica
+     * Llama esto en el onMounted de tu Layout principal
+     */
+    const initTheme = () => {
+        const savedTheme = localStorage.getItem('theme');
+        
+        // Si es la primera vez o está guardado como dark, isDark es true
+        if (savedTheme === 'light') {
+            isDark.value = false;
+            applyTheme(false);
+        } else {
+            isDark.value = true;
+            applyTheme(true);
+        }
+    };
+
+    /**
+     * Alternar Tema
+     */
     const toggleTheme = () => {
         isDark.value = !isDark.value;
-        
-        if (isDark.value) {
-            document.documentElement.classList.add('dark');
-            localStorage.theme = 'dark';
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.theme = 'light';
-        }
+        applyTheme(isDark.value);
     };
 
     return {

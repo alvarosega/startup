@@ -6,45 +6,107 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-background text-foreground antialiased selection:bg-primary/30;
+    /* Evitamos el rebote elástico en iOS para una sensación más App-Like */
+    @apply overscroll-none;
   }
 
-  h1, h2, h3 {
+  h1, h2, h3, h4, h5, h6 {
     @apply font-extrabold tracking-tight;
   }
 }
 
 @layer components {
-  /* CARD DE PRODUCTO: EQUILIBRIO APPLE/F1 */
+  /* LEY DE INERCIA: Curva de aceleración Apple/F1 */
+  .ease-ios {
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* CARD DE PRODUCTO: LEY DE RADIO Y LEY DE CAPAS */
   .product-card {
-    @apply relative overflow-hidden transition-all duration-300 ease-out;
-    @apply bg-card rounded-lg border border-card-border;
-    /* En claro usa sombra, en oscuro usa el borde definido */
+    @apply relative overflow-hidden bg-card rounded-3xl border border-card-border;
+    @apply transition-all duration-500 ease-ios;
     @apply shadow-apple-soft dark:shadow-none;
   }
 
-  .product-card:hover {
-    @apply -translate-y-1 dark:border-primary/50;
-    @apply shadow-lg dark:shadow-f1-glow;
+  @media (hover: hover) {
+    .product-card:hover {
+      @apply -translate-y-1 dark:border-primary/50;
+      @apply shadow-lg dark:shadow-f1-glow z-10;
+    }
+
+    .product-card:hover .product-img {
+      @apply scale-105;
+    }
   }
 
-  /* BOTÓN PRINCIPAL */
+  .product-image-container {
+    @apply flex items-center justify-center p-6 w-full aspect-square;
+  }
+
+  .product-img {
+    @apply object-contain w-full h-full transition-transform duration-700 ease-ios;
+    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.12));
+  }
+
   .btn-primary {
-    @apply px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-md transition-all duration-200;
+    @apply px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl;
+    @apply transition-all duration-200 ease-ios;
     @apply active:scale-95;
     @apply dark:hover:shadow-f1-glow;
   }
 
-  /* BADGE DE OFERTA INDEPENDIENTE */
-  .badge-offer {
-    @apply px-2 py-1 text-xs font-bold uppercase rounded-sm;
-    @apply bg-accent/10 text-accent border border-accent/20;
-    @apply dark:bg-accent dark:text-black dark:shadow-[0_0_10px_rgba(0,255,0,0.4)];
+  .skeleton {
+    @apply animate-pulse bg-foreground/10 dark:bg-foreground/5;
   }
 
-  /* CONTENEDOR DE IMAGEN (TRANSPARENCIAS) */
-  .product-image-container {
-    @apply flex items-center justify-center p-4 mix-blend-multiply dark:mix-blend-normal;
+  /* UTILITY: NO-SCROLLBAR (Vital para el CategoryCarousel) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer utilities {
+  /* Resplandor dinámico F1 para el modo oscuro */
+  .shadow-f1-glow {
+    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
+  }
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 12%; 
+  
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 12%;
+  --card-border: 240 5% 92%;
+  
+  --primary: 210 100% 50%; /* Azul Apple */
+  --primary-foreground: 0 0% 100%;
+  
+  --accent: 142 76% 45%; 
+  
+  --border: 240 5% 90%;
+  --input: 240 5% 96%;
+}
+
+.dark {
+  --background: 0 0% 2%; 
+  --foreground: 0 0% 100%;
+  
+  --card: 240 10% 8%; 
+  --card-foreground: 0 0% 100%;
+  --card-border: 240 5% 15%; 
+  
+  --primary: 358 100% 44%; /* Rojo F1 */
+  --primary-foreground: 0 0% 100%;
+  
+  --accent: 142 100% 50%; 
+  
+  --border: 0 0% 15%;
+  --input: 0 0% 10%;
 }

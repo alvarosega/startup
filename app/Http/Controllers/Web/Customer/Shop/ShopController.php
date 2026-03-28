@@ -5,49 +5,48 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Customer\Shop;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
-use App\Models\MarketZone;
 use App\Services\ShopContextService;
-use App\Actions\Customer\Shop\{GetShopCatalogAction, GetShopZoneAction};
-use App\DTOs\Customer\Shop\CatalogQueryDTO; 
-use App\Http\Resources\Customer\Shop\ShopProductResource;
+use Illuminate\Http\Request;
+use Inertia\{Inertia, Response};
+
+// SILOS DE ACCIONES (Aislamiento Total)
 use App\Actions\Customer\RetailMedia\GetActiveAdCreativesAction;
+use App\Actions\Customer\Shop\GetHomeZonesAction;
+use App\Actions\Customer\Bundle\GetActiveBundlesAction;
+
+// RESOURCES
 use App\Http\Resources\Customer\RetailMedia\HeroBannerResource;
+use App\Models\MarketZone;
 
 class ShopController extends Controller
 {
     public function __construct(
-        protected ShopContextService $contextService
+        protected readonly ShopContextService $contextService
     ) {}
 
-    /**
-     * Motor de Búsqueda y Catálogo
-     */
-    public function index(
-        Request $request, 
-        GetShopCatalogAction $catalogAction,
-        GetActiveAdCreativesAction $adAction
+
+    public function __invoke(
+        GetActiveAdCreativesAction $adAction,
+        GetHomeZonesAction $zonesAction,
+        GetActiveBundlesAction $bundlesAction
     ): Response {
         $branchId = $this->contextService->getActiveBranchId();
-    
-        // 1. Ejecución del Catálogo
-        $dto = CatalogQueryDTO::fromRequest($request, $branchId);
-        $products = $catalogAction->execute($dto);
 
-        // 2. Publicidad Contextual para Búsqueda (Opcional)
-        $heroBanners = $adAction->execute($branchId, 'SEARCH_HERO');
-
-        return Inertia::render('Customer/Shop/Search', [
-            'products' => ShopProductResource::collection($products),
-            'filters'  => $request->only(['search', 'category_id', 'type']),
-            'heroBanners' => HeroBannerResource::collection($heroBanners),
+        return Inertia::render('Customer/Shop/Index', [
+            // Silo 1: Retail Media (Publicidad)
+            'heroBanners'   => HeroBannerResource::collection($adAction->execute($branchId, 'HOME_HERO')),
+            'bundleBanners' => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_PROMO')),
+            
+            // Silo 2: Zonas de Productos (Alta Densidad)
+            'zonesData'     => $zonesAction->execute($branchId), 
+            
+            // Silo 3: Bundles / Packs Activos
+            'bundlesData'   => $bundlesAction->execute($branchId),
         ]);
     }
 
     /**
-     * Vista de Zona de Mercado (Pasillos)
+     * VISTA DE ZONA ESPECÍFICA (Pasillos)
      */
     public function showZone(
         Request $request, 
@@ -57,7 +56,7 @@ class ShopController extends Controller
         $branchId = $this->contextService->getActiveBranchId();
         $brandId = $request->query('brand_id');
 
-        $data = $zoneAction->execute($zone, $branchId, $brandId);
+        $data = $zoneAction->execute($zone, $branchId, (string)$brandId);
 
         return Inertia::render('Customer/Shop/Zone', [
             'zone'             => $data['zone'],

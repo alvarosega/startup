@@ -2,7 +2,7 @@
 
 namespace App\DTOs\Admin\User;
 
-use App\Http\Requests\Admin\User\UpdateUserRequest;
+use App\Http\Requests\Admin\Users\UpdateUserRequest;
 
 readonly class UpdateUserDTO
 {

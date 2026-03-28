@@ -18,23 +18,28 @@ class CategoryController extends Controller
         private ShopContextService $contextService
     ) {}
 
-    // MODIFICAR el método __invoke para que quede así:
-    public function __invoke(string $slug, Request $request, GetCategoryDetailsAction $action, ListCategoryProductsAction $listAction): Response
-    {
+    public function __invoke(
+        string $category, // CAMBIADO: de $slug a $category para match con web.php
+        Request $request, 
+        GetCategoryDetailsAction $action, 
+        ListCategoryProductsAction $listAction
+    ): Response {
         $deviceType = $request->header('X-Device-Type', 'desktop');
+        
+        // El Action ahora debe devolver la categoría cargada con sus AdCreatives (banners)
         $categoryDTO = $action->execute($slug, $deviceType);
         $branchId = $this->contextService->getActiveBranchId();
-
+    
         return Inertia::render('Customer/Category/Show', [
+            // Pasamos el recurso polimórfico. Vue usará categoryData.id como el activeId del carrusel.
             'categoryData' => new CategoryResource($categoryDTO),
             
-            // RECTIFICACIÓN: Ejecución directa para carga inicial. 
-            // Usamos la acción que busca SKUs por categoría (incluyendo subcategorías).
             'products' => $listAction->execute($categoryDTO->id, $branchId, [
                 'search' => $request->query('search'),
                 'sort'   => $request->query('sort')
             ]),
             
+            // VITAL: Mantenemos el estado de los filtros para que el carrusel no se resetee al filtrar
             'filters' => $request->only(['search', 'sort'])
         ]);
     }

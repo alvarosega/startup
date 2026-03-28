@@ -1,199 +1,274 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+const searchQuery = ref(''); 
 import {
-    MapPin, ShoppingCart, User, Receipt, LogOut, Search,
-    Home, ShieldCheck, X, Menu, Flag, Tag, Mail, Phone, Globe,
-    Facebook, Instagram, Twitter, Youtube, CreditCard, Loader2
+    Home, ShoppingCart, User, Receipt, ShieldCheck, MapPin,
+    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck // PackageCheck debe estar aquí
 } from 'lucide-vue-next';
+// Componentes Base (Asegúrate de que las rutas sean correctas)
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
-import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue'; 
+import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
 import GlobalLoader from '@/Components/Base/GlobalLoader.vue';
 import Toast from '@/Components/Base/Toast.vue';
 
 const props = defineProps({ isProfileSection: { type: Boolean, default: false } });
 const page = usePage();
+const isSearchActive = ref(false);
+const toggleSearch = () => { isSearchActive.value = !isSearchActive.value; };
 
-// --- SISTEMA DE DATOS COMPARTIDOS ---
+// --- ESTADOS DE INTERFAZ ---
+const isSidebarExpanded = ref(false);
+const isMobileMenuOpen = ref(false);
+
+// --- DATA COMPARTIDA (Inertia + Mocks para Telemetría) ---
 const user = computed(() => page.props.auth?.user);
 const location = computed(() => page.props.location_context || { label: 'LOCALIZANDO...', type: 'branch' });
 const cartCount = computed(() => page.props.cart?.total_items || 0);
-const activeOrder = computed(() => page.props.active_order || null); 
+const activeOrder = computed(() => page.props.active_order || { progress: 75, status: 'preparing' }); // Mock para UI
 
-// --- TELEMETRÍA DE ÓRDENES ---
-const telemetryStatusColor = computed(() => {
-    if (!activeOrder.value?.latest) return 'bg-muted';
-    const statusMap = {
-        'pending_payment': 'bg-amber-500 shadow-[0_0_8px_#f59e0b]',
-        'preparing': 'bg-cyan-400 animate-pulse',
-        'dispatched': 'bg-primary animate-bounce',
-        'arrived': 'bg-accent shadow-[0_0_12px_#00ff00]',
-    };
-    return statusMap[activeOrder.value.latest.status] || 'bg-primary';
-});
-
-// --- ESTADO DE NAVEGACIÓN ---
-const showSidebar = ref(false);
-const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
-
-const menuItems = [
-    { name: 'Mi Perfil', route: 'customer.profile.index', icon: User },
-    { name: 'Direcciones', route: 'customer.profile.addresses', icon: MapPin },
-    { name: 'Mis Pedidos', route: 'customer.orders.history', icon: Receipt },
-    { name: 'Seguridad', route: 'customer.profile.security', icon: ShieldCheck },
+// --- NAVEGACIÓN UNIFICADA ---
+const navigation = [
+    { name: 'Inicio', icon: Home, route: 'customer.shop.index' },
+    { name: 'Promos', icon: Tag, route: 'customer.shop.index' }, // Ajustar ruta real
+    { name: 'Pedidos', icon: Receipt, route: 'customer.orders.history' },
+    { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses' },
+    { name: 'Seguridad', icon: ShieldCheck, route: 'customer.profile.security' },
 ];
 
 const logout = () => { router.post(route('logout')); };
 </script>
 
 <template>
-    <div class="text-foreground font-sans min-h-[100svh] relative w-full transition-colors duration-500 bg-background flex flex-col">
+    <div class="flex min-h-[100svh] bg-background text-foreground font-sans transition-colors duration-500 overflow-x-hidden">
         
         <GlobalLoader />
         <Toast />
 
-        <nav class="fixed top-0 left-0 right-0 h-[64px] flex items-center bg-background/80 backdrop-blur-xl border-b border-border/50 z-[60]">
-            <div class="container mx-auto px-4 flex items-center justify-between gap-4">
-                
-                <button @click="toggleSidebar" class="p-2 hover:bg-muted rounded-lg transition-colors">
-                    <Menu :size="24" />
-                </button>
+        <aside 
+            @mouseenter="isSidebarExpanded = true"
+            @mouseleave="isSidebarExpanded = false"
+            class="hidden lg:flex fixed left-0 top-0 h-full z-[100] flex-col bg-card/40 backdrop-blur-3xl border-r border-border/50 transition-all duration-500 ease-ios overflow-hidden"
+            :class="isSidebarExpanded ? 'w-64 shadow-2xl' : 'w-[76px]'"
+        >
+            <div class="h-20 flex items-center px-6 shrink-0">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-f1-glow shrink-0">
+                    <span class="text-white font-black text-xs">C</span>
+                </div>
+                <span class="ml-4 font-black tracking-tighter text-xl uppercase transition-opacity duration-300"
+                      :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0'">
+                    Cyber<span class="text-primary">Market</span>
+                </span>
+            </div>
 
-                <div class="flex items-center gap-2 flex-1 justify-center max-w-md">
-                    <button @click="router.visit(route('customer.profile.addresses'))" class="flex flex-col items-center px-4 py-1 hover:bg-muted rounded-full transition-all group">
-                        <div class="flex items-center gap-1">
-                            <MapPin :size="12" class="text-primary" />
-                            <span class="text-[9px] font-black text-primary uppercase tracking-tighter">Entrega en</span>
+            <nav class="flex-1 px-3 space-y-2 mt-4">
+                <Link v-for="item in navigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
+                    class="flex items-center h-12 rounded-xl transition-all duration-300 group relative"
+                    :class="route().current(item.route) ? 'bg-primary/10 text-primary shadow-sm' : 'hover:bg-foreground/5 text-foreground/60 hover:text-foreground'">
+                    
+                    <div class="w-[52px] flex justify-center shrink-0">
+                        <component :is="item.icon" :size="20" :stroke-width="2.5" />
+                    </div>
+                    
+                    <span class="font-bold text-[10px] uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-300"
+                          :class="isSidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'">
+                        {{ item.name }}
+                    </span>
+
+                    <div v-if="route().current(item.route)" class="absolute left-0 w-1 h-6 bg-primary rounded-r-full"></div>
+                </Link>
+            </nav>
+
+            <div class="p-3 border-t border-border/50 bg-foreground/[0.02]">
+                <div class="flex items-center w-full h-12 rounded-xl hover:bg-foreground/5 transition-all group overflow-hidden">
+                    <div class="w-[52px] flex justify-center shrink-0">
+                        <div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                            <User :size="16" class="text-primary" />
                         </div>
-                        <span class="text-[11px] font-bold truncate max-w-[150px] uppercase text-foreground group-hover:text-primary transition-colors">
-                            {{ location.label }}
-                        </span>
+                    </div>
+                    <div class="flex flex-col items-start transition-all duration-300"
+                         :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
+                        <span class="text-[11px] font-bold truncate w-32">{{ user?.name || 'Invitado' }}</span>
+                        <button v-if="user" @click="logout" class="text-[9px] font-black text-primary uppercase hover:underline">Salir</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main 
+            class="flex-1 flex flex-col transition-all duration-500 ease-ios w-full"
+            :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'"
+        >
+        <header class="fixed top-0 lg:top-4 left-0 right-0 z-[60] w-full px-2 lg:px-8 pointer-events-none transition-all duration-500">
+        <div class="mx-auto max-w-7xl h-16 lg:h-14 bg-transparent backdrop-blur-md border border-foreground/10 rounded-[2rem] lg:rounded-full flex items-center justify-between px-4 pointer-events-auto">
+                <div v-if="!isSearchActive" class="flex items-center gap-3 shrink-0 animate-fade-in">
+                    <button @click="isMobileMenuOpen = true" class="lg:hidden p-2 hover:bg-foreground/10 rounded-full text-foreground active:scale-95 transition-transform">
+                        <Menu :size="20" />
+                    </button>
+
+                    <button @click="router.visit(route('customer.profile.addresses'))" class="flex items-center gap-2 px-3 py-1.5 hover:bg-foreground/5 rounded-full transition-all group">
+                        <div class="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center shrink-0 shadow-f1-glow">
+                            <MapPin :size="14" class="text-primary" />
+                        </div>
+                        <div class="flex flex-col items-start leading-none">
+                            <span class="text-[9px] font-black text-primary uppercase tracking-tighter">Entregar en:</span>
+                            <span class="text-[11px] font-bold text-foreground truncate max-w-[120px] md:max-w-[200px] uppercase">
+                                {{ location.label }}
+                            </span>
+                        </div>
                     </button>
                 </div>
 
-                <div class="flex items-center gap-1 md:gap-3">
-                    <Link :href="route('customer.cart.index')" class="relative p-2 hover:bg-muted rounded-xl transition-all active:scale-90 group">
-                        <ShoppingCart :size="24" :class="route().current('customer.cart.*') ? 'text-primary' : 'text-foreground/70'" />
-                        <div v-if="cartCount > 0" class="absolute top-1 right-1 w-5 h-5 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-background shadow-lg">
-                            {{ cartCount }}
+                <div class="flex-1 flex justify-end items-center gap-2">
+                    <div v-if="isSearchActive" class="w-full flex items-center gap-2 animate-slide-left">
+                        <div class="flex-1 relative">
+                            <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-primary" :size="16" />
+                            <input 
+                                v-model="searchQuery"
+                                autoFocus
+                                type="text" 
+                                placeholder="BUSCAR EN EL CATÁLOGO..."
+                                class="w-full h-11 bg-foreground/10 border-none rounded-full pl-11 pr-4 text-[11px] font-bold tracking-widest focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-foreground/40 uppercase"
+                            />
                         </div>
-                    </Link>
+                        <button @click="toggleSearch" class="p-2.5 bg-foreground/20 rounded-full text-foreground active:scale-90">
+                            <X :size="18" />
+                        </button>
+                    </div>
 
-                    <Link :href="route('customer.shop.index')" class="hidden md:flex items-center shrink-0">
-                        <div class="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center rounded-lg shadow-lg">
-                            <Flag :size="20" class="fill-current" />
+                    <button v-else @click="toggleSearch" class="p-3 hover:bg-foreground/10 rounded-full text-foreground transition-all active:scale-90">
+                        <Search :size="20" />
+                    </button>
+
+                    <div v-if="!isSearchActive" class="flex items-center gap-2 shrink-0">
+                        <div class="hidden sm:flex items-center gap-1 mr-2">
+                            <ThemeToggler />
+                            <FullScreenToggler />
                         </div>
-                    </Link>
-                </div>
-            </div>
-        </nav>
-
-        <main class="w-full mx-auto pt-[64px] pb-[100px] flex-1 flex flex-col" :class="route().current('customer.shop.index') ? 'max-w-full px-0' : 'max-w-7xl px-4'">
-            
-            <div v-if="isProfileSection && user" class="flex flex-col md:flex-row gap-6 flex-1 py-8">
-                <aside class="hidden md:block w-64 shrink-0 bg-card/80 backdrop-blur-md rounded-2xl p-2 h-fit border border-border/50">
-                    <nav class="flex flex-col gap-1">
-                        <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)"
-                            class="flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl transition-all"
-                            :class="route().current(item.route) ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-muted'">
-                            <component :is="item.icon" :size="16" /> {{ item.name }}
+                        
+                        <Link :href="route('customer.cart.index')" class="flex items-center gap-2 p-1 pl-3 bg-foreground/10 hover:bg-foreground/20 rounded-full border border-white/10 transition-all group">
+                            <span class="text-[10px] font-black uppercase tracking-tighter hidden md:block text-foreground">Items: {{ cartCount }}</span>
+                            <div class="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center relative shadow-f1-glow group-active:scale-90 transition-transform">
+                                <ShoppingCart :size="18" />
+                                <span v-if="cartCount > 0" class="absolute -top-1 -right-1 bg-foreground text-background text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-primary">
+                                    {{ cartCount }}
+                                </span>
+                            </div>
                         </Link>
-                    </nav>
-                </aside>
-
-                <div class="flex-1 bg-card/80 backdrop-blur-md rounded-2xl p-6 border border-border/50 shadow-sm">
-                    <slot />
+                    </div>
                 </div>
-            </div>
+                </div>
+             </header>
+            <section 
+                class="flex-1 w-full mx-auto py-8 transition-all"
+                :class="route().current('customer.shop.index') ? 'max-w-full px-0' : 'max-w-7xl px-4 lg:px-8'"
+            >
+                <div v-if="!route().current('customer.shop.index')" class="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground/40">
+                    <MapPin :size="12" class="text-primary" />
+                    <span>Entrega: {{ location.label }}</span>
+                    <ChevronRight :size="12" />
+                    <span class="text-foreground">Vista Actual</span>
+                </div>
 
-            <div v-else class="w-full flex-1">
                 <slot />
-            </div>
+            </section>
 
-            <footer class="mt-auto w-full bg-card border-t border-border/50 pt-16 pb-24 md:pb-8 px-6">
-                <div class="container mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-                    <div class="flex flex-col gap-6">
-                        <span class="text-xl font-bold tracking-tighter">CYBER<span class="text-primary">MARKET</span></span>
-                        <p class="text-sm text-muted-foreground">Retail de alta densidad para usuarios técnicos.</p>
+            <footer class="w-full border-t border-border/50 py-12 px-8 bg-card/20 mt-auto">
+                <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-bold uppercase tracking-[0.2em] text-foreground/30">
+                    <div class="flex flex-col items-center md:items-start">
+                        <span class="text-foreground/60">CyberMarket Core v2.0</span>
+                        <span class="mt-1">Bolivia Logistics Engine</span>
+                    </div>
+                    <div class="flex gap-8">
+                        <a href="#" class="hover:text-primary transition-colors">Terminal</a>
+                        <a href="#" class="hover:text-primary transition-colors">Soporte</a>
+                        <a href="#" class="hover:text-primary transition-colors">Legal</a>
                     </div>
                 </div>
             </footer>
         </main>
-
-        <nav class="fixed bottom-0 left-0 right-0 h-[68px] bg-background/95 backdrop-blur-xl border-t border-border/50 z-[70] flex justify-around items-center md:hidden">
-            
-            <Link :href="route('customer.orders.history')" class="flex-1 flex flex-col items-center gap-1">
-                <Receipt :size="22" :class="route().current('customer.orders.*') ? 'text-primary' : 'text-muted-foreground'" />
-                <span class="text-[8px] font-black uppercase tracking-tighter">Pedidos</span>
+        
+        <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[76px] bg-card/95 backdrop-blur-2xl border-t border-border/80 z-[100] flex justify-around items-center px-4">
+            <Link :href="route('customer.orders.history')" 
+                class="flex flex-col items-center gap-1 transition-all active:scale-90"
+                :class="route().current('customer.orders.*') ? 'text-primary' : 'text-foreground'">
+                <PackageCheck :size="24" :stroke-width="2.5" />
+                <span class="text-[9px] font-black uppercase tracking-tighter">Historial</span>
             </Link>
 
-            <Link :href="route('customer.shop.index')" class="flex-1 flex flex-col items-center gap-1">
-                <Tag :size="22" :class="route().current('customer.shop.promotions') ? 'text-primary' : 'text-muted-foreground'" />
-                <span class="text-[8px] font-black uppercase tracking-tighter">Promos</span>
+            <Link :href="route('customer.shop.index')" 
+                class="flex flex-col items-center gap-1 transition-all"
+                :class="route().current('customer.shop.promotions') ? 'text-primary' : 'text-foreground/70'">
+                <Tag :size="22" />
+                <span class="text-[9px] font-black uppercase tracking-tighter">Promos</span>
             </Link>
 
-            <Link :href="route('customer.shop.index')" class="flex-1 flex justify-center items-center relative -mt-8">
-                <div class="w-16 h-16 rounded-2xl bg-card border-4 border-background flex items-center justify-center shadow-2xl transition-transform active:scale-90">
-                    <Home :size="28" :class="route().current('customer.shop.index') ? 'text-primary' : 'text-muted-foreground'" />
-                    <div v-if="activeOrder?.count > 0" class="absolute top-3 right-3 w-3 h-3 rounded-full border-2 border-card" :class="telemetryStatusColor"></div>
+            <Link :href="route('customer.shop.index')" class="relative -mt-10">
+                <div class="w-14 h-14 bg-card rounded-2xl border-4 border-background shadow-2xl flex items-center justify-center active:scale-95 transition-transform">
+                    <Home :size="26" :class="route().current('customer.shop.index') ? 'text-primary' : 'text-foreground'" />
                 </div>
             </Link>
 
-            <button class="flex-1 flex flex-col items-center gap-1">
-                <Search :size="22" class="text-muted-foreground" />
-                <span class="text-[8px] font-black uppercase tracking-tighter">Buscar</span>
+            <button @click="toggleSearch" class="flex flex-col items-center gap-1 text-foreground/70">
+                <Search :size="22" />
+                <span class="text-[9px] font-black uppercase tracking-tighter">Buscar</span>
             </button>
 
-            <Link :href="route('customer.profile.index')" class="flex-1 flex flex-col items-center gap-1">
-                <User :size="22" :class="route().current('customer.profile.*') ? 'text-primary' : 'text-muted-foreground'" />
-                <span class="text-[8px] font-black uppercase tracking-tighter">Perfil</span>
+            <Link :href="route('customer.profile.index')" class="flex flex-col items-center gap-1 text-foreground/70">
+                <User :size="22" />
+                <span class="text-[9px] font-black uppercase tracking-tighter">Cuenta</span>
             </Link>
         </nav>
 
-        <Transition name="slide-left">
-            <div v-if="showSidebar" class="fixed inset-0 z-[100] flex">
-                <div class="absolute inset-0 bg-background/60 backdrop-blur-sm" @click="showSidebar = false"></div>
-                <div class="relative w-[300px] h-full bg-card border-r border-border flex flex-col shadow-2xl">
-                    <div class="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                                <User :size="20" class="text-primary" />
-                            </div>
-                            <div v-if="user">
-                                <p class="text-[10px] font-bold text-muted-foreground uppercase">Cliente</p>
-                                <p class="font-bold text-sm truncate max-w-[140px]">{{ user.name }}</p>
-                            </div>
-                            <div v-else>
-                                <p class="text-sm font-bold">Invitado</p>
-                            </div>
-                        </div>
-                        <button @click="showSidebar = false" class="p-2 hover:bg-muted rounded-full transition-colors"><X :size="20" /></button>
+        <Transition name="drawer">
+            <div v-if="isMobileMenuOpen" class="fixed inset-0 z-[110] lg:hidden">
+                <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="isMobileMenuOpen = false"></div>
+                <div class="absolute left-0 top-0 h-full w-[300px] bg-card border-r border-border/50 flex flex-col shadow-2xl">
+                    <div class="p-6 flex justify-between items-center border-b border-border/50">
+                        <span class="font-black tracking-[0.2em] text-sm uppercase">Menu_Sistema</span>
+                        <button @click="isMobileMenuOpen = false" class="p-2 hover:bg-muted rounded-full transition-colors"><X :size="20" /></button>
                     </div>
-
-                    <nav class="flex-1 px-4 py-6 space-y-2">
-                        <Link v-for="item in menuItems" :key="item.route" :href="route(item.route)" @click="showSidebar = false"
-                            class="flex items-center gap-4 px-4 py-4 text-xs font-black uppercase rounded-xl hover:bg-primary/5 transition-colors group">
-                            <component :is="item.icon" :size="20" class="text-muted-foreground group-hover:text-primary transition-colors" /> 
+                    <nav class="flex-1 p-4 space-y-1">
+                        <Link v-for="item in navigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
+                            @click="isMobileMenuOpen = false"
+                            class="flex items-center gap-4 p-4 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/5 group transition-all">
+                            <component :is="item.icon" :size="18" class="group-hover:text-primary transition-colors" />
                             {{ item.name }}
                         </Link>
                     </nav>
-
-                    <div class="p-6 border-t border-border flex flex-col gap-4">
+                    <div class="p-6 border-t border-border/50 space-y-4">
                         <div class="flex gap-2">
                             <ThemeToggler class="flex-1" />
                             <FullScreenToggler class="flex-1" />
                         </div>
-                        <button v-if="user" @click="logout" class="w-full flex items-center justify-center gap-2 py-4 text-xs font-black text-primary border border-primary/20 rounded-xl hover:bg-primary/10 transition-all">
-                            <LogOut :size="16" /> CERRAR SESIÓN
+                        <button v-if="user" @click="logout" class="w-full py-4 rounded-xl border border-primary/20 text-[10px] font-black text-primary uppercase active:scale-95 transition-all">
+                            Cerrar Sesión Táctica
                         </button>
                     </div>
                 </div>
             </div>
         </Transition>
+
     </div>
 </template>
 
 <style scoped>
-.slide-left-enter-active, .slide-left-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.slide-left-enter-from, .slide-left-leave-to { transform: translateX(-100%); }
+/* Transiciones de Curva iOS */
+.drawer-enter-active, .drawer-leave-active {
+    transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.drawer-enter-from, .drawer-leave-to {
+    transform: translateX(-100%);
+}
+
+/* Ocultar scrollbar pero mantener funcionalidad */
+:deep(body)::-webkit-scrollbar {
+    display: none;
+}
+
+/* Glassmorphism Extra para F1 Mode */
+.dark aside, .dark header {
+    background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+    background-size: 24px 24px;
+}
 </style>

@@ -1,73 +1,80 @@
 <script setup>
-import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
-    // Recibe el array procesado desde page.props.categories_menu o prop directa
     categories: { type: Array, default: () => [] },
-    activeId: { type: String, default: null } 
+    activeId: { type: [String, Number], default: null },
+    loading: { type: Boolean, default: false }
 });
 
-/**
- * NAVEGACIÓN TÉCNICA (PARTIAL RELOAD)
- * Al cambiar de departamento, solo solicitamos los datos específicos 
- * de la categoría y el listado de productos para maximizar la velocidad.
- */
+const page = usePage();
+
 const navigateToCategory = (slug) => {
-    router.visit(route('customer.shop.category', { category: slug }), {
-        preserveScroll: true, // Mantenemos la posición del carrusel para UX
+    if (props.loading) return;
+    const isCategoryPage = page.component === 'Customer/Category/Show';
+    router.visit(route('customer.shop.category', { category: slug }), { 
+        preserveScroll: true,
         preserveState: true,
-        only: ['categoryData', 'products', 'filters'] 
+        ...(isCategoryPage ? { only: ['categoryData', 'products', 'filters'] } : {})
     });
 };
 
 const getCategoryStyle = (hex) => {
-    // Blindaje de color: Asegura formato HEX válido para CSS Variables
-    const color = hex && hex.startsWith('#') ? hex : (hex ? `#${hex}` : '#6366f1');
+    const cleanHex = hex ? hex.replace('#', '') : '6366f1';
+    const baseColor = `#${cleanHex}`;
+    
     return {
-        '--cat-color': color,
-        '--cat-glow-strong': `${color}99`, 
-        '--cat-glow-soft': `${color}33`,   
+        '--cat-glow-core': `${baseColor}CC`, // 80% opacidad (Núcleo denso)
+        '--cat-glow-outer': `${baseColor}33`, // 20% opacidad (Aura expansiva)
     };
 };
 </script>
 
 <template>
-    <section v-if="categories.length > 0" class="w-full py-8 bg-transparent relative z-10 overflow-hidden">
-        <div class="px-6 mb-6 flex items-center justify-between">
-            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60">
-                Explorar Departamentos
-            </h2>
-        </div>
-
+    <section class="w-full py-10 bg-transparent relative z-10 overflow-hidden">
         <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-8 pb-4">
-            <div v-for="cat in categories" :key="cat.id"
-                 @click="navigateToCategory(cat.slug)"
-                 :style="getCategoryStyle(cat.bg_color)"
-                 class="group flex flex-col items-center gap-4 snap-start shrink-0 cursor-pointer w-[100px] transition-all duration-500"
-                 :class="{ 
-                    'opacity-100 scale-110': activeId === cat.id, 
-                    'opacity-50 grayscale hover:grayscale-0 hover:opacity-100': activeId && activeId !== cat.id 
-                 }">
-                
-                <div class="relative w-[100px] h-[100px] flex items-center justify-center overflow-visible">
-                    <div class="absolute inset-0 rounded-full transition-all duration-700 blur-[25px] scale-110"
-                         :class="activeId === cat.id ? 'opacity-100 scale-125' : 'opacity-0 group-hover:opacity-60 group-hover:scale-125'"
-                         :style="{ background: 'radial-gradient(circle at center, var(--cat-glow-strong) 0%, var(--cat-glow-soft) 50%, transparent 85%)' }">
+            
+            <template v-if="!loading && categories.length > 0">
+                <div v-for="cat in categories" :key="cat.id"
+                     @click="navigateToCategory(cat.slug)"
+                     :style="getCategoryStyle(cat.bg_color)"
+                     class="group flex flex-col items-center gap-5 snap-start shrink-0 cursor-pointer w-[90px] transition-all duration-500">
+                     
+                    <div class="relative w-20 h-20 flex items-center justify-center">
+                        
+                        <div class="absolute inset-0 rounded-full transition-all duration-700 blur-[35px] pointer-events-none"
+                            :class="[
+                                // Si está activa o en Home (sin selección), mostramos el resplandor
+                                (!activeId || String(activeId) === String(cat.id)) 
+                                ? 'opacity-100 scale-[2.5] lg:scale-[3]' 
+                                : 'opacity-0 group-hover:opacity-80 group-hover:scale-[2]'
+                            ]"
+                            :style="{ 
+                                background: 'radial-gradient(circle, var(--cat-glow-core) 0%, var(--cat-glow-outer) 40%, transparent 75%)' 
+                            }">
+                        </div>
+
+                        <img :src="cat.image_url" 
+                             class="relative z-10 w-16 h-16 object-contain transition-all duration-500 group-hover:-translate-y-3 filter drop-shadow-[0_0_15px_rgba(0,0,0,0.2)]"
+                             :alt="cat.name"
+                             @error="(e) => e.target.src = '/assets/img/category_placeholder.png'">
                     </div>
 
-                    <img :src="cat.image_url" 
-                         class="relative z-10 w-16 h-16 object-contain transition-all duration-500 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] group-hover:scale-110 group-hover:-translate-y-2"
-                         :alt="cat.name"
-                         @error="(e) => e.target.src = '/assets/img/placeholder-cat.png'">
+                    <span class="text-[10px] font-black tracking-widest uppercase text-center leading-tight line-clamp-2 w-full px-1 transition-all duration-300"
+                          :class="String(activeId) === String(cat.id) ? 'text-primary scale-110' : 'text-foreground/70 group-hover:text-foreground'">
+                        {{ cat.name }}
+                    </span>
                 </div>
+            </template>
 
-                <span class="text-[10px] font-black tracking-tighter uppercase transition-colors text-center leading-tight line-clamp-2 w-full"
-                      :class="activeId === cat.id ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'">
-                    {{ cat.name }}
-                </span>
-            </div>
-            <div class="w-6 shrink-0"></div> 
+            <template v-else>
+                <div v-for="n in 8" :key="n" class="flex flex-col items-center gap-5 shrink-0 w-[90px] animate-pulse">
+                    <div class="w-16 h-16 rounded-full bg-foreground/10"></div>
+                    <div class="h-2 w-16 bg-foreground/10 rounded-full"></div>
+                </div>
+            </template>
+
+            <div class="w-12 shrink-0"></div> 
         </div>
     </section>
 </template>
@@ -76,9 +83,9 @@ const getCategoryStyle = (hex) => {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Optimización de rendimiento para animaciones de transformación */
-.group {
+/* Inercia de hardware para el efecto de resplandor masivo */
+.blur-\[35px\] {
     will-change: transform, opacity;
-    backface-visibility: hidden;
+    transform: translateZ(0); /* Forzar GPU */
 }
 </style>

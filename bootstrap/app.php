@@ -14,6 +14,24 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function () {
+            // SILO: ADMIN
+            \Illuminate\Support\Facades\Route::middleware(['web', 'inertia.admin'])
+                ->prefix(env('ADMIN_PATH', 'adm'))
+                ->name('admin.')
+                ->group(base_path('routes/admin.php'));
+
+            // SILO: CUSTOMER
+            \Illuminate\Support\Facades\Route::middleware(['web', 'inertia.customer'])
+                ->name('customer.')
+                ->group(base_path('routes/customer.php'));
+
+            // SILO: DRIVER
+            \Illuminate\Support\Facades\Route::middleware(['web', 'inertia.driver'])
+                ->prefix('driver')
+                ->name('driver.')
+                ->group(base_path('routes/driver.php'));
+        }
     )
     ->withMiddleware(function (Middleware $middleware) {
         
