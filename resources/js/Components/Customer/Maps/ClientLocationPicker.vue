@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import L from 'leaflet';
 import debounce from 'lodash/debounce';
-import { Loader2, Navigation, MapPin, AlertCircle } from 'lucide-vue-next';
+import { Loader2, Navigation, MapPin, AlertCircle, Bug } from 'lucide-vue-next';
 
 const props = defineProps({
     modelValueLat: Number,
@@ -17,21 +17,60 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValueLat', 'update:modelValueLng', 'update:modelValueAddress', 'update:modelValueBranchId']);
 
-// ESTADOS LOCALES PARA EVITAR MUTAR PROPS
 const mapRef = ref(null);
 const currentZoom = ref(props.zoom);
 const currentCenter = ref(props.center);
 
 const isLocating = ref(false);
-// El pin nace muerto. Solo revive si hay datos previos válidos o el usuario pulsa el botón.
 const locationActivated = ref(props.modelValueLat && Math.abs(props.modelValueLat) > 1);
 const mapMoving = ref(false);
 const showPrecisionHint = ref(false);
 const geoError = ref(false);
 
+// ESTADOS PARA EL "DD()" DE DEPURACIÓN
+const debugLat = ref(props.modelValueLat || currentCenter.value[0]);
+const debugLng = ref(props.modelValueLng || currentCenter.value[1]);
+const currentBranchId = ref(null);
+
 const mapUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
-// GEOLOCALIZACIÓN INVERSA (Nominatim original)
+const isInsidePolygon = (lat, lng, polygon) => {
+    // Si el polígono viene envuelto (algunos GeoJSON lo hacen), extraemos el primer nivel
+    const points = Array.isArray(polygon[0][0]) ? polygon[0] : polygon;
+    
+    if (!points || points.length < 3) return false;
+    
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        // Estructura esperada: [Latitud, Longitud] -> pi[0], pi[1]
+        // Si notas que el dd() falla, podrías tener los ejes invertidos en la DB [Lng, Lat]
+        const xi = points[i][0], yi = points[i][1];
+        const xj = points[j][0], yj = points[j][1];
+
+        const intersect = ((yi > lng) !== (yj > lng))
+            && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+};
+const checkBranchCoverage = (lat, lng) => {
+    currentBranchId.value = null; 
+    
+    // Auditoría de datos en consola (Solo para desarrollo)
+    // console.log("🔍 Verificando cobertura para:", {lat, lng}, "Sucursales:", props.activeBranches);
+
+    for (const branch of props.activeBranches) {
+        // CORRECCIÓN: Usamos 'polygon' porque así lo define el BranchResource
+        if (branch.polygon && isInsidePolygon(lat, lng, branch.polygon)) {
+            currentBranchId.value = branch.id;
+            break;
+        }
+    }
+    
+    emit('update:modelValueBranchId', currentBranchId.value);
+};
+// ============================================================================
+
 const reverseGeocode = debounce(async (lat, lng) => {
     if (mapMoving.value) return;
     try {
@@ -56,11 +95,18 @@ const handleMapMove = () => {
     if (!locationActivated.value || !mapRef.value?.leafletObject) return;
     const center = mapRef.value.leafletObject.getCenter();
     
-    // Sincronizar datos con el padre
+    // Actualizamos datos visuales del DD()
+    debugLat.value = center.lat;
+    debugLng.value = center.lng;
+
+    // Sincronizar coordenadas con el padre
     emit('update:modelValueLat', center.lat);
     emit('update:modelValueLng', center.lng);
     
-    // Feedback de carga
+    // Ejecutamos el Geofencing en tiempo real
+    checkBranchCoverage(center.lat, center.lng);
+
+    // Feedback de carga y petición de dirección
     emit('update:modelValueAddress', 'Calculando dirección...');
     reverseGeocode(center.lat, center.lng);
 };
@@ -77,14 +123,9 @@ const locateUser = () => {
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const { latitude, longitude } = position.coords;
-            
-            // 1. Activamos la visibilidad del Pin
             locationActivated.value = true;
-            
-            // 2. Movemos el mapa
             currentCenter.value = [latitude, longitude];
             
-            // Refresco de layout antes del vuelo
             nextTick(() => {
                 if(mapRef.value?.leafletObject) {
                     mapRef.value.leafletObject.invalidateSize();
@@ -92,11 +133,10 @@ const locateUser = () => {
                 }
             });
             
-            // 3. Al terminar el vuelo, recalculamos todo
             setTimeout(() => {
                 isLocating.value = false;
                 showPrecisionHint.value = true;
-                fixMapLayout(); // Refresco preventivo
+                fixMapLayout(); 
                 handleMapMove();
             }, 1600);
         },
@@ -109,7 +149,6 @@ const locateUser = () => {
     );
 };
 
-// REGLA DE ORO: Recalcular tamaño de Leaflet para evitar pantallas blancas
 const fixMapLayout = () => {
     nextTick(() => {
         if (mapRef.value?.leafletObject) {
@@ -118,23 +157,21 @@ const fixMapLayout = () => {
     });
 };
 
-// Si el padre nos cambia de paso, refrescamos el mapa
 defineExpose({ fixMapLayout });
 
 onMounted(() => {
-    // Si ya viene con ubicación, inicializar
     if (locationActivated.value) {
         reverseGeocode(props.modelValueLat, props.modelValueLng);
+        checkBranchCoverage(props.modelValueLat, props.modelValueLng);
     }
     fixMapLayout();
 });
+
 const activateManualSelection = () => {
-    // Dictamen: Desbloqueo forzado en coordenadas de contingencia
     locationActivated.value = true;
     nextTick(() => {
         if(mapRef.value?.leafletObject) {
             mapRef.value.leafletObject.invalidateSize();
-            // Centramos en el centro operativo predefinido (props.center)
             mapRef.value.leafletObject.setView(props.center, 16);
             handleMapMove();
         }
@@ -145,6 +182,21 @@ const activateManualSelection = () => {
 <template>
     <div class="relative w-full h-full min-h-[100%] bg-[#f0f2f5] overflow-hidden flex flex-col">
         
+        <div v-if="locationActivated" class="absolute top-4 left-4 z-[2000] bg-[#1e1e1e] border-l-4 p-3 shadow-2xl max-w-[280px] overflow-hidden"
+             :class="currentBranchId ? 'border-lime-500' : 'border-red-500'">
+            <p class="text-[10px] font-black uppercase mb-2 flex items-center gap-2"
+               :class="currentBranchId ? 'text-lime-400' : 'text-red-400'">
+                <Bug :size="12" /> Geo_Debug
+            </p>
+            <pre class="text-[#a3ffa3] text-[10px] font-mono leading-tight whitespace-pre-wrap">array:2 [
+  "coords" => [
+    "lat" => {{ debugLat.toFixed(5) }},
+    "lng" => {{ debugLng.toFixed(5) }}
+  ],
+  "branch_id" => <span :class="currentBranchId ? 'text-lime-300' : 'text-red-400 font-bold'">{{ currentBranchId ? `"${currentBranchId}"` : 'null' }}</span>
+]</pre>
+        </div>
+
         <l-map ref="mapRef" 
                v-model:zoom="currentZoom" 
                v-model:center="currentCenter"
@@ -170,10 +222,12 @@ const activateManualSelection = () => {
 
             <div class="relative flex flex-col items-center translate-y-[-22px] transition-transform duration-300"
                  :class="{ 'scale-110 -translate-y-10': mapMoving }">
-                <div class="w-10 h-10 rounded-full bg-white shadow-2xl flex items-center justify-center border-[3px] border-primary">
-                    <div class="w-2 h-2 bg-primary rounded-full" :class="{'animate-ping': !mapMoving}"></div>
+                <div class="w-10 h-10 rounded-full bg-white shadow-2xl flex items-center justify-center border-[3px]"
+                     :class="currentBranchId ? 'border-primary' : 'border-red-500'">
+                    <div class="w-2 h-2 rounded-full" 
+                         :class="[currentBranchId ? 'bg-primary' : 'bg-red-500', {'animate-ping': !mapMoving}]"></div>
                 </div>
-                <div class="w-1 h-6 bg-primary shadow-lg"></div>
+                <div class="w-1 h-6 shadow-lg" :class="currentBranchId ? 'bg-primary' : 'bg-red-500'"></div>
                 <div class="w-4 h-1.5 bg-black/20 rounded-full blur-[2px] mt-1 transition-all"
                      :class="mapMoving ? 'scale-150 opacity-20' : 'scale-100 opacity-100'"></div>
             </div>
@@ -201,6 +255,7 @@ const activateManualSelection = () => {
                 </button>
             </div>
         </div>
+        
         <div v-if="isLocating" class="absolute inset-0 bg-white/90 backdrop-blur-md z-[2000] flex flex-col items-center justify-center">
             <Loader2 :size="40" class="text-primary animate-spin mb-4" />
             <p class="font-black text-[10px] uppercase tracking-[0.3em] text-[#0A192F] animate-pulse">Consultando Satélites...</p>

@@ -57,12 +57,17 @@ Route::middleware(['auth:customer'])->prefix('customer')->group(function () {
     
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('index');
-        Route::patch('/', [ProfileController::class, 'update'])->name('update');
-        Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('avatar.update');
-        Route::get('/addresses', [AddressController::class, 'index'])->name('addresses');
+        Route::put('/', [ProfileController::class, 'update'])->name('update');
+        Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('update-avatar');
+        Route::get('/addresses', [AddressController::class, 'index'])->name('addresses'); // <--- Puntero corregido
         Route::get('/security', [ProfileController::class, 'security'])->name('security');
 
         Route::prefix('addresses')->name('addresses.')->group(function () {
+            // NUEVAS RUTAS PARA LA VISTA DEDICADA
+            Route::get('/create', [AddressController::class, 'create'])->name('create');
+            Route::get('/{id}/edit', [AddressController::class, 'edit'])->name('edit');
+            
+            // Rutas de acción (Ya las tenías)
             Route::post('/', [AddressController::class, 'store'])->name('store');
             Route::put('/{id}', [AddressController::class, 'update'])->name('update');
             Route::delete('/{id}', [AddressController::class, 'destroy'])->name('destroy');

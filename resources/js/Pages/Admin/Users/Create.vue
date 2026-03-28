@@ -10,7 +10,7 @@ import {
 } from 'lucide-vue-next';
 import axios from 'axios'; 
 import { watch } from 'vue';
-import ClientLocationPicker from '@/Components/Maps/ClientLocationPicker.vue';
+import ClientLocationPicker from '@/Components/Customer/Maps/ClientLocationPicker.vue';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 

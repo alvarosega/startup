@@ -188,12 +188,6 @@ const logout = () => {
                 class="flex-1 w-full mx-auto py-8 transition-all"
                 :class="route().current('customer.shop.index') ? 'max-w-full px-0' : 'max-w-7xl px-4 lg:px-8'"
             >
-                <div v-if="!route().current('customer.shop.index')" class="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground/40">
-                    <MapPin :size="12" class="text-primary" />
-                    <span>Entrega: {{ location.label }}</span>
-                    <ChevronRight :size="12" />
-                    <span class="text-foreground">Vista Actual</span>
-                </div>
 
                 <slot />
             </section>

@@ -63,8 +63,8 @@ class RegisterCustomerAction
             $customer->profile()->create([
                 'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
                 'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
-                'avatar_type'   => $data->avatarType,
-                'avatar_source' => $avatarSource,
+                'avatar_type'   => 'icon', // Forzado a icon
+                'avatar_source' => $data->avatarSource,
             ]);
 
             $customer->addresses()->create([

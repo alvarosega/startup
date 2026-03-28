@@ -2,26 +2,22 @@
 
 namespace App\DTOs\Customer\Profiles;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Customer\Profiles\UpdateProfileRequest;
 
 readonly class ProfileUpdateData
 {
     public function __construct(
-        public string $email,
-        public string $firstName,
-        public string $lastName,
         public ?string $birthDate,
-        public ?string $gender
+        public ?string $gender,
     ) {}
 
-    public static function fromRequest(Request $request): self
+    public static function fromRequest(UpdateProfileRequest $request): self
     {
+        $v = $request->validated();
+
         return new self(
-            email:     $request->validated('email'),
-            firstName: $request->validated('first_name'),
-            lastName:  $request->validated('last_name'),
-            birthDate: $request->validated('birth_date'),
-            gender:    $request->validated('gender'),
+            birthDate: $v['birth_date'] ?? null,
+            gender:    $v['gender'] ?? null,
         );
     }
 }

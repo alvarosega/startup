@@ -8,22 +8,23 @@ use Illuminate\Support\Facades\DB;
 
 class UpdatePersonalDataAction
 {
+    /**
+     * Ejecuta la actualización de datos complementarios del cliente.
+     * Solo birth_date y gender son mutables.
+     */
     public function execute(Customer $customer, ProfileUpdateData $data): void
     {
         DB::transaction(function () use ($customer, $data) {
-            // 1. Actualizar cuenta principal
-            $customer->update(['email' => $data->email]);
+            
+            // Actualizamos únicamente la tabla de perfiles
+            $customer->profile()->update([
+                'birth_date' => $data->birthDate,
+                'gender'     => $data->gender,
+            ]);
 
-            // 2. Actualizar o crear perfil extendido
-            $customer->profile()->updateOrCreate(
-                ['customer_id' => $customer->id],
-                [
-                    'first_name' => $data->firstName,
-                    'last_name'  => $data->lastName,
-                    'birth_date' => $data->birthDate,
-                    'gender'     => $data->gender,
-                ]
-            );
+            // Nota: El email y el teléfono son inmutables por diseño de seguridad.
+            // Si en el futuro se requiere cambiar el email, se debe crear un Action 
+            // separado con protocolo de verificación (OTP).
         });
     }
 }
