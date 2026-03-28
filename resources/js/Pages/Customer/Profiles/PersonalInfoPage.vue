@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useForm, Head } from '@inertiajs/vue3'; 
 import ShopLayout from '@/Layouts/ShopLayout.vue';
-import ProfileNav from './Partials/ProfileNav.vue'; // IMPORTACIÓN DEL NAV
+import ProfileNav from './Partials/ProfileNav.vue';
 import { 
     Lock, Calendar, ShieldCheck, 
     Edit3, X, Check, Camera
@@ -13,7 +13,35 @@ const props = defineProps({
     availableAvatars: Array,
 });
 
-// ... [Mantén aquí tu lógica de infoForm, avatarForm, isInfoModalOpen e isAvatarModalOpen] ...
+// ESTADOS DE CONTROL
+const isInfoModalOpen = ref(false);
+const isAvatarModalOpen = ref(false);
+
+// FORMULARIO DE INFORMACIÓN PERSONAL (PUT)
+const infoForm = useForm({
+    birth_date: props.user.profile?.birth_date || '',
+    gender: props.user.profile?.gender || 'prefer_not_to_say',
+});
+
+// FORMULARIO DE AVATAR (POST)
+const avatarForm = useForm({
+    avatar_source: props.user.profile?.avatar_source
+});
+
+const updateInfo = () => {
+    infoForm.put(route('customer.profile.update'), {
+        onSuccess: () => isInfoModalOpen.value = false,
+        preserveScroll: true
+    });
+};
+
+const updateAvatar = (source) => {
+    avatarForm.avatar_source = source;
+    avatarForm.post(route('customer.profile.update-avatar'), {
+        onSuccess: () => isAvatarModalOpen.value = false,
+        preserveScroll: true
+    });
+};
 
 const genderLabel = {
     male: 'Masculino',
@@ -43,7 +71,7 @@ const genderLabel = {
                             <img :src="user.profile.avatar_url" class="w-full h-full object-cover" />
                         </div>
                         <button @click="isAvatarModalOpen = true" 
-                            class="absolute -bottom-2 -right-2 bg-zinc-900 text-white p-3 rounded-2xl shadow-xl hover:scale-110 transition-all">
+                            class="absolute -bottom-2 -right-2 bg-zinc-900 text-white p-3 rounded-2xl shadow-xl hover:scale-110 transition-all active:scale-95">
                             <Camera :size="16" />
                         </button>
                     </div>
@@ -87,7 +115,56 @@ const genderLabel = {
                 </div>
             </div>
 
+            <div v-if="isInfoModalOpen" class="fixed inset-0 z-[600] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" @click="isInfoModalOpen = false"></div>
+                <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div class="px-8 py-6 border-b border-zinc-100 flex justify-between items-center">
+                        <h3 class="font-bold text-zinc-900">Metadata de Usuario</h3>
+                        <button @click="isInfoModalOpen = false" class="p-2 hover:bg-zinc-100 rounded-full transition text-zinc-400"><X :size="20" /></button>
+                    </div>
+                    <form @submit.prevent="updateInfo" class="p-8 space-y-6">
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-bold text-zinc-500 uppercase ml-1">Fecha de Nacimiento</label>
+                            <input type="date" v-model="infoForm.birth_date" class="w-full h-12 bg-zinc-50 border-zinc-200 rounded-2xl px-4 text-sm font-medium focus:ring-zinc-900 focus:border-zinc-900 transition-all" />
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-bold text-zinc-500 uppercase ml-1">Género</label>
+                            <select v-model="infoForm.gender" class="w-full h-12 bg-zinc-50 border-zinc-200 rounded-2xl px-4 text-sm font-medium focus:ring-zinc-900 focus:border-zinc-900 transition-all">
+                                <option value="male">Masculino</option>
+                                <option value="female">Femenino</option>
+                                <option value="other">Otro</option>
+                                <option value="prefer_not_to_say">No especificar</option>
+                            </select>
+                        </div>
+                        <button type="submit" :disabled="infoForm.processing" class="w-full h-14 bg-zinc-900 text-white rounded-2xl font-bold uppercase text-xs tracking-[0.2em] active:scale-95 transition-all disabled:opacity-30">
+                            <span v-if="infoForm.processing">Sincronizando...</span>
+                            <span v-else>Guardar Cambios</span>
+                        </button>
+                    </form>
+                </div>
             </div>
 
-        </ShopLayout>
+            <div v-if="isAvatarModalOpen" class="fixed inset-0 z-[600] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" @click="isAvatarModalOpen = false"></div>
+                <div class="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div class="px-8 py-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+                        <h3 class="font-bold text-zinc-900">Identidad Visual</h3>
+                        <button @click="isAvatarModalOpen = false" class="text-zinc-400 hover:text-zinc-900 transition-colors"><X :size="20" /></button>
+                    </div>
+                    <div class="p-8 grid grid-cols-4 gap-3 bg-white">
+                        <button v-for="avatar in availableAvatars" :key="avatar.id"
+                            @click="updateAvatar(avatar.id)"
+                            class="aspect-square rounded-2xl border-2 transition-all p-2 relative group"
+                            :class="avatarForm.avatar_source === avatar.id ? 'border-zinc-900 bg-zinc-50' : 'border-transparent opacity-40 hover:opacity-100'">
+                            <img :src="avatar.url" class="w-full h-full object-contain" />
+                            <div v-if="avatarForm.avatar_source === avatar.id" class="absolute -top-1 -right-1 bg-zinc-900 text-white rounded-full p-0.5 shadow-lg">
+                                <Check :size="10" />
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </ShopLayout>
 </template>
