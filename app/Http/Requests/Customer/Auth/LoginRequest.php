@@ -1,35 +1,32 @@
 <?php
 
 namespace App\Http\Requests\Customer\Auth;
-use App\Traits\ValidatesGlobalIdentity;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Traits\ValidatesGlobalIdentity;
 
 class LoginRequest extends FormRequest
 {
     use ValidatesGlobalIdentity;
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+
     public function authorize(): bool
     {
-        return true; // <--- IMPORTANTE: Si está en false, da error 403
+        return true; 
     }
 
     protected function prepareForValidation(): void
     {
-        $this->normalizeIdentityData(); // <--- USAR NORMALIZACIÓN CENTRALIZADA
+        // Dictamen: Normalizar el teléfono (+591...) antes de procesar la regla
+        $this->normalizeIdentityData(); 
     }
-    /**
-     * Get the validation rules that apply to the request.
-     */
+
     public function rules(): array
     {
         return [
-            'phone'    => ['required', 'string'],
-            'password' => ['required', 'string'],
-            'remember' => ['boolean'],
-            'guest_client_uuid' => ['nullable', 'string'],
+            'phone'             => ['required', 'string'],
+            'password'          => ['required', 'string'],
+            'remember'          => ['boolean'],
+            'guest_client_uuid' => ['nullable', 'string', 'uuid'],
         ];
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\DTOs\Customer\Auth;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Customer\Auth\RegisterRequest;
 use Illuminate\Http\UploadedFile;
 
 readonly class RegisterCustomerData
@@ -12,10 +12,10 @@ readonly class RegisterCustomerData
         public string $countryCode,
         public string $email,
         public string $password,
-        public string $firstName, // <--- AÑADIR
-        public string $lastName,  // <--- AÑADIR
+        public string $firstName,
+        public string $lastName,
         public string $address,
-        public ?string $alias,
+        public string $alias,
         public ?string $details,
         public float $latitude,
         public float $longitude,
@@ -26,28 +26,27 @@ readonly class RegisterCustomerData
         public ?UploadedFile $avatarFile,
     ) {}
 
-    public static function fromRequest(\App\Http\Requests\Customer\Auth\RegisterRequest $request): self
+    public static function fromRequest(RegisterRequest $request): self
     {
-        // Usamos $request->validated() para asegurar que solo pasen datos que pasaron el filtro
         $v = $request->validated();
     
         return new self(
-            phone:       $v['phone'],
-            countryCode: strtoupper($v['country_code']), 
-            email:       $v['email'],
-            password:    $v['password'],
-            firstName:   $v['first_name'],
-            lastName:    $v['last_name'],
-            address:     $v['address'],
-            alias:       $v['alias'] ?? 'Mi Ubicación',
+            phone:       (string) $v['phone'],
+            countryCode: (string) $v['country_code'],
+            email:       (string) $v['email'],
+            password:    (string) $v['password'],
+            firstName:   (string) $v['first_name'],
+            lastName:    (string) $v['last_name'],
+            address:     (string) $v['address'],
+            alias:       (string) ($v['alias'] ?? 'Casa'),
             details:     $v['details'] ?? null,
             latitude:    (float) $v['latitude'],
             longitude:   (float) $v['longitude'],
-            branchId:   $v['branch_id'] ?? null,
-            guestUuid:  $v['guest_client_uuid'] ?? null,
-            avatarFile: $request->file('avatar_file'),
-            avatarType:  $v['avatar_type'],
-            avatarSource:$v['avatar_source'] ?? 'avatar_1.svg',
+            branchId:    $v['branch_id'] ?? null,
+            guestUuid:   $v['guest_client_uuid'] ?? null,
+            avatarType:  (string) $v['avatar_type'],
+            avatarSource:(string) ($v['avatar_source'] ?? 'avatar_1.png'),
+            avatarFile:  $request->file('avatar_file'),
         );
     }
-} 
+}

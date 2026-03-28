@@ -4,15 +4,13 @@ namespace App\Actions\Customer\Auth;
 
 use App\Models\Customer;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth; // <--- CORRECCIÓN: Falta esta línea
-use App\Services\Geo\BranchCoverageService;
-use App\Actions\Customer\Cart\SyncGuestCartAction;
 use App\DTOs\Customer\Cart\SyncCartDTO;
+use App\Actions\Customer\Cart\SyncGuestCartAction;
+use App\Services\Geo\BranchCoverageService;
 use App\Services\ShopContextService;
-use App\Http\Resources\Customer\Branch\BranchResource;
+use App\Exceptions\IdentityCollisionException;
+use Illuminate\Support\Facades\{DB, Hash, Storage};
+
 class RegisterCustomerAction
 {
     public function __construct(
@@ -23,36 +21,54 @@ class RegisterCustomerAction
 
     public function execute(RegisterCustomerData $data, ?string $idempotencyKey = null): Customer
     {
-        // 1. Idempotencia: Evitar duplicados por doble clic
-        if ($idempotencyKey && $cachedUser = cache()->get("reg_key_{$idempotencyKey}")) {
-            return $cachedUser;
+        // 1. Idempotencia Nivel L1 (Caché)
+        if ($idempotencyKey && $cached = cache()->get("reg_key_{$idempotencyKey}")) {
+            return $cached;
         }
-    
-        $customer = DB::transaction(function () use ($data) {
-            // Validación de Cobertura
-            $identifiedBranch = $this->geoService->identifyBranch($data->latitude, $data->longitude);
-            $assignedBranchId = $identifiedBranch ?? $this->shopContext->getDefaultBranchId();
-    
-            $user = Customer::create([
-                'phone'        => $data->phone,
-                'email'        => $data->email,
-                'password'     => Hash::make($data->password),
-                'country_code' => strtoupper($data->countryCode),
-                'branch_id'    => $assignedBranchId,
-                'latitude'     => $data->latitude,
-                'longitude'    => $data->longitude,
-                'is_active'    => false, // Zero-Trust: Inactivo por defecto
+
+        // 2. Gestión de I/O (Fuera de la transacción para mayor velocidad de DB)
+        $avatarSource = $data->avatarSource;
+        if ($data->avatarType === 'custom' && $data->avatarFile) {
+            $path = $data->avatarFile->store('avatars/uploads', 'public');
+            $avatarSource = basename($path);
+        }
+
+        return DB::transaction(function () use ($data, $idempotencyKey, $avatarSource) {
+            
+            // 3. Blindaje de Identidad (Bloqueo Pesimista)
+            $this->validateGlobalUniqueness($data->email, $data->phone);
+
+            // 4. Verificación de duplicados por Idempotencia en DB
+            if ($idempotencyKey) {
+                $duplicate = Customer::where('idempotency_key', $idempotencyKey)->lockForUpdate()->first();
+                if ($duplicate) return $duplicate;
+            }
+
+            $assignedBranchId = $this->geoService->identifyBranch($data->latitude, $data->longitude) 
+                                ?? $this->shopContext->getDefaultBranchId();
+
+            // 5. Persistencia
+            $customer = Customer::create([
+                'phone'           => $data->phone,
+                'email'           => $data->email,
+                'password'        => Hash::make($data->password),
+                'country_code'    => $data->countryCode,
+                'branch_id'       => $assignedBranchId,
+                'latitude'        => $data->latitude,
+                'longitude'       => $data->longitude,
+                'is_active'       => true,
+                'idempotency_key' => $idempotencyKey,
             ]);
-    
-            $user->profile()->create([
-                'first_name' => $data->firstName,
-                'last_name'  => $data->lastName,
-                'avatar_type' => $data->avatarType,
-                'avatar_source' => $data->avatarSource ?? 'avatar_1.svg',
+
+            $customer->profile()->create([
+                'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
+                'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
+                'avatar_type'   => $data->avatarType,
+                'avatar_source' => $avatarSource,
             ]);
-    
-            $user->addresses()->create([
-                'alias'      => $data->alias ?? 'Casa',
+
+            $customer->addresses()->create([
+                'alias'      => $data->alias,
                 'address'    => $data->address,
                 'reference'  => $data->details,
                 'latitude'   => $data->latitude,
@@ -60,32 +76,38 @@ class RegisterCustomerAction
                 'branch_id'  => $assignedBranchId,
                 'is_default' => true,
             ]);
-    
-            $user->assignRole('customer');
-            return $user;
-        });
-    
-        // 2. Login Automático
-        Auth::guard('customer')->login($customer);
-    
-        // 3. Side Effect: Sincronización de Carrito (No debe matar el proceso si falla)
-        if ($data->guestUuid) {
-            try {
+
+            $customer->assignRole('customer');
+
+            // 6. Sincronización Post-Persistencia
+            if ($data->guestUuid) {
                 $this->syncAction->execute(new SyncCartDTO(
                     customerId: $customer->id,
                     guestUuid:  $data->guestUuid,
-                    branchId:   $customer->branch_id
+                    branchId:   $assignedBranchId
                 ));
-            } catch (\Exception $e) {
-                Log::error("[CartSync] Error no crítico post-registro: " . $e->getMessage());
+            }
+
+            if ($idempotencyKey) {
+                cache()->put("reg_key_{$idempotencyKey}", $customer, 600);
+            }
+
+            return $customer;
+        });
+    }
+
+    private function validateGlobalUniqueness(string $email, string $phone): void
+    {
+        foreach (['admins', 'customers', 'drivers'] as $table) {
+            $exists = DB::table($table)
+                ->where('email', $email)
+                ->orWhere('phone', $phone)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($exists) {
+                throw new IdentityCollisionException("Conflicto de identidad detectado en silo.");
             }
         }
-    
-        // Guardar en caché para idempotencia
-        if ($idempotencyKey) {
-            cache()->put("reg_key_{$idempotencyKey}", $customer, 600);
-        }
-    
-        return $customer;
     }
 }

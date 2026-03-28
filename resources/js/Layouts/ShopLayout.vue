@@ -34,8 +34,20 @@ const navigation = [
     { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses' },
     { name: 'Seguridad', icon: ShieldCheck, route: 'customer.profile.security' },
 ];
-
-const logout = () => { router.post(route('logout')); };
+// Actualización del array navigation (Surgical Fix)
+const filteredNavigation = computed(() => {
+    return navigation.filter(item => {
+        // Rutas que SIEMPRE son visibles
+        const publicRoutes = ['customer.shop.index'];
+        if (publicRoutes.includes(item.route)) return true;
+        
+        // Rutas que requieren autoridad (USER != NULL)
+        return !!user.value;
+    });
+});
+const logout = () => { 
+    router.post(route('customer.logout')); 
+};
 </script>
 
 <template>
@@ -80,14 +92,29 @@ const logout = () => { router.post(route('logout')); };
             <div class="p-3 border-t border-border/50 bg-foreground/[0.02]">
                 <div class="flex items-center w-full h-12 rounded-xl hover:bg-foreground/5 transition-all group overflow-hidden">
                     <div class="w-[52px] flex justify-center shrink-0">
-                        <div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                            <User :size="16" class="text-primary" />
+                        <div class="w-8 h-8 rounded-full border border-primary/20 overflow-hidden bg-foreground/5 flex items-center justify-center">
+                            <img v-if="user" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
+                            <User v-else :size="16" class="text-primary" />
                         </div>
                     </div>
                     <div class="flex flex-col items-start transition-all duration-300"
-                         :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
+                        :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
+                        
                         <span class="text-[11px] font-bold truncate w-32">{{ user?.name || 'Invitado' }}</span>
-                        <button v-if="user" @click="logout" class="text-[9px] font-black text-primary uppercase hover:underline">Salir</button>
+                        
+                        <div v-if="!user" class="flex gap-2 items-center">
+                            <Link :href="route('customer.login')" class="text-[9px] font-black text-primary uppercase hover:underline">
+                                Entrar
+                            </Link>
+                            <span class="text-[9px] text-foreground/20">|</span>
+                            <Link :href="route('customer.register')" class="text-[9px] font-black text-foreground/60 uppercase hover:underline">
+                                Unirse
+                            </Link>
+                        </div>
+                                                
+                        <button v-else @click="logout" class="text-[9px] font-black text-primary uppercase hover:underline">
+                            Cerrar Sesión
+                        </button>
                     </div>
                 </div>
             </div>
@@ -212,10 +239,21 @@ const logout = () => { router.post(route('logout')); };
                 <span class="text-[9px] font-black uppercase tracking-tighter">Buscar</span>
             </button>
 
-            <Link :href="route('customer.profile.index')" class="flex flex-col items-center gap-1 text-foreground/70">
-                <User :size="22" />
-                <span class="text-[9px] font-black uppercase tracking-tighter">Cuenta</span>
-            </Link>
+            <component 
+                :is="user ? Link : 'div'" 
+                :href="user ? route('customer.profile.index') : null" 
+                class="flex flex-col items-center gap-1 transition-all"
+                :class="user ? 'text-foreground/70 active:scale-95' : 'opacity-30 cursor-default'"
+            >
+                <div v-if="user" class="w-6 h-6 rounded-lg border border-primary/30 overflow-hidden shadow-f1-glow">
+                    <img :src="user.profile.avatar_url" class="w-full h-full object-cover" :alt="user.profile.first_name" />
+                </div>
+                <User v-else :size="22" />
+                
+                <span class="text-[9px] font-black uppercase tracking-tighter">
+                    {{ user ? 'Perfil' : 'Cuenta' }}
+                </span>
+            </component>
         </nav>
 
         <Transition name="drawer">
@@ -223,7 +261,9 @@ const logout = () => { router.post(route('logout')); };
                 <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="isMobileMenuOpen = false"></div>
                 <div class="absolute left-0 top-0 h-full w-[300px] bg-card border-r border-border/50 flex flex-col shadow-2xl">
                     <div class="p-6 flex justify-between items-center border-b border-border/50">
-                        <span class="font-black tracking-[0.2em] text-sm uppercase">Menu_Sistema</span>
+                        <span class="font-black tracking-[0.15em] text-sm uppercase truncate max-w-[180px]">
+                            {{ user ? user.profile.first_name : 'Menu_Sistema' }}
+                        </span>
                         <button @click="isMobileMenuOpen = false" class="p-2 hover:bg-muted rounded-full transition-colors"><X :size="20" /></button>
                     </div>
                     <nav class="flex-1 p-4 space-y-1">
@@ -235,13 +275,26 @@ const logout = () => { router.post(route('logout')); };
                         </Link>
                     </nav>
                     <div class="p-6 border-t border-border/50 space-y-4">
-                        <div class="flex gap-2">
-                            <ThemeToggler class="flex-1" />
-                            <FullScreenToggler class="flex-1" />
+                        <div v-if="!user" class="grid grid-cols-2 gap-3">
+                            <Link :href="route('customer.login')" 
+                                class="flex items-center justify-center h-12 rounded-xl bg-primary text-black text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">
+                                Entrar
+                            </Link>
+                            <Link :href="route('customer.register')" 
+                                class="flex items-center justify-center h-12 rounded-xl border border-border text-foreground text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">
+                                Registro
+                            </Link>
                         </div>
-                        <button v-if="user" @click="logout" class="w-full py-4 rounded-xl border border-primary/20 text-[10px] font-black text-primary uppercase active:scale-95 transition-all">
-                            Cerrar Sesión Táctica
-                        </button>
+
+                        <div v-else class="space-y-4">
+                            <div class="flex gap-2">
+                                <ThemeToggler class="flex-1" />
+                                <FullScreenToggler class="flex-1" />
+                            </div>
+                            <button @click="logout" class="w-full py-4 rounded-xl border border-primary/20 text-[10px] font-black text-primary uppercase active:scale-95 transition-all">
+                                Terminar Sesión Táctica
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

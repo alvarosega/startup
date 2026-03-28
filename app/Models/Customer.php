@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Customer extends Authenticatable
 {
@@ -17,24 +18,27 @@ class Customer extends Authenticatable
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var array<int, string>
+     * EXCLUSIÓN: 'id' y 'trust_score' (Admin Only).
+     */
     protected $fillable = [
-        'id', 
-        'branch_id', // FK Binaria
-        'phone', 
-        'country_code', 
-        'email', 
-        'password', 
-        'trust_score', 
+        'branch_id',
+        'phone',
+        'country_code',
+        'email',
+        'password',
         'is_active',
+        'idempotency_key',
         'last_login_at',
         'latitude',
         'longitude',
     ];
 
-    // ASEGURAR que branch_id esté en hidden (Ya lo tienes, pero verifícalo)
     protected $hidden = [
-        'password', 
+        'password',
         'remember_token',
+        'idempotency_key',
     ];
 
     protected $casts = [
@@ -46,24 +50,33 @@ class Customer extends Authenticatable
         'longitude' => 'float',
     ];
 
-    // --- 4. RELACIONES ---
+    /**
+     * Fuerza el uso de UUIDv7 para ordenamiento por tiempo nativo.
+     */
+    public function newUniqueId(): string
+    {
+        return (string) Str::uuid7();
+    }
+
+    /**
+     * Sanitización de Identidad: Normaliza el Country Code a Mayúsculas.
+     */
+    protected function countryCode(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value) => strtoupper($value),
+        );
+    }
+
+    // --- RELACIONES DE ALTA DENSIDAD ---
+
     public function profile()
     {
-        // Especificamos claves para mayor seguridad
         return $this->hasOne(CustomerProfile::class, 'customer_id', 'id');
     }
 
     public function addresses()
     {
         return $this->hasMany(CustomerAddress::class, 'customer_id', 'id');
-    }
-    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(Order::class, 'customer_id', 'id');
-    }
-    public function favoriteProducts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
-    {
-        return $this->belongsToMany(Product::class, 'favorites', 'customer_id', 'product_id')
-                    ->withTimestamps();
     }
 }

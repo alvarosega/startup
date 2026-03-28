@@ -2,7 +2,7 @@
 
 namespace App\DTOs\Customer\Auth;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Customer\Auth\LoginRequest;
 
 readonly class LoginCustomerData
 {
@@ -13,17 +13,16 @@ readonly class LoginCustomerData
         public ?string $guestUuid = null
     ) {}
 
-
-    public static function fromRequest(Request $request): self
+    public static function fromRequest(LoginRequest $request): self
     {
-        // Usamos validated() para todo lo que esté en las reglas por seguridad
+        // Dictamen: Usamos solo datos validados para evitar inyección de parámetros sucios
         $v = $request->validated();
 
         return new self(
-            phone:     $v['phone'],
-            password:  $v['password'],
+            phone:     (string) $v['phone'],
+            password:  (string) $v['password'],
             remember:  (bool) ($v['remember'] ?? false),
-            guestUuid: $v['guest_client_uuid'] ?? null // Ya validado en el Request
+            guestUuid: $v['guest_client_uuid'] ?? null
         );
     }
 }

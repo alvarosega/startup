@@ -31,11 +31,11 @@ const geoError = ref(false);
 
 const mapUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
-// GEOLOCALIZACIÓN INVERSA
+// GEOLOCALIZACIÓN INVERSA (Nominatim original)
 const reverseGeocode = debounce(async (lat, lng) => {
     if (mapMoving.value) return;
     try {
-        const response = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
         if (!response.ok) throw new Error("Servicio de mapas no disponible");
         
         const data = await response.json();
@@ -83,7 +83,14 @@ const locateUser = () => {
             
             // 2. Movemos el mapa
             currentCenter.value = [latitude, longitude];
-            mapRef.value?.leafletObject?.flyTo([latitude, longitude], 18, { duration: 1.5 });
+            
+            // Refresco de layout antes del vuelo
+            nextTick(() => {
+                if(mapRef.value?.leafletObject) {
+                    mapRef.value.leafletObject.invalidateSize();
+                    mapRef.value.leafletObject.flyTo([latitude, longitude], 18, { duration: 1.5 });
+                }
+            });
             
             // 3. Al terminar el vuelo, recalculamos todo
             setTimeout(() => {
@@ -121,6 +128,18 @@ onMounted(() => {
     }
     fixMapLayout();
 });
+const activateManualSelection = () => {
+    // Dictamen: Desbloqueo forzado en coordenadas de contingencia
+    locationActivated.value = true;
+    nextTick(() => {
+        if(mapRef.value?.leafletObject) {
+            mapRef.value.leafletObject.invalidateSize();
+            // Centramos en el centro operativo predefinido (props.center)
+            mapRef.value.leafletObject.setView(props.center, 16);
+            handleMapMove();
+        }
+    });
+};
 </script>
 
 <template>
@@ -163,20 +182,25 @@ onMounted(() => {
         <div v-if="!locationActivated" 
              class="absolute inset-0 bg-white/60 backdrop-blur-[8px] z-[1001] flex flex-col items-center justify-center p-8 text-center">
             <div class="w-24 h-24 bg-primary/10 rounded-[3rem] flex items-center justify-center text-primary mb-6 shadow-inner">
-                <MapPin :size="48" stroke-width="2.5" :class="{'animate-bounce': !isLocating}" />
+                <MapPin :size="48" stroke-width="2.5" />
             </div>
-            <h2 class="text-3xl font-black text-[#0A192F] uppercase italic mb-3 tracking-tighter">Sincronizar Ubicación</h2>
-            <p class="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-10 max-w-[280px] leading-relaxed">
-                El mapa está bloqueado hasta que sincronicemos tu posición real mediante satélite.
+            <h2 class="text-3xl font-black text-[#0A192F] uppercase italic mb-3 tracking-tighter">Acceso a Ubicación</h2>
+            <p class="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-10 max-w-[280px]">
+                Recomendamos GPS para máxima precisión, o puedes seleccionar manualmente.
             </p>
-            <button @click="locateUser" 
-                    class="bg-primary text-white px-12 py-5 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] shadow-xl flex items-center gap-4 active:scale-90 transition-all hover:bg-primary/90">
-                <Navigation :size="20" fill="currentColor" />
-                Sincronizar ahora
-            </button>
-            <p v-if="geoError" class="text-[10px] text-destructive font-bold uppercase mt-4">⚠️ Acceso denegado. Revisa tus ajustes de GPS.</p>
+            
+            <div class="flex flex-col w-full gap-3 max-w-[280px]">
+                <button @click="locateUser" 
+                        class="bg-primary text-white w-full py-5 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] shadow-xl flex items-center justify-center gap-4 active:scale-95 transition-all">
+                    <Navigation :size="20" fill="currentColor" /> Sincronizar GPS
+                </button>
+                
+                <button @click="activateManualSelection" 
+                        class="bg-white text-[#0A192F] border-2 border-[#0A192F]/10 w-full py-4 rounded-[24px] font-black uppercase text-[10px] tracking-[0.1em] active:scale-95 transition-all">
+                    Selección Manual
+                </button>
+            </div>
         </div>
-
         <div v-if="isLocating" class="absolute inset-0 bg-white/90 backdrop-blur-md z-[2000] flex flex-col items-center justify-center">
             <Loader2 :size="40" class="text-primary animate-spin mb-4" />
             <p class="font-black text-[10px] uppercase tracking-[0.3em] text-[#0A192F] animate-pulse">Consultando Satélites...</p>

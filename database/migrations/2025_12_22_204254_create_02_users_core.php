@@ -142,29 +142,38 @@ return new class extends Migration
         });
 
 
-        // =================================================================================
-        // SILO 3: CUSTOMERS
-        // =================================================================================
         Schema::create('customers', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary(); // UUIDv7 generado en el modelo
             $table->uuid('branch_id')->index();
             
+            // Identidad y Seguridad
             $table->string('phone', 20)->unique();
             $table->string('country_code', 3)->default('BO');
             $table->string('email')->unique();
-            $table->string('password')->nullable(); 
+            $table->string('password')->nullable();
+            
+            // Control de Concurrencia e Idempotencia
+            $table->uuid('idempotency_key')->nullable()->unique(); 
+            
+            // Estado y Scoring
             $table->integer('trust_score')->default(50);
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(true); // REGLA: Zero-Trust
+            
             $table->timestamp('email_verified_at')->nullable();
             $table->decimal('latitude', 10, 8)->nullable();
             $table->decimal('longitude', 11, 8)->nullable();
+            
+            // Auditoría Estándar
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
             $table->timestamps();
-            $table->index(['phone', 'country_code']);
-            
+        
+            // Índices Compuestos (Query Law)
+            $table->index(['branch_id', 'is_active', 'created_at']);
             $table->foreign('branch_id')->references('id')->on('branches');
         });
+        
+
 
         Schema::create('customer_profiles', function (Blueprint $table) {
             $table->uuid('customer_id')->primary();

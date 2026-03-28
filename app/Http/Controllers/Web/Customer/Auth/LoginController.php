@@ -3,58 +3,49 @@
 namespace App\Http\Controllers\Web\Customer\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Illuminate\Http\{RedirectResponse, Request};
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Inertia\Response;
 use App\Http\Requests\Customer\Auth\LoginRequest; 
 use App\Actions\Customer\Auth\LoginCustomerAction;
-use App\Actions\Customer\Cart\CartMergeAction;
 use App\DTOs\Customer\Auth\LoginCustomerData;
-use App\Http\Resources\Customer\CustomerResource;
-use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
-    public function show()
+    public function show(): Response
     {
         return Inertia::render('Customer/Auth/Login', [
             'status' => session('status'),
         ]);
     }
 
-    public function store(
-        LoginRequest $request, 
-        LoginCustomerAction $action,
-        CartMergeAction $mergeAction // Experto en fusión
-    ): RedirectResponse {
+    public function store(LoginRequest $request, LoginCustomerAction $action): RedirectResponse
+    {
+        // El DTO ahora encapsula la lógica de extracción del Guest UUID
         $data = LoginCustomerData::fromRequest($request);
 
         try {
-            // 1. Ejecución de autenticación
+            // Ejecución Atómica: Autenticación + Sincronización de Carrito (Interno)
             $action->execute($data); 
+
+            // Seguridad de Sesión
             $request->session()->regenerate();
             
-            // 2. PROTOCOLO DE FUSIÓN (Merge)
-            // Recuperamos el rastro del invitado antes de que se pierda la sesión antigua
-            $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
-            $customerId = (string) Auth::guard('customer')->id();
-
-            if ($guestUuid) {
-                $mergeAction->execute($guestUuid, $customerId);
-            }
-
-            // 3. Redirección limpia (El Middleware inyectará el Resource del usuario)
-            return redirect()->route('customer.shop.index');
+            return redirect()->intended(route('customer.shop.index'));
             
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
     }
 
-    public function destroy(Request $request)
+    public function destroy(Request $request): RedirectResponse
     {
-        \Illuminate\Support\Facades\Auth::guard('customer')->logout();
+        Auth::guard('customer')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        
         return redirect()->route('customer.shop.index');
     }
 }

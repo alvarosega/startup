@@ -46,6 +46,8 @@ Route::middleware('guest:customer')->group(function () {
     Route::post('password/email', [ForgotPasswordController::class, 'sendResetCode'])->name('password.email');
     Route::get('password/reset/{email}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
     Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
+    Route::get('/geo/validate', [App\Http\Controllers\Api\Geo\GeoController::class, 'validatePoint'])
+    ->name('api.geo.validate');
 });
 
 Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
