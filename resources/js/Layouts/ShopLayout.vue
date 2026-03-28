@@ -4,12 +4,11 @@ import { Link, usePage, router } from '@inertiajs/vue3';
 const searchQuery = ref(''); 
 import {
     Home, ShoppingCart, User, Receipt, ShieldCheck, MapPin,
-    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck // PackageCheck debe estar aquí
+    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck // Asegurar PackageCheck
 } from 'lucide-vue-next';
 // Componentes Base (Asegúrate de que las rutas sean correctas)
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
-import GlobalLoader from '@/Components/Base/GlobalLoader.vue';
 import Toast from '@/Components/Base/Toast.vue';
 
 const props = defineProps({ isProfileSection: { type: Boolean, default: false } });
@@ -42,7 +41,6 @@ const logout = () => { router.post(route('logout')); };
 <template>
     <div class="flex min-h-[100svh] bg-background text-foreground font-sans transition-colors duration-500 overflow-x-hidden">
         
-        <GlobalLoader />
         <Toast />
 
         <aside 
@@ -96,7 +94,7 @@ const logout = () => { router.post(route('logout')); };
         </aside>
 
         <main 
-            class="flex-1 flex flex-col transition-all duration-500 ease-ios w-full"
+            class="flex-1 flex flex-col transition-all duration-500 ease-ios w-full pt-16 lg:pt-20"
             :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'"
         >
         <header class="fixed top-0 lg:top-4 left-0 right-0 z-[60] w-full px-2 lg:px-8 pointer-events-none transition-all duration-500">

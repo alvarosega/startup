@@ -24,6 +24,7 @@ class ListCategoryProductsAction
                 'p.image_path as product_image',
                 'p.is_alcoholic',
                 'p.sort_order as product_sort',
+                'c.bg_color',
                 'b.name as brand_name',
                 'ib.total_physical',
                 'ib.total_reserved',
@@ -48,6 +49,7 @@ class ListCategoryProductsAction
             ])
             ->setBindings([$branchId, $now, $now, $branchId, $now, $now], 'select')
             ->join('products as p', 's.product_id', '=', 'p.id')
+            ->join('categories as c', 'p.category_id', '=', 'c.id')
             ->join('brands as b', 'p.brand_id', '=', 'b.id')
             ->leftJoin('inventory_balances as ib', function($join) use ($branchId) {
                 $join->on('ib.sku_id', '=', 's.id')

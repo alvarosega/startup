@@ -31,7 +31,7 @@ const getCategoryStyle = (hex) => {
 </script>
 
 <template>
-    <section class="w-full py-10 bg-transparent relative z-10 overflow-hidden">
+    <section class="w-full py-4 bg-transparent relative z-10 overflow-visible">
         <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-8 pb-4">
             
             <template v-if="!loading && categories.length > 0">

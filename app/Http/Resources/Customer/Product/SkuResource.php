@@ -28,6 +28,9 @@ class SkuResource extends JsonResource
 
         return [
             'id'                  => (string) (data_get($this->resource, 'sku_id') ?? data_get($this->resource, 'id')),
+            'bg_color' => data_get($this->resource, 'bg_color') 
+                  ? '#' . ltrim((string) data_get($this->resource, 'bg_color'), '#') 
+                  : null,
             'product_id'          => (string) data_get($this->resource, 'product_id'),
             'name'                => (string) (data_get($this->resource, 'sku_name') ?? data_get($this->resource, 'name')),
             'brand_name'          => (string) data_get($this->resource, 'brand_name'),

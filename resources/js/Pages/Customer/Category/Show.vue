@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { ChevronLeft, PackageOpen, ArrowDownUp, Search } from 'lucide-vue-next';
+import { PackageOpen, ArrowDownUp, Search } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
 // Layouts & Components
@@ -24,14 +24,12 @@ const category = computed(() => props.categoryData?.data || props.categoryData |
 const fullProductsList = computed(() => props.products?.data || []);
 const globalCategories = computed(() => page.props.categories_menu || []);
 
-// --- INFINITE RENDER LOGIC ---
-const itemsPerPage = 12; // Aumentado para mejor matriz inicial
+// --- RENDERIZADO PROGRESIVO ---
+const itemsPerPage = 12;
 const visibleCount = ref(itemsPerPage);
 const observerTarget = ref(null);
 
-const displayedProducts = computed(() => {
-    return fullProductsList.value.slice(0, visibleCount.value);
-});
+const displayedProducts = computed(() => fullProductsList.value.slice(0, visibleCount.value));
 
 const loadMore = (entries) => {
     if (entries[0].isIntersecting && visibleCount.value < fullProductsList.value.length) {
@@ -44,7 +42,7 @@ onMounted(() => {
     if (observerTarget.value) observer.observe(observerTarget.value);
 });
 
-// --- FILTRADO & ESTADO ---
+// --- FILTRADO ---
 const searchQuery = ref(props.filters?.search || '');
 const sortBy = ref(props.filters?.sort || 'relevance');
 
@@ -65,45 +63,46 @@ watch([searchQuery, sortBy], () => updateServerFilters());
 
         <div class="w-full min-h-screen bg-background pb-32">
             
-            <div class="-mt-4 relative z-20">
-                <CategoryCarousel 
-                    :categories="globalCategories" 
-                    :active-id="category.id" 
-                />
-            </div>
-            
-            <section v-if="category.banners?.length > 0" class="px-4 lg:px-8 mt-2 max-w-7xl mx-auto">
-                <RetailBannerSlot :banners="category.banners" />
-            </section>
+            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-2 flex items-center gap-4">
+                <div v-if="category.name" class="flex items-center gap-4">
+                    <div class="w-1.5 h-10 rounded-full" :style="{ backgroundColor: category.bg_color || 'var(--primary)' }"></div>
+                    <h1 class="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none text-foreground italic">
+                        {{ category.name }}
+                    </h1>
+                </div>
+                <div v-else class="h-10 w-64 bg-foreground/5 animate-pulse rounded-lg"></div>
+            </header>
 
-            <div class="px-4 lg:px-8 max-w-7xl mx-auto mt-6">
-                
-                <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                    <div v-if="category.name" class="flex items-center gap-4">
-                        <div class="w-1.5 h-10 rounded-full" :style="{ backgroundColor: category.bg_color || 'var(--primary)' }"></div>
-                        <h1 class="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none text-foreground italic">
-                            {{ category.name }}
-                        </h1>
-                    </div>
-                    <div v-else class="h-12 w-64 bg-foreground/5 animate-pulse rounded-xl"></div>
-
-                    <div v-if="!loading" class="flex items-center gap-2 bg-card/40 backdrop-blur-xl border border-border/40 p-1.5 rounded-3xl shadow-f1-glow/5 w-full md:w-auto">
-                        <div class="relative group flex-1 md:flex-none">
-                            <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" :size="14" />
-                            <input v-model="searchQuery" type="text" placeholder="BUSCAR ASSET..."
-                                   class="w-full md:w-60 pl-10 pr-4 py-2 bg-background/50 border-none rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
+            <div class="sticky top-16 z-40 bg-background/95 backdrop-blur-xl border-b border-border/10">
+                <div class="max-w-7xl mx-auto">
+                    <CategoryCarousel 
+                        :categories="globalCategories" 
+                        :active-id="category.id" 
+                    />
+                    <div class="px-4 lg:px-8 pb-2">
+                        <div v-if="!loading" class="flex items-center gap-2 bg-foreground/[0.03] border border-border/40 p-1 rounded-2xl w-full md:w-max">
+                            <div class="relative group flex-1 md:flex-none">
+                                <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" :size="12" />
+                                <input v-model="searchQuery" type="text" placeholder="FILTRAR EN ESTE SILO..."
+                                       class="w-full md:w-64 pl-8 pr-4 py-1.5 bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none focus:ring-0 transition-all" />
+                            </div>
+                            <div class="h-4 w-px bg-border/40 hidden md:block"></div>
+                            <select v-model="sortBy" class="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-7">
+                                <option value="relevance">RELEVANCIA</option>
+                                <option value="price_asc">MIN_COST</option>
+                                <option value="price_desc">MAX_COST</option>
+                            </select>
                         </div>
-                        <div class="h-6 w-px bg-border/50 hidden md:block"></div>
-                        <select v-model="sortBy" class="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-8">
-                            <option value="relevance">RELEVANCIA</option>
-                            <option value="price_asc">MIN_COST</option>
-                            <option value="price_desc">MAX_COST</option>
-                        </select>
+                        <div v-else class="h-9 w-full md:w-80 bg-foreground/5 animate-pulse rounded-2xl border border-border/20"></div>
                     </div>
-                    <div v-else class="h-12 w-full md:w-80 bg-foreground/5 animate-pulse rounded-3xl border border-border/40"></div>
-                </header>
+                </div>
+            </div>
+            <div class="px-4 lg:px-8 max-w-7xl mx-auto pt-2">
+                <section v-if="category.banners?.length > 0" class="mb-4">
+                    <RetailBannerSlot :banners="category.banners" />
+                </section>
 
-                <div v-if="displayedProducts.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6">
+                <div v-if="displayedProducts.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
                     <SkuCard 
                         v-for="sku in displayedProducts" 
                         :key="sku.id" 
@@ -112,15 +111,15 @@ watch([searchQuery, sortBy], () => updateServerFilters());
                     />
                 </div>
 
-                <div v-else-if="!loading" class="py-32 flex flex-col items-center text-center border border-dashed border-border/50 rounded-[3rem] bg-card/10">
+                <div v-else-if="!loading" class="py-32 flex flex-col items-center text-center">
                     <PackageOpen :size="32" class="text-muted-foreground/20 mb-4" />
-                    <h2 class="text-xs font-black uppercase tracking-[0.5em] text-muted-foreground/40">Silo_Vaciado</h2>
-                    <p class="text-[9px] uppercase tracking-widest text-muted-foreground/30 mt-2 italic">No se detectaron productos en esta frecuencia.</p>
+                    <h2 class="text-xs font-black uppercase tracking-[0.5em] text-muted-foreground/40">Silo_Sin_Activos</h2>
+                    <p class="text-[9px] uppercase tracking-widest text-muted-foreground/30 mt-2">No se detectó inventario en esta frecuencia.</p>
                 </div>
 
-                <div ref="observerTarget" class="w-full h-20 mt-10">
-                    <div v-if="visibleCount < fullProductsList.length || loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6 opacity-40">
-                        <div v-for="n in 4" :key="n" class="aspect-[3/4] rounded-[2rem] bg-card animate-pulse border border-border/20"></div>
+                <div ref="observerTarget" class="w-full h-10 mt-6">
+                    <div v-if="visibleCount < fullProductsList.length || loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4 opacity-30">
+                        <div v-for="n in 6" :key="n" class="aspect-[3/4] rounded-[2rem] bg-card animate-pulse border border-border/10"></div>
                     </div>
                 </div>
             </div>
@@ -130,21 +129,21 @@ watch([searchQuery, sortBy], () => updateServerFilters());
 
 <style scoped>
 .section-animate {
-    animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: reveal 0.6s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(15px); }
+@keyframes reveal {
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 select option {
-    background-color: #1a1a1a;
+    background-color: #0b1221;
     color: white;
 }
 
-/* Scroll más suave para alta densidad */
-.no-scrollbar {
-    -webkit-overflow-scrolling: touch;
+/* Transición suave para el sticky glass */
+.sticky {
+    transition: background-color 0.3s ease;
 }
 </style>

@@ -1,17 +1,28 @@
 <script setup>
 import { computed } from 'vue';
-import { router, usePage, Link } from '@inertiajs/vue3';
-import { Plus, Minus, Package, Zap, ChevronRight } from 'lucide-vue-next';
+import { router, usePage } from '@inertiajs/vue3';
+import { Plus, Minus, Zap } from 'lucide-vue-next';
 
 const props = defineProps({
-    sku: { type: Object, default: null }, // Ahora es opcional para permitir el modo loading
+    sku: { type: Object, default: null },
     loading: { type: Boolean, default: false },
     isActive: { type: Boolean, default: false }
 });
 
 const page = usePage();
 
-// --- PROTECCIÓN DE COMPUTED ---
+// --- LÓGICA DE IDENTIDAD VISUAL ---
+const dynamicStyle = computed(() => {
+    // Si no hay color, usamos var(--primary) como fallback
+    const catColor = props.sku?.bg_color || 'var(--primary)';
+    
+    // Convertimos el valor en una variable CSS local para usarla en el <style>
+    return {
+        '--local-sku-color': catColor,
+    };
+});
+
+// --- LÓGICA DE CARRITO ---
 const cartItem = computed(() => {
     if (!props.sku) return null;
     const items = page.props.cart?.items || [];
@@ -19,124 +30,137 @@ const cartItem = computed(() => {
 });
 
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
+const hasDiscount = computed(() => props.sku?.list_price > props.sku?.final_price);
 
-/**
- * ACCIONES (Solo ejecutables si no está cargando)
- */
-const handleAddFirstTime = () => {
+const handleAdd = () => {
     if (props.loading) return;
     router.post(route('customer.cart.upsert'), {
         target_id: props.sku.id,
         target_type: 'sku',
         quantity: 1
-    }, { preserveScroll: true });
+    }, { preserveScroll: true, preserveState: true });
 };
 
-const handleUpdateQuantity = (newQty) => {
-    if (props.loading) return;
+const updateQty = (delta) => {
+    const newQty = quantity.value + delta;
     if (newQty < 1) {
-        router.delete(route('customer.cart.remove', cartItem.value.id), { preserveScroll: true });
+        const itemId = cartItem.value?.id;
+        if(itemId) router.delete(route('customer.cart.remove', itemId), { preserveScroll: true });
     } else {
-        router.patch(route('customer.cart.update', cartItem.value.id), { 
-            quantity: newQty 
-        }, { preserveScroll: true });
+        router.patch(route('customer.cart.update', cartItem.value.id), { quantity: newQty }, { preserveScroll: true });
     }
 };
 
-const navigateToVariants = () => {
+const goToProduct = () => {
     if (props.loading || !props.sku) return;
-    router.visit(route('customer.product.show', { 
-        id: props.sku.product_id, 
-        active_sku: props.sku.id 
-    }));
+    router.visit(route('customer.shop.product', { id: props.sku.id }));
 };
 </script>
 
 <template>
-    <div @click="navigateToVariants"
-         :class="[
-            'product-card group p-3 flex flex-col h-full cursor-pointer active:scale-[0.97]',
-            isActive ? 'ring-2 ring-primary border-transparent' : 'border-card-border',
-            loading ? 'pointer-events-none' : ''
-         ]">
+    <div v-if="!loading && sku" 
+        @click="goToProduct"
+        :style="dynamicStyle"
+        class="group relative flex flex-col bg-card border border-border/40 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-[var(--local-sku-color)]/20 active:scale-[0.98]"
+        :class="{ 'ring-2 ring-[var(--local-sku-color)] border-transparent': quantity > 0 || isActive }">
         
-        <div class="product-image-container relative bg-foreground/[0.03] dark:bg-foreground/[0.01] rounded-[1.5rem] mb-4 overflow-hidden">
-            <template v-if="!loading && sku">
-                <img :src="sku.image" 
-                     class="product-img group-hover:scale-105" 
-                     :alt="sku.name">
+        <div class="h-1 w-full relative z-20" :style="{ backgroundColor: 'var(--local-sku-color)' }"></div>
 
-                <div v-if="sku.discount_percentage > 0" 
-                     class="absolute top-3 left-3 bg-primary text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-f1-glow">
-                    -{{ sku.discount_percentage }}%
+        <div class="p-3 flex flex-col h-full relative z-10">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/80 truncate drop-shadow-md">
+                    {{ sku.brand_name || 'GENERIC_ASSET' }}
+                </span>
+                <div v-if="sku.stock <= 5 && sku.stock > 0" class="flex items-center gap-1">
+                    <Zap :size="10" class="text-accent fill-accent" />
+                    <span class="text-[8px] font-black text-accent uppercase italic">Low_Stock</span>
+                </div>
+            </div>
+
+            <div class="aspect-square relative rounded-2xl overflow-hidden mb-3 shadow-inner border border-white/10 static-split-bg">
+                
+                <img :src="sku.image" 
+                     class="relative z-20 w-full h-full object-contain p-2 transition-transform duration-700 group-hover:scale-110 drop-shadow-2xl"
+                     :alt="sku.name">
+                
+                <div v-if="hasDiscount" class="absolute top-2 left-2 z-30">
+                    <span class="bg-primary text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-lg uppercase italic">
+                        -{{ sku.discount_percentage }}%
+                    </span>
                 </div>
 
-                <div class="absolute bottom-3 right-3 z-20">
-                    <button v-if="quantity === 0"
-                            @click.stop="handleAddFirstTime"
-                            class="w-10 h-10 bg-card text-foreground rounded-full flex items-center justify-center shadow-xl border border-border/50 hover:bg-primary hover:text-white transition-all active:scale-90">
-                        <Plus :size="20" stroke-width="3" />
+                <div class="absolute bottom-2 right-2 z-30">
+                    <button v-if="quantity === 0" @click.stop="handleAdd"
+                            class="w-10 h-10 bg-white/20 backdrop-blur-xl text-foreground rounded-full flex items-center justify-center border border-white/20 shadow-xl hover:bg-[var(--local-sku-color)] hover:text-white transition-all">
+                        <Plus :size="18" stroke-width="3" />
                     </button>
 
-                    <div v-else @click.stop class="flex items-center bg-card rounded-full border border-primary/30 shadow-2xl p-1 animate-in zoom-in duration-300">
-                        <button @click="handleUpdateQuantity(quantity - 1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-muted text-primary"><Minus :size="14" stroke-width="3"/></button>
+                    <div v-else @click.stop class="flex items-center bg-[var(--local-sku-color)] text-white rounded-full p-0.5 shadow-lg animate-in zoom-in duration-300">
+                        <button @click="updateQty(-1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <Minus :size="14" stroke-width="3"/>
+                        </button>
                         <span class="w-6 text-center font-mono font-black text-xs">{{ quantity }}</span>
-                        <button @click="handleUpdateQuantity(quantity + 1)" class="w-7 h-7 flex items-center justify-center rounded-full bg-primary text-white shadow-lg"><Plus :size="14" stroke-width="3"/></button>
+                        <button @click="updateQty(1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <Plus :size="14" stroke-width="3"/>
+                        </button>
                     </div>
                 </div>
-            </template>
-            
-            <div v-else class="w-full h-full flex items-center justify-center">
-                <div class="w-2/3 h-2/3 skeleton rounded-full opacity-20"></div>
             </div>
-        </div>
 
-        <div class="flex-1 flex flex-col px-1">
-            <template v-if="!loading && sku">
-                <div class="mb-2">
-                    <span v-if="sku.list_price > sku.final_price" class="text-[10px] font-bold text-muted-foreground/30 line-through block leading-none">
+            <div class="flex-1 flex flex-col justify-between">
+                <h3 class="text-[11px] font-black uppercase leading-[1.2] tracking-tight text-foreground line-clamp-2 mb-2 group-hover:text-[var(--local-sku-color)] transition-colors drop-shadow-sm">
+                    {{ sku.name }}
+                </h3>
+
+                <div class="space-y-0.5">
+                    <span v-if="hasDiscount" class="text-[9px] font-bold text-muted-foreground/50 line-through block leading-none font-mono">
                         {{ sku.list_price.toFixed(2) }}
                     </span>
                     <div class="flex items-baseline gap-1">
-                        <span class="text-[10px] font-black text-primary uppercase">Bs</span>
-                        <span class="text-xl font-black tracking-tighter text-foreground font-mono">
+                        <span class="text-[9px] font-black text-[var(--local-sku-color)] uppercase">Bs</span>
+                        <span class="text-xl font-black tracking-tighter text-foreground font-mono leading-none">
                             {{ sku.final_price.toFixed(2) }}
                         </span>
                     </div>
                 </div>
-
-                <div class="space-y-1">
-                    <h3 class="font-bold text-[13px] leading-tight text-foreground line-clamp-2 min-h-[32px] group-hover:text-primary transition-colors">
-                        {{ sku.name }}
-                    </h3>
-                    <div class="flex items-center justify-between">
-                        <p class="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 italic">
-                            {{ sku.brand_name }}
-                        </p>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full" :class="sku.stock > 0 ? 'bg-accent shadow-[0_0_5px_hsl(var(--accent))]' : 'bg-destructive'"></div>
-                            <span class="text-[8px] font-black uppercase tracking-tighter" :class="sku.stock > 0 ? 'text-accent' : 'text-destructive'">
-                                {{ sku.stock > 0 ? 'ONLINE' : 'OUT' }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </template>
-
-            <div v-else class="space-y-3">
-                <div class="h-6 w-24 skeleton rounded-md"></div>
-                <div class="space-y-2">
-                    <div class="h-4 w-full skeleton rounded-md"></div>
-                    <div class="h-4 w-2/3 skeleton rounded-md"></div>
-                </div>
             </div>
         </div>
     </div>
+
+    <div v-else class="aspect-[3/4] bg-muted/20 border border-border/10 rounded-3xl animate-pulse overflow-hidden"></div>
 </template>
 
 <style scoped>
-/* Las clases .product-card, .skeleton y .ease-ios ya están en tu main.css */
-.product-card {
-    min-height: 340px; /* Previene saltos de layout */
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Gradiente Estático Diagonal (Mitad Categoría, Mitad Primario)
+  Se usa la técnica de "multi-capa" pura en CSS para evitar que Vue rompa las variables de Tailwind.
+*/
+.static-split-bg {
+    /* Eliminamos el color de fondo sólido para que no interfiera */
+    background-color: transparent;
+
+    /* Creamos un flujo suave entre la categoría y el primario */
+    /* Usamos 135deg para que el flujo sea de esquina superior izquierda a inferior derecha */
+    background-image: linear-gradient(
+        135deg,
+        var(--local-sku-color) 0%,
+        hsl(var(--primary)) 100%
+    );
+    
+    /* Mantenemos la opacidad alta para que el color sea vibrante como en tu imagen */
+    opacity: 1;
+}
+
+/* En Dark Mode, suavizamos un poco para que el PNG destaque más */
+.dark .static-split-bg {
+    opacity: 0.7;
+    /* Añadimos un pequeño tinte negro para profundizar el degrade */
+    background-image: linear-gradient(
+        135deg,
+        var(--local-sku-color),
+        hsl(var(--primary)),
+        #000000
+    );
 }
 </style>
