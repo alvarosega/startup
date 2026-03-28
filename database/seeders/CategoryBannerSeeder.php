@@ -35,11 +35,13 @@ class CategoryBannerSeeder extends Seeder
                 [
                     'campaign_id'  => $campaign->id,
                     'placement_id' => $placement->id,
-                    // CIRUGÍA: Usar la clase completa en lugar del string corto
                     'target_type'  => Sku::class, 
                     'target_id'    => $sku->id,
-                    'image_mobile_path'  => "retail-media/categories/mobile_{$category->slug}.webp",
-                    'image_desktop_path' => "retail-media/categories/desktop_{$category->slug}.webp",
+                    
+                    // CORRECCIÓN QUIRÚRGICA: Forzamos null para activar placeholders
+                    'image_mobile_path'  => null,
+                    'image_desktop_path' => null,
+                    
                     'action_type'  => 'NAVIGATE',
                     'sort_order'   => 1,
                     'is_active'    => true
@@ -47,6 +49,6 @@ class CategoryBannerSeeder extends Seeder
             );
         }
 
-        $this->command->info('🎯 Banners de categoría vinculados exitosamente.');
+        $this->command->info('🎯 Banners de categoría vinculados (Sin imágenes, usando placeholders).');
     }
 }

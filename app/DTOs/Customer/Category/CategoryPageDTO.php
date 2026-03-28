@@ -12,7 +12,7 @@ readonly class CategoryPageDTO
         public string $slug,
         public ?string $description,
         public ?string $image_path,
-        
+        public ?string $bg_color, // AÑADIDO
         public array $seo,
         /** @var CreativeDTO[] */
         public array $banners,

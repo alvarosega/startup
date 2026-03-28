@@ -39,7 +39,8 @@ class GetCategoryDetailsAction
                 id: (string) $sub->id,
                 name: $sub->name,
                 slug: $sub->slug,
-                image_path: $sub->image_path
+                image_path: $sub->image_path,
+                bg_color: $sub->bg_color // PASAMOS EL COLOR AQUÍ
             ))
             ->toArray();
 
@@ -97,7 +98,7 @@ class GetCategoryDetailsAction
             ->map(fn($banner) => new CreativeDTO(
                 id: (string) $banner->id,
                 name: $banner->name,
-                image_url: $banner->{$imageColumn}, 
+                image_path: $banner->{$imageColumn}, 
                 action_type: $banner->action_type,
                 target_data: [
                     'id'   => (string) $banner->target_id,

@@ -6,6 +6,7 @@ namespace App\Actions\Customer\Product;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Pagination\CursorPaginator;
+use App\Http\Resources\Customer\Product\SkuResource;
 
 class ListCategoryProductsAction
 {
@@ -19,10 +20,10 @@ class ListCategoryProductsAction
                 'p.id as product_id',
                 's.name as sku_name',
                 's.image_path as sku_image',
-                's.sort_order as sku_sort',      // REQUERIDO PARA CURSOR
+                's.sort_order as sku_sort',
                 'p.image_path as product_image',
                 'p.is_alcoholic',
-                'p.sort_order as product_sort',  // REQUERIDO PARA CURSOR
+                'p.sort_order as product_sort',
                 'b.name as brand_name',
                 'ib.total_physical',
                 'ib.total_reserved',
@@ -68,38 +69,18 @@ class ListCategoryProductsAction
             });
         }
 
-        // Definición de ordenamiento
         $sort = $filters['sort'] ?? 'relevance';
         match ($sort) {
             'price_asc'  => $query->orderBy('final_price', 'asc'),
             'price_desc' => $query->orderBy('final_price', 'desc'),
-            default      => $query->orderBy('sku_sort', 'asc')
-                                  ->orderBy('product_sort', 'asc')
-                                  ->orderBy('sku_name', 'asc')
+            default => $query->orderBy('sku_sort', 'asc')
+                            ->orderBy('product_sort', 'asc')
+                            ->orderBy('sku_name', 'asc')
         };
 
         return $query->cursorPaginate(20)->through(function ($row) {
-            $finalPrice = (float) ($row->final_price ?? 0);
-            $listPrice = (float) ($row->list_price ?? 0);
-            $discount = ($listPrice > $finalPrice && $listPrice > 0) ? (($listPrice - $finalPrice) / $listPrice) * 100 : 0;
-
-            return [
-                'id'                  => (string) $row->sku_id,
-                'product_id' => (string) $row->product_id,
-                'name'                => (string) $row->sku_name,
-                'brand_name'          => (string) $row->brand_name,
-                'image'               => $row->sku_image ? asset('storage/' . $row->sku_image) : ($row->product_image ? asset('storage/' . $row->product_image) : null),
-                'final_price'         => $finalPrice,
-                'list_price'          => $listPrice,
-                'discount_percentage' => (int) round($discount),
-                'stock'               => (int) (($row->total_physical ?? 0) - ($row->total_reserved ?? 0)),
-                'is_alcoholic'        => (bool) $row->is_alcoholic,
-                // PERSISTENCIA PARA EL CURSOR (Laravel los requiere en el array resultante)
-                'sku_sort'            => $row->sku_sort,
-                'product_sort'        => $row->product_sort,
-                'sku_name'            => $row->sku_name,
-                'final_price_raw'     => $row->final_price // En caso de que se use para el cursor
-            ];
+            // LEY DE CENTRALIZACIÓN: Delegamos la transformación (y el placeholder) al Resource
+            return (new SkuResource($row))->resolve();
         });
     }
 }

@@ -9,7 +9,7 @@ readonly class CreativeDTO
     public function __construct(
         public string $id,
         public string $name,
-        public string $image_url,
+        public ?string $image_path,
         public string $action_type,
         public array $target_data,
         public int $sort_order

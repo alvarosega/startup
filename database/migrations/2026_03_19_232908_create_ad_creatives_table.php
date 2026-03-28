@@ -22,8 +22,8 @@ return new class extends Migration {
             $table->uuidMorphs('target'); 
             
             $table->string('name');
-            $table->string('image_mobile_path');
-            $table->string('image_desktop_path');
+            $table->string('image_mobile_path')->nullable();
+            $table->string('image_desktop_path')->nullable();
             $table->enum('action_type', ['ADD_TO_CART', 'NAVIGATE'])->default('ADD_TO_CART');
             
             $table->integer('sort_order')->default(0);

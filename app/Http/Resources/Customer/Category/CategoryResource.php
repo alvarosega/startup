@@ -52,9 +52,10 @@ class CategoryResource extends JsonResource
                 'id'                => (string) data_get($banner, 'id'),
                 'name'              => (string) data_get($banner, 'name'),
                 // Usamos las llaves exactas que espera el componente de Banners
-                'image_desktop_url' => data_get($banner, 'image_desktop_path') 
-                                    ? asset('storage/' . data_get($banner, 'image_desktop_path')) 
-                                    : null,
+                'image_desktop_url' => data_get($banner, 'image_path') 
+                    ? asset('storage/' . data_get($banner, 'image_path')) 
+                    : asset('assets/img/banner_category_placeholder.png
+                    '),
                 'action_type'       => (string) data_get($banner, 'action_type'),
                 'target'            => data_get($banner, 'target_data'), // Datos del SKU o Bundle
             ], (array) data_get($this->resource, 'banners', [])),

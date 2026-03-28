@@ -10,6 +10,7 @@ readonly class CategorySummaryDTO
         public string $id,
         public string $name,
         public string $slug,
-        public ?string $image_path
+        public ?string $image_path,
+        public ?string $bg_color // AÑADIDO
     ) {}
 }
