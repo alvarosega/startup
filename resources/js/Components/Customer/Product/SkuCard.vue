@@ -111,7 +111,19 @@ const goToProduct = () => {
                 <h3 class="text-[11px] font-black uppercase leading-[1.2] tracking-tight text-foreground line-clamp-2 mb-2 group-hover:text-[var(--local-sku-color)] transition-colors drop-shadow-sm">
                     {{ sku.name }}
                 </h3>
-
+                <div v-if="sku.upsell" class="mt-1 transition-all duration-300">
+                    <div class="flex items-center gap-1 bg-[var(--local-sku-color)]/10 px-2 py-0.5 rounded-md border border-[var(--local-sku-color)]/20 w-fit"
+                        :class="{ 'animate-pulse-urgency border-[var(--local-sku-color)] shadow-f1-glow': sku.upsell.needed === 1 }">
+                        
+                        <Zap :size="10" 
+                            :class="sku.upsell.needed === 1 ? 'text-[var(--local-sku-color)] fill-[var(--local-sku-color)]' : 'text-[var(--local-sku-color)]'" />
+                        
+                        <span class="text-[8px] font-black text-[var(--local-sku-color)] uppercase tracking-tighter">
+                            Bs {{ sku.upsell.next_price.toFixed(2) }} DESDE {{ sku.upsell.next_qty }} UNID
+                            <span v-if="sku.upsell.needed === 1" class="ml-1 italic underline">¡FALTA 1!</span>
+                        </span>
+                    </div>
+                </div>
                 <div class="space-y-0.5">
                     <span v-if="hasDiscount" class="text-[9px] font-bold text-muted-foreground/50 line-through block leading-none font-mono">
                         {{ sku.list_price.toFixed(2) }}
@@ -162,5 +174,25 @@ const goToProduct = () => {
         hsl(var(--primary)),
         #000000
     );
+}
+/* Animación de Urgencia para el Upsell (1 unidad restante) */
+.animate-pulse-urgency {
+    animation: pulse-glow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { 
+        opacity: 1; 
+        box-shadow: 0 0 0px var(--local-sku-color); 
+    }
+    50% { 
+        opacity: 0.8; 
+        box-shadow: 0 0 12px var(--local-sku-color); 
+    }
+}
+
+/* Sincronización de la sombra F1 con el color local */
+.shadow-f1-glow {
+    box-shadow: 0 0 15px -3px var(--local-sku-color);
 }
 </style>
