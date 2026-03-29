@@ -10,9 +10,9 @@ class AdPlacementSeeder extends Seeder
     public function run(): void
     {
         $placements = [
-            ['name' => 'Home Hero Main', 'code' => 'HOME_HERO', 'max_items' => 5],
-            ['name' => 'Pasillo Categoría', 'code' => 'CATEGORY_HERO', 'max_items' => 1], // FALTABA ESTE
-            ['name' => 'Cabecera de Packs', 'code' => 'BUNDLE_HERO', 'max_items' => 1],   // FALTABA ESTE
+            ['name' => 'Brand banner', 'code' => 'BRAND_HERO', 'max_items' => 5],
+            ['name' => 'Brand category', 'code' => 'CATEGORY_HERO', 'max_items' => 1], // FALTABA ESTE
+            ['name' => 'Brand bundles', 'code' => 'BUNDLE_HERO', 'max_items' => 1],   // FALTABA ESTE
             ['name' => 'Resultados Búsqueda', 'code' => 'SEARCH_TOP', 'max_items' => 2],
         ];
     

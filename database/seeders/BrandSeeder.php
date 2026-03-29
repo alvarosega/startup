@@ -33,8 +33,8 @@ class BrandSeeder extends Seeder
                     'name'        => $row['name'],
                     'provider_id' => $providerId,
                     'category_id' => $categoryId,
-                    'is_active'   => (bool)($row['is_active'] ?? 1),
-                    'is_featured' => (bool)($row['is_featured'] ?? 0), // Fallback a false si falta en CSV
+                    'is_active'   => true, // Forzamos activo para asegurar disponibilidad
+                    'is_featured' => filter_var($row['is_featured'] ?? false, FILTER_VALIDATE_BOOLEAN), 
                     'sort_order'  => (int)($row['sort_order'] ?? 0),
                 ]);
                 // Sincronización Estratégica MarketZones

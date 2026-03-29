@@ -16,7 +16,7 @@ use App\Actions\Admin\Users\Customer\GetCustomersListAction;
 use App\Actions\Admin\Users\Customer\GetCustomerForEditAction;
 use App\Actions\Admin\Users\Customer\UpsertCustomerAction;
 use App\Actions\Admin\Users\Customer\DeleteCustomerAction;
-
+use App\Http\Requests\Admin\Users\Customer\ValidateStep1Request;
 // Resources
 use App\Http\Resources\Admin\User\UserResource;
 use App\Http\Resources\Admin\User\UserEditResource;
@@ -39,15 +39,20 @@ class CustomerController extends Controller
             'filters'  => $data['filters']
         ]);
     }
-
-    /**
-     * Formulario de Nuevo Cliente (Con Mapa Logístico)
-     */
+    public function validateStep1(ValidateStep1Request $request) // <--- Ahora usa el Request del namespace Admin
+    {
+        return response()->json(['valid' => true], 200);
+    }
     public function create()
     {
         return Inertia::render('Admin/Users/Create', [
-            // Solo enviamos sucursales activas al mapa
-            'branches' => Branch::where('is_active', true)->get(['id', 'name'])
+            'branches' => Branch::where('is_active', true)
+                ->get(['id', 'name', 'coverage_polygon']) // <--- AÑADIR coverage_polygon
+                ->map(fn($b) => [
+                    'id' => $b->id,
+                    'name' => $b->name,
+                    'polygon' => $b->coverage_polygon // Sincronizamos con el prop 'polygon' que espera el componente
+                ])
         ]);
     }
 
@@ -64,16 +69,20 @@ class CustomerController extends Controller
             ->with('message', 'Cliente registrado exitosamente.');
     }
 
-    /**
-     * Carga de Datos para Edición
-     */
     public function edit(string $id, GetCustomerForEditAction $action)
     {
         $data = $action->execute($id);
         
         return Inertia::render('Admin/Users/Edit', [
             'user'     => new UserEditResource($data['user']),
-            'branches' => $data['branches']
+            // CORRECCIÓN: Enviar sucursales con polígonos para el mapa de edición
+            'branches' => Branch::where('is_active', true)
+                ->get(['id', 'name', 'coverage_polygon'])
+                ->map(fn($b) => [
+                    'id' => $b->id,
+                    'name' => $b->name,
+                    'polygon' => $b->coverage_polygon 
+                ])
         ]);
     }
 

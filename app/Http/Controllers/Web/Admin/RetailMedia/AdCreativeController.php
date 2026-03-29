@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Admin\RetailMedia;
 
 use App\Http\Controllers\Controller;
-use App\Models\{AdCreative, AdCampaign, AdPlacement, Branch, Sku, Bundle, Category};
+use App\Models\{AdCreative, AdCampaign, AdPlacement, Branch, Brand, Category};
 use App\DTOs\Admin\RetailMedia\{AdCreativeFilterDTO, UpsertAdCreativeDTO};
 use App\Http\Requests\Admin\RetailMedia\UpsertAdCreativeRequest;
 use App\Actions\Admin\RetailMedia\{
@@ -20,63 +20,40 @@ use Inertia\{Inertia, Response};
 
 class AdCreativeController extends Controller
 {
-    /**
-     * Listado maestro de creativos con filtrado táctico.
-     */
-    public function index(
-        Request $request, 
-        ListAdCreativesAction $action
-    ): Response {
+    public function index(Request $request, ListAdCreativesAction $action): Response 
+    {
         $dto = AdCreativeFilterDTO::fromRequest($request);
         $results = $action->execute($dto);
 
         return Inertia::render('Admin/RetailMedia/AdCreatives/Index', [
             'items' => AdCreativeResource::collection($results),
             'filters' => $request->only(['placement_code', 'branch_id', 'is_active']),
-            'placements' => AdPlacement::where('is_active', true)->get(['code', 'name']), // <--- Añadir
-            'branches' => Branch::active()->get(['id', 'name']),                         // <--- Añadir
+            'placements' => AdPlacement::where('is_active', true)->get(['code', 'name']),
+            'branches' => Branch::active()->get(['id', 'name']),
         ]);
     }
 
-    /**
-     * Formulario de creación: Inyecta dependencias de anclaje y target.
-     */
     public function create(): Response
     {
         return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
             'campaigns'  => AdCampaign::where('is_active', true)->get(['id', 'name']),
-            'placements' => AdPlacement::where('is_active', true)->get(['code', 'name']),
+            'placements' => AdPlacement::where('is_active', true)->get(['id', 'code', 'name']),
             'branches'   => Branch::active()->get(['id', 'name']),
-            'categories' => Category::active()->get(['id', 'name']), // Necesario para banners por pasillo
+            'categories' => Category::active()->get(['id', 'name']),
         ]);
     }
 
-    /**
-     * Persistencia de nuevo creativo (Soporta archivos Mobile/Desktop).
-     */
-    public function store(
-        UpsertAdCreativeRequest $request,
-        UpsertAdCreativeAction $action
-    ): RedirectResponse {
-        $dto = UpsertAdCreativeDTO::fromRequest($request);
-        $action->execute($dto);
-
+    public function store(UpsertAdCreativeRequest $request, UpsertAdCreativeAction $action): RedirectResponse 
+    {
+        $action->execute(UpsertAdCreativeDTO::fromRequest($request));
         return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Creativo publicitario desplegado exitosamente.');
+            ->with('success', 'Activo publicitario desplegado.');
     }
 
-    /**
-     * Formulario de edición: Carga relaciones de categorías y sucursales.
-     */
     public function edit(string $id): Response
     {
         $creative = AdCreative::with([
-            'campaign', 
-            'placement', 
-            'branch', 
-            'category', 
-            'sku.product', 
-            'bundle'
+            'campaign', 'placement', 'branch', 'category', 'brand', 'sku.product', 'bundle'
         ])->findOrFail($id);
 
         return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
@@ -88,70 +65,47 @@ class AdCreativeController extends Controller
         ]);
     }
 
-    /**
-     * Actualización de creativo existente.
-     */
-    public function update(
-        UpsertAdCreativeRequest $request,
-        UpsertAdCreativeAction $action,
-        string $id
-    ): RedirectResponse {
-        // El DTO captura el ID desde la ruta automáticamente si está configurado, 
-        // o lo pasamos manualmente.
-        $dto = UpsertAdCreativeDTO::fromRequest($request);
-        $action->execute($dto);
-
+    public function update(UpsertAdCreativeRequest $request, UpsertAdCreativeAction $action, string $id): RedirectResponse 
+    {
+        $action->execute(UpsertAdCreativeDTO::fromRequest($request));
         return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Creativo actualizado y sincronizado.');
+            ->with('success', 'Sincronización de activo completada.');
     }
 
-    /**
-     * Eliminación física y de archivos.
-     */
     public function destroy(string $id, DeleteAdCreativeAction $action): RedirectResponse
     {
         $action->execute($id);
-
-        return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Creativo eliminado del sistema.');
+        return redirect()->route('admin.retail-media.ad-creatives.index');
     }
 
-    // =========================================================================
-    // MOTORES DE BÚSQUEDA AJAX (Utilizados por el Formulario Vue)
-    // =========================================================================
+    // --- MOTORES DE BÚSQUEDA AJAX ---
 
-    /**
-     * Buscador de SKUs para el destino del banner.
-     */
     public function searchSkus(Request $request, SearchSkusAction $action): JsonResponse
     {
-        $term = $request->query('q', '');
-        $results = $action->execute($term);
-    
-        return response()->json($results);
+        return response()->json($action->execute($request->query('q', '')));
     }
 
-    /**
-     * Buscador de Bundles (Packs) para el destino del banner.
-     */
     public function searchBundles(Request $request): JsonResponse
     {
         $q = $request->query('q', '');
+        if (strlen($q) < 2) return response()->json([]);
 
-        if (strlen($q) < 2) {
-            return response()->json([]);
-        }
+        $results = \App\Models\Bundle::where('name', 'like', "%{$q}%")
+            ->active()->limit(10)->get()
+            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name, 'code' => strtoupper($b->type)]);
+            
+        return response()->json($results);
+    }
 
-        $bundles = Bundle::where('name', 'like', "%{$q}%")
-            ->active()
-            ->limit(10)
-            ->get()
-            ->map(fn($b) => [
-                'id'   => $b->id,
-                'name' => $b->name,
-                'code' => strtoupper($b->type) . ": " . $b->slug
-            ]);
+    public function searchBrands(Request $request): JsonResponse
+    {
+        $q = $request->query('q', '');
+        if (strlen($q) < 2) return response()->json([]);
 
-        return response()->json($bundles);
+        $results = Brand::where('name', 'like', "%{$q}%")
+            ->active()->limit(10)->get()
+            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name, 'code' => $b->slug]);
+
+        return response()->json($results);
     }
 }

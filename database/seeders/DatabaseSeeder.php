@@ -8,12 +8,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call(RolesAndPermissionsSeeder::class);
-
-        $this->call(BranchSeeder::class);
-        $this->call(SuperAdminSeeder::class); 
-        
         $this->call([
+            RolesAndPermissionsSeeder::class,
+            BranchSeeder::class,
+            SuperAdminSeeder::class, 
             LevelSeeder::class,
             CustomerSeeder::class,
             ComplianceSeeder::class,
@@ -26,10 +24,10 @@ class DatabaseSeeder extends Seeder
             PriceSeeder::class,
             InventorySeeder::class,
             BundleSeeder::class,
-            AdPlacementSeeder::class,
-            HeroBannerSeeder::class,
-            CategoryBannerSeeder::class,
-            BundleBannerSeeder::class,
+            
+            // --- SILO RETAIL MEDIA CONSOLIDADO ---
+            AdPlacementSeeder::class,   // Primero los espacios
+            AdCampaignSeeder::class,    // Segundo las campañas y banners
         ]);
     }
 }

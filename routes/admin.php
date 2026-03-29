@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\Admin\Auth\LoginController;
-use App\Http\Controllers\Web\Admin\DashboardController;
 use App\Http\Controllers\Web\Admin\User\CustomerController;
 use App\Http\Controllers\Web\Admin\Driver\DriverController;
 use App\Http\Controllers\Web\Admin\Branch\BranchController;
@@ -16,6 +15,7 @@ use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Price\PriceController;
 use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
 use App\Http\Controllers\Web\Admin\Inventory\PurchaseController;
+use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
@@ -28,9 +28,10 @@ Route::middleware(['guest:super_admin'])->group(function () {
 
 Route::middleware(['auth:super_admin'])->group(function () {
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
-    // Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
     Route::middleware('role:super_admin')->group(function () {
+        Route::post('users/validate-step-1', [CustomerController::class, 'validateStep1'])->name('users.validate-step-1');
         Route::resource('users', CustomerController::class);
         Route::post('users/identify-branch', [CustomerController::class, 'identifyBranch'])->name('users.identify-branch');
         
@@ -82,9 +83,16 @@ Route::middleware(['auth:super_admin'])->group(function () {
         });
 
         Route::prefix('retail-media')->name('retail-media.')->group(function () {
-            Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])->name('ad-creatives.search-skus'); 
+            // Endpoints de búsqueda para el Formulario (Targeting)
+            Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])->name('ad-creatives.search-skus');
+            Route::get('ad-creatives/search-bundles', [AdCreativeController::class, 'searchBundles'])->name('ad-creatives.search-bundles');
+            Route::get('ad-creatives/search-brands', [AdCreativeController::class, 'searchBrands'])->name('ad-creatives.search-brands');
+            
             Route::resource('ad-creatives', AdCreativeController::class)->parameters(['ad-creatives' => 'ad_creative']);
             Route::resource('ad-campaigns', AdCampaignController::class);
         });
+        Route::get('transfers', fn() => 'En desarrollo')->name('transfers.index');
+        Route::get('removals', fn() => 'En desarrollo')->name('removals.index');
+        Route::get('transformations', fn() => 'En desarrollo')->name('transformations.index');
     });
 });

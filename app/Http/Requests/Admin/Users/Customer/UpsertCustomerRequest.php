@@ -56,9 +56,10 @@ class UpsertCustomerRequest extends FormRequest
             'is_active'  => ['nullable', 'boolean'],
             
             // Ubicación: Obligatoria al crear, Opcional al editar
-            'latitude'   => $isUpdate ? ['nullable', 'numeric'] : ['required', 'numeric'],
-            'longitude'  => $isUpdate ? ['nullable', 'numeric'] : ['required', 'numeric'],
-            'address'    => $isUpdate ? ['nullable', 'string']  : ['required', 'string'],
-        ];
+            'latitude'  => $isUpdate ? ['nullable', 'numeric'] : ['required', 'numeric'],
+                'longitude' => $isUpdate ? ['nullable', 'numeric'] : ['required', 'numeric'],
+                'address'   => $isUpdate ? ['nullable', 'string']  : ['required', 'string'],
+                'details'   => ['nullable', 'string', 'max:500'], // <--- AÑADIR ESTA LÍNEA
+            ];
     }
 }

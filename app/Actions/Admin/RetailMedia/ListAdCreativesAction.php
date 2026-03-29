@@ -11,31 +11,39 @@ use Illuminate\Support\Facades\Cache;
 
 class ListAdCreativesAction
 {
+    /**
+     * Ejecuta el listado bajo el Protocolo de Capas.
+     * Implementa Eager Loading masivo para evitar Round-trips a la DB.
+     */
     public function execute(AdCreativeFilterDTO $dto): LengthAwarePaginator
     {
-        $cacheKey = 'ad_creatives_admin_list_' . md5(json_encode([
-            $dto->placement_code, $dto->branch_id, $dto->category_id, $dto->is_active, $dto->per_page
-        ]));
+        // Regla 4: Sistema de Identificación de Caché por Silo
+        $cacheKey = "retail_media_admin_list_branch_{$dto->branch_id}_p_{$dto->placement_code}_" . 
+                    md5(serialize($dto));
 
-        return Cache::remember($cacheKey, 3600, function () use ($dto) {
+        // Bajamos el TTL a 600s (10 min) para Administración o usamos invalidación activa
+        return Cache::remember($cacheKey, 600, function () use ($dto) {
             return AdCreative::query()
                 ->with([
                     'campaign.provider', 
                     'placement', 
                     'category', 
+                    'brand:id,name,slug', // RELACIÓN OBLIGATORIA
                     'branch:id,name',
-                    // Cargamos las relaciones explícitas sin el filtro roto
                     'sku.product:id,name', 
                     'bundle:id,name,type'
                 ])
+                // Optimizamos: Si ya tenemos el ID de placement en el DTO, evitamos el whereHas
                 ->when($dto->placement_code, function ($q, $code) {
                     $q->whereHas('placement', fn($sq) => $sq->where('code', $code));
                 })
                 ->when($dto->branch_id, fn($q, $id) => $q->where('branch_id', $id))
                 ->when($dto->category_id, fn($q, $id) => $q->where('category_id', $id))
                 ->when($dto->is_active !== null, fn($q) => $q->where('is_active', $dto->is_active))
-                ->orderBy('placement_id') // Agrupa por ubicación primero
-                ->orderBy('sort_order', 'asc') // Luego ordena internamente
+                
+                // LEY DE CONSULTAS: El orden debe coincidir con los índices compuestos
+                ->orderBy('placement_id') 
+                ->orderBy('sort_order', 'asc') 
                 ->orderBy('created_at', 'desc')
                 ->paginate($dto->per_page ?? 15);
         });

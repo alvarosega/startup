@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->foreignUuid('campaign_id')->constrained('ad_campaigns')->cascadeOnDelete();
             $table->foreignUuid('placement_id')->constrained('ad_placements')->cascadeOnDelete();
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
-            
+            $table->foreignUuid('brand_id')->nullable()->constrained('brands')->nullOnDelete();
             // --- PUNTOS DE ANCLAJE (Dónde se muestra) ---
             $table->foreignUuid('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->foreignUuid('bundle_id')->nullable()->constrained('bundles')->nullOnDelete(); // <--- NUEVO: Banner en vista Bundle
@@ -42,6 +42,7 @@ return new class extends Migration {
 
             // 3. Resolver para Placements Globales (Home/Landing)
             $table->index(['placement_id', 'branch_id', 'is_active', 'sort_order'], 'idx_shop_placement_resolver');
+            $table->index(['brand_id', 'branch_id', 'is_active', 'sort_order'], 'idx_shop_brand_resolver');
         });
     }
 

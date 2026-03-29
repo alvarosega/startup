@@ -50,7 +50,7 @@ const closeMobileMenu = () => {
             <nav class="flex flex-col py-6 gap-2 w-[72px] pointer-events-auto">
                 
                 <!-- Dashboard -->
-                <Link :href="route('admin.dashboard')" class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150 hover:bg-primary/10">
+                <Link :href="route('admin.dashboard.index')" class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150 hover:bg-primary/10">
                     <LayoutDashboard :size="20" class="text-muted-foreground transition-colors duration-150 group-hover:text-primary" />
                     <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
                         Dashboard
@@ -324,7 +324,7 @@ const closeMobileMenu = () => {
         
         <!-- Home button -->
         <div class="flex items-center justify-center -mt-4">
-            <Link :href="route('admin.dashboard')" @click="closeMobileMenu" class="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-md transition-transform duration-150 hover:scale-105 active:scale-95">
+            <Link :href="route('admin.dashboard.index')" @click="closeMobileMenu" class="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-md transition-transform duration-150 hover:scale-105 active:scale-95">
                 <Home size="22" />
             </Link>
         </div>
