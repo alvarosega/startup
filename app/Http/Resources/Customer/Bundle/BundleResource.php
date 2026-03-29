@@ -12,22 +12,31 @@ class BundleResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $isEditable = $this->type !== 'atomic';
+        
+        // Asignación estricta de extensiones correctas
+        $placeholder = $isEditable ? 'bundle_banner_editable.webp' : 'bundle_banner_noeditable.webp';
+
+        $version = $this->updated_at?->timestamp ?? time();
+
         return [
-            'id'          => $this->id,
-            'name'        => $this->name,
-            'slug'        => $this->slug,
-            'type'        => $this->type, 
-            'description' => $this->description,
-            'fixed_price' => $this->fixed_price ? (float)$this->fixed_price : null,
-            'image_url'   => $this->image_path ? Storage::disk('public')->url($this->image_path) : null,
+            'id'          => (string) $this->id,
+            'name'        => (string) $this->name,
+            'slug'        => (string) $this->slug,
+            'type'        => (string) $this->type, 
+            'is_editable' => (bool) $isEditable,
+            'description' => (string) $this->description,
+            'fixed_price' => !is_null($this->fixed_price) ? (float)$this->fixed_price : null,
+            
+            // Si no hay imagen en BD, se pasa la ruta relativa al directorio public/assets/img
+            'image_url' => $this->image_path 
+                ? Storage::disk('public')->url($this->image_path) . "?v={$version}"
+                : "/assets/img/{$placeholder}",
             
             'items' => $this->whenLoaded('skus', function() {
                 return $this->skus->map(function($sku) {
-                    
-                    // 1. Stock Neto (Disponible - Reservado)
                     $stockAvailable = $sku->inventoryLots->sum(fn($lot) => max(0, $lot->quantity - $lot->reserved_quantity));
 
-                    // 2. Resolución de Tiers por Prioridad
                     $now = now();
                     $tiers = $sku->prices
                         ->filter(fn($p) => (is_null($p->valid_from) || $p->valid_from <= $now) && (is_null($p->valid_to) || $p->valid_to >= $now))
@@ -45,11 +54,13 @@ class BundleResource extends JsonResource
                     }
 
                     return [
-                        'id'              => $sku->id,
-                        'sku_id'          => $sku->id, // Compatibilidad con selectores Vue
+                        'id'              => (string) $sku->id,
+                        'sku_id'          => (string) $sku->id,
                         'name'            => trim(($sku->product?->name ?? '') . ' ' . $sku->name),
-                        'image'           => $sku->image_path ? Storage::disk('public')->url($sku->image_path) : null,
-                        'quantity'        => (int)($sku->pivot->quantity ?? 1), // Cantidad sugerida/fija
+                        'image'           => $sku->image_path 
+                            ? Storage::disk('public')->url($sku->image_path) 
+                            : '/assets/img/sku_placeholder.png',
+                        'quantity'        => (int)($sku->pivot->quantity ?? 1),
                         'stock_available' => (int)$stockAvailable,
                         'final_price'     => (float)$tiers[0]['final_price'],
                         'price_tiers'     => $tiers,

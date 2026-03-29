@@ -6,36 +6,38 @@ import { ChevronRight, PackageSearch } from 'lucide-vue-next';
 // Layouts & Silos de Componentes
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import CategoryCarousel from '@/Components/Customer/Category/CategoryCarousel.vue';
-import RetailBannerSlot from '@/Components/Customer/RetailMedia/RetailBannerSlot.vue';
-import BundlePromoModal from '@/Components/Customer/Bundle/BundlePromoModal.vue';
+import BrandHeroWidget from '@/Components/Customer/Brand/BrandHeroWidget.vue';
 import BundleCarousel from '@/Components/Customer/Bundle/BundleCarousel.vue';
 import SkuCard from '@/Components/Customer/Product/SkuCard.vue';
 
 const props = defineProps({ 
-    // Silos Publicitarios (Retail Media)
-    heroBanners: { type: Object, default: () => ({ data: [] }) },
+    // Silo de Media: Banners de Marca (Identidad)
+    brandBanners: { type: Object, default: () => ({ data: [] }) },
+    
+    // Silo de Media: Banners de Packs/Bundles
     bundleBanners: { type: Object, default: () => ({ data: [] }) },
     
-    // Silos de Catálogo (Data Atómica)
+    // Silo de Catálogo: Zonas y Productos
     zonesData: { type: Array, default: () => [] },
-    bundlesData: { type: [Array, Object], default: () => [] }
+    
+    // Silo de Catálogo: Listado de Packs
+    bundlesData: { type: Object, default: () => ({ data: [] }) },
 });
 
 const page = usePage();
 
-// --- RESOLUCIÓN DE DATA ---
+// --- RESOLUCIÓN DE DATA (RESILIENTE) ---
 const categories = computed(() => page.props.categories_menu || []);
-const heroAds = computed(() => props.heroBanners?.data || []);
+const brandAds = computed(() => props.brandBanners?.data || []);
 const promoAds = computed(() => props.bundleBanners?.data || []);
 const bundlesList = computed(() => Array.isArray(props.bundlesData) ? props.bundlesData : props.bundlesData?.data || []);
-
-// Estado de hidratación
-const isLoading = computed(() => props.zonesData.length === 0);
 </script>
 
 <template>
     <ShopLayout>
         <Head title="CyberMarket | High-Density Retail" />
+
+        <BundlePromoModal :banners="promoAds" />
 
         <div class="w-full min-h-screen bg-background pb-32 transition-colors duration-500">
             
@@ -45,19 +47,13 @@ const isLoading = computed(() => props.zonesData.length === 0);
                 class="mt-4"
             />
 
-            <section class="px-4 lg:px-8 mt-6">
+            <section v-if="brandAds.length > 0" class="px-4 lg:px-8 mt-6">
                 <div class="max-w-7xl mx-auto">
-                    <RetailBannerSlot 
-                        v-if="heroAds.length > 0"
-                        :banners="heroAds" 
-                    />
-                    <div v-else class="w-full aspect-[21/9] lg:aspect-[3/1] bg-muted rounded-[2rem] animate-pulse opacity-20"></div>
+                    <BrandHeroWidget :banners="brandAds" />
                 </div>
             </section>
 
-            <BundlePromoModal :banners="promoAds" />
-
-            <section v-if="bundlesList.length > 0" class="mt-12">
+            <section v-if="bundlesList.length > 0" class="mt-12 mb-16">
                 <div class="px-6 lg:px-8 max-w-7xl mx-auto mb-6">
                     <h2 class="text-[10px] font-black uppercase tracking-[0.4em] text-primary flex items-center gap-2">
                         <span class="w-2 h-2 bg-primary rounded-full animate-ping"></span>
@@ -67,18 +63,18 @@ const isLoading = computed(() => props.zonesData.length === 0);
                 <BundleCarousel :bundles="bundlesList" />
             </section>
 
-            <div v-if="!isLoading" class="space-y-16 mt-16">
+            <div v-if="zonesData.length > 0" class="space-y-16">
                 <section v-for="zone in zonesData" :key="zone.id" class="px-4 lg:px-8 max-w-7xl mx-auto section-animate">
                     
                     <div class="flex items-end justify-between gap-4 mb-8 group">
                         <div class="flex flex-col">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-primary shadow-f1-glow"></span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
                                 <span class="text-[9px] font-black uppercase tracking-[0.3em] text-primary/70 font-mono">
                                     [ ZONE_SEC: {{ zone.slug.toUpperCase() }} ]
                                 </span>
                             </div>
-                            <h2 class="text-3xl md:text-4xl font-black uppercase tracking-tighter text-foreground leading-none">
+                            <h2 class="text-3xl md:text-4xl font-black uppercase tracking-tighter text-foreground leading-none italic">
                                 {{ zone.name }}
                             </h2>
                         </div>
@@ -108,22 +104,10 @@ const isLoading = computed(() => props.zonesData.length === 0);
                 </section>
             </div>
 
-            <div v-else class="px-4 lg:px-8 max-w-7xl mx-auto mt-16 space-y-20">
-                <div v-for="i in 2" :key="i" class="space-y-8 animate-pulse">
-                    <div class="flex flex-col gap-2">
-                        <div class="h-3 w-32 bg-muted rounded-full"></div>
-                        <div class="h-10 w-64 bg-muted rounded-xl"></div>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                        <SkuCard v-for="j in 6" :key="j" :loading="true" />
-                    </div>
-                </div>
-            </div>
-
-            <div v-if="!isLoading && zonesData.length === 0" class="py-40 text-center">
+            <div v-else class="py-40 text-center">
                 <PackageSearch :size="48" class="mx-auto text-muted-foreground/20 mb-4" />
-                <h3 class="text-xs font-black uppercase tracking-widest text-muted-foreground">Radar Despejado</h3>
-                <p class="text-[10px] text-muted-foreground/60">No hay existencias activas en esta sucursal.</p>
+                <h3 class="text-xs font-black uppercase tracking-widest text-muted-foreground italic">Radar Despejado</h3>
+                <p class="text-[10px] text-muted-foreground/60 mt-2">No hay existencias activas para el mercado seleccionado.</p>
             </div>
             
         </div>
@@ -131,7 +115,6 @@ const isLoading = computed(() => props.zonesData.length === 0);
 </template>
 
 <style scoped>
-/* Curva de inercia Apple/F1 */
 .ease-ios { transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
 
 .section-animate {
@@ -139,22 +122,14 @@ const isLoading = computed(() => props.zonesData.length === 0);
 }
 
 @keyframes reveal {
-    from { 
-        opacity: 0; 
-        transform: translateY(20px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .bg-background { will-change: background-color; }
 
-/* Efecto de profundidad para Modo Oscuro */
 .dark .bg-background {
     background-image: 
-        radial-gradient(circle at 50% -10%, rgba(225, 6, 0, 0.03) 0%, transparent 40%),
-        radial-gradient(circle at 0% 100%, rgba(0, 122, 255, 0.01) 0%, transparent 30%);
+        radial-gradient(circle at 50% -10%, rgba(225, 6, 0, 0.03) 0%, transparent 40%);
 }
 </style>

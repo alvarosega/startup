@@ -16,15 +16,26 @@ use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Order\OrderController;
 use App\Http\Controllers\Web\Customer\Catalog\FavoriteController;
 use App\Http\Controllers\Web\Customer\Catalog\ReviewController;
+use App\Http\Controllers\Web\Customer\Brand\BrandController;
+
 
 Route::get('/product/{id}', ProductShowController::class)->name('product.show');
 
 Route::name('shop.')->group(function () {
-    // Cambiamos ShopLandingController por ShopIndexController
+    // Landing Principal (Invocable)
     Route::get('/', ShopController::class)->name('index');
-    Route::get('/search', [ShopController::class, 'index'])->name('search');
+    
+    // Ruta de Búsqueda (Alineada al __invoke del ShopController)
+    Route::get('/search', ShopController::class)->name('search');
+    
+    // Zonas de Mercado
     Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
-    // Mantenemos 'category' como nombre del parámetro para consistencia con el Resource
+
+    // SILO DE MARCA: Resolución del Error de Ziggy
+    // Esta ruta genera el nombre: customer.shop.brand.show (si el archivo está prefijado)
+    Route::get('/marcas/{slug}', [BrandController::class, 'show'])->name('brand.show');
+
+    // Navegación Atómica
     Route::get('/category/{category:slug}', CategoryController::class)->name('category');
     Route::get('/bundle/{slug}', BundleController::class)->name('bundle');
 });

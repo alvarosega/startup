@@ -6,26 +6,25 @@ namespace App\Http\Controllers\Web\Customer\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Services\ShopContextService;
-use Illuminate\Http\Request;
 use Inertia\{Inertia, Response};
 
-// SILOS DE ACCIONES (Aislamiento Total)
+// ACCIÓN CORREGIDA PARA HOME
+use App\Actions\Customer\Brand\GetActiveBrandBannersAction;
 use App\Actions\Customer\RetailMedia\GetActiveAdCreativesAction;
 use App\Actions\Customer\Shop\GetHomeZonesAction;
 use App\Actions\Customer\Bundle\GetActiveBundlesAction;
 
 // RESOURCES
+use App\Http\Resources\Customer\Brand\BrandBannerResource;
 use App\Http\Resources\Customer\RetailMedia\HeroBannerResource;
-use App\Models\MarketZone;
+use App\Http\Resources\Customer\Bundle\BundleResource;
 
 class ShopController extends Controller
 {
-    public function __construct(
-        protected readonly ShopContextService $contextService
-    ) {}
-
+    public function __construct(protected readonly ShopContextService $contextService) {}
 
     public function __invoke(
+        GetActiveBrandBannersAction $brandBannersAction,
         GetActiveAdCreativesAction $adAction,
         GetHomeZonesAction $zonesAction,
         GetActiveBundlesAction $bundlesAction
@@ -33,37 +32,13 @@ class ShopController extends Controller
         $branchId = $this->contextService->getActiveBranchId();
 
         return Inertia::render('Customer/Shop/Index', [
-            // Silo 1: Retail Media (Publicidad)
-            'heroBanners'   => HeroBannerResource::collection($adAction->execute($branchId, 'HOME_HERO')),
-            'bundleBanners' => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_PROMO')),
+            // Banners de Marca para el Carrusel de la Home
+            'brandBanners'  => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
             
-            // Silo 2: Zonas de Productos (Alta Densidad)
+            'bundleBanners' => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),
             'zonesData'     => $zonesAction->execute($branchId), 
-            
-            // Silo 3: Bundles / Packs Activos
-            'bundlesData'   => $bundlesAction->execute($branchId),
-        ]);
-    }
+            'bundlesData' => BundleResource::collection($bundlesAction->execute($branchId)),
 
-    /**
-     * VISTA DE ZONA ESPECÍFICA (Pasillos)
-     */
-    public function showZone(
-        Request $request, 
-        MarketZone $zone, 
-        GetShopZoneAction $zoneAction
-    ): Response {
-        $branchId = $this->contextService->getActiveBranchId();
-        $brandId = $request->query('brand_id');
-
-        $data = $zoneAction->execute($zone, $branchId, (string)$brandId);
-
-        return Inertia::render('Customer/Shop/Zone', [
-            'zone'             => $data['zone'],
-            'brandsNavigation' => $data['brandsNavigation'], 
-            'brandContent'     => $data['brandContent'],
-            'targetCategory'   => $request->query('category'),
-            'shop_context'     => ['branch_id' => $branchId] 
         ]);
     }
 }

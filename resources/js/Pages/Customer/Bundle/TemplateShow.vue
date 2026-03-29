@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { 
     ChevronLeft, 
@@ -8,7 +8,8 @@ import {
     CheckCircle2, 
     Loader2, 
     AlertTriangle,
-    Info 
+    Info,
+    Sparkles
 } from 'lucide-vue-next';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import HeroCarousel from '@/Components/Shop/HeroCarousel.vue';
@@ -16,27 +17,15 @@ import HeroCarousel from '@/Components/Shop/HeroCarousel.vue';
 const props = defineProps({
     bundle: { type: Object, required: true },
     bundleBanners: { type: Object, default: () => ({ data: [] }) },
-    // currentCart mapeado desde el controlador: { sku_id: { qty, price } }
     currentCart: { type: Object, default: () => ({}) }
 });
 
 const isSyncing = ref(false);
 
-/**
- * NAVEGACIÓN
- */
 const goBack = () => router.visit(route('customer.shop.index'));
 
-/**
- * HELPER: Acceso seguro a la data del carrito
- */
 const getCartItem = (skuId) => props.currentCart[skuId] || { qty: 0, price: null };
 
-/**
- * PROTOCOLO DE AUTO-CARGA (Explosión Inicial)
- * Si el usuario entra y no tiene rastro de este pack en el carrito, 
- * detonamos la carga automática de la receta base.
- */
 onMounted(() => {
     const hasItemsInCart = Object.keys(props.currentCart).length > 0;
     
@@ -45,10 +34,10 @@ onMounted(() => {
         router.post(route('customer.cart.upsert'), {
             target_id: props.bundle.data.id,
             target_type: 'bundle',
-            quantity: 1, // El service interpreta esto para templates
+            quantity: 1, 
             mode: 'set',
             custom_quantities: props.bundle.data.items.reduce((acc, item) => {
-                acc[item.id] = item.quantity; // Cantidad sugerida de la receta
+                acc[item.id] = item.quantity; 
                 return acc;
             }, {})
         }, { 
@@ -59,11 +48,6 @@ onMounted(() => {
     }
 });
 
-/**
- * SINCRONIZACIÓN ATÓMICA (+ / -)
- * Se envía la cantidad absoluta (mode: set) para que el PriceResolver 
- * calcule el Tier basado en el volumen total real.
- */
 const syncItem = (skuId, newQty) => {
     isSyncing.value = true;
     router.post(route('customer.cart.upsert'), {
@@ -82,7 +66,6 @@ const updateQty = (item, delta) => {
     const current = getCartItem(item.id).qty;
     const next = Math.max(0, current + delta);
     
-    // Validación de stock físico antes de disparar la petición
     if (next <= item.stock_available) {
         syncItem(item.id, next);
     }
@@ -116,8 +99,22 @@ const updateQty = (item, delta) => {
             </div>
 
             <HeroCarousel v-if="bundleBanners.data.length > 0" :banners="bundleBanners.data" />
+            <div v-else class="w-full h-64 md:h-80 relative overflow-hidden bg-muted/10 border-b border-border/40">
+                <img 
+                    :src="bundle.data.image_url" 
+                    class="w-full h-full object-cover opacity-60"
+                    @error="(e) => e.target.src = '/assets/img/bundle_banner_editable.png'" 
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent flex items-end p-8 max-w-5xl mx-auto">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-4 py-1 bg-background/50 backdrop-blur-md border border-border rounded-full text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                            <Sparkles :size="14" /> Pack Editable
+                        </span>
+                    </div>
+                </div>
+            </div>
 
-            <div class="px-6 md:px-12 mt-10 max-w-5xl mx-auto space-y-4">
+            <div class="px-6 md:px-12 mt-10 max-w-5xl mx-auto space-y-4 relative z-10">
                 <div v-for="item in bundle.data.items" :key="item.id" 
                      :class="[
                          'flex items-center gap-6 p-6 rounded-[2.5rem] border transition-all duration-500', 
@@ -128,7 +125,7 @@ const updateQty = (item, delta) => {
                     
                     <div class="relative w-24 h-24 bg-muted/20 rounded-3xl p-4 flex-shrink-0 transition-transform duration-500"
                          :class="{'scale-110': getCartItem(item.id).qty > 0}">
-                        <img :src="item.image" class="w-full h-full object-contain" :alt="item.name" />
+                        <img :src="item.image" class="w-full h-full object-contain" :alt="item.name" @error="(e) => e.target.src = '/assets/img/sku_placeholder.png'" />
                         <div v-if="getCartItem(item.id).qty > 0" 
                              class="absolute -top-2 -right-2 bg-primary text-white p-1.5 rounded-full shadow-lg animate-in zoom-in">
                             <CheckCircle2 :size="14" stroke-width="3" />
@@ -141,11 +138,11 @@ const updateQty = (item, delta) => {
                         </h3>
                         <div class="flex flex-wrap items-center gap-3">
                             <span class="text-xl font-black tracking-tighter italic transition-colors"
-                                  :class="{'text-primary': getCartItem(item.id).price && getCartItem(item.id).price < item.unit_price}">
-                                Bs. {{ getCartItem(item.id).price || item.unit_price }}
+                                  :class="{'text-primary': getCartItem(item.id).price && getCartItem(item.id).price < item.final_price}">
+                                Bs. {{ Number(getCartItem(item.id).price || item.final_price).toFixed(2) }}
                             </span>
                             
-                            <div v-if="getCartItem(item.id).price && getCartItem(item.id).price < item.unit_price" 
+                            <div v-if="getCartItem(item.id).price && getCartItem(item.id).price < item.final_price" 
                                  class="bg-primary/10 text-primary px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-primary/20 animate-pulse">
                                 Tier Activo
                             </div>
@@ -194,14 +191,12 @@ const updateQty = (item, delta) => {
 </template>
 
 <style scoped>
-/* Optimizaciones de Renderizado */
 .transition-all {
     transition-property: all;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 300ms;
 }
 
-/* Evitar selección de texto en botones */
 button {
     user-select: none;
     -webkit-tap-highlight-color: transparent;
