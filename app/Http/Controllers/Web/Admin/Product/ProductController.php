@@ -16,7 +16,8 @@ use Illuminate\Http\{Request, JsonResponse, RedirectResponse};
 use Inertia\{Inertia, Response as InertiaResponse};
 use Illuminate\Support\Facades\{Cache, Auth};
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-
+use App\Actions\Admin\Shared\ReorderEntityAction; // INFRAESTRUCTURA
+use App\Http\Resources\Admin\Product\ProductOrderResource; // RECURSO DE ORDEN
 class ProductController extends Controller
 {
     use AuthorizesRequests;
@@ -33,6 +34,31 @@ class ProductController extends Controller
             'options'    => app(GetProductFormDataAction::class)->execute(),
             'can_manage' => auth()->user()->can('create', Product::class),
         ]);
+    }
+    public function reorder(): InertiaResponse
+    {
+        $this->authorize('update', Product::class);
+
+        $products = Product::select(['id', 'name', 'image_path', 'sort_order'])
+            ->where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->get();
+
+        return Inertia::render('Admin/Products/Reorder', [
+            'products' => ProductOrderResource::collection($products)
+        ]);
+    }
+    public function updateOrder(Request $request, ReorderEntityAction $action): RedirectResponse
+    {
+        $this->authorize('update', Product::class);
+        
+        $request->validate(['ids' => 'required|array']);
+
+        // SE INYECTA LA LLAVE DE CACHÉ DEL SILO CUSTOMER PARA INVALIDACIÓN INMEDIATA
+        $action->execute('products', $request->ids, 'customer_featured_global_top5');
+
+        return redirect()->route('admin.products.index')
+            ->with('success', 'Orden del catálogo global actualizado.');
     }
 
     public function checkName(Request $request, CheckProductExistenceAction $action): JsonResponse

@@ -1,7 +1,7 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { Plus, Minus, Zap } from 'lucide-vue-next';
+import { Plus, Minus, Zap, Heart } from 'lucide-vue-next'; // Añadir Heart
 
 const props = defineProps({
     sku: { type: Object, default: null },
@@ -28,7 +28,54 @@ const cartItem = computed(() => {
     const items = page.props.cart?.items || [];
     return items.find(item => item.sku_id === props.sku.id);
 });
+const isAuth = computed(() => !!page.props.auth?.customer);
+const localFavorites = ref(JSON.parse(localStorage.getItem('guest_favorites') || '[]'));// DENTRO DE SkuCard.vue (Aprox línea 33)
 
+// DENTRO DE SkuCard.vue (Aprox línea 33)
+
+const isFavorite = computed(() => {
+    if (!props.sku) return false;
+    if (isAuth.value) {
+        return page.props.auth.favorites_ids?.includes(props.sku.id);
+    }
+    // ESTA ES LA LÍNEA CORREGIDA PARA OBJETOS:
+    return localFavorites.value.some(fav => fav.id === props.sku.id); 
+});
+const toggleFavorite = (e) => {
+    e.stopPropagation();
+    if (props.loading || !props.sku) return;
+
+    if (isAuth.value) {
+        router.post(route('customer.favorites.toggle'), { sku_id: props.sku.id }, {
+            preserveScroll: true, preserveState: true
+        });
+    } else {
+        let favs = JSON.parse(localStorage.getItem('guest_favorites') || '[]');
+        
+        // Buscamos si ya existe por ID
+        const index = favs.findIndex(f => f.id === props.sku.id);
+
+        if (index > -1) {
+            favs.splice(index, 1); // Quitar
+        } else {
+            // Guardamos solo lo necesario para la SkuCard (Lightweight DTO)
+            favs.push({
+                id: props.sku.id,
+                name: props.sku.name,
+                image: props.sku.image,
+                final_price: props.sku.final_price,
+                list_price: props.sku.list_price,
+                bg_color: props.sku.bg_color,
+                slug: props.sku.slug, // Crítico para la navegación
+                brand_name: props.sku.brand_name
+            });
+        }
+        
+        localStorage.setItem('guest_favorites', JSON.stringify(favs));
+        // Disparar evento para actualizar otras partes de la UI
+        window.dispatchEvent(new Event('local-favorites-updated'));
+    }
+};
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
 const hasDiscount = computed(() => props.sku?.list_price > props.sku?.final_price);
 
@@ -63,7 +110,12 @@ const goToProduct = () => {
         :style="dynamicStyle"
         class="group relative flex flex-col bg-card border border-border/40 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-[var(--local-sku-color)]/20 active:scale-[0.98]"
         :class="{ 'ring-2 ring-[var(--local-sku-color)] border-transparent': quantity > 0 || isActive }">
-        
+        <button @click="toggleFavorite" 
+                class="absolute top-3 right-3 z-30 p-2 rounded-full backdrop-blur-md bg-black/10 border border-white/10 transition-all hover:scale-110 active:scale-90 group/heart">
+            <Heart :size="16" 
+                :stroke-width="isFavorite ? 0 : 2.5"
+                :class="isFavorite ? 'text-primary fill-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.6)]' : 'text-white'" />
+        </button>
         <div class="h-1 w-full relative z-20" :style="{ backgroundColor: 'var(--local-sku-color)' }"></div>
 
         <div class="p-3 flex flex-col h-full relative z-10">

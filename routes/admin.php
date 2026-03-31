@@ -41,7 +41,10 @@ Route::middleware(['auth:super_admin'])->group(function () {
 
         Route::resource('drivers', DriverController::class);
         Route::resource('branches', BranchController::class);
-        
+        Route::prefix('products')->name('products.')->group(function () {
+            Route::get('reorder', [ProductController::class, 'reorder'])->name('reorder');
+            Route::patch('reorder', [ProductController::class, 'updateOrder'])->name('reorder.update');
+        });
         Route::get('products/check-name', [ProductController::class, 'checkName'])->name('products.check-name');
         Route::resource('products', ProductController::class);
 

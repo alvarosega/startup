@@ -6,7 +6,7 @@ import {
     Search, Plus, ChevronDown, ChevronRight, Edit3, Trash2, 
     AlertTriangle, CheckCircle2, Barcode, Layers, Tag, WifiOff, 
     Box, XCircle, Wine, Cpu, Terminal, ArrowLeft, ArrowRight, Loader2,
-    PackagePlus
+    PackagePlus, Layers3
 } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
@@ -113,6 +113,18 @@ const displayStats = computed(() => [
                       class="h-11 px-8 bg-primary text-background font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:shadow-neon-primary transition-all relative overflow-hidden group/btn">
                     <Plus :size="18" stroke-width="3" /> REGISTRAR_ACTIVO
                 </Link>
+                <div class="flex items-center gap-3">
+                    <Link v-if="can_manage" 
+                        :href="route('admin.products.reorder')" 
+                        class="h-11 px-6 border border-primary/30 text-primary font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary/10 transition-all">
+                        <Layers3 :size="18" /> ORDENAR_GÓNDOLA
+                    </Link>
+
+                    <Link v-if="can_manage" :href="route('admin.products.create')" 
+                        class="h-11 px-8 bg-primary text-background font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:shadow-neon-primary transition-all relative overflow-hidden group/btn">
+                        <Plus :size="18" stroke-width="3" /> REGISTRAR_ACTIVO
+                    </Link>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">

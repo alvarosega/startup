@@ -11,16 +11,20 @@ return new class extends Migration
         Schema::create('favorites', function (Blueprint $table) {
             $table->id();
             
-            $table->uuid('customer_id');
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
+            // Relación con el Cliente (UUID)
+            $table->foreignUuid('customer_id')
+                ->constrained('customers')
+                ->cascadeOnDelete();
             
-            $table->uuid('product_id');
-            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+            // Relación con el SKU (UUID) - RECTIFICADO
+            $table->foreignUuid('sku_id')
+                ->constrained('skus')
+                ->cascadeOnDelete();
             
-            // Índice único para evitar duplicados en favoritos
-            $table->unique(['customer_id', 'product_id']);
+            // LA LEY: Unicidad física para evitar duplicados en el nodo
+            $table->unique(['customer_id', 'sku_id'], 'idx_unique_favorite');
             
-            $table->timestamps(); // Útil para ordenar por "Añadido recientemente"
+            $table->timestamps(); // Auditoría para "Añadido recientemente"
         });
     }
 

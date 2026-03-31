@@ -1,16 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Shared;
 
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{DB, Cache};
 
-final class ReorderEntityAction
+final readonly class ReorderEntityAction
 {
     /**
-     * Pilar 3.A: Rendimiento Extremo.
-     * Actualiza múltiples registros en una sola transacción SQL usando CASE.
+     * Actualización masiva con invalidación de caché.
+     * Complejidad: O(1) de red SQL.
      */
-    public function execute(string $table, array $orderedIds): void
+    public function execute(string $table, array $orderedIds, ?string $cacheKey = null): void
     {
         if (empty($orderedIds)) return;
 
@@ -27,8 +29,13 @@ final class ReorderEntityAction
             $idsString = implode(',', $ids);
             $casesString = implode(' ', $cases);
 
-            // Una sola query para N actualizaciones
+            // Bloqueo pesimista mediante ejecución directa de UPDATE
             DB::statement("UPDATE {$table} SET sort_order = (CASE {$casesString} END) WHERE id IN ({$idsString})");
         });
+
+        // Pilar 4: Invalidación proactiva
+        if ($cacheKey) {
+            Cache::forget($cacheKey);
+        }
     }
 }

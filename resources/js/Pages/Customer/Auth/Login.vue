@@ -1,5 +1,5 @@
 <script setup>
-import { useForm, Link, Head } from '@inertiajs/vue3';
+import { useForm, Link, Head, router } from '@inertiajs/vue3'; // <--- AGREGADO router
 import { ref, computed, onMounted } from 'vue';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
@@ -36,15 +36,40 @@ const submit = () => {
     if (!canSubmit.value) return;
     form.clearErrors();
 
-    // Sincronización final de Guest UUID justo antes del despacho
     form.transform((data) => ({
         ...data,
         guest_client_uuid: localStorage.getItem('guest_client_uuid')
-    })).post(route('customer.login'), { // CORRECCIÓN: Prefijo de silo
+    })).post(route('customer.login'), {
         preserveScroll: true,
+        // PROTOCOLO DE ÉXITO: Sincronización de activos locales
+        onSuccess: () => {
+            const localFavs = localStorage.getItem('guest_favorites');
+            if (localFavs) {
+                const skuIds = JSON.parse(localFavs);
+                if (skuIds.length > 0) {
+                    // Despacho asíncrono al silo de favoritos
+                    router.post(route('customer.favorites.sync'), { 
+                        sku_ids: skuIds 
+                    }, {
+                        onFinish: () => localStorage.removeItem('guest_favorites') // Limpieza de rastro guest
+                    });
+                }
+            }
+        },
         onFinish: () => form.reset('password'),
     });
 };
+onSuccess: () => {
+    const localFavs = localStorage.getItem('guest_favorites');
+    if (localFavs) {
+        // Enviamos los favoritos locales al backend para persistencia permanente
+        router.post(route('customer.favorites.sync'), { 
+            sku_ids: JSON.parse(localFavs) 
+        }, {
+            onFinish: () => localStorage.removeItem('guest_favorites') // Limpiamos tras sincronizar
+        });
+    }
+}
 </script>
 
 <template>

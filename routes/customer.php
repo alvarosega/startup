@@ -17,10 +17,12 @@ use App\Http\Controllers\Web\Customer\Order\OrderController;
 use App\Http\Controllers\Web\Customer\Catalog\FavoriteController;
 use App\Http\Controllers\Web\Customer\Catalog\ReviewController;
 use App\Http\Controllers\Web\Customer\Brand\BrandController;
-
+use App\Http\Controllers\Web\Customer\Featured\FeaturedController;
 
 Route::get('/product/{id}', ProductShowController::class)->name('product.show');
-
+Route::prefix('featured')->name('featured.')->group(function () {
+    Route::get('/{product:slug}', [FeaturedController::class, 'show'])->name('show');
+});
 Route::name('shop.')->group(function () {
     // Landing Principal (Invocable)
     Route::get('/', ShopController::class)->name('index');
@@ -30,14 +32,13 @@ Route::name('shop.')->group(function () {
     
     // Zonas de Mercado
     Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
-
-    // SILO DE MARCA: Resolución del Error de Ziggy
     // Esta ruta genera el nombre: customer.shop.brand.show (si el archivo está prefijado)
     Route::get('/marcas/{slug}', [BrandController::class, 'show'])->name('brand.show');
 
     // Navegación Atómica
     Route::get('/category/{category:slug}', CategoryController::class)->name('category');
     Route::get('/bundle/{slug}', BundleController::class)->name('bundle');
+
 });
 
 Route::prefix('cart')->name('cart.')->group(function () {
@@ -57,15 +58,20 @@ Route::middleware('guest:customer')->group(function () {
     Route::post('password/email', [ForgotPasswordController::class, 'sendResetCode'])->name('password.email');
     Route::get('password/reset/{email}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
     Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
-    Route::get('/geo/validate', [App\Http\Controllers\Api\Geo\GeoController::class, 'validatePoint'])
-    ->name('api.geo.validate');
+    //Route::get('/geo/validate', [App\Http\Controllers\Api\Geo\GeoController::class, 'validatePoint'])
+    //->name('api.geo.validate');
+    Route::get('/favorites', [App\Http\Controllers\Web\Customer\Favorites\FavoriteController::class, 'index'])
+    ->name('customer.favorites.index');
 });
 
 Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
 // Rutas protegidas del cliente
 Route::middleware(['auth:customer'])->prefix('customer')->group(function () {
-    
+    Route::post('/favorites/toggle', [App\Http\Controllers\Web\Customer\Favorites\FavoriteController::class, 'toggle'])
+        ->name('favorites.toggle');
+    Route::post('/favorites/sync', [App\Http\Controllers\Web\Customer\Favorites\FavoriteController::class, 'sync'])
+        ->name('customer.favorites.sync');
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('index');
         Route::put('/', [ProfileController::class, 'update'])->name('update');
