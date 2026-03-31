@@ -30,7 +30,8 @@ class Provider extends Model
         'credit_days',
         'credit_limit',
         'is_active',
-        'notes'
+        'notes',
+        'version'
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class Provider extends Model
         'lead_time_days' => 'integer',
         'min_order_value' => 'decimal:2',
         'credit_limit' => 'decimal:2',
+        'version' => 'integer',
     ];
     public function scopeActive($query)
     {
@@ -46,5 +48,11 @@ class Provider extends Model
     public function brands()
     {
         return $this->hasMany(Brand::class);
+    }
+    protected static function booted()
+    {
+        static::updating(function ($model) {
+            $model->version++;
+        });
     }
 }

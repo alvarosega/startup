@@ -1,12 +1,12 @@
 <?php
 namespace App\Actions\Admin\Provider;
-
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use App\Models\Provider;
-use Illuminate\Pagination\LengthAwarePaginator;
+
 
 class ListProviders
 {
-    public function execute(?string $search = null): LengthAwarePaginator
+    public function execute(?string $search = null): CursorPaginator
     {
         return Provider::query()
             ->when($search, fn($q) => $q->where(fn($sub) => 
@@ -16,6 +16,6 @@ class ListProviders
                     ->orWhere('internal_code', 'like', "%{$search}%")
             ))
             ->orderBy('company_name', 'asc')
-            ->paginate(15);
+            ->cursorPaginate(15); // Optimización Hostinger: Elimina el COUNT(*) masivo.
     }
 }

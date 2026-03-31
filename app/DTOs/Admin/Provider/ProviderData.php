@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 readonly class ProviderData {
     public function __construct(
-        public ?string $id, // Null para creación
+        public ?string $id,
         public string $company_name,
         public ?string $commercial_name,
         public string $tax_id,
@@ -22,18 +22,25 @@ readonly class ProviderData {
         public float $credit_limit,
         public bool $is_active,
         public ?string $notes,
-    ) {}
+        public int $version = 0,
+    ) {
+        // CONSTRUCTOR PURO: Sin lógica de asignación para evitar colisión con readonly.
+    }
 
     public static function fromRequest(Request $request, ?string $id = null): self {
+        // REGLA 2.B: Normalización preventiva antes de la instanciación
+        $phone = $request->validated('phone');
+        $email = $request->validated('email_orders');
+
         return new self(
             id: $id,
-            company_name: (string) $request->validated('company_name'),
+            company_name: trim((string) $request->validated('company_name')),
             commercial_name: $request->validated('commercial_name'),
             tax_id: (string) $request->validated('tax_id'),
             internal_code: $request->validated('internal_code'),
             contact_name: $request->validated('contact_name'),
-            email_orders: $request->validated('email_orders'),
-            phone: $request->validated('phone'),
+            email_orders: $email ? strtolower(trim($email)) : null,
+            phone: $phone ? preg_replace('/[^\+0-9]/', '', $phone) : null,
             address: $request->validated('address'),
             city: $request->validated('city'),
             lead_time_days: (int) $request->validated('lead_time_days', 1),
@@ -42,6 +49,7 @@ readonly class ProviderData {
             credit_limit: (float) $request->validated('credit_limit', 0),
             is_active: $request->boolean('is_active', true),
             notes: $request->validated('notes'),
+            version: (int) $request->validated('version', 0),
         );
     }
 }

@@ -16,8 +16,9 @@ class UpdateProviderRequest extends FormRequest
         return [
             'company_name'    => ['required', 'string', 'max:255'],
             'commercial_name' => ['nullable', 'string', 'max:255'],
-            'tax_id'          => ['required', 'string', Rule::unique('providers')->ignore($providerId)],
-            'internal_code'   => ['nullable', 'string', Rule::unique('providers')->ignore($providerId)],
+            'tax_id' => ['required', 'string', Rule::unique('providers')->ignore($providerId)],
+            'internal_code' => ['nullable', 'string', Rule::unique('providers')->ignore($providerId)],
+            'version' => ['required', 'integer'], // Validación obligatoria para Bloqueo Optimista
             'contact_name'    => ['nullable', 'string', 'max:255'],
             'email_orders'    => ['nullable', 'email', 'max:255'],
             'phone'           => ['nullable', 'string', 'max:20'],
