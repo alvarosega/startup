@@ -4,9 +4,10 @@ import { Link, usePage, router } from '@inertiajs/vue3';
 const searchQuery = ref(''); 
 import {
     Home, ShoppingCart, User, Receipt, ShieldCheck, MapPin,
-    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck // Asegurar PackageCheck
+    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck 
 } from 'lucide-vue-next';
-// Componentes Base (Asegúrate de que las rutas sean correctas)
+
+// Componentes Base
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
 import Toast from '@/Components/Base/Toast.vue';
@@ -20,31 +21,29 @@ const toggleSearch = () => { isSearchActive.value = !isSearchActive.value; };
 const isSidebarExpanded = ref(false);
 const isMobileMenuOpen = ref(false);
 
-// --- DATA COMPARTIDA (Inertia + Mocks para Telemetría) ---
-const user = computed(() => page.props.auth?.user);
+// --- DATA COMPARTIDA ---
+const user = computed(() => page.props.auth?.customer);
 const location = computed(() => page.props.location_context || { label: 'LOCALIZANDO...', type: 'branch' });
 const cartCount = computed(() => page.props.cart?.total_items || 0);
-const activeOrder = computed(() => page.props.active_order || { progress: 75, status: 'preparing' }); // Mock para UI
+const activeOrder = computed(() => page.props.active_order || { progress: 75, status: 'preparing' }); 
 
 // --- NAVEGACIÓN UNIFICADA ---
 const navigation = [
     { name: 'Inicio', icon: Home, route: 'customer.shop.index' },
-    { name: 'Promos', icon: Tag, route: 'customer.shop.index' }, // Ajustar ruta real
+    { name: 'Promos', icon: Tag, route: 'customer.shop.index' }, 
     { name: 'Pedidos', icon: Receipt, route: 'customer.orders.history' },
     { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses' },
     { name: 'Seguridad', icon: ShieldCheck, route: 'customer.profile.security' },
 ];
-// Actualización del array navigation (Surgical Fix)
+
 const filteredNavigation = computed(() => {
     return navigation.filter(item => {
-        // Rutas que SIEMPRE son visibles
         const publicRoutes = ['customer.shop.index'];
         if (publicRoutes.includes(item.route)) return true;
-        
-        // Rutas que requieren autoridad (USER != NULL)
         return !!user.value;
     });
 });
+
 const logout = () => { 
     router.post(route('customer.logout')); 
 };
@@ -72,7 +71,7 @@ const logout = () => {
             </div>
 
             <nav class="flex-1 px-3 space-y-2 mt-4">
-                <Link v-for="item in navigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
+                <Link v-for="item in filteredNavigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
                     class="flex items-center h-12 rounded-xl transition-all duration-300 group relative"
                     :class="route().current(item.route) ? 'bg-primary/10 text-primary shadow-sm' : 'hover:bg-foreground/5 text-foreground/60 hover:text-foreground'">
                     
@@ -111,7 +110,7 @@ const logout = () => {
                                 Unirse
                             </Link>
                         </div>
-                                                
+                                                                        
                         <button v-else @click="logout" class="text-[9px] font-black text-primary uppercase hover:underline">
                             Cerrar Sesión
                         </button>
@@ -124,71 +123,71 @@ const logout = () => {
             class="flex-1 flex flex-col transition-all duration-500 ease-ios w-full pt-16 lg:pt-20"
             :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'"
         >
-        <header class="fixed top-0 lg:top-4 left-0 right-0 z-[60] w-full px-2 lg:px-8 pointer-events-none transition-all duration-500">
-        <div class="mx-auto max-w-7xl h-16 lg:h-14 bg-transparent backdrop-blur-md border border-foreground/10 rounded-[2rem] lg:rounded-full flex items-center justify-between px-4 pointer-events-auto">
-                <div v-if="!isSearchActive" class="flex items-center gap-3 shrink-0 animate-fade-in">
-                    <button @click="isMobileMenuOpen = true" class="lg:hidden p-2 hover:bg-foreground/10 rounded-full text-foreground active:scale-95 transition-transform">
-                        <Menu :size="20" />
-                    </button>
+            <header class="fixed top-0 lg:top-4 left-0 right-0 z-[60] w-full px-2 lg:px-8 pointer-events-none transition-all duration-500">
+                <div class="mx-auto max-w-7xl h-16 lg:h-14 bg-transparent backdrop-blur-md border border-foreground/10 rounded-[2rem] lg:rounded-full flex items-center justify-between px-4 pointer-events-auto">
+                    <div v-if="!isSearchActive" class="flex items-center gap-3 shrink-0 animate-fade-in">
+                        <button @click="isMobileMenuOpen = true" class="lg:hidden p-2 hover:bg-foreground/10 rounded-full text-foreground active:scale-95 transition-transform">
+                            <Menu :size="20" />
+                        </button>
 
-                    <button @click="router.visit(route('customer.profile.addresses'))" class="flex items-center gap-2 px-3 py-1.5 hover:bg-foreground/5 rounded-full transition-all group">
-                        <div class="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center shrink-0 shadow-f1-glow">
-                            <MapPin :size="14" class="text-primary" />
-                        </div>
-                        <div class="flex flex-col items-start leading-none">
-                            <span class="text-[9px] font-black text-primary uppercase tracking-tighter">Entregar en:</span>
-                            <span class="text-[11px] font-bold text-foreground truncate max-w-[120px] md:max-w-[200px] uppercase">
-                                {{ location.label }}
-                            </span>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="flex-1 flex justify-end items-center gap-2">
-                    <div v-if="isSearchActive" class="w-full flex items-center gap-2 animate-slide-left">
-                        <div class="flex-1 relative">
-                            <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-primary" :size="16" />
-                            <input 
-                                v-model="searchQuery"
-                                autoFocus
-                                type="text" 
-                                placeholder="BUSCAR EN EL CATÁLOGO..."
-                                class="w-full h-11 bg-foreground/10 border-none rounded-full pl-11 pr-4 text-[11px] font-bold tracking-widest focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-foreground/40 uppercase"
-                            />
-                        </div>
-                        <button @click="toggleSearch" class="p-2.5 bg-foreground/20 rounded-full text-foreground active:scale-90">
-                            <X :size="18" />
+                        <button @click="router.visit(route('customer.profile.addresses'))" class="flex items-center gap-2 px-3 py-1.5 hover:bg-foreground/5 rounded-full transition-all group">
+                            <div class="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center shrink-0 shadow-f1-glow">
+                                <MapPin :size="14" class="text-primary" />
+                            </div>
+                            <div class="flex flex-col items-start leading-none">
+                                <span class="text-[9px] font-black text-primary uppercase tracking-tighter">Entregar en:</span>
+                                <span class="text-[11px] font-bold text-foreground truncate max-w-[120px] md:max-w-[200px] uppercase">
+                                    {{ location.label }}
+                                </span>
+                            </div>
                         </button>
                     </div>
 
-                    <button v-else @click="toggleSearch" class="p-3 hover:bg-foreground/10 rounded-full text-foreground transition-all active:scale-90">
-                        <Search :size="20" />
-                    </button>
-
-                    <div v-if="!isSearchActive" class="flex items-center gap-2 shrink-0">
-                        <div class="hidden sm:flex items-center gap-1 mr-2">
-                            <ThemeToggler />
-                            <FullScreenToggler />
-                        </div>
-                        
-                        <Link :href="route('customer.cart.index')" class="flex items-center gap-2 p-1 pl-3 bg-foreground/10 hover:bg-foreground/20 rounded-full border border-white/10 transition-all group">
-                            <span class="text-[10px] font-black uppercase tracking-tighter hidden md:block text-foreground">Items: {{ cartCount }}</span>
-                            <div class="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center relative shadow-f1-glow group-active:scale-90 transition-transform">
-                                <ShoppingCart :size="18" />
-                                <span v-if="cartCount > 0" class="absolute -top-1 -right-1 bg-foreground text-background text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-primary">
-                                    {{ cartCount }}
-                                </span>
+                    <div class="flex-1 flex justify-end items-center gap-2">
+                        <div v-if="isSearchActive" class="w-full flex items-center gap-2 animate-slide-left">
+                            <div class="flex-1 relative">
+                                <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-primary" :size="16" />
+                                <input 
+                                    v-model="searchQuery"
+                                    autoFocus
+                                    type="text" 
+                                    placeholder="BUSCAR EN EL CATÁLOGO..."
+                                    class="w-full h-11 bg-foreground/10 border-none rounded-full pl-11 pr-4 text-[11px] font-bold tracking-widest focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-foreground/40 uppercase"
+                                />
                             </div>
-                        </Link>
+                            <button @click="toggleSearch" class="p-2.5 bg-foreground/20 rounded-full text-foreground active:scale-90">
+                                <X :size="18" />
+                            </button>
+                        </div>
+
+                        <button v-else @click="toggleSearch" class="p-3 hover:bg-foreground/10 rounded-full text-foreground transition-all active:scale-90">
+                            <Search :size="20" />
+                        </button>
+
+                        <div v-if="!isSearchActive" class="flex items-center gap-2 shrink-0">
+                            <div class="hidden sm:flex items-center gap-1 mr-2">
+                                <ThemeToggler />
+                                <FullScreenToggler />
+                            </div>
+                            
+                            <Link :href="route('customer.cart.index')" class="flex items-center gap-2 p-1 pl-3 bg-foreground/10 hover:bg-foreground/20 rounded-full border border-white/10 transition-all group">
+                                <span class="text-[10px] font-black uppercase tracking-tighter hidden md:block text-foreground">Items: {{ cartCount }}</span>
+                                <div class="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center relative shadow-f1-glow group-active:scale-90 transition-transform">
+                                    <ShoppingCart :size="18" />
+                                    <span v-if="cartCount > 0" class="absolute -top-1 -right-1 bg-foreground text-background text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-primary">
+                                        {{ cartCount }}
+                                    </span>
+                                </div>
+                            </Link>
+                        </div>
                     </div>
                 </div>
-                </div>
-             </header>
+            </header>
+
             <section 
                 class="flex-1 w-full mx-auto py-8 transition-all"
                 :class="route().current('customer.shop.index') ? 'max-w-full px-0' : 'max-w-7xl px-4 lg:px-8'"
             >
-
                 <slot />
             </section>
 
@@ -261,7 +260,7 @@ const logout = () => {
                         <button @click="isMobileMenuOpen = false" class="p-2 hover:bg-muted rounded-full transition-colors"><X :size="20" /></button>
                     </div>
                     <nav class="flex-1 p-4 space-y-1">
-                        <Link v-for="item in navigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
+                        <Link v-for="item in filteredNavigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
                             @click="isMobileMenuOpen = false"
                             class="flex items-center gap-4 p-4 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/5 group transition-all">
                             <component :is="item.icon" :size="18" class="group-hover:text-primary transition-colors" />
@@ -293,7 +292,6 @@ const logout = () => {
                 </div>
             </div>
         </Transition>
-
     </div>
 </template>
 

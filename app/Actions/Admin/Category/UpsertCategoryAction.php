@@ -39,6 +39,10 @@ class UpsertCategoryAction
                 if ($isNew) {
                     $category = Category::create($attributes);
                 } else {
+                    // REGLA 2.B: Verificación de Integridad Temporal
+                    if ($category->version !== $data->version) {
+                        throw new \Exception("CONCURRENCY_ERROR: Nodo modificado por otro proceso. Recargue la jerarquía.");
+                    }
                     $category->update($attributes);
                 }
 

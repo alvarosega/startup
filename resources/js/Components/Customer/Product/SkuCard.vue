@@ -1,64 +1,60 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { Plus, Minus, Zap, Heart } from 'lucide-vue-next'; // Añadir Heart
+import { Plus, Minus, Zap, Heart, Loader2 } from 'lucide-vue-next';
 
 const props = defineProps({
-    sku: { type: Object, default: null },
+    sku: { type: Object, required: true },
     loading: { type: Boolean, default: false },
     isActive: { type: Boolean, default: false }
 });
-
+// Añadir esta utilidad en el script si los precios pueden venir como string desde la DB
+const formatPrice = (value) => parseFloat(value || 0).toFixed(2);
 const page = usePage();
 
-// --- LÓGICA DE IDENTIDAD VISUAL ---
-const dynamicStyle = computed(() => {
-    // Si no hay color, usamos var(--primary) como fallback
-    const catColor = props.sku?.bg_color || 'var(--primary)';
-    
-    // Convertimos el valor en una variable CSS local para usarla en el <style>
-    return {
-        '--local-sku-color': catColor,
-    };
-});
+// --- LÓGICA DE IDENTIDAD Y AUTH ---
+const user = computed(() => page.props.auth?.customer);
+const isAuth = computed(() => !!user.value);
 
-// --- LÓGICA DE CARRITO ---
-const cartItem = computed(() => {
-    if (!props.sku) return null;
-    const items = page.props.cart?.items || [];
-    return items.find(item => item.sku_id === props.sku.id);
-});
-const isAuth = computed(() => !!page.props.auth?.customer);
-const localFavorites = ref(JSON.parse(localStorage.getItem('guest_favorites') || '[]'));// DENTRO DE SkuCard.vue (Aprox línea 33)
-
-// DENTRO DE SkuCard.vue (Aprox línea 33)
+// --- ESTADO DE FAVORITOS ---
+const localFavorites = ref(JSON.parse(localStorage.getItem('guest_favorites') || '[]'));
 
 const isFavorite = computed(() => {
     if (!props.sku) return false;
+    
+    const productId = props.sku.product_id; // <--- USAR ID DE PRODUCTO
+
     if (isAuth.value) {
-        return page.props.auth.favorites_ids?.includes(props.sku.id);
+        return user.value.favorites_ids?.includes(productId);
     }
-    // ESTA ES LA LÍNEA CORREGIDA PARA OBJETOS:
-    return localFavorites.value.some(fav => fav.id === props.sku.id); 
+    // Para Guest, comparamos contra el ID de producto guardado localmente
+    return localFavorites.value.some(fav => fav.product_id === productId); 
 });
+
+const updateLocalFavs = () => {
+    localFavorites.value = JSON.parse(localStorage.getItem('guest_favorites') || '[]');
+};
+
+onMounted(() => window.addEventListener('local-favorites-updated', updateLocalFavs));
+onUnmounted(() => window.removeEventListener('local-favorites-updated', updateLocalFavs));
+
 const toggleFavorite = (e) => {
     e.stopPropagation();
     if (props.loading || !props.sku) return;
 
     if (isAuth.value) {
+        console.log("DEBUG SKU:", props.sku)
         router.post(route('customer.favorites.toggle'), { sku_id: props.sku.id }, {
             preserveScroll: true, preserveState: true
+            
         });
     } else {
         let favs = JSON.parse(localStorage.getItem('guest_favorites') || '[]');
-        
-        // Buscamos si ya existe por ID
         const index = favs.findIndex(f => f.id === props.sku.id);
 
         if (index > -1) {
-            favs.splice(index, 1); // Quitar
+            favs.splice(index, 1);
         } else {
-            // Guardamos solo lo necesario para la SkuCard (Lightweight DTO)
             favs.push({
                 id: props.sku.id,
                 name: props.sku.name,
@@ -66,37 +62,77 @@ const toggleFavorite = (e) => {
                 final_price: props.sku.final_price,
                 list_price: props.sku.list_price,
                 bg_color: props.sku.bg_color,
-                slug: props.sku.slug, // Crítico para la navegación
                 brand_name: props.sku.brand_name
             });
         }
-        
         localStorage.setItem('guest_favorites', JSON.stringify(favs));
-        // Disparar evento para actualizar otras partes de la UI
         window.dispatchEvent(new Event('local-favorites-updated'));
     }
 };
+
+// --- LÓGICA DE CARRITO ---
+const cartItem = computed(() => {
+    if (!props.sku) return null;
+    const items = page.props.cart?.items || [];
+    return items.find(item => item.sku_id === props.sku.id);
+});
+
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
 const hasDiscount = computed(() => props.sku?.list_price > props.sku?.final_price);
 
+const isProcessing = ref(false); // Estado para Skeletons/Spinners locales
 const handleAdd = () => {
-    if (props.loading) return;
+    if (props.loading || isProcessing.value) return;
+    
+    isProcessing.value = true;
     router.post(route('customer.cart.upsert'), {
         target_id: props.sku.id,
         target_type: 'sku',
         quantity: 1
-    }, { preserveScroll: true, preserveState: true });
+    }, { 
+        preserveScroll: true, 
+        preserveState: true,
+        // BLINDAJE: Si hay un error, también liberamos el estado de carga
+        onError: () => {
+            isProcessing.value = false;
+        },
+        onFinish: () => {
+            isProcessing.value = false;
+        }
+    });
 };
 
 const updateQty = (delta) => {
+    if (isProcessing.value) return;
+
     const newQty = quantity.value + delta;
+    
+    // REGLA: No permitir más que el stock disponible
+    if (delta > 0 && newQty > props.sku.stock) {
+        // Podrías disparar un Toast aquí: "Máximo stock alcanzado"
+        return;
+    }
+
+    isProcessing.value = true;
     if (newQty < 1) {
-        const itemId = cartItem.value?.id;
-        if(itemId) router.delete(route('customer.cart.remove', itemId), { preserveScroll: true });
+        router.delete(route('customer.cart.remove', cartItem.value.id), { 
+            preserveScroll: true,
+            onFinish: () => isProcessing.value = false 
+        });
     } else {
-        router.patch(route('customer.cart.update', cartItem.value.id), { quantity: newQty }, { preserveScroll: true });
+        router.patch(route('customer.cart.update', cartItem.value.id), { 
+            quantity: newQty 
+        }, { 
+            preserveScroll: true,
+            onFinish: () => isProcessing.value = false 
+        });
     }
 };
+
+// --- IDENTIDAD VISUAL ---
+const dynamicStyle = computed(() => ({
+    '--local-sku-color': props.sku?.bg_color || 'var(--primary)',
+}));
 
 const goToProduct = () => {
     if (props.loading || !props.sku) return;
@@ -110,18 +146,20 @@ const goToProduct = () => {
         :style="dynamicStyle"
         class="group relative flex flex-col bg-card border border-border/40 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-[var(--local-sku-color)]/20 active:scale-[0.98]"
         :class="{ 'ring-2 ring-[var(--local-sku-color)] border-transparent': quantity > 0 || isActive }">
+        
         <button @click="toggleFavorite" 
                 class="absolute top-3 right-3 z-30 p-2 rounded-full backdrop-blur-md bg-black/10 border border-white/10 transition-all hover:scale-110 active:scale-90 group/heart">
             <Heart :size="16" 
                 :stroke-width="isFavorite ? 0 : 2.5"
-                :class="isFavorite ? 'text-primary fill-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.6)]' : 'text-white'" />
+                :class="isFavorite ? 'text-primary fill-primary' : 'text-white'" />
         </button>
+
         <div class="h-1 w-full relative z-20" :style="{ backgroundColor: 'var(--local-sku-color)' }"></div>
 
         <div class="p-3 flex flex-col h-full relative z-10">
             <div class="flex items-center justify-between mb-2">
-                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/80 truncate drop-shadow-md">
-                    {{ sku.brand_name || 'GENERIC_ASSET' }}
+                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/80 truncate">
+                    {{ sku.brand_name || 'CyberMarket' }}
                 </span>
                 <div v-if="sku.stock <= 5 && sku.stock > 0" class="flex items-center gap-1">
                     <Zap :size="10" class="text-accent fill-accent" />
@@ -129,10 +167,9 @@ const goToProduct = () => {
                 </div>
             </div>
 
-            <div class="aspect-square relative rounded-2xl overflow-hidden mb-3 shadow-inner border border-white/10 static-split-bg">
-                
+            <div class="aspect-square relative rounded-2xl overflow-hidden mb-3 shadow-inner border border-white/10 static-split-bg p-4">
                 <img :src="sku.image" 
-                     class="relative z-20 w-full h-full object-contain p-2 transition-transform duration-700 group-hover:scale-110 drop-shadow-2xl"
+                     class="relative z-20 w-full h-full object-contain transition-transform duration-700 group-hover:scale-110 drop-shadow-2xl"
                      :alt="sku.name">
                 
                 <div v-if="hasDiscount" class="absolute top-2 left-2 z-30">
@@ -142,109 +179,75 @@ const goToProduct = () => {
                 </div>
 
                 <div class="absolute bottom-2 right-2 z-30">
-                    <button v-if="quantity === 0" @click.stop="handleAdd"
-                            class="w-10 h-10 bg-white/20 backdrop-blur-xl text-foreground rounded-full flex items-center justify-center border border-white/20 shadow-xl hover:bg-[var(--local-sku-color)] hover:text-white transition-all">
-                        <Plus :size="18" stroke-width="3" />
+                    <button v-if="quantity === 0" 
+                            @click.stop="handleAdd"
+                            :disabled="sku.stock <= 0 || isProcessing"
+                            class="w-10 h-10 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20 shadow-xl transition-all"
+                            :class="sku.stock <= 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-[var(--local-sku-color)] hover:text-white'">
+                        <Loader2 v-if="isProcessing" :size="18" class="animate-spin" />
+                        <Plus v-else :size="18" stroke-width="3" />
                     </button>
 
-                    <div v-else @click.stop class="flex items-center bg-[var(--local-sku-color)] text-white rounded-full p-0.5 shadow-lg animate-in zoom-in duration-300">
-                        <button @click="updateQty(-1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                    <div v-else @click.stop class="flex items-center bg-[var(--local-sku-color)] text-white rounded-full p-0.5 shadow-lg">
+                        <button @click="updateQty(-1)" :disabled="isProcessing" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20">
                             <Minus :size="14" stroke-width="3"/>
                         </button>
-                        <span class="w-6 text-center font-mono font-black text-xs">{{ quantity }}</span>
-                        <button @click="updateQty(1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                        <span class="w-6 text-center font-mono font-black text-xs">
+                            <Loader2 v-if="isProcessing" :size="10" class="animate-spin mx-auto" />
+                            <template v-else>{{ quantity }}</template>
+                        </span>
+                        <button @click="updateQty(1)" 
+                                :disabled="isProcessing || quantity >= sku.stock" 
+                                class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 disabled:opacity-30">
                             <Plus :size="14" stroke-width="3"/>
                         </button>
                     </div>
                 </div>
+                <div v-if="sku.stock <= 0" class="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-40 flex items-center justify-center pointer-events-none">
+                    <span class="bg-destructive text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Agotado</span>
+                </div>
             </div>
 
             <div class="flex-1 flex flex-col justify-between">
-                <h3 class="text-[11px] font-black uppercase leading-[1.2] tracking-tight text-foreground line-clamp-2 mb-2 group-hover:text-[var(--local-sku-color)] transition-colors drop-shadow-sm">
+                <h3 class="text-[11px] font-black uppercase leading-[1.2] tracking-tight text-foreground line-clamp-2 mb-2 group-hover:text-[var(--local-sku-color)] transition-colors">
                     {{ sku.name }}
                 </h3>
-                <div v-if="sku.upsell" class="mt-1 transition-all duration-300">
-                    <div class="flex items-center gap-1 bg-[var(--local-sku-color)]/10 px-2 py-0.5 rounded-md border border-[var(--local-sku-color)]/20 w-fit"
-                        :class="{ 'animate-pulse-urgency border-[var(--local-sku-color)] shadow-f1-glow': sku.upsell.needed === 1 }">
-                        
-                        <Zap :size="10" 
-                            :class="sku.upsell.needed === 1 ? 'text-[var(--local-sku-color)] fill-[var(--local-sku-color)]' : 'text-[var(--local-sku-color)]'" />
-                        
+                
+                <div v-if="sku.upsell?.next_price" class="mt-1 mb-2">
+                    <div class="flex items-center gap-1 bg-[var(--local-sku-color)]/10 px-2 py-0.5 rounded-md border border-[var(--local-sku-color)]/20 w-fit">
+                        <Zap :size="10" class="text-[var(--local-sku-color)]" />
                         <span class="text-[8px] font-black text-[var(--local-sku-color)] uppercase tracking-tighter">
-                            Bs {{ sku.upsell.next_price.toFixed(2) }} DESDE {{ sku.upsell.next_qty }} UNID
-                            <span v-if="sku.upsell.needed === 1" class="ml-1 italic underline">¡FALTA 1!</span>
+                            Bs {{ sku.upsell.next_price.toFixed(2) }} desde {{ sku.upsell.next_qty }} unid
                         </span>
                     </div>
                 </div>
+
                 <div class="space-y-0.5">
                     <span v-if="hasDiscount" class="text-[9px] font-bold text-muted-foreground/50 line-through block leading-none font-mono">
-                        {{ sku.list_price.toFixed(2) }}
+                        {{ (sku.list_price || 0).toFixed(2) }}
                     </span>
                     <div class="flex items-baseline gap-1">
                         <span class="text-[9px] font-black text-[var(--local-sku-color)] uppercase">Bs</span>
                         <span class="text-xl font-black tracking-tighter text-foreground font-mono leading-none">
-                            {{ sku.final_price.toFixed(2) }}
+                            {{ (sku.final_price || 0).toFixed(2) }}
                         </span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <div v-else class="aspect-[3/4] bg-muted/20 border border-border/10 rounded-3xl animate-pulse overflow-hidden"></div>
+    <div v-else class="aspect-[3/4] bg-muted/20 border border-border/10 rounded-3xl animate-pulse"></div>
 </template>
 
 <style scoped>
 .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-/* Gradiente Estático Diagonal (Mitad Categoría, Mitad Primario)
-  Se usa la técnica de "multi-capa" pura en CSS para evitar que Vue rompa las variables de Tailwind.
-*/
 .static-split-bg {
-    /* Eliminamos el color de fondo sólido para que no interfiera */
     background-color: transparent;
-
-    /* Creamos un flujo suave entre la categoría y el primario */
-    /* Usamos 135deg para que el flujo sea de esquina superior izquierda a inferior derecha */
-    background-image: linear-gradient(
-        135deg,
-        var(--local-sku-color) 0%,
-        hsl(var(--primary)) 100%
-    );
-    
-    /* Mantenemos la opacidad alta para que el color sea vibrante como en tu imagen */
+    background-image: linear-gradient(135deg, var(--local-sku-color) 0%, hsl(var(--primary)) 100%);
     opacity: 1;
 }
-
-/* En Dark Mode, suavizamos un poco para que el PNG destaque más */
 .dark .static-split-bg {
-    opacity: 0.7;
-    /* Añadimos un pequeño tinte negro para profundizar el degrade */
-    background-image: linear-gradient(
-        135deg,
-        var(--local-sku-color),
-        hsl(var(--primary)),
-        #000000
-    );
+    background-image: linear-gradient(135deg, var(--local-sku-color), hsl(var(--primary)), #000000);
 }
-/* Animación de Urgencia para el Upsell (1 unidad restante) */
-.animate-pulse-urgency {
-    animation: pulse-glow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse-glow {
-    0%, 100% { 
-        opacity: 1; 
-        box-shadow: 0 0 0px var(--local-sku-color); 
-    }
-    50% { 
-        opacity: 0.8; 
-        box-shadow: 0 0 12px var(--local-sku-color); 
-    }
-}
-
-/* Sincronización de la sombra F1 con el color local */
-.shadow-f1-glow {
-    box-shadow: 0 0 15px -3px var(--local-sku-color);
-}
+.shadow-f1-glow { box-shadow: 0 0 15px -3px var(--local-sku-color); }
 </style>

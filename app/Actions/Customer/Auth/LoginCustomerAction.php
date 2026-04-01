@@ -3,8 +3,7 @@
 namespace App\Actions\Customer\Auth;
 
 use App\DTOs\Customer\Auth\LoginCustomerData; 
-use App\Actions\Customer\Cart\SyncGuestCartAction;
-use App\DTOs\Customer\Cart\SyncCartDTO;
+use App\Services\Cart\CartService;
 use App\Services\ShopContextService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -13,9 +12,9 @@ use Illuminate\Validation\ValidationException;
 class LoginCustomerAction
 {
     public function __construct(
-        protected SyncGuestCartAction $syncAction,
-        protected ShopContextService $contextService
-    ) {}
+        protected ShopContextService $contextService,
+        protected CartService $cartService
+        ) {}
 
     public function execute(LoginCustomerData $data): bool
     {
@@ -34,11 +33,10 @@ class LoginCustomerAction
 
         // 3. Protocolo de Fusión de Carrito (Merge)
         if ($data->guestUuid) {
-            $this->syncAction->execute(new SyncCartDTO(
-                customerId: (string) Auth::guard('customer')->id(),
-                guestUuid:  $data->guestUuid,
-                branchId:   $this->contextService->getActiveBranchId()
-            ));
+            $this->cartService->fusionGuestCart(
+                (string) Auth::guard('customer')->id(),
+                $data->guestUuid
+            );
         }
 
         return true;

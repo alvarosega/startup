@@ -37,55 +37,45 @@ class CartController extends Controller
         ]);
     }
 
-    /**
-     * Protocolo de Persistencia Atómica (+ o botón añadir).
-     */
     public function upsert(Request $request, CartUpsertAction $action): RedirectResponse
     {
-        // Validación técnica de entrada
         $request->validate([
             'target_id'   => ['required', 'string'],
             'target_type' => ['required', 'in:sku,bundle'],
             'quantity'    => ['required', 'integer', 'min:1', 'max:99'],
         ]);
 
-        try {
-            $action->execute($request);
-            
-            return back()->with('toast', [
-                'type'    => 'success',
-                'message' => 'Ítem sincronizado con el carrito.'
-            ]);
-        } catch (\Exception $e) {
-            return back()->withErrors(['cart' => $e->getMessage()]);
+        $result = $action->execute($request);
+
+        if (!$result->success) {
+            // INTEGRIDAD: Si falla el stock, devolvemos error de validación para que Inertia lo pinte
+            return back()->withErrors(['cart' => $result->message]);
         }
+
+        return back()->with('toast', [
+            'type'    => 'success',
+            'message' => $result->message
+        ]);
     }
 
-    /**
-     * Actualización manual de cantidades (Selector del carrito).
-     */
     public function update(string $id, Request $request, UpdateCartItemAction $action): RedirectResponse
     {
         $request->validate([
             'quantity' => ['required', 'integer', 'min:1', 'max:99']
         ]);
 
-        try {
-            $branchId = $this->shopContext->getActiveBranchId();
-            $action->execute($id, (int) $request->quantity, $branchId);
+        // Ya no necesitamos pasar el branchId aquí, el Service lo resuelve solo
+        $result = $action->execute($id, (int) $request->quantity);
 
-            return back()->with('toast', [
-                'type'    => 'success',
-                'message' => 'Cantidad actualizada.'
-            ]);
-        } catch (\Exception $e) {
-            return back()->withErrors(['cart' => $e->getMessage()]);
+        if (!$result->success) {
+            return back()->withErrors(['cart' => $result->message]);
         }
-    }
 
-    /**
-     * Eliminación de línea del agrupador.
-     */
+        return back()->with('toast', [
+            'type'    => 'success',
+            'message' => $result->message
+        ]);
+    }
     public function remove(string $id, RemoveCartItemAction $action): RedirectResponse
     {
         try {

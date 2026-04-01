@@ -27,6 +27,7 @@ class UpdateCategoryRequest extends FormRequest
             'requires_age_check' => ['boolean'],
             'is_active' => ['boolean'],
             'is_featured' => ['boolean'],
+            'version' => ['required', 'integer'],
         ];
     }
 }

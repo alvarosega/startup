@@ -8,12 +8,16 @@ use Illuminate\Support\Facades\{Cache, DB};
 
 final class GetCategoryPageAction
 {
+    // --- REEMPLAZAR EL MÉTODO COMPLETO POR ESTE ---
     public function execute(CategoryPageDTO $dto, ?string $searchTerm = null): array
     {
-        // 1. Navegador Global (Caché Aurora)
-        $allCategories = Cache::remember("global_categories_nav", 3600, function () {
-            return Category::active()->orderBy('sort_order')->get();
+        $allCategories = Cache::remember("global_nav_br_{$dto->branchId}", 3600, function () use ($dto) {
+            return Category::active()
+                ->whereHas('products.skus.prices', fn($q) => $q->where('branch_id', $dto->branchId))
+                ->orderBy('sort_order')
+                ->get();
         });
+    
 
         // 2. Banners de Categoría
         $banners = AdCreative::query()

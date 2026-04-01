@@ -1,5 +1,5 @@
 <script setup>
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     categories: { type: Array, default: () => [] },
@@ -9,23 +9,13 @@ const props = defineProps({
 
 const page = usePage();
 
-const navigateToCategory = (slug) => {
-    if (props.loading) return;
-    const isCategoryPage = page.component === 'Customer/Category/Show';
-    router.visit(route('customer.shop.category', { category: slug }), { 
-        preserveScroll: true,
-        preserveState: true,
-        ...(isCategoryPage ? { only: ['categoryData', 'products', 'filters'] } : {})
-    });
-};
-
 const getCategoryStyle = (hex) => {
     const cleanHex = hex ? hex.replace('#', '') : '6366f1';
     const baseColor = `#${cleanHex}`;
     
     return {
-        '--cat-glow-core': `${baseColor}CC`, // 80% opacidad (Núcleo denso)
-        '--cat-glow-outer': `${baseColor}33`, // 20% opacidad (Aura expansiva)
+        '--cat-glow-core': `${baseColor}CC`, 
+        '--cat-glow-outer': `${baseColor}33`, 
     };
 };
 </script>
@@ -35,23 +25,19 @@ const getCategoryStyle = (hex) => {
         <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-8 pb-4">
             
             <template v-if="!loading && categories.length > 0">
-                <div v-for="cat in categories" :key="cat.id"
-                     @click="navigateToCategory(cat.slug)"
+                <Link v-for="cat in categories" :key="cat.id"
+                     :href="route('customer.shop.category', { category: cat.slug })"
                      :style="getCategoryStyle(cat.bg_color)"
                      class="group flex flex-col items-center gap-5 snap-start shrink-0 cursor-pointer w-[90px] transition-all duration-500">
                      
                     <div class="relative w-20 h-20 flex items-center justify-center">
-                        
                         <div class="absolute inset-0 rounded-full transition-all duration-700 blur-[35px] pointer-events-none"
                             :class="[
-                                // Si está activa o en Home (sin selección), mostramos el resplandor
                                 (!activeId || String(activeId) === String(cat.id)) 
-                                ? 'opacity-100 scale-[2.5] lg:scale-[3]' 
-                                : 'opacity-0 group-hover:opacity-80 group-hover:scale-[2]'
+                                ? 'opacity-100 scale-[2.2]' 
+                                : 'opacity-0 group-hover:opacity-60'
                             ]"
-                            :style="{ 
-                                background: 'radial-gradient(circle, var(--cat-glow-core) 0%, var(--cat-glow-outer) 40%, transparent 75%)' 
-                            }">
+                            :style="{ background: `radial-gradient(circle, var(--cat-glow-core) 0%, var(--cat-glow-outer) 50%, transparent 75%)` }">
                         </div>
 
                         <img :src="cat.image_url" 
@@ -64,7 +50,7 @@ const getCategoryStyle = (hex) => {
                           :class="String(activeId) === String(cat.id) ? 'text-primary scale-110' : 'text-foreground/70 group-hover:text-foreground'">
                         {{ cat.name }}
                     </span>
-                </div>
+                </Link>
             </template>
 
             <template v-else>
@@ -82,10 +68,8 @@ const getCategoryStyle = (hex) => {
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Inercia de hardware para el efecto de resplandor masivo */
 .blur-\[35px\] {
     will-change: transform, opacity;
-    transform: translateZ(0); /* Forzar GPU */
+    transform: translateZ(0); 
 }
 </style>

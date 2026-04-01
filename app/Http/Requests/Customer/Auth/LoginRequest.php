@@ -13,11 +13,18 @@ class LoginRequest extends FormRequest
     {
         return true; 
     }
-
     protected function prepareForValidation(): void
     {
-        // Dictamen: Normalizar el teléfono (+591...) antes de procesar la regla
-        $this->normalizeIdentityData(); 
+        // 1. Normalización de identidad (Trait)
+        $this->normalizeIdentityData();
+
+        // 2. RECUPERACIÓN DE EMERGENCIA: Si el body no trae el UUID, lo inyectamos de la sesión
+        // Esto garantiza que el DTO 'LoginCustomerData' siempre tenga el rastro para la fusión.
+        if (!$this->filled('guest_client_uuid')) {
+            $this->merge([
+                'guest_client_uuid' => session('guest_client_uuid')
+            ]);
+        }
     }
 
     public function rules(): array

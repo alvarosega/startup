@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('categories', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('parent_id')->nullable()->constrained('categories')->nullOnDelete();
-            
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->foreignUuid('parent_id')->nullable()->index()->constrained('categories')->nullOnDelete();
+            $table->unsignedInteger('version')->default(0); // Control de Concurrencia
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('external_code')->nullable()->unique();
@@ -34,13 +34,7 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
 
-            // --- LEY DE CONSULTAS: ÍNDICES COMPUESTOS ---
-            
-            // 1. Carga de menús y jerarquías (Admin/Customer)
-            $table->index(['is_active', 'parent_id', 'sort_order'], 'idx_active_hierarchy');
-            
-            // 2. Resolución rápida por Slug (Punto de entrada único)
-            $table->index(['slug', 'is_active'], 'idx_customer_slug_lookup');
+            $table->index(['is_active', 'parent_id', 'sort_order'], 'idx_category_hierarchy');
         });
     }
 

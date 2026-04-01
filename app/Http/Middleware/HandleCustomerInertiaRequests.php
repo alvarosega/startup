@@ -12,7 +12,7 @@ use App\Actions\Customer\Cart\GetCustomerCartAction;
 use App\Actions\Customer\Shop\GetGlobalMenuAction;
 use App\Services\ShopContextService;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Resources\Customer\Category\CategoryResource;
+use Illuminate\Support\Str;
 
 use App\Actions\Customer\Category\GetCategoryDetailsAction; 
 
@@ -25,22 +25,33 @@ class HandleCustomerInertiaRequests extends Middleware
     {
         $user = Auth::guard('customer')->user();
         
-        $headerUuid = $request->header('X-Guest-UUID');
-        
-        if ($headerUuid && $request->session()->get('guest_client_uuid') !== $headerUuid) {
-            $request->session()->put('guest_client_uuid', $headerUuid);
+        // 1. PROTOCOLO DE IDENTIDAD GUEST: Garantizamos que el UUID nunca sea null
+        $guestUuid = $request->header('X-Guest-UUID') 
+                   ?? $request->session()->get('guest_client_uuid') 
+                   ?? (string) Str::uuid();
+
+        if ($request->session()->get('guest_client_uuid') !== $guestUuid) {
+            $request->session()->put('guest_client_uuid', $guestUuid);
         }
 
-        $guestUuid = $request->session()->get('guest_client_uuid');
-
+        // 2. OBTENCIÓN DE CONTEXTO SUCURSAL
         $shopService = app(ShopContextService::class);
         $branchId = $shopService->getActiveBranchId();
 
         return array_merge(parent::share($request), [
-            'cart'             => app(GetCustomerCartAction::class)->execute($guestUuid),
-            'categories_menu' => app(GetCategoryDetailsAction::class)->getGlobalMenu(),
+            'cart' => app(GetCustomerCartAction::class)->execute($guestUuid),
+            
+            // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId
+            'categories_menu' => function() use ($branchId) {
+                $version = cache()->get('admin_categories_version', 1);
+                // El cache key ahora incluye la sucursal para evitar fugas de stock/menú entre zonas
+                return cache()->remember("global_menu_br_{$branchId}_v{$version}", 86400, function() use ($branchId) {
+                    return app(GetCategoryDetailsAction::class)->getGlobalMenu($branchId);
+                });
+            },
+            
             'auth' => [
-                'user' => $user ? (new CustomerResource($user))->resolve() : null,
+                'customer' => $user ? (new CustomerResource($user))->resolve() : null,
             ],
             'shop_context'     => $this->resolveShopContext($branchId),
             'location_context' => $this->resolveLocationContext($user, $branchId),

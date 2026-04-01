@@ -29,10 +29,13 @@ class GetCategoryDetailsAction
             ->where('is_active', true)
             ->firstOrFail();
 
+        // --- REEMPLAZAR EL BLOQUE DE $subcategories POR ESTE ---
         $subcategories = Category::query()
-            ->select(['id', 'name', 'slug', 'image_path', 'bg_color']) // Incluimos bg_color para sub-carruseles
+            ->select(['id', 'name', 'slug', 'image_path', 'bg_color'])
             ->where('parent_id', $category->id)
             ->where('is_active', true)
+            // FILTRO DE CONTEXTO: Solo categorías con productos en esta sucursal
+            ->whereHas('products.skus.prices', fn($q) => $q->where('branch_id', $branchId))
             ->orderBy('sort_order', 'asc')
             ->get()
             ->map(fn($sub) => new CategorySummaryDTO(
@@ -40,7 +43,7 @@ class GetCategoryDetailsAction
                 name: $sub->name,
                 slug: $sub->slug,
                 image_path: $sub->image_path,
-                bg_color: $sub->bg_color // PASAMOS EL COLOR AQUÍ
+                bg_color: $sub->bg_color
             ))
             ->toArray();
 
@@ -66,20 +69,20 @@ class GetCategoryDetailsAction
         );
     }
 
-    /**
-     * NUEVA LÓGICA CONSOLIDADA: Menú Global para el Middleware
-     * Usamos v4 para romper cualquier caché vieja que no tuviera colores.
-     */
-    public function getGlobalMenu(): array
+    public function getGlobalMenu(string $branchId): array
     {
-        return Cache::remember('customer_global_menu_v4', 86400, function () {
+        $version = cache()->get('admin_categories_version', 1);
+        
+        // Llave de caché única por sucursal y versión
+        return Cache::remember("global_menu_br_{$branchId}_v{$version}", 86400, function () use ($branchId) {
             $categories = Category::query()
                 ->whereNull('parent_id')
                 ->where('is_active', true)
+                // FILTRO DE CONTEXTO: Solo categorías con stock/precios en esta sucursal
+                ->whereHas('products.skus.prices', fn($q) => $q->where('branch_id', $branchId))
                 ->orderBy('sort_order', 'asc')
                 ->get();
 
-            // VITAL: Usamos el Resource para que el frontend reciba el bg_color con '#'
             return CategoryResource::collection($categories)->resolve();
         });
     }

@@ -2,45 +2,41 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Customer\Product;
+namespace App\Actions\Customer\Sku;
 
 use App\Models\Sku;
 use App\Services\Finance\PriceResolverService;
 use App\Actions\Customer\Cart\GetCustomerCartAction;
-use App\Http\Resources\Customer\Product\SkuResource;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
-class ListCategoryProductsAction
+class ListSkusAction
 {
-    /**
-     * @param PriceResolverService $priceResolver Resolución financiera de precios.
-     * @param GetCustomerCartAction $getCartAction Estado actual de la sesión del usuario.
-     */
     public function __construct(
         private PriceResolverService $priceResolver,
         private GetCustomerCartAction $getCartAction
     ) {}
 
     /**
-     * Ejecuta la lógica de listado con precios reactivos al carrito.
+     * Ejecuta el motor de búsqueda y listado de SKUs enriquecidos.
      */
     public function execute(string $categoryId, string $branchId, array $filters): CursorPaginator
     {
-        $now = now()->toDateTimeString();
+        $now = now();
+        $nowStr = $now->toDateTimeString();
 
-        // 1. CONTEXTO DE SESIÓN: Sincronización con el carrito actual
+        // 1. CONTEXTO DE CARRITO (Para Upsell en tiempo real)
         $guestUuid = session('guest_client_uuid') ?? request()->header('X-Guest-UUID');
         $cart = $this->getCartAction->execute($guestUuid);
-        $cartQuantities = collect($cart['items'])->pluck('quantity', 'sku_id');
+        $cartQuantities = collect($cart['items'] ?? [])->pluck('quantity', 'sku_id');
 
-        // 2. QUERY BASE: Eloquent + Joins para filtros y ordenamiento
+        // 2. CONSTRUCCIÓN DE QUERY SEGURA
         $query = Sku::query()
-            // Eager Loading de precios filtrados por sucursal (Optimización N+1)
-            ->with(['product.brand', 'prices' => function ($q) use ($branchId, $now) {
+            ->with(['product.brand', 'prices' => function ($q) use ($branchId, $nowStr) {
                 $q->where('branch_id', $branchId)
-                  ->where('valid_from', '<=', $now)
-                  ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now));
+                  ->where('valid_from', '<=', $nowStr)
+                  ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $nowStr));
             }])
             ->join('products as p', 'skus.product_id', '=', 'p.id')
             ->join('categories as c', 'p.category_id', '=', 'c.id')
@@ -49,21 +45,28 @@ class ListCategoryProductsAction
                 'skus.*',
                 'c.bg_color',
                 'b.name as brand_name',
-                // Subconsulta para ordenamiento por precio base (n=1)
+                // Subconsulta optimizada para el precio de ordenamiento
                 DB::raw("(
                     SELECT final_price FROM prices 
                     WHERE prices.sku_id = skus.id 
                     AND prices.branch_id = '{$branchId}'
                     AND prices.min_quantity = 1 
-                    AND prices.valid_from <= '{$now}'
-                    AND (prices.valid_to IS NULL OR prices.valid_to >= '{$now}')
+                    AND prices.valid_from <= '{$nowStr}'
+                    AND (prices.valid_to IS NULL OR prices.valid_to >= '{$nowStr}')
                     ORDER BY prices.priority DESC, prices.created_at DESC LIMIT 1
-                ) as sorting_price")
+                ) as sorting_price"),
+                // Subconsulta de stock disponible (Cálculo atómico)
+                DB::raw("(
+                    SELECT SUM(quantity - reserved_quantity) FROM inventory_lots 
+                    WHERE inventory_lots.sku_id = skus.id 
+                    AND inventory_lots.branch_id = '{$branchId}'
+                    AND inventory_lots.is_safety_stock = 0
+                ) as available_stock")
             ])
             ->where('skus.is_active', true)
             ->where('p.is_active', true);
 
-        // 3. FILTRADO: Árbol de categorías (Padre/Hijo)
+        // 3. FILTRADO POR ÁRBOL DE CATEGORÍA
         $query->where(function ($q) use ($categoryId) {
             $q->where('p.category_id', $categoryId)
               ->orWhereIn('p.category_id', function ($sub) use ($categoryId) {
@@ -71,7 +74,7 @@ class ListCategoryProductsAction
               });
         });
 
-        // 4. FILTRADO: Búsqueda textual
+        // 4. BÚSQUEDA
         if (!empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('skus.name', 'LIKE', "%{$filters['search']}%")
@@ -79,7 +82,7 @@ class ListCategoryProductsAction
             });
         }
 
-        // 5. ORDENAMIENTO
+        // 5. ORDENAMIENTO DINÁMICO
         $sort = $filters['sort'] ?? 'relevance';
         match ($sort) {
             'price_asc'  => $query->orderBy('sorting_price', 'asc'),
@@ -89,18 +92,16 @@ class ListCategoryProductsAction
                                   ->orderBy('skus.name', 'asc')
         };
 
-        // 6. PAGINACIÓN Y TRANSFORMACIÓN DINÁMICA
-        return $query->cursorPaginate(20)->through(function (Sku $sku) use ($branchId, $cartQuantities) {
-            
-            // Calculamos n: cantidad actual en carrito o 1 para precio inicial
-            $currentQty = $cartQuantities->get($sku->id, 0);
-            $targetQty = $currentQty > 0 ? (int)$currentQty : 1;
+        // 6. PAGINACIÓN Y ENRIQUECIMIENTO (Devuelve Modelos, no Resources)
+        return $query->cursorPaginate(20)->through(function (Sku $sku) use ($cartQuantities, $now) {
+            $currentQty = (int) $cartQuantities->get($sku->id, 0);
+            $targetQty = $currentQty > 0 ? $currentQty : 1;
 
-            // Inyectamos el resultado del servicio en el modelo para el Resource
-            $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, $branchId, $targetQty);
+            // Inyectamos la verdad calculada en el modelo
+            $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, $targetQty, $now);
             $sku->quantity_in_cart = $currentQty;
 
-            return (new SkuResource($sku))->resolve();
+            return $sku; 
         });
     }
 }

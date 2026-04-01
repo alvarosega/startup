@@ -19,35 +19,30 @@ class CategoryController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->authorize('viewAny', Category::class);
     
-        $search = request('search');
-        $cacheKey = "admin_cat_list_" . md5($search ?? 'all');
+        $search = (string) $request->search;
+        // REGLA 3.A: Llave atada a versión global para evitar flush()
+        $version = Cache::get('admin_categories_version', 1);
+        $cacheKey = "admin_cat_v{$version}_s" . md5($search . $request->cursor);
     
-        $categories = Cache::remember($cacheKey, 3600, function () use ($search) {
-            return Category::query()
-                ->select([
-                    'id', 'name', 'slug', 'parent_id', 'is_active', 'is_featured', // Faltaba is_featured
-                    'sort_order', 'image_path', 'icon_path', 'bg_color', 
-                    'external_code', 'tax_classification', 'requires_age_check', 'description'
-                ])
-                ->with(['parent:id,name'])
-                ->when($search, function($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%") // Búsqueda más flexible
-                      ->orWhere('external_code', 'like', "%{$search}%");
-                })
-                ->orderBy('sort_order')
-                ->get();
-        });
+        $categories = Cache::remember($cacheKey, 3600, fn() => 
+            CategoryResource::collection(
+                Category::query()
+                    ->select(['id', 'parent_id', 'name', 'slug', 'is_active', 'is_featured', 'sort_order', 'external_code', 'version'])
+                    ->with(['parent:id,name'])
+                    ->when($search, fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('external_code', 'like', "%{$search}%"))
+                    ->orderBy('sort_order')
+                    ->cursorPaginate(20)
+            )
+        );
     
         return Inertia::render('Admin/Categories/Index', [
-            'categories' => CategoryResource::collection($categories),
-            'filters'    => [
-                'search' => $search // Esto soluciona el error "undefined search"
-            ],
-            'can_manage' => request()->user()->can('create', Category::class)
+            'categories' => $categories,
+            'filters'    => ['search' => $search],
+            'can_manage' => $request->user()->can('create', Category::class)
         ]);
     }
     public function create(): Response
@@ -67,8 +62,7 @@ class CategoryController extends Controller
         $action->execute(CategoryData::fromRequest($request));
 
         // Limpiar toda la caché del catálogo para que el nuevo nodo aparezca
-        Cache::flush(); 
-
+        Cache::increment('admin_categories_version');
         return redirect()->route('admin.categories.index')->with('success', 'Categoría materializada en el sistema.');
     }
     public function edit(Category $category): Response
@@ -131,7 +125,7 @@ class CategoryController extends Controller
 
         // INVALIDACIÓN SELECTIVA: Solo borramos el catálogo de categorías
         // En lugar de flush(), usamos la llave específica o borrado por prefijo
-        Cache::forget('admin_cat_list_all'); 
+        Cache::increment('admin_categories_version');
         // Nota: Para borrar los MD5 se requiere un iterador de archivos o un Version Hash.
         // Por ahora, flush() es aceptable solo si no hay otros datos críticos en caché.
 

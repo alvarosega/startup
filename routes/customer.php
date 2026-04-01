@@ -29,7 +29,9 @@ Route::name('shop.')->group(function () {
     
     // Ruta de Búsqueda (Alineada al __invoke del ShopController)
     Route::get('/search', ShopController::class)->name('search');
-    
+    // Silo de Sku (Dedicado a actualización de estado)
+    Route::get('/sku/state', [App\Http\Controllers\Web\Customer\Sku\SkuController::class, 'state'])
+    ->name('customer.sku.state');
     // Zonas de Mercado
     Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
     // Esta ruta genera el nombre: customer.shop.brand.show (si el archivo está prefijado)

@@ -4,43 +4,65 @@ declare(strict_types=1);
 
 namespace App\Services\Cart;
 
-use App\Models\{Cart, CartItem, Sku, InventoryLot, Bundle};
+use App\Models\{Cart, CartItem, Sku, InventoryLot};
 use App\Services\Finance\PriceResolverService;
 use App\Services\ShopContextService;
-use Illuminate\Support\Facades\{DB, Auth};
+use Illuminate\Support\Facades\{DB, Auth, Log};
+use Carbon\Carbon;
 
 class CartService
 {
     public function __construct(
-        protected PriceResolverService $priceResolver,
-        protected ShopContextService $shopContext
+        protected ShopContextService $shopContext,
+        protected PriceResolverService $priceResolver
     ) {}
 
-    // Cambia la firma del método para aceptar el flag de "cantidad absoluta"
-    public function addSku(string $skuId, int $quantity, ?string $guestUuid = null, bool $isAbsolute = false): void
+    /**
+     * Gestión atómica de ítems en el carrito con validación de stock real.
+     */
+    public function addSku(string $skuId, int $quantity, ?string $guestUuid = null, bool $isAbsolute = false): object
     {
         $branchId = $this->shopContext->getActiveBranchId();
-        $sku = Sku::findOrFail($skuId);
+        $now = now();
 
-        DB::transaction(function () use ($sku, $quantity, $branchId, $guestUuid, $isAbsolute) {
+        return DB::transaction(function () use ($skuId, $quantity, $branchId, $guestUuid, $isAbsolute, $now) {
             $cart = $this->getOrCreateCart($branchId, $guestUuid);
+            
+            // 1. Obtención de SKU con precios filtrados por sucursal
+            $sku = Sku::with(['prices' => function ($q) use ($branchId, $now) {
+                $q->where('branch_id', $branchId)
+                  ->where('valid_from', '<=', $now)
+                  ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now));
+            }])->findOrFail($skuId);
 
             $item = CartItem::where('cart_id', $cart->id)
                 ->where('sku_id', $sku->id)
                 ->whereNull('bundle_id')
                 ->first();
 
-            // CIRUGÍA: Si es absoluto (Template), usamos $quantity. Si no, sumamos.
-            $newTotalQuantity = $isAbsolute ? $quantity : (($item ? $item->quantity : 0) + $quantity);
+            // 2. Cálculo de volumen proyectado
+            $currentQty = $item ? $item->quantity : 0;
+            $newTotalQuantity = $isAbsolute ? $quantity : ($currentQty + $quantity);
 
-            // REGLA DE LIMPIEZA: Si la cantidad llega a 0, el ítem sale del carrito
             if ($newTotalQuantity <= 0) {
                 $item?->delete();
-                return;
+                return (object) ['success' => true, 'code' => 'REMOVED', 'message' => 'Ítem eliminado.'];
             }
 
-            // El PriceResolver ahora recibe el volumen REAL final para aplicar el Tier correcto
-            $priceData = $this->priceResolver->resolveWinningPrice($sku, $branchId, $newTotalQuantity);
+            // 3. VALIDACIÓN DE STOCK (Sin reserva física)
+            $availableStock = $this->getVisibleStock($sku->id, $branchId);
+            
+            if ($newTotalQuantity > $availableStock) {
+                return (object) [
+                    'success' => false,
+                    'code'    => 'INSUFFICIENT_STOCK',
+                    'message' => "Stock insuficiente. Máximo disponible: {$availableStock}",
+                    'meta'    => ['available' => $availableStock]
+                ];
+            }
+
+            // 4. RESOLUCIÓN DE PRECIO DINÁMICO
+            $priceData = $this->priceResolver->resolveWinningPrice($sku, (int) $newTotalQuantity, $now);
 
             CartItem::updateOrCreate(
                 ['cart_id' => $cart->id, 'sku_id' => $sku->id, 'bundle_id' => null],
@@ -50,11 +72,75 @@ class CartService
                     'is_bundle'         => false
                 ]
             );
+
+            return (object) [
+                'success' => true, 
+                'code'    => 'OK', 
+                'message' => 'Carrito actualizado.',
+                'meta'    => ['quantity' => $newTotalQuantity, 'unit_price' => $priceData->final_price]
+            ];
         });
     }
 
-    // El método de stock se mantiene por si el frontend lo pide para el "Radar" visual, 
-    // pero ya no bloquea la lógica de negocio.
+    public function fusionGuestCart(string $customerId, string $guestUuid): void
+    {
+        $branchId = $this->shopContext->getActiveBranchId(); // Contexto de la rama actual
+        $now = now();
+
+        DB::transaction(function () use ($customerId, $guestUuid, $branchId, $now) {
+            // ANCLA DE SEGURIDAD: Solo buscamos el carrito de invitado de LA MISMA sucursal
+            $guestCart = Cart::where('session_id', $guestUuid)
+                ->where('branch_id', $branchId)
+                ->with('items')
+                ->first();
+
+            if (!$guestCart || $guestCart->items->isEmpty()) return;
+            $customerCart = $this->getOrCreateCart($branchId);
+
+            foreach ($guestCart->items as $guestItem) {
+                $availableStock = $this->getVisibleStock($guestItem->sku_id, $branchId);
+                
+                $existingItem = CartItem::where('cart_id', $customerCart->id)
+                    ->where('sku_id', $guestItem->sku_id)
+                    ->first();
+
+                // Sumamos cantidades
+                $targetQty = ($existingItem ? $existingItem->quantity : 0) + $guestItem->quantity;
+                
+                // REGLA 3: Fusionamos hasta el tope de stock disponible
+                $finalQty = (int) min($targetQty, $availableStock);
+
+                if ($finalQty > 0) {
+                    $sku = Sku::with(['prices' => function ($q) use ($branchId, $now) {
+                        $q->where('branch_id', $branchId)
+                          ->where('valid_from', '<=', $now)
+                          ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now));
+                    }])->find($guestItem->sku_id);
+
+                    if ($sku) {
+                        $priceData = $this->priceResolver->resolveWinningPrice($sku, $finalQty, $now);
+
+                        CartItem::updateOrCreate(
+                            ['cart_id' => $customerCart->id, 'sku_id' => $sku->id],
+                            [
+                                'quantity'          => $finalQty,
+                                'price_at_addition' => $priceData->final_price,
+                                'is_bundle'         => false
+                            ]
+                        );
+                    }
+                }
+            }
+
+            // Limpiamos el carrito de invitado una vez procesado
+            $guestCart->items()->delete();
+            $guestCart->delete();
+        });
+    }
+
+    /**
+     * Consulta de stock físico neto (Físico - Reservado).
+     */
     public function getVisibleStock(string $skuId, string $branchId): int
     {
         return (int) InventoryLot::where('sku_id', $skuId)
@@ -64,36 +150,19 @@ class CartService
             ->value('total') ?? 0;
     }
 
+    /**
+     * Localizador de instancia de carrito.
+     */
     protected function getOrCreateCart(string $branchId, ?string $guestUuid = null): Cart
     {
         $customerId = Auth::guard('customer')->id();
-        $sessionId = $guestUuid ?? session()->getId();
+        // Prioridad: Parámetro > Sesión de Laravel
+        $sessionId = $guestUuid ?? session('guest_client_uuid');
 
-        return Cart::firstOrCreate(
-            $customerId 
-                ? ['customer_id' => $customerId, 'branch_id' => $branchId]
-                : ['session_id' => $sessionId, 'branch_id' => $branchId]
-        );
-    }
-    public function addBundle(string $bundleId, int $requestedQty = 1, array $customQuantities = [], ?string $guestUuid = null): void
-    {
-        // Ahora que importamos Bundle, esta línea ya no fallará
-        $bundle = Bundle::with('skus')->findOrFail($bundleId);
-    
-        if ($bundle->type === 'template') {
-            DB::transaction(function () use ($bundle, $customQuantities, $guestUuid) {
-                foreach ($bundle->skus as $sku) {
-                    // Si es template, forzamos cantidad absoluta (isAbsolute = true)
-                    $finalQty = isset($customQuantities[$sku->id]) 
-                        ? (int)$customQuantities[$sku->id] 
-                        : (int)$sku->pivot->quantity;
-                    
-                    $this->addSku($sku->id, $finalQty, $guestUuid, true);
-                }
-            });
-        } else {
-            // Silo para Packs Atómicos (No editables)
-            $this->processAtomicBundle($bundle, $requestedQty, $guestUuid);
+        if ($customerId) {
+            return Cart::firstOrCreate(['customer_id' => $customerId, 'branch_id' => $branchId]);
         }
+
+        return Cart::firstOrCreate(['session_id' => $sessionId, 'branch_id' => $branchId]);
     }
 }

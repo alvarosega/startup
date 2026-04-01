@@ -4,19 +4,18 @@ namespace App\Actions\Customer\Auth;
 
 use App\Models\Customer;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
-use App\DTOs\Customer\Cart\SyncCartDTO;
-use App\Actions\Customer\Cart\SyncGuestCartAction;
 use App\Services\Geo\BranchCoverageService;
 use App\Services\ShopContextService;
 use App\Exceptions\IdentityCollisionException;
 use Illuminate\Support\Facades\{DB, Hash, Storage};
+use App\Actions\Customer\Cart\SyncGuestCartAction;
 
 class RegisterCustomerAction
 {
     public function __construct(
+        protected ShopContextService $shopContext,
         protected BranchCoverageService $geoService,
-        protected SyncGuestCartAction $syncAction,
-        protected ShopContextService $shopContext
+        protected CartService $cartService // <--- CAMBIAR AQUÍ
     ) {}
 
     public function execute(RegisterCustomerData $data, ?string $idempotencyKey = null): Customer
@@ -81,11 +80,11 @@ class RegisterCustomerAction
 
             // 6. Sincronización Post-Persistencia
             if ($data->guestUuid) {
-                $this->syncAction->execute(new SyncCartDTO(
-                    customerId: $customer->id,
-                    guestUuid:  $data->guestUuid,
-                    branchId:   $assignedBranchId
-                ));
+                // LLAMADA DIRECTA AL MOTOR DE FUSIÓN
+                $this->cartService->fusionGuestCart(
+                    (string) $customer->id,
+                    $data->guestUuid
+                );
             }
 
             if ($idempotencyKey) {

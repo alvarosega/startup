@@ -11,26 +11,25 @@ class CartUpsertAction
 {
     public function __construct(protected CartService $cartService) {}
 
-    public function execute(Request $request): void
+    /**
+     * Ejecuta la lógica de persistencia y retorna el objeto de estado del Service.
+     */
+    public function execute(Request $request): object
     {
         $targetId = $request->input('target_id');
         $type     = $request->input('target_type'); 
         $quantity = (int) $request->input('quantity', 1);
-        
-        $mode = $request->input('mode', 'add');
+        $mode     = $request->input('mode', 'add');
         $isAbsolute = ($mode === 'set');
-    
-        $guestUuid = $request->header('X-Guest-UUID') ?? session()->get('guest_client_uuid');
-    
+
+        $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
+
         if ($type === 'sku') {
-            $this->cartService->addSku($targetId, $quantity, $guestUuid, $isAbsolute);
-        } else {
-            // Pasamos custom_quantities desde el request (vital para el TemplateShow)
-            $customQuantities = $request->input('custom_quantities', []);
-            
-            // Sincronización exacta con la firma del Service:
-            // (id, qty, arrays_custom, uuid)
-            $this->cartService->addBundle($targetId, $quantity, $customQuantities, $guestUuid);
+            // Retornamos el objeto {success, code, message, meta}
+            return $this->cartService->addSku($targetId, $quantity, $guestUuid, $isAbsolute);
         }
+
+        // Lógica de Bundles (Pendiente según tu instrucción II.2)
+        return (object) ['success' => false, 'message' => 'Tipo de producto no soportado.'];
     }
 }

@@ -1,149 +1,179 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { PackageOpen, ArrowDownUp, Search } from 'lucide-vue-next';
+import { PackageOpen, Search, Loader2 } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
-// Layouts & Components
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import CategoryCarousel from '@/Components/Customer/Category/CategoryCarousel.vue';
-import RetailBannerSlot from '@/Components/Customer/RetailMedia/RetailBannerSlot.vue';
 import SkuCard from '@/Components/Customer/Product/SkuCard.vue';
 
 const props = defineProps({
     categoryData: Object, 
-    products: Object, 
-    filters: Object,
-    loading: { type: Boolean, default: false }
+    products: Object,
+    banners: Object,
+    filters: Object
 });
 
 const page = usePage();
 
 // --- DATA BINDING ---
 const category = computed(() => props.categoryData?.data || props.categoryData || {});
-const fullProductsList = computed(() => props.products?.data || []);
-const globalCategories = computed(() => page.props.categories_menu || []);
+const globalCategories = computed(() => page.props.categories_menu?.data || page.props.categories_menu || []);
+const categoryBanners = computed(() => props.banners?.data || props.banners || []);
 
-// --- RENDERIZADO PROGRESIVO ---
-const itemsPerPage = 12;
-const visibleCount = ref(itemsPerPage);
+// --- ESTADO DE SCROLL ---
+const allProducts = ref([...(props.products?.data || [])]);
+const nextCursorUrl = ref(props.products?.next_page_url || null);
+const isFetching = ref(false);
 const observerTarget = ref(null);
 
-const displayedProducts = computed(() => fullProductsList.value.slice(0, visibleCount.value));
+const isMounted = ref(false);
+onMounted(() => { isMounted.value = true; });
+onUnmounted(() => { isMounted.value = false; });
 
-const loadMore = (entries) => {
-    if (entries[0].isIntersecting && visibleCount.value < fullProductsList.value.length) {
-        visibleCount.value += itemsPerPage;
+// --- LÓGICA UNIFICADA DE BANNERS (Antes RetailBannerSlot) ---
+const handleBannerNavigate = (banner) => {
+    if (!banner.target) return;
+    const type = banner.target.type?.toLowerCase();
+    const id = banner.target.id;
+
+    if (type === 'sku') {
+        router.visit(route('customer.shop.product', { id }));
+    } else if (type === 'bundle') {
+        router.visit(route('customer.shop.bundle', { slug: banner.target.slug || id }));
     }
 };
 
-onMounted(() => {
-    const observer = new IntersectionObserver(loadMore, { threshold: 0.1 });
-    if (observerTarget.value) observer.observe(observerTarget.value);
-});
+// --- ESCUDO VDOM ---
+watch(() => props.products, (newData) => {
+    if (!isMounted.value) return; 
 
-// --- FILTRADO ---
+    const isFilterAction = searchQuery.value !== '' || sortBy.value !== 'relevance';
+    
+    if (isFilterAction || newData?.path !== props.products?.path) {
+        allProducts.value = [...(newData?.data || [])];
+    } else {
+        const existingIds = new Set(allProducts.value.map(p => p.id));
+        const uniqueItems = (newData?.data || []).filter(p => !existingIds.has(p.id));
+        allProducts.value.push(...uniqueItems);
+    }
+    nextCursorUrl.value = newData?.next_page_url || null;
+    isFetching.value = false;
+}, { deep: true });
+
 const searchQuery = ref(props.filters?.search || '');
 const sortBy = ref(props.filters?.sort || 'relevance');
 
-const updateServerFilters = debounce(() => {
-    visibleCount.value = itemsPerPage;
+const updateFilters = debounce(() => {
+    if (!isMounted.value) return;
+    isFetching.value = true;
     router.get(route('customer.shop.category', { category: category.value.slug }), 
         { search: searchQuery.value, sort: sortBy.value }, 
-        { preserveState: true, replace: true, preserveScroll: true, only: ['products', 'filters'] }
+        { 
+            preserveState: true, 
+            replace: true, 
+            preserveScroll: true, 
+            only: ['products', 'filters'],
+            onFinish: () => { if (isMounted.value) isFetching.value = false; }
+        }
     );
 }, 400);
 
-watch([searchQuery, sortBy], () => updateServerFilters());
+watch([searchQuery, sortBy], () => updateFilters());
+
+const loadNextPage = (entries) => {
+    const target = entries[0];
+    if (!isMounted.value || !target.isIntersecting || !nextCursorUrl.value || isFetching.value) return;
+
+    isFetching.value = true;
+    router.get(nextCursorUrl.value, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['products'],
+        onFinish: () => { if (isMounted.value) isFetching.value = false; }
+    });
+};
+
+let observer = null;
+onMounted(() => {
+    observer = new IntersectionObserver(loadNextPage, { threshold: 0.1, rootMargin: '300px' });
+    if (observerTarget.value) observer.observe(observerTarget.value);
+});
+
+onUnmounted(() => {
+    if (observer) observer.disconnect();
+});
 </script>
 
 <template>
     <ShopLayout>
-        <Head :title="category.name" />
-
         <div class="w-full min-h-screen bg-background pb-32">
-            
-            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-2 flex items-center gap-4">
-                <div v-if="category.name" class="flex items-center gap-4">
-                    <div class="w-1.5 h-10 rounded-full" :style="{ backgroundColor: category.bg_color || 'var(--primary)' }"></div>
-                    <h1 class="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none text-foreground italic">
+            <Head :title="category.name || 'Cargando...'" />
+
+            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-4 flex items-center gap-4">
+                <div v-show="category.name" class="flex items-center gap-4">
+                    <div class="w-1 h-8 rounded-full" :style="{ backgroundColor: category.bg_color }"></div>
+                    <h1 class="text-3xl md:text-4xl font-black uppercase tracking-tighter text-foreground italic">
                         {{ category.name }}
                     </h1>
                 </div>
-                <div v-else class="h-10 w-64 bg-foreground/5 animate-pulse rounded-lg"></div>
             </header>
 
-            <div class="sticky top-16 z-40 bg-background/95 backdrop-blur-xl border-b border-border/10">
+            <div class="sticky top-16 z-40 bg-background/90 backdrop-blur-xl border-b border-border/10">
                 <div class="max-w-7xl mx-auto">
-                    <CategoryCarousel 
-                        :categories="globalCategories" 
-                        :active-id="category.id" 
-                    />
-                    <div class="px-4 lg:px-8 pb-2">
-                        <div v-if="!loading" class="flex items-center gap-2 bg-foreground/[0.03] border border-border/40 p-1 rounded-2xl w-full md:w-max">
+                    <CategoryCarousel :categories="globalCategories" :active-id="category.id" />
+                    
+                    <div class="px-4 lg:px-8 pb-3">
+                        <div class="flex items-center gap-2 bg-foreground/[0.03] border border-border/40 p-1 rounded-xl w-full md:w-max">
                             <div class="relative group flex-1 md:flex-none">
-                                <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" :size="12" />
-                                <input v-model="searchQuery" type="text" placeholder="FILTRAR EN ESTE SILO..."
-                                       class="w-full md:w-64 pl-8 pr-4 py-1.5 bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none focus:ring-0 transition-all" />
+                                <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="12" />
+                                <input v-model="searchQuery" type="text" placeholder="BUSCAR..."
+                                       class="w-full md:w-60 pl-8 pr-4 py-1.5 bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none focus:ring-0" />
                             </div>
-                            <div class="h-4 w-px bg-border/40 hidden md:block"></div>
-                            <select v-model="sortBy" class="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-7">
+                            <select v-model="sortBy" class="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-8">
                                 <option value="relevance">RELEVANCIA</option>
-                                <option value="price_asc">MIN_COST</option>
-                                <option value="price_desc">MAX_COST</option>
+                                <option value="price_asc">PRECIO: MENOR</option>
+                                <option value="price_desc">PRECIO: MAYOR</option>
                             </select>
                         </div>
-                        <div v-else class="h-9 w-full md:w-80 bg-foreground/5 animate-pulse rounded-2xl border border-border/20"></div>
                     </div>
                 </div>
             </div>
-            <div class="px-4 lg:px-8 max-w-7xl mx-auto pt-2">
-                <section v-if="category.banners?.length > 0" class="mb-4">
-                    <RetailBannerSlot :banners="category.banners" />
+
+            <main class="px-4 lg:px-8 max-w-7xl mx-auto mt-6">
+                <section v-show="categoryBanners.length > 0" class="mb-8 space-y-4">
+                    <div v-for="banner in categoryBanners" :key="banner.id" 
+                         @click="handleBannerNavigate(banner)"
+                         class="relative w-full overflow-hidden rounded-[2rem] cursor-pointer group shadow-apple-soft border border-border/40 transition-all duration-700 aspect-[21/9] lg:aspect-[3/1]">
+                        <img :src="banner.image_desktop_url" :alt="banner.name"
+                             class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </div>
                 </section>
 
-                <div v-if="displayedProducts.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
-                    <SkuCard 
-                        v-for="sku in displayedProducts" 
-                        :key="sku.id" 
-                        :sku="sku" 
-                        class="section-animate"
-                    />
+                <div v-show="allProducts.length > 0" 
+                     class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
+                    <SkuCard v-for="sku in allProducts" :key="sku.id" :sku="sku" class="section-animate" />
                 </div>
 
-                <div v-else-if="!loading" class="py-32 flex flex-col items-center text-center">
-                    <PackageOpen :size="32" class="text-muted-foreground/20 mb-4" />
-                    <h2 class="text-xs font-black uppercase tracking-[0.5em] text-muted-foreground/40">Silo_Sin_Activos</h2>
-                    <p class="text-[9px] uppercase tracking-widest text-muted-foreground/30 mt-2">No se detectó inventario en esta frecuencia.</p>
+                <div v-show="allProducts.length === 0 && !isFetching" class="py-40 flex flex-col items-center text-center">
+                    <PackageOpen :size="48" class="text-muted-foreground/20 mb-4" />
+                    <h2 class="text-xs font-black uppercase tracking-[0.4em] text-muted-foreground/40">Sin Existencias</h2>
                 </div>
 
-                <div ref="observerTarget" class="w-full h-10 mt-6">
-                    <div v-if="visibleCount < fullProductsList.length || loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4 opacity-30">
-                        <div v-for="n in 6" :key="n" class="aspect-[3/4] rounded-[2rem] bg-card animate-pulse border border-border/10"></div>
+                <div ref="observerTarget" class="w-full py-12 flex justify-center">
+                    <div v-show="isFetching" class="flex flex-col items-center gap-2">
+                        <Loader2 class="animate-spin text-primary/40" :size="24" />
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     </ShopLayout>
 </template>
 
 <style scoped>
-.section-animate {
-    animation: reveal 0.6s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-
-@keyframes reveal {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-select option {
-    background-color: #0b1221;
-    color: white;
-}
-
-/* Transición suave para el sticky glass */
-.sticky {
-    transition: background-color 0.3s ease;
-}
+.section-animate { animation: reveal 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+@keyframes reveal { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+select option { background-color: #0b1221; color: white; }
 </style>

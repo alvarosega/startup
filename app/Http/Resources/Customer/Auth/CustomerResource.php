@@ -26,10 +26,12 @@ class CustomerResource extends JsonResource
                 'birth_date' => $this->profile->birth_date ? (string) $this->profile->birth_date : '',
                 'gender'     => (string) ($this->profile->gender ?? 'prefer_not_to_say'),
             ],
+            
             'branch_context' => [
                 'id' => (string) $this->branch_id,
             ],
             'last_login_at' => $this->last_login_at?->toIso8601String(),
+            'favorites_ids' => $this->favorites()->pluck('product_id')->toArray(),
         ];
     }
 

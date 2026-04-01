@@ -9,20 +9,24 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class CartResource extends JsonResource
 {
+// --- REEMPLAZAR EL MÉTODO toArray ---
     public function toArray(Request $request): array
     {
-        // Delegamos el detalle de cada línea al CartItemResource
-        $items = CartItemResource::collection($this->items)->resolve();
-        
-        $totalPrice = collect($items)->sum('subtotal');
-        $totalSavings = collect($items)->sum('line_savings');
+        $now = $this->additional['atomic_now'] ?? now();
+
+        // 1. Resolvemos individualmente para asegurar un Array plano y pasar el contexto 'now'
+        $items = $this->items->map(function($item) use ($now) {
+            return (new CartItemResource($item))
+                ->additional(['atomic_now' => $now])
+                ->resolve();
+        })->toArray();
 
         return [
             'id'            => (string) $this->id,
-            'items'         => $items,
+            'items'         => $items, // <--- Ahora es un Array []
             'total_items'   => (int) collect($items)->sum('quantity'),
-            'total_price'   => (float) $totalPrice,
-            'total_savings' => (float) $totalSavings,
+            'total_price'   => (float) collect($items)->sum('subtotal'),
+            'total_savings' => (float) collect($items)->sum('line_savings'),
         ];
     }
 }

@@ -11,12 +11,12 @@ class GetCustomerCartAction
 {
     public function __construct(protected ShopContextService $contextService) {}
 
-    public function execute(?string $guestUuid = null): array // Cambiamos ?array a array
+    public function execute(?string $guestUuid = null): array
     {
         $branchId = $this->contextService->getActiveBranchId();
         $customerId = Auth::guard('customer')->id();
+        $now = now(); // Tiempo Atómico para toda la petición
 
-        // Si no hay rastro de identidad, devolvemos objeto vacío
         if (!$customerId && !$guestUuid) {
             return $this->emptyCartResponse();
         }
@@ -27,11 +27,24 @@ class GetCustomerCartAction
                 $customerId ? $query->where('customer_id', $customerId) 
                             : $query->where('session_id', $guestUuid);
             })
-            ->with(['items.sku.inventoryLots', 'items.sku.prices'])
+            ->with([
+                'items.bundle.skus.product.brand',
+                'items.sku.product.brand',
+                // INTEGRIDAD: Filtramos precios por sucursal ANTES de que lleguen al Resolver
+                'items.sku.prices' => function($q) use ($branchId, $now) {
+                    $q->where('branch_id', $branchId)
+                      ->where('valid_from', '<=', $now)
+                      ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now));
+                }
+            ])
             ->first();
 
-        return $cart ? (new \App\Http\Resources\Customer\Cart\CartResource($cart))->resolve() 
-                     : $this->emptyCartResponse();
+        if (!$cart) return $this->emptyCartResponse();
+
+        // Pasamos el tiempo atómico a través de la propiedad 'additional' del Resource
+        return (new CartResource($cart))
+            ->additional(['atomic_now' => $now])
+            ->resolve();
     }
 
     private function emptyCartResponse(): array 

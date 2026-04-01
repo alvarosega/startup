@@ -23,6 +23,7 @@ readonly class CategoryData
         public ?string $seoDescription,
         public ?UploadedFile $image,
         public ?UploadedFile $icon,
+        public int $version = 0,
     ) {}
 
     public static function fromRequest(Request $request): self
@@ -44,6 +45,7 @@ readonly class CategoryData
             seoDescription: $request->validated('seo_description'),
             image: $request->file('image'),
             icon: $request->file('icon'),
+            version: (int) $request->validated('version', 0),
         );
     }
 
@@ -63,6 +65,7 @@ readonly class CategoryData
             'description'        => $this->description,
             'seo_title'          => $this->seoTitle,
             'seo_description'    => $this->seoDescription,
+            'version' => $this->version,
         ];
     }
 }

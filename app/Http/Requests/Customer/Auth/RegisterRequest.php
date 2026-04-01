@@ -12,37 +12,36 @@ class RegisterRequest extends FormRequest
 
     public function authorize(): bool { return true; }
 
-    protected function prepareForValidation() 
+    protected function prepareForValidation(): void
     {
         $this->normalizeIdentityData();
+
+        // INTEGRIDAD: Recuperar UUID de la sesión si el frontend no lo envió
+        if (!$this->filled('guest_client_uuid')) {
+            $this->merge([
+                'guest_client_uuid' => session('guest_client_uuid')
+            ]);
+        }
     }
-
-    // app/Http/Requests/Customer/Auth/RegisterRequest.php
-
     public function rules(): array
     {
         return [
-            // REGLA APLICADA: Uso obligatorio de validación global
-            'phone'        => $this->globalPhoneRules(), 
-            'email'        => $this->globalEmailRules(), 
-            
-            'password'     => ['required', 'confirmed', 'min:8'],
-            'first_name'   => ['required', 'string', 'max:100'],
-            'last_name'    => ['required', 'string', 'max:100'],
-            'address'      => ['required', 'string'],
-            'country_code' => ['required', 'string', 'max:3'],
-            'latitude'     => ['required', 'numeric'],
-            'longitude'    => ['required', 'numeric'],
-            'avatar_type'  => ['required', 'string'],
-            'avatar_source'=> ['nullable', 'string'],
-            'avatar_file'  => ['nullable', 'image', 'max:2048'],
-            'alias'        => ['nullable', 'string'],
-            'details'      => ['nullable', 'string'],
-            'guest_client_uuid' => ['nullable', 'string'],
-            'branch_id'    => ['nullable', 'uuid', 'exists:branches,id'], 
-            'latitude'     => ['required', 'numeric'],
-            'longitude'    => ['required', 'numeric'],
-            'guest_client_uuid' => ['nullable', 'string'],
+            'phone'             => $this->globalPhoneRules(), 
+            'email'             => $this->globalEmailRules(), 
+            'password'          => ['required', 'confirmed', 'min:8'],
+            'first_name'        => ['required', 'string', 'max:100'],
+            'last_name'         => ['required', 'string', 'max:100'],
+            'address'           => ['required', 'string'],
+            'country_code'      => ['required', 'string', 'max:3'],
+            'latitude'          => ['required', 'numeric'],
+            'longitude'         => ['required', 'numeric'],
+            'avatar_type'       => ['required', 'string'],
+            'avatar_source'     => ['nullable', 'string'],
+            'avatar_file'       => ['nullable', 'image', 'max:2048'],
+            'alias'             => ['nullable', 'string'],
+            'details'           => ['nullable', 'string'],
+            'guest_client_uuid' => ['nullable', 'string', 'uuid'],
+            'branch_id'         => ['nullable', 'uuid', 'exists:branches,id'], 
         ];
     }
 }
