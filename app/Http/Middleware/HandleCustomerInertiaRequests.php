@@ -14,7 +14,7 @@ use App\Services\ShopContextService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Tighten\Ziggy\Ziggy;
-
+use App\Http\Resources\Customer\Category\CategoryResource;
 use App\Actions\Customer\Category\GetCategoryDetailsAction; 
 
 
@@ -48,12 +48,16 @@ class HandleCustomerInertiaRequests extends Middleware
             'cart' => app(GetCustomerCartAction::class)->execute($guestUuid),
             
             // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId
+            // MODIFICAR el cierre de 'categories_menu'
             'categories_menu' => function() use ($branchId) {
                 $version = cache()->get('admin_categories_version', 1);
-                // El cache key ahora incluye la sucursal para evitar fugas de stock/menú entre zonas
-                return cache()->remember("global_menu_br_{$branchId}_v{$version}", 86400, function() use ($branchId) {
+                
+                $data = cache()->remember("global_menu_br_{$branchId}_v{$version}", 86400, function() use ($branchId) {
                     return app(GetCategoryDetailsAction::class)->getGlobalMenu($branchId);
                 });
+
+                // REPARACIÓN CRÍTICA: Inyectar la lógica de representación (Placeholder)
+                return CategoryResource::collection($data)->resolve();
             },
             
             'auth' => [

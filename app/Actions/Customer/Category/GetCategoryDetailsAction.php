@@ -7,7 +7,6 @@ namespace App\Actions\Customer\Category;
 use App\Models\{Category, AdCreative};
 use App\Services\ShopContextService;
 use App\DTOs\Customer\Category\{CategoryPageDTO, CategorySummaryDTO, CreativeDTO};
-use App\Http\Resources\Customer\Category\CategoryResource;
 use Illuminate\Support\Facades\Cache;
 
 class GetCategoryDetailsAction
@@ -39,7 +38,6 @@ class GetCategoryDetailsAction
             ->orderBy('sort_order', 'asc')
             ->get()
             ->map(fn($sub) => new CategorySummaryDTO(
-                id: (string) $sub->id,
                 name: $sub->name,
                 slug: $sub->slug,
                 image_path: $sub->image_path,
@@ -69,21 +67,28 @@ class GetCategoryDetailsAction
         );
     }
 
+// ARCHIVO: app/Actions/Customer/Category/GetCategoryDetailsAction.php
+
     public function getGlobalMenu(string $branchId): array
     {
         $version = cache()->get('admin_categories_version', 1);
         
-        // Llave de caché única por sucursal y versión
         return Cache::remember("global_menu_br_{$branchId}_v{$version}", 86400, function () use ($branchId) {
             $categories = Category::query()
+                ->select(['name', 'slug', 'image_path', 'bg_color']) // Query Law: Solo lo necesario
                 ->whereNull('parent_id')
                 ->where('is_active', true)
-                // FILTRO DE CONTEXTO: Solo categorías con stock/precios en esta sucursal
                 ->whereHas('products.skus.prices', fn($q) => $q->where('branch_id', $branchId))
                 ->orderBy('sort_order', 'asc')
                 ->get();
 
-            return CategoryResource::collection($categories)->resolve();
+            // REEMPLAZO CRÍTICO: Devolver DTOs, no Resources
+            return $categories->map(fn($cat) => [
+                'name' => mb_convert_encoding($cat->name, 'UTF-8', 'UTF-8'),
+                'slug' => $cat->slug,
+                'image_path' => $cat->image_path,
+                'bg_color' => $cat->bg_color,
+            ])->toArray();
         });
     }
 

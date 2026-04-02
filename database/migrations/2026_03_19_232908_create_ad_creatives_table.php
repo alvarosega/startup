@@ -17,7 +17,7 @@ return new class extends Migration {
             // --- PUNTOS DE ANCLAJE (Dónde se muestra) ---
             $table->foreignUuid('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->foreignUuid('bundle_id')->nullable()->constrained('bundles')->nullOnDelete(); // <--- NUEVO: Banner en vista Bundle
-            
+            $table->unsignedInteger('version')->default(0);
             // --- TARGET (A dónde lleva al hacer clic) ---
             $table->uuidMorphs('target'); 
             
