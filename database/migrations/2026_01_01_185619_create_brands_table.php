@@ -14,6 +14,7 @@ return new class extends Migration {
 
             $table->string('name'); 
             $table->string('slug')->unique();
+            $table->string('bg_color', 7)->nullable()->comment('Hexadecimal color para el sistema de resplandor');
             $table->string('image_path')->nullable();
             $table->string('website')->nullable();
             

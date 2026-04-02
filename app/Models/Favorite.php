@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Customer;
+namespace App\Models;
 
 use App\Models\Sku;
 use Illuminate\Database\Eloquent\Model;

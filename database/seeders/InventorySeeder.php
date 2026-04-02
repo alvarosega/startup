@@ -63,11 +63,12 @@ class InventorySeeder extends Seeder
                         'reference' => "Seed: {$purchase->document_number}"
                     ]);
 
-                    // 4. SINCRONIZACIÓN DE BALANCE (Snapshot O(1))
                     DB::table('inventory_balances')->updateOrInsert(
                         ['branch_id' => $branch->id, 'sku_id' => $sku->id],
                         [
+                            // Usamos incrementos atómicos para evitar colisiones de datos
                             'total_physical' => DB::raw("total_physical + {$qty}"),
+                            'total_reserved' => DB::raw("total_reserved"), // Se inicializa en 0 por default en migración
                             'total_safety'   => $isSafety ? DB::raw("total_safety + {$qty}") : DB::raw("total_safety"),
                             'updated_at'     => now(),
                             'created_at'     => now()

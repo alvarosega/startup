@@ -32,18 +32,21 @@ class SkuResource extends JsonResource
         }
 
         return [
-            'id'                  => (string) $this->resource->id,
-            'product_id' => (string) $this->product_id,
-            'name'                => (string) ($this->resource->name ?? $this->resource->sku_name),
-            'brand_name'          => (string) ($this->resource->brand_name ?? $this->resource->product?->brand?->name),
-            'image'               => $this->resource->image_path ? asset('storage/' . $this->resource->image_path) : asset('assets/img/sku_placeholder.png'),
-            'bg_color'            => $this->resource->bg_color ? '#' . ltrim((string) $this->resource->bg_color, '#') : null,
-            'final_price'         => $finalPrice,
-            'list_price'          => $listPrice,
-            'discount_percentage' => $discount,
-            'is_favorite'         => (bool) ($this->resource->is_favorite ?? false), // Inyectado por el Action
-            'product_id'          => (string) $this->resource->product_id, // Necesario para toggle a nivel producto
-            'stock'               => (int) ($this->resource->available_stock ?? 0),
+            'id'          => (string) $this->resource->id,
+            'product_id'  => (string) $this->resource->product_id,
+            'name'        => (string) ($this->resource->name ?? $this->resource->sku_name),
+            'brand_name'  => (string) ($this->resource->brand_name ?? $this->resource->product?->brand?->name),
+            'image'       => $this->resource->image_path 
+                ? asset('storage/' . $this->resource->image_path) 
+                : asset('assets/img/sku_placeholder.png'),
+            'bg_color'    => $this->resource->bg_color ? '#' . ltrim((string) $this->resource->bg_color, '#') : null,
+            
+            // PRECIOS DINÁMICOS
+            'final_price' => (float) ($this->resource->resolved_price->final_price ?? 0),
+            'list_price'  => (float) ($this->resource->resolved_price->list_price ?? 0),
+            
+            // STOCK INYECTADO POR EL ACTION
+            'stock' => (int) $this->available_stock, 
             'upsell'              => $upsell,
             // Persistencia Cursor
             'sort_order'          => $this->resource->sort_order,

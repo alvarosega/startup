@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, BelongsToMany};
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB; 
 
 class Brand extends Model
 {
@@ -19,7 +20,7 @@ class Brand extends Model
     ];
 
     protected $fillable = [
-        'parent_id', 'provider_id', 'category_id', 'name', 'slug', 
+        'parent_id', 'provider_id', 'category_id', 'name', 'slug', 'bg_color', // <--- AGREGADO
         'image_path', 'website', 'is_active', 'is_featured', 'sort_order', 'description'
     ];
 
@@ -54,17 +55,22 @@ class Brand extends Model
     {
         return $query->where('is_active', true);
     }
-
-    /**
-     * Scope: Filtra marcas con stock real en una sucursal específica.
-     */
+    public function inventoryBalances(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(
+            InventoryBalance::class,
+            Product::class,
+            'brand_id', // Local key en Products
+            'sku_id',   // No se usa directamente aquí pero es parte de la cadena
+            'id',       // Local key en Brands
+            'id'        // Se resolverá vía la relación de Product
+        );
+    }
     public function scopeWhereHasStockInBranch($query, $branchId)
     {
-        // Navegación: Brand -> Products -> Skus -> InventoryLots
-        return $query->whereHas('products.skus.inventoryLots', function ($q) use ($branchId) {
+        return $query->whereHas('products.inventoryBalances', function ($q) use ($branchId) {
             $q->where('branch_id', $branchId)
-              ->where('is_safety_stock', false)
-              ->whereRaw('(quantity - reserved_quantity) > 0');
+              ->where('total_physical', '>', DB::raw('total_reserved + total_safety'));
         });
     }
 

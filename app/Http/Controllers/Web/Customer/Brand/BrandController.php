@@ -16,7 +16,7 @@ use App\Actions\Customer\Brand\GetBrandSkuAction;
 // RESOURCES & REQUEST
 use App\Http\Requests\Customer\Brand\BrandCatalogRequest;
 use App\Http\Resources\Customer\Brand\{BrandNavResource, BrandHeroResource, BrandDetailResource};
-use App\Http\Resources\Customer\Product\SkuResource;
+use App\Http\Resources\Customer\Sku\SkuResource;
 use Inertia\Response;
 
 class BrandController extends Controller
@@ -42,7 +42,6 @@ class BrandController extends Controller
         $hero       = $heroAction->execute((string)$brand->id, $branchId);
         $products   = $skuAction->execute((string)$brand->id, $branchId, $request->validated()); // <--- Pasa el array validado
 
-        // 3. Despacho a Capa de Presentación
         return inertia('Customer/Brand/Show', [
             'currentBrand' => new BrandDetailResource($brand),
             'brandNav'     => BrandNavResource::collection($navigation),

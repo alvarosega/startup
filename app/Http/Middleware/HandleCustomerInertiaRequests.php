@@ -13,6 +13,7 @@ use App\Actions\Customer\Shop\GetGlobalMenuAction;
 use App\Services\ShopContextService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Tighten\Ziggy\Ziggy;
 
 use App\Actions\Customer\Category\GetCategoryDetailsAction; 
 
@@ -39,6 +40,11 @@ class HandleCustomerInertiaRequests extends Middleware
         $branchId = $shopService->getActiveBranchId();
 
         return array_merge(parent::share($request), [
+            'ziggy' => function () use ($request) {
+                return array_merge((new Ziggy)->toArray(), [
+                    'location' => $request->url(),
+                ]);
+            },
             'cart' => app(GetCustomerCartAction::class)->execute($guestUuid),
             
             // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId

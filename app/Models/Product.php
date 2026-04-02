@@ -5,6 +5,7 @@ use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\{HasMany, BelongsTo, HasManyThrough};
+use App\Models\InventoryBalance;
 
 class Product extends Model
 {
@@ -47,5 +48,16 @@ class Product extends Model
     public function favoritedBy(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Customer::class, 'favorites', 'product_id', 'customer_id');
+    }
+    public function inventoryBalances(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            InventoryBalance::class, 
+            Sku::class,
+            'product_id', // Llave foránea en Skus
+            'sku_id',     // Llave foránea en InventoryBalances
+            'id',         // Llave local en Products
+            'id'          // Llave local en Skus
+        );
     }
 }

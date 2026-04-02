@@ -13,9 +13,10 @@ class BrandNavResource extends JsonResource
             'id'       => (string) $this->id,
             'name'     => (string) $this->name,
             'slug'     => (string) $this->slug,
+            'bg_color' => $this->bg_color ? '#' . ltrim((string)$this->bg_color, '#') : '#a855f7',
             'logo_url' => $this->image_path 
-                ? Storage::disk('public')->url($this->image_path) 
-                : '/assets/img/brand_placeholder.jpg',
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path) 
+                : asset('assets/img/brand_placeholder.png'), // <--- UNIFICADO Y CON ASSET
         ];
     }
 }

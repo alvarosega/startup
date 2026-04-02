@@ -23,7 +23,8 @@ use App\Http\Resources\Customer\RetailMedia\HeroBannerResource;
 use App\Http\Resources\Customer\Bundle\BundleResource;
 use App\Http\Resources\Customer\Featured\FeaturedProductResource;
 use App\Http\Resources\Customer\Favorite\FavoriteProductResource; // <--- USAR ESTE
-
+use App\Actions\Customer\Brand\GetActiveBrandsAction;
+use App\Http\Resources\Customer\Brand\BrandNavResource;
 class ShopController extends Controller
 {
     public function __construct(protected readonly ShopContextService $contextService) {}
@@ -34,11 +35,13 @@ class ShopController extends Controller
         GetHomeZonesAction $zonesAction,
         GetActiveBundlesAction $bundlesAction,
         GetHomeFeaturedAction $featuredAction,
-        GetTopFavoritesAction $favoritesAction // <--- Inyección validada
+        GetTopFavoritesAction $favoritesAction,
+        GetActiveBrandsAction $brandsAction // <--- AÑADIR ESTA LÍNEA
     ): Response {
         $branchId = $this->contextService->getActiveBranchId();
         
         return Inertia::render('Customer/Shop/Index', [
+            'topBrands'        => BrandNavResource::collection($brandsAction->execute())->resolve(), // <--- AÑADIR
             'brandBanners'     => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
             'featuredProducts' => FeaturedProductResource::collection($featuredAction->execute()),
             'bundleBanners'    => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),

@@ -138,4 +138,11 @@ class Sku extends Model
                     ->withTimestamps()
                     ->using(BundleItem::class);
     }
+    protected function availableStock(): Attribute
+    {
+        return Attribute::get(fn () => max(0, 
+            ((int)($this->total_physical ?? 0)) - 
+            ((int)($this->total_reserved ?? 0))
+        ));
+    }
 }

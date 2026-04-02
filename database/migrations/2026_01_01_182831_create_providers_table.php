@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('providers', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));            $table->string('company_name'); 
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));          
+            $table->string('company_name'); 
             $table->string('commercial_name')->nullable();
             $table->string('tax_id')->unique(); 
             $table->string('internal_code')->nullable()->unique();

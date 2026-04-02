@@ -45,13 +45,21 @@ const handleBannerNavigate = (banner) => {
     }
 };
 
-// --- ESCUDO VDOM ---
-watch(() => props.products, (newData) => {
-    if (!isMounted.value) return; 
+// Cambiar el watch de productos por este:
+watch(() => category.value.slug, () => {
+    // Si cambia la categoría, reseteamos todo el array
+    allProducts.value = [];
+    nextCursorUrl.value = null;
+    isFetching.value = false;
+});
 
-    const isFilterAction = searchQuery.value !== '' || sortBy.value !== 'relevance';
+watch(() => props.products, (newData) => {
+    if (!isMounted.value) return;
+
+    // Si es una nueva búsqueda o filtro, reemplazamos. Si no, concatenamos.
+    const isResetAction = searchQuery.value !== '' || sortBy.value !== 'relevance';
     
-    if (isFilterAction || newData?.path !== props.products?.path) {
+    if (isResetAction) {
         allProducts.value = [...(newData?.data || [])];
     } else {
         const existingIds = new Set(allProducts.value.map(p => p.id));
@@ -59,7 +67,6 @@ watch(() => props.products, (newData) => {
         allProducts.value.push(...uniqueItems);
     }
     nextCursorUrl.value = newData?.next_page_url || null;
-    isFetching.value = false;
 }, { deep: true });
 
 const searchQuery = ref(props.filters?.search || '');

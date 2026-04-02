@@ -8,53 +8,47 @@ use App\Models\Sku;
 use App\Services\Finance\PriceResolverService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class GetBrandSkuAction
 {
     public function __construct(private readonly PriceResolverService $priceResolver) {}
+
+    // --- DENTRO DE GetBrandSkuAction.php ---
 
     public function execute(string $brandId, string $branchId, array $filters = []): Collection
     {
         $query = Sku::query()
             ->whereHas('product', fn($q) => $q->where('brand_id', $brandId))
             ->active()
-            ->addSelect([
-                'total_physical' => DB::table('inventory_lots')
-                    ->selectRaw('COALESCE(SUM(quantity), 0)')
-                    ->whereColumn('sku_id', 'skus.id')
-                    ->where('branch_id', $branchId),
-                'total_reserved' => DB::table('inventory_lots')
-                    ->selectRaw('COALESCE(SUM(reserved_quantity), 0)')
-                    ->whereColumn('sku_id', 'skus.id')
-                    ->where('branch_id', $branchId),
-            ]);
-
-        // Manejo seguro de búsqueda
-        if (!empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(fn($q) => 
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
+            // 1. OPTIMIZACIÓN: Cambiamos subqueries por Join a Balances (Snapshot)
+            ->leftJoin('inventory_balances', function ($join) use ($branchId) {
+                $join->on('skus.id', '=', 'inventory_balances.sku_id')
+                    ->where('inventory_balances.branch_id', '=', $branchId);
+            })
+            ->select('skus.*', 
+                DB::raw('COALESCE(inventory_balances.total_physical, 0) as total_physical'),
+                DB::raw('COALESCE(inventory_balances.total_reserved, 0) as total_reserved'),
+                DB::raw('COALESCE(inventory_balances.total_safety, 0) as total_safety')
             );
-        }
 
-        // CORRECCIÓN CRÍTICA: Manejo seguro de 'sort'
-        $sortMethod = $filters['sort'] ?? 'relevance';
+        // ... (Mantener lógica de filtros search/sort) ...
 
-        $query = match($sortMethod) {
-            'price_asc'  => $query->orderBy('base_price', 'asc'),
-            'price_desc' => $query->orderBy('base_price', 'desc'),
-            default      => $query->orderBy('sort_order', 'asc'),
-        };
+        // 2. CARGA DE PRECIOS: Solo los de la sucursal actual
+        $skus = $query->with(['product.brand', 'prices' => function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            }])->get();
 
-        $skus = $query->with(['product.category', 'product.brand', 'prices' => fn($q) => $q->where('branch_id', $branchId)])
-            ->get();
+        return $skus->map(function ($sku) {
+            // Inyectamos el precio ganador (Bs) para cantidad 1
+            $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, 1, now());
+            
+            // Atributo dinámico para el SkuResource
+            $sku->is_favorite = auth('customer')->check() 
+                ? $sku->product->favoritedBy->contains(auth('customer')->id()) 
+                : false;
 
-        return $skus->map(function ($sku) use ($branchId) {
-            $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, $branchId, 1);
-            $sku->bg_color = $sku->product->category->bg_color ?? 'ef4444';
-            $sku->brand_name = $sku->product->brand->name ?? '';
             return $sku;
-        })->filter(fn($sku) => ($sku->total_physical - $sku->total_reserved) > 0);
+        });
     }
 }

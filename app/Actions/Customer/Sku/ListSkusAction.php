@@ -18,34 +18,34 @@ class ListSkusAction
         private GetCustomerCartAction $getCartAction
     ) {}
 
-    /**
-     * Ejecuta el motor de búsqueda y listado de SKUs enriquecidos.
-     */
     public function execute(string $categoryId, string $branchId, array $filters): CursorPaginator
     {
-        $now = now();
-        $nowStr = $now->toDateTimeString();
-
-        // 1. CONTEXTO DE CARRITO (Para Upsell en tiempo real)
+        $nowStr = now()->toDateTimeString();
+    
+        // 1. Contexto de carrito
         $guestUuid = session('guest_client_uuid') ?? request()->header('X-Guest-UUID');
         $cart = $this->getCartAction->execute($guestUuid);
         $cartQuantities = collect($cart['items'] ?? [])->pluck('quantity', 'sku_id');
+    
 
-        // 2. CONSTRUCCIÓN DE QUERY SEGURA
         $query = Sku::query()
             ->with(['product.brand', 'prices' => function ($q) use ($branchId, $nowStr) {
                 $q->where('branch_id', $branchId)
-                  ->where('valid_from', '<=', $nowStr)
-                  ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $nowStr));
+                ->where('valid_from', '<=', $nowStr)
+                ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $nowStr));
             }])
             ->join('products as p', 'skus.product_id', '=', 'p.id')
-            ->join('categories as c', 'p.category_id', '=', 'c.id')
-            ->join('brands as b', 'p.brand_id', '=', 'b.id')
+            ->leftJoin('inventory_balances as ib', function ($join) use ($branchId) {
+                $join->on('skus.id', '=', 'ib.sku_id')
+                    ->where('ib.branch_id', '=', $branchId);
+            })
             ->select([
                 'skus.*',
-                'c.bg_color',
-                'b.name as brand_name',
-                // Subconsulta optimizada para el precio de ordenamiento
+                'p.name as product_name',
+                // RECTIFICACIÓN: Traemos las columnas necesarias para el Accessor del Modelo
+                DB::raw('COALESCE(ib.total_physical, 0) as total_physical'),
+                DB::raw('COALESCE(ib.total_reserved, 0) as total_reserved'),
+                // Subconsulta para el precio de ordenamiento
                 DB::raw("(
                     SELECT final_price FROM prices 
                     WHERE prices.sku_id = skus.id 
@@ -54,19 +54,12 @@ class ListSkusAction
                     AND prices.valid_from <= '{$nowStr}'
                     AND (prices.valid_to IS NULL OR prices.valid_to >= '{$nowStr}')
                     ORDER BY prices.priority DESC, prices.created_at DESC LIMIT 1
-                ) as sorting_price"),
-                // Subconsulta de stock disponible (Cálculo atómico)
-                DB::raw("(
-                    SELECT SUM(quantity - reserved_quantity) FROM inventory_lots 
-                    WHERE inventory_lots.sku_id = skus.id 
-                    AND inventory_lots.branch_id = '{$branchId}'
-                    AND inventory_lots.is_safety_stock = 0
-                ) as available_stock")
+                ) as sorting_price")
             ])
             ->where('skus.is_active', true)
             ->where('p.is_active', true);
 
-        // 3. FILTRADO POR ÁRBOL DE CATEGORÍA
+        // 3. FILTRADO POR CATEGORÍA (Incluye hijos)
         $query->where(function ($q) use ($categoryId) {
             $q->where('p.category_id', $categoryId)
               ->orWhereIn('p.category_id', function ($sub) use ($categoryId) {
@@ -74,33 +67,31 @@ class ListSkusAction
               });
         });
 
-        // 4. BÚSQUEDA
+        // 4. BÚSQUEDA FULLTEXT (Opcional según tu migración)
         if (!empty($filters['search'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->where('skus.name', 'LIKE', "%{$filters['search']}%")
-                  ->orWhere('p.name', 'LIKE', "%{$filters['search']}%");
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('skus.name', 'LIKE', "%{$search}%")
+                  ->orWhere('p.name', 'LIKE', "%{$search}%");
             });
         }
 
-        // 5. ORDENAMIENTO DINÁMICO
+        // 5. ORDENAMIENTO
         $sort = $filters['sort'] ?? 'relevance';
-        match ($sort) {
+        $query = match ($sort) {
             'price_asc'  => $query->orderBy('sorting_price', 'asc'),
             'price_desc' => $query->orderBy('sorting_price', 'desc'),
             default      => $query->orderBy('skus.sort_order', 'asc')
-                                  ->orderBy('p.sort_order', 'asc')
                                   ->orderBy('skus.name', 'asc')
         };
 
-        // 6. PAGINACIÓN Y ENRIQUECIMIENTO (Devuelve Modelos, no Resources)
-        return $query->cursorPaginate(20)->through(function (Sku $sku) use ($cartQuantities, $now) {
+        return $query->cursorPaginate(20)->through(function (Sku $sku) use ($cartQuantities) {
             $currentQty = (int) $cartQuantities->get($sku->id, 0);
             $targetQty = $currentQty > 0 ? $currentQty : 1;
-
-            // Inyectamos la verdad calculada en el modelo
-            $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, $targetQty, $now);
+    
+            $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, $targetQty, now());
             $sku->quantity_in_cart = $currentQty;
-
+    
             return $sku; 
         });
     }

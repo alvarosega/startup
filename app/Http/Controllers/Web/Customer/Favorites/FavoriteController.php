@@ -11,7 +11,7 @@ use App\Http\Resources\Customer\Favorite\FavoriteProductResource;
 use App\Http\Resources\Customer\Favorite\FavoriteSkuResource;
 use App\Actions\Customer\Favorites\ToggleFavoriteAction;
 use App\Actions\Customer\Favorites\SyncGuestFavoritesAction;
-use Illuminate\Http\Request; // <--- SOLUCIÓN AL ERROR CRÍTICO 500
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\{Inertia, Response};
 
@@ -21,10 +21,9 @@ final class FavoriteController extends Controller
     {
         $customerId = Auth::guard('customer')->id();
         $activeProductId = $request->query('active_id');
-        
-        // CAPTURA HÍBRIDA: Si es invitado, buscamos los IDs que vienen del LocalStorage
         $guestIds = $request->query('ids', []);
 
+        // 1. CARGA DE PRODUCTOS (Para el carrusel superior)
         $query = Product::query()->with(['brand'])->withCount(['skus' => fn($q) => $q->active()]);
 
         if ($customerId) {
@@ -34,15 +33,23 @@ final class FavoriteController extends Controller
         }
 
         $favoriteProducts = $query->get();
+        
+        // Determinar cuál es el producto activo
         $selectedId = $activeProductId ?? $favoriteProducts->first()?->id;
         
-        $activeSkus = $selectedId 
-            ? Sku::where('product_id', $selectedId)->active()->orderBy('sort_order')->with(['product.brand', 'prices'])->get()
-            : collect();
+        // 2. CARGA DE SKUS (Para la grilla inferior)
+        $activeSkus = collect();
+        if ($selectedId) {
+            $activeSkus = Sku::where('product_id', $selectedId)
+                ->active()
+                ->orderBy('sort_order', 'asc')
+                ->with(['product.brand', 'prices']) // 'prices' es vital para el PriceResolverService
+                ->get();
+        }
 
         return Inertia::render('Customer/Favorites/Index', [
             'favoriteProducts' => FavoriteProductResource::collection($favoriteProducts)->resolve(),
-            'activeSkus'       => FavoriteSkuResource::collection($activeSkus)->resolve(), // <--- CAMBIO CLAVE
+            'activeSkus'       => FavoriteSkuResource::collection($activeSkus)->resolve(),
             'selectedId'       => $selectedId
         ]);
     }
