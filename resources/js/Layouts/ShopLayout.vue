@@ -29,8 +29,8 @@ const activeOrder = computed(() => page.props.active_order || { progress: 75, st
 
 // --- NAVEGACIÓN UNIFICADA ---
 const navigation = [
-    { name: 'Inicio', icon: Home, route: 'customer.shop.index' },
-    { name: 'Promos', icon: Tag, route: 'customer.shop.index' }, 
+    { name: 'Inicio', icon: Home, route: 'customer.index' },
+    { name: 'Promos', icon: Tag, route: 'customer.index' }, 
     { name: 'Pedidos', icon: Receipt, route: 'customer.orders.history' },
     { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses' },
     { name: 'Seguridad', icon: ShieldCheck, route: 'customer.profile.security' },
@@ -38,7 +38,7 @@ const navigation = [
 
 const filteredNavigation = computed(() => {
     return navigation.filter(item => {
-        const publicRoutes = ['customer.shop.index'];
+        const publicRoutes = ['customer.index'];
         if (publicRoutes.includes(item.route)) return true;
         return !!user.value;
     });
@@ -186,7 +186,7 @@ const logout = () => {
 
             <section 
                 class="flex-1 w-full mx-auto py-8 transition-all"
-                :class="route().current('customer.shop.index') ? 'max-w-full px-0' : 'max-w-7xl px-4 lg:px-8'"
+                :class="route().current('customer.index') ? 'max-w-full px-0' : 'max-w-7xl px-4 lg:px-8'"
             >
                 <slot />
             </section>
@@ -214,16 +214,16 @@ const logout = () => {
                 <span class="text-[9px] font-black uppercase tracking-tighter">Historial</span>
             </Link>
 
-            <Link :href="route('customer.shop.index')" 
+            <Link :href="route('customer.index')" 
                 class="flex flex-col items-center gap-1 transition-all"
-                :class="route().current('customer.shop.promotions') ? 'text-primary' : 'text-foreground/70'">
+                :class="route().current('customer.promotions') ? 'text-primary' : 'text-foreground/70'">
                 <Tag :size="22" />
                 <span class="text-[9px] font-black uppercase tracking-tighter">Promos</span>
             </Link>
 
-            <Link :href="route('customer.shop.index')" class="relative -mt-10">
+            <Link :href="route('customer.index')" class="relative -mt-10">
                 <div class="w-14 h-14 bg-card rounded-2xl border-4 border-background shadow-2xl flex items-center justify-center active:scale-95 transition-transform">
-                    <Home :size="26" :class="route().current('customer.shop.index') ? 'text-primary' : 'text-foreground'" />
+                    <Home :size="26" :class="route().current('customer.index') ? 'text-primary' : 'text-foreground'" />
                 </div>
             </Link>
 

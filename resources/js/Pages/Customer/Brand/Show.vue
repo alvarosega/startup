@@ -31,7 +31,7 @@ const searchQuery = ref(props.filters?.search || '');
 const sortBy = ref(props.filters?.sort || 'relevance');
 
 const updateFilters = debounce(() => {
-    router.get(route('customer.shop.brand.show', { slug: brand.value.slug }), 
+    router.get(route('customer.brand.show', { slug: brand.value.slug }), 
         { search: searchQuery.value, sort: sortBy.value }, 
         { preserveState: true, replace: true, preserveScroll: true, only: ['products', 'filters'] }
     );

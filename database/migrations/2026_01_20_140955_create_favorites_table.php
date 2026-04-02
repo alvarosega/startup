@@ -10,21 +10,13 @@ return new class extends Migration
     {
         Schema::create('favorites', function (Blueprint $table) {
             $table->id();
+            $table->foreignUuid('customer_id')->constrained('customers')->cascadeOnDelete();
             
-            // Relación con el Cliente (UUID)
-            $table->foreignUuid('customer_id')
-                ->constrained('customers')
-                ->cascadeOnDelete();
+            // CAMBIO VITAL: El favorito se ancla al Producto, no al SKU individual
+            $table->foreignUuid('product_id')->constrained('products')->cascadeOnDelete();
             
-            // Relación con el SKU (UUID) - RECTIFICADO
-            $table->foreignUuid('sku_id')
-                ->constrained('skus')
-                ->cascadeOnDelete();
-            
-            // LA LEY: Unicidad física para evitar duplicados en el nodo
-            $table->unique(['customer_id', 'sku_id'], 'idx_unique_favorite');
-            
-            $table->timestamps(); // Auditoría para "Añadido recientemente"
+            $table->unique(['customer_id', 'product_id'], 'idx_unique_favorite_product');
+            $table->timestamps();
         });
     }
 

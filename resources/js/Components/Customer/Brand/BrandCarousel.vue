@@ -14,7 +14,7 @@ const navigateToBrand = (slug) => {
     
     const isBrandPage = page.component === 'Customer/Brand/Show';
     
-    router.visit(route('customer.shop.brand.show', { slug: slug }), { 
+    router.visit(route('customer.brand.show', { slug: slug }), { 
         preserveScroll: true,
         preserveState: true,
         // RECTIFICACIÓN: Incluimos brandHero para que el banner cambie al navegar

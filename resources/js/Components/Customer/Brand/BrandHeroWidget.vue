@@ -26,7 +26,7 @@ const props = defineProps({
             <Link 
                 v-for="banner in banners" 
                 :key="banner.id"
-                :href="route('customer.shop.brand.show', { slug: banner.brand.slug })"
+                :href="route('customer.brand.show', { slug: banner.brand.slug })"
                 class="relative flex-none w-[85vw] md:w-[65vw] lg:w-[45vw] aspect-[21/9] md:aspect-[3/1] bg-card border-2 border-border rounded-[2rem] overflow-hidden snap-center group shadow-sm hover:shadow-2xl hover:border-primary/40 transition-all duration-500 ease-ios block"
             >
                 <img 

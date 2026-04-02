@@ -198,7 +198,7 @@ const proceedToCheckout = () => {
                 <PackageOpen :size="80" class="mx-auto text-foreground/20 mb-6" stroke-width="1.5"/>
                 <h2 class="text-2xl font-black uppercase tracking-tighter mb-3">Tu carrito está vacío</h2>
                 <p class="text-foreground/50 text-sm font-bold mb-8 max-w-md mx-auto">Parece que aún no has encontrado lo que buscas. Explora nuestras zonas y descubre los mejores precios.</p>
-                <Link :href="route('customer.shop.index')" class="inline-flex items-center gap-2 px-8 h-14 bg-primary text-black font-black text-sm uppercase tracking-widest rounded-full transition-transform active:scale-95 shadow-lg shadow-primary/30">
+                <Link :href="route('customer.index')" class="inline-flex items-center gap-2 px-8 h-14 bg-primary text-black font-black text-sm uppercase tracking-widest rounded-full transition-transform active:scale-95 shadow-lg shadow-primary/30">
                     <ShoppingBag :size="18" stroke-width="2.5"/> Ir a la tienda
                 </Link>
             </div>

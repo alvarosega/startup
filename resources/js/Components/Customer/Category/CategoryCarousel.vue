@@ -26,7 +26,7 @@ const getCategoryStyle = (hex) => {
             
             <template v-if="!loading && categories.length > 0">
                 <Link v-for="cat in categories" :key="cat.id"
-                     :href="route('customer.shop.category', { category: cat.slug })"
+                     :href="route('customer.category', { category: cat.slug })"
                      :style="getCategoryStyle(cat.bg_color)"
                      class="group flex flex-col items-center gap-5 snap-start shrink-0 cursor-pointer w-[90px] transition-all duration-500">
                      

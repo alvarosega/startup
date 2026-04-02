@@ -8,7 +8,7 @@ const props = defineProps({
 });
 
 const handleOpenBundle = (slug) => {
-    router.visit(route('customer.shop.bundle', { slug: slug }));
+    router.visit(route('customer.bundle', { slug: slug }));
 };
 
 // HELPER: Garantiza que siempre retorne un string válido

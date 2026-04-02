@@ -22,7 +22,7 @@ const props = defineProps({
 
 const isSyncing = ref(false);
 
-const goBack = () => router.visit(route('customer.shop.index'));
+const goBack = () => router.visit(route('customer.index'));
 
 const getCartItem = (skuId) => props.currentCart[skuId] || { qty: 0, price: null };
 

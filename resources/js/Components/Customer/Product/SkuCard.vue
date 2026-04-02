@@ -43,26 +43,28 @@ const toggleFavorite = (e) => {
     if (props.loading || !props.sku) return;
 
     if (isAuth.value) {
-        console.log("DEBUG SKU:", props.sku)
-        router.post(route('customer.favorites.toggle'), { sku_id: props.sku.id }, {
-            preserveScroll: true, preserveState: true
-            
+        router.post(route('customer.favorites.toggle'), { 
+            product_id: props.sku.product_id // <--- CAMBIO DE LLAVE Y VALOR
+        }, {
+            preserveScroll: true, 
+            preserveState: true
         });
     } else {
         let favs = JSON.parse(localStorage.getItem('guest_favorites') || '[]');
-        const index = favs.findIndex(f => f.id === props.sku.id);
+        const productId = props.sku.product_id;
+        const index = favs.findIndex(f => f.product_id === productId);
 
         if (index > -1) {
             favs.splice(index, 1);
         } else {
-            favs.push({
-                id: props.sku.id,
+            // SNAPSHOT: Guardamos lo mínimo para que el carousel se vea bien
+            favs.push({ 
+                id: props.sku.id, // Referencia para el loop
+                product_id: productId,
                 name: props.sku.name,
                 image: props.sku.image,
-                final_price: props.sku.final_price,
-                list_price: props.sku.list_price,
-                bg_color: props.sku.bg_color,
-                brand_name: props.sku.brand_name
+                brand_name: props.sku.brand_name,
+                bg_color: props.sku.bg_color
             });
         }
         localStorage.setItem('guest_favorites', JSON.stringify(favs));
@@ -136,7 +138,7 @@ const dynamicStyle = computed(() => ({
 
 const goToProduct = () => {
     if (props.loading || !props.sku) return;
-    router.visit(route('customer.shop.product', { id: props.sku.id }));
+    router.visit(route('customer.product', { id: props.sku.id }));
 };
 </script>
 

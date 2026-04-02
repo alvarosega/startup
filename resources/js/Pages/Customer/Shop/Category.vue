@@ -19,7 +19,7 @@ const getImageUrl = (path) => {
     return `/storage/${path.replace(/^\/+/, '')}`;
 };
 
-const goBack = () => router.visit(route('customer.shop.index'));
+const goBack = () => router.visit(route('customer.index'));
 </script>
 
 <template>

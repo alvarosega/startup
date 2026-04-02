@@ -14,35 +14,38 @@ use App\Http\Controllers\Web\Customer\Profiles\ProfileController;
 use App\Http\Controllers\Web\Customer\Profiles\AddressController;
 use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Order\OrderController;
-use App\Http\Controllers\Web\Customer\Catalog\FavoriteController;
+use App\Http\Controllers\Web\Customer\Favorites\FavoriteController;
 use App\Http\Controllers\Web\Customer\Catalog\ReviewController;
 use App\Http\Controllers\Web\Customer\Brand\BrandController;
 use App\Http\Controllers\Web\Customer\Featured\FeaturedController;
+use App\Http\Controllers\Web\Customer\Sku\SkuController;
+
+/*
+|--------------------------------------------------------------------------
+| Naming Note: Prefix 'customer.' is applied in bootstrap/app.php
+|--------------------------------------------------------------------------
+*/
+
+// --- RUTAS PÚBLICAS Y DE CATÁLOGO ---
+
+Route::get('/', ShopController::class)->name('index');
+Route::get('/search', ShopController::class)->name('search');
+Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
+Route::get('/marcas/{slug}', [BrandController::class, 'show'])->name('brand.show');
 
 Route::get('/product/{id}', ProductShowController::class)->name('product.show');
+Route::get('/category/{category:slug}', CategoryController::class)->name('category');
+Route::get('/bundle/{slug}', BundleController::class)->name('bundle');
+Route::get('/sku/state', [SkuController::class, 'state'])->name('sku.state');
+
+// Favoritos Index (Público para soporte de invitados)
+Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites.index');
+
 Route::prefix('featured')->name('featured.')->group(function () {
     Route::get('/{product:slug}', [FeaturedController::class, 'show'])->name('show');
 });
-Route::name('shop.')->group(function () {
-    // Landing Principal (Invocable)
-    Route::get('/', ShopController::class)->name('index');
-    
-    // Ruta de Búsqueda (Alineada al __invoke del ShopController)
-    Route::get('/search', ShopController::class)->name('search');
-    // Silo de Sku (Dedicado a actualización de estado)
-    Route::get('/sku/state', [App\Http\Controllers\Web\Customer\Sku\SkuController::class, 'state'])
-    ->name('customer.sku.state');
-    // Zonas de Mercado
-    Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
-    // Esta ruta genera el nombre: customer.shop.brand.show (si el archivo está prefijado)
-    Route::get('/marcas/{slug}', [BrandController::class, 'show'])->name('brand.show');
 
-    // Navegación Atómica
-    Route::get('/category/{category:slug}', CategoryController::class)->name('category');
-    Route::get('/bundle/{slug}', BundleController::class)->name('bundle');
-
-});
-
+// --- GESTIÓN DE CARRITO (Público/Híbrido) ---
 Route::prefix('cart')->name('cart.')->group(function () {
     Route::get('/', [CartController::class, 'index'])->name('index');
     Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
@@ -50,53 +53,51 @@ Route::prefix('cart')->name('cart.')->group(function () {
     Route::delete('/{id}', [CartController::class, 'remove'])->name('remove');
 });
 
+// --- AUTENTICACIÓN (Solo Invitados) ---
 Route::middleware('guest:customer')->group(function () {
     Route::get('login', [LoginController::class, 'show'])->name('login');
     Route::post('login', [LoginController::class, 'store']);
     Route::get('register', [RegisterController::class, 'create'])->name('register');
     Route::post('register', [RegisterController::class, 'store']);
     Route::post('register/validate-step-1', [RegisterController::class, 'validateStep1'])->name('register.validate-step-1');
-    Route::get('password/forgot', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
-    Route::post('password/email', [ForgotPasswordController::class, 'sendResetCode'])->name('password.email');
-    Route::get('password/reset/{email}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
-    Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
-    //Route::get('/geo/validate', [App\Http\Controllers\Api\Geo\GeoController::class, 'validatePoint'])
-    //->name('api.geo.validate');
-    Route::get('/favorites', [App\Http\Controllers\Web\Customer\Favorites\FavoriteController::class, 'index'])
-    ->name('customer.favorites.index');
+    
+    Route::prefix('password')->name('password.')->group(function () {
+        Route::get('/forgot', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('request');
+        Route::post('/email', [ForgotPasswordController::class, 'sendResetCode'])->name('email');
+        Route::get('/reset/{email}', [ResetPasswordController::class, 'showResetForm'])->name('reset');
+        Route::post('/update', [ResetPasswordController::class, 'reset'])->name('update');
+    });
 });
 
-Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+// --- RUTAS PROTEGIDAS (Solo Clientes Autenticados) ---
+Route::middleware(['auth:customer'])->group(function () {
+    Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
-// Rutas protegidas del cliente
-Route::middleware(['auth:customer'])->prefix('customer')->group(function () {
-    Route::post('/favorites/toggle', [App\Http\Controllers\Web\Customer\Favorites\FavoriteController::class, 'toggle'])
-        ->name('favorites.toggle');
-    Route::post('/favorites/sync', [App\Http\Controllers\Web\Customer\Favorites\FavoriteController::class, 'sync'])
-        ->name('customer.favorites.sync');
+    // Favoritos (Acciones)
+    Route::prefix('favorites')->name('favorites.')->group(function () {
+        Route::post('/toggle', [FavoriteController::class, 'toggle'])->name('toggle');
+        Route::post('/sync', [FavoriteController::class, 'sync'])->name('sync');
+    });
+
+    // Perfil y Direcciones
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('index');
         Route::put('/', [ProfileController::class, 'update'])->name('update');
         Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('update-avatar');
-        Route::get('/addresses', [AddressController::class, 'index'])->name('addresses'); // <--- Puntero corregido
         Route::get('/security', [ProfileController::class, 'security'])->name('security');
-
+        
         Route::prefix('addresses')->name('addresses.')->group(function () {
-            // NUEVAS RUTAS PARA LA VISTA DEDICADA
+            Route::get('/', [AddressController::class, 'index'])->name('index');
             Route::get('/create', [AddressController::class, 'create'])->name('create');
-            Route::get('/{id}/edit', [AddressController::class, 'edit'])->name('edit');
-            
-            // Rutas de acción (Ya las tenías)
             Route::post('/', [AddressController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [AddressController::class, 'edit'])->name('edit');
             Route::put('/{id}', [AddressController::class, 'update'])->name('update');
             Route::delete('/{id}', [AddressController::class, 'destroy'])->name('destroy');
             Route::patch('/{id}/default', [AddressController::class, 'makeDefault'])->name('set-default');
         });
     });
 
-    Route::post('/favorites/{product}', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
-    Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
-
+    // Checkout y Pedidos
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
@@ -107,4 +108,6 @@ Route::middleware(['auth:customer'])->prefix('customer')->group(function () {
         Route::get('/{id}/track', [OrderController::class, 'track'])->name('track');
         Route::get('/{id}/telemetry', [OrderController::class, 'getTelemetry'])->name('telemetry');
     });
+
+    Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 });

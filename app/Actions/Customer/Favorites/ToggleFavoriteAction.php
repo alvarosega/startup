@@ -9,24 +9,16 @@ use Illuminate\Support\Facades\Auth;
 
 final readonly class ToggleFavoriteAction
 {
-    public function execute(string $skuId): bool
+    public function execute(string $productId): array
     {
-        $customerId = Auth::guard('customer')->id();
+        $customer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
         
-        $favorite = Favorite::where('customer_id', $customerId)
-            ->where('sku_id', $skuId)
-            ->first();
+        // El método toggle añade si no existe, o quita si existe.
+        $result = $customer->favorites()->toggle($productId);
 
-        if ($favorite) {
-            $favorite->delete();
-            return false; // Quitado
-        }
-
-        Favorite::create([
-            'customer_id' => $customerId,
-            'sku_id' => $skuId
-        ]);
-
-        return true; // Añadido
+        return [
+            'attached' => count($result['attached']) > 0,
+            'status'   => count($result['attached']) > 0 ? 'added' : 'removed'
+        ];
     }
 }

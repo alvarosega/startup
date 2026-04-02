@@ -9,32 +9,13 @@ use Illuminate\Support\Facades\Auth;
 
 class SyncGuestFavoritesAction
 {
-    public function execute(array $skuIds): void
+    public function execute(array $productIds): void // <--- Cambiado de skuIds
     {
-        $customerId = Auth::guard('customer')->id();
-        if (!$customerId || empty($skuIds)) return;
+        $customer = Auth::guard('customer')->user();
+        if (!$customer || empty($productIds)) return;
 
-        $now = now();
-        $insertData = [];
-        
-        $existingIds = Favorite::where('customer_id', $customerId)
-            ->whereIn('sku_id', $skuIds)
-            ->pluck('sku_id')
-            ->toArray();
-
-        foreach ($skuIds as $id) {
-            if (!in_array($id, $existingIds)) {
-                $insertData[] = [
-                    'customer_id' => $customerId,
-                    'sku_id'      => $id,
-                    'created_at'  => $now,
-                    'updated_at'  => $now
-                ];
-            }
-        }
-
-        if (!empty($insertData)) {
-            Favorite::insert($insertData);
-        }
+        // Usamos el método syncWithoutDetaching para ser calculadores y eficientes
+        // Esto evita duplicados y respeta los registros existentes en una sola query.
+        $customer->favorites()->syncWithoutDetaching($productIds);
     }
 }

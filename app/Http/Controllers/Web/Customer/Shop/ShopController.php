@@ -7,21 +7,22 @@ namespace App\Http\Controllers\Web\Customer\Shop;
 use App\Http\Controllers\Controller;
 use App\Services\ShopContextService;
 use Inertia\{Inertia, Response};
+use Illuminate\Support\Facades\Auth;
 
-// ACCIÓN CORREGIDA PARA HOME
+// ACTIONS
 use App\Actions\Customer\Brand\GetActiveBrandBannersAction;
 use App\Actions\Customer\RetailMedia\GetActiveAdCreativesAction;
 use App\Actions\Customer\Shop\GetHomeZonesAction;
 use App\Actions\Customer\Bundle\GetActiveBundlesAction;
-use Illuminate\Support\Facades\Auth; // RECTIFICACIÓN: Importación obligatoria
-use App\Actions\Customer\Favorites\GetTopFavoritesAction; // <--- ASEGURAR IMPORT
+use App\Actions\Customer\Featured\GetHomeFeaturedAction;
+use App\Actions\Customer\Favorites\GetTopFavoritesAction;
+
 // RESOURCES
 use App\Http\Resources\Customer\Brand\BrandBannerResource;
 use App\Http\Resources\Customer\RetailMedia\HeroBannerResource;
 use App\Http\Resources\Customer\Bundle\BundleResource;
-use App\Actions\Customer\Featured\GetHomeFeaturedAction;
 use App\Http\Resources\Customer\Featured\FeaturedProductResource;
-use App\Http\Resources\Customer\Featured\ProductShowcaseResource; 
+use App\Http\Resources\Customer\Favorite\FavoriteProductResource; // <--- USAR ESTE
 
 class ShopController extends Controller
 {
@@ -32,21 +33,22 @@ class ShopController extends Controller
         GetActiveAdCreativesAction $adAction,
         GetHomeZonesAction $zonesAction,
         GetActiveBundlesAction $bundlesAction,
-        GetHomeFeaturedAction $featuredAction 
+        GetHomeFeaturedAction $featuredAction,
+        GetTopFavoritesAction $favoritesAction // <--- Inyección validada
     ): Response {
         $branchId = $this->contextService->getActiveBranchId();
-        $isLoggedIn = Auth::guard('customer')->check();
+        
         return Inertia::render('Customer/Shop/Index', [
-            // Banners de Marca para el Carrusel de la Home
-            'brandBanners'  => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
+            'brandBanners'     => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
             'featuredProducts' => FeaturedProductResource::collection($featuredAction->execute()),
-            'bundleBanners' => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),
-            'zonesData'     => $zonesAction->execute($branchId), 
-            'bundlesData' => BundleResource::collection($bundlesAction->execute($branchId)),
+            'bundleBanners'    => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),
+            'zonesData'        => $zonesAction->execute($branchId), 
+            'bundlesData'      => BundleResource::collection($bundlesAction->execute($branchId)),
+            
+            // ACLARACIÓN: Resolvemos la colección para que llegue como Array [] y no como Objeto {}
             'favorites' => Auth::guard('customer')->check() 
-                ? ProductShowcaseResource::collection($favoritesAction->execute())
+                ? FavoriteProductResource::collection($favoritesAction->execute())->resolve()
                 : [],
-
         ]);
     }
 }

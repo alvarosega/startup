@@ -39,9 +39,9 @@ const handleBannerNavigate = (banner) => {
     const id = banner.target.id;
 
     if (type === 'sku') {
-        router.visit(route('customer.shop.product', { id }));
+        router.visit(route('customer.product', { id }));
     } else if (type === 'bundle') {
-        router.visit(route('customer.shop.bundle', { slug: banner.target.slug || id }));
+        router.visit(route('customer.bundle', { slug: banner.target.slug || id }));
     }
 };
 
@@ -68,7 +68,7 @@ const sortBy = ref(props.filters?.sort || 'relevance');
 const updateFilters = debounce(() => {
     if (!isMounted.value) return;
     isFetching.value = true;
-    router.get(route('customer.shop.category', { category: category.value.slug }), 
+    router.get(route('customer.category', { category: category.value.slug }), 
         { search: searchQuery.value, sort: sortBy.value }, 
         { 
             preserveState: true, 

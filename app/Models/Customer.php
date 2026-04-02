@@ -79,4 +79,10 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(CustomerAddress::class, 'customer_id', 'id');
     }
+    public function favorites(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        // Relación directa a nivel Producto (Ley de Identidad)
+        return $this->belongsToMany(Product::class, 'favorites', 'customer_id', 'product_id')
+                    ->withTimestamps();
+    }
 }

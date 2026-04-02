@@ -1,21 +1,23 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { usePage, Link } from '@inertiajs/vue3';
-import { Heart, Lock, HelpCircle, ArrowRight } from 'lucide-vue-next';
-import SkuCard from '@/Components/Customer/Product/SkuCard.vue';
+import { usePage, Link, router } from '@inertiajs/vue3';
+import { Heart, ArrowRight } from 'lucide-vue-next';
 
 const props = defineProps({
-    favorites: { type: Array, default: () => [] } // Datos desde DB (Auth)
+    favorites: { type: [Array, Object], default: () => [] }
 });
 
 const page = usePage();
 const isAuth = computed(() => !!page.props.auth?.customer);
-
-// --- LÓGICA DE PERSISTENCIA HÍBRIDA ---
 const guestFavs = ref([]);
 
+// --- 1. NORMALIZACIÓN DE DATOS DEL SERVIDOR ---
+const serverFavorites = computed(() => {
+    return Array.isArray(props.favorites) ? props.favorites : props.favorites?.data || [];
+});
+
+// --- 2. GESTIÓN DE INVITADOS ---
 const updateLocalFavs = () => {
-    // Leemos los objetos completos guardados en SkuCard
     guestFavs.value = JSON.parse(localStorage.getItem('guest_favorites') || '[]');
 };
 
@@ -24,74 +26,54 @@ onMounted(() => {
     window.addEventListener('local-favorites-updated', updateLocalFavs);
 });
 
-onUnmounted(() => {
-    window.removeEventListener('local-favorites-updated', updateLocalFavs);
-});
+onUnmounted(() => window.removeEventListener('local-favorites-updated', updateLocalFavs));
 
-// Determina si hay algo que mostrar (de DB o de LocalStorage)
-const hasFavs = computed(() => {
-    return isAuth.value ? props.favorites.length > 0 : guestFavs.value.length > 0;
-});
-
-// Lista final a renderizar
+// --- 3. LÓGICA DE VISIBILIDAD UNIFICADA ---
 const displayList = computed(() => {
-    return isAuth.value ? props.favorites : guestFavs.value;
+    // Si está logueado, manda la DB. Si no, manda el localStorage.
+    return isAuth.value ? serverFavorites.value : guestFavs.value;
 });
+
+const hasFavs = computed(() => displayList.value.length > 0);
+
+const navigateToFavorite = (productId) => {
+    router.get(route('customer.favorites.index'), { active_id: productId });
+};
 </script>
 
 <template>
-    <section class="mt-12 mb-16 px-6 lg:px-8 max-w-7xl mx-auto">
+    <section v-if="hasFavs" class="mt-12 mb-16 px-6 lg:px-8 max-w-7xl mx-auto">
         <div class="flex items-center justify-between mb-8">
             <div class="flex flex-col">
                 <div class="flex items-center gap-2 mb-1">
                     <Heart :size="12" class="text-primary fill-primary animate-pulse" />
                     <span class="text-[9px] font-black uppercase tracking-[0.3em] text-primary/70 font-mono">
-                        [ SECTOR: MIS_FAVORITOS ]
+                        [ SECTOR: TU_SELECCIÓN ]
                     </span>
                 </div>
-                <h2 class="text-3xl font-black uppercase tracking-tighter italic">Tu Selección</h2>
+                <h2 class="text-3xl font-black uppercase tracking-tighter italic">Favoritos</h2>
             </div>
 
-            <Link v-if="hasFavs" 
-                  :href="isAuth ? route('customer.favorites.index') : route('customer.login')"
+            <Link :href="route('customer.favorites.index')" 
                   class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-all">
-                {{ isAuth ? 'GESTIONAR_ARCHIVO' : 'CONECTAR_PARA_GUARDAR' }}
+                GESTIONAR_ARCHIVO
                 <ArrowRight :size="14" />
             </Link>
         </div>
 
-        <div class="relative">
-            <div v-if="hasFavs">
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6"
-                     :class="{ 'grayscale-[0.8] opacity-80 pointer-events-none': !isAuth }">
-                    <SkuCard v-for="sku in displayList" :key="sku.id" :sku="sku" />
+        <div class="flex gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x">
+            <button v-for="product in displayList" :key="product.id"
+                @click="navigateToFavorite(product.id)"
+                class="group flex flex-col items-center gap-3 snap-start">
+                
+                <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl overflow-hidden border border-border/50 p-2 bg-card shadow-lg group-hover:border-primary group-hover:shadow-neon-primary transition-all duration-500">
+                    <img :src="product.image" class="w-full h-full object-contain group-hover:scale-110 transition-transform" />
                 </div>
                 
-                <div v-if="!isAuth" class="absolute inset-x-0 -bottom-6 flex justify-center">
-                    <div class="bg-primary text-background px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-xl">
-                        Modo Invitado: Inicia sesión para sincronizar permanentemente
-                    </div>
-                </div>
-            </div>
-
-            <div v-else class="group relative py-20 border border-dashed border-primary/20 rounded-[3rem] overflow-hidden bg-primary/[0.02]">
-                <div class="absolute inset-0 grid grid-cols-5 gap-6 px-10 opacity-10 blur-xl grayscale pointer-events-none">
-                    <div v-for="n in 5" :key="n" class="aspect-[3/4] bg-primary/40 rounded-3xl"></div>
-                </div>
-
-                <div class="relative z-10 flex flex-col items-center text-center px-4">
-                    <div class="w-16 h-16 bg-background rounded-2xl border border-primary/20 flex items-center justify-center mb-4 shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                        <HelpCircle :size="32" class="text-primary/40" />
-                    </div>
-                    <h3 class="text-xs font-black uppercase tracking-widest mb-2">Radar Desocupado</h3>
-                    <p class="text-[10px] text-muted-foreground uppercase max-w-xs mb-8 leading-relaxed font-mono">
-                        Aún no has marcado activos. Interactúa con el icono de <Heart :size="10" class="inline text-primary" /> en los productos para construir tu catálogo personal.
-                    </p>
-                    <Link :href="route('customer.shop.index')" class="px-8 py-3 bg-primary text-background font-black text-[10px] uppercase tracking-widest hover:shadow-neon-primary transition-all active:scale-95">
-                        Explorar Góndolas
-                    </Link>
-                </div>
-            </div>
+                <span class="text-[9px] font-black uppercase tracking-tighter text-center w-24 line-clamp-1 opacity-60 group-hover:opacity-100">
+                    {{ product.name }}
+                </span>
+            </button>
         </div>
     </section>
 </template>
