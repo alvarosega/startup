@@ -87,57 +87,26 @@ class CartService
     public function fusionGuestCart(string $customerId, string $guestUuid): void
     {
         $branchId = $this->shopContext->getActiveBranchId();
-        $now = now();
-
-        DB::transaction(function () use ($customerId, $guestUuid, $branchId, $now) {
-            $guestCart = Cart::where('session_id', $guestUuid)
-                ->where('branch_id', $branchId)
-                ->with('items')
-                ->first();
-
+    
+        DB::transaction(function () use ($customerId, $guestUuid, $branchId) {
+            $guestCart = Cart::where('session_id', $guestUuid)->where('branch_id', $branchId)->with('items')->first();
             if (!$guestCart || $guestCart->items->isEmpty()) return;
-
-            // --- REPARACIÓN QUIRÚRGICA: Evitar N+1 ---
-            $skuIds = $guestCart->items->pluck('sku_id')->toArray();
+    
+            $userCart = $this->getOrCreateCart($branchId);
             
-            // Cargamos todos los SKUs y sus precios de una sola vez
-            $skusData = Sku::with(['prices' => function ($q) use ($branchId, $now) {
-                $q->where('branch_id', $branchId)
-                  ->where('valid_from', '<=', $now)
-                  ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now));
-            }])->whereIn('id', $skuIds)->get()->keyBy('id');
-
-            $customerCart = $this->getOrCreateCart($branchId);
-
+            // RECTIFICACIÓN: Cargar items existentes del usuario para comparación en RAM
+            $existingItems = CartItem::where('cart_id', $userCart->id)->get()->keyBy('sku_id');
+    
             foreach ($guestCart->items as $guestItem) {
-                $sku = $skusData->get($guestItem->sku_id);
-                if (!$sku) continue;
-
-                $availableStock = $this->getVisibleStock($sku->id, $branchId);
-                
-                $existingItem = CartItem::where('cart_id', $customerCart->id)
-                    ->where('sku_id', $sku->id)
-                    ->first();
-
-                $targetQty = ($existingItem ? $existingItem->quantity : 0) + $guestItem->quantity;
-                $finalQty = (int) min($targetQty, $availableStock);
-
-                if ($finalQty > 0) {
-                    $priceData = $this->priceResolver->resolveWinningPrice($sku, $finalQty, $now);
-
-                    CartItem::updateOrCreate(
-                        ['cart_id' => $customerCart->id, 'sku_id' => $sku->id],
-                        [
-                            'quantity'          => $finalQty,
-                            'price_at_addition' => $priceData->final_price,
-                            'is_bundle'         => false
-                        ]
-                    );
+                $existingItem = $existingItems->get($guestItem->sku_id);
+    
+                if ($existingItem) {
+                    $existingItem->update(['quantity' => min(99, $existingItem->quantity + $guestItem->quantity)]);
+                    $guestItem->delete();
+                } else {
+                    $guestItem->update(['cart_id' => $userCart->id]);
                 }
             }
-
-            // Limpieza atómica
-            $guestCart->items()->delete();
             $guestCart->delete();
         });
     }

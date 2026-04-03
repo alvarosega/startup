@@ -2,47 +2,40 @@
 
 namespace App\Actions\Customer\Cart;
 
-use App\Models\Cart;
-use App\DTOs\Customer\Cart\SyncCartDTO;
+use App\Models\{Cart, CartItem};
 use Illuminate\Support\Facades\DB;
 
-class SyncGuestCartAction
+class SyncCartAction
 {
-    public function __construct(
-        protected SyncRegularProductAction $syncRegular,
-        protected SyncBundleProductAction $syncBundle
-    ) {}
-
-    public function execute(SyncCartDTO $dto): void
+    public function execute(string $customerId, string $guestUuid, string $branchId): void
     {
-        DB::transaction(function () use ($dto) {
-            // 1. Buscamos TODOS los carritos que el invitado creó en cualquier sucursal
-            $guestCarts = Cart::where('session_id', $dto->guestUuid)
-                ->whereNull('customer_id')
-                ->with('items')
-                ->get();
-        
-            if ($guestCarts->isEmpty()) return;
+        DB::transaction(function () use ($customerId, $guestUuid, $branchId) {
+            $guestCart = Cart::where('session_id', $guestUuid)->where('branch_id', $branchId)->first();
+            if (!$guestCart) return;
 
-            foreach ($guestCarts as $guestCart) {
-                // 2. Mapeo 1:1 -> El carrito de la Sucursal A del invitado 
-                // pasa al carrito de la Sucursal A del Cliente.
-                $customerCart = Cart::firstOrCreate([
-                    'customer_id' => $dto->customerId, 
-                    'branch_id'   => $guestCart->branch_id 
-                ]);
+            $userCart = Cart::firstOrCreate(
+                ['customer_id' => $customerId, 'branch_id' => $branchId],
+                ['id' => \Illuminate\Support\Str::uuid()]
+            );
 
-                foreach ($guestCart->items as $item) {
-                    if ($item->is_bundle) {
-                        $this->syncBundle->execute($item, $customerCart);
-                    } else {
-                        $this->syncRegular->execute($item, $customerCart);
-                    }
+            foreach ($guestCart->items as $guestItem) {
+                $existingItem = CartItem::where('cart_id', $userCart->id)
+                    ->where('sku_id', $guestItem->sku_id)
+                    ->first();
+
+                if ($existingItem) {
+                    // REGLA: Fusión de cantidades (Máximo 99)
+                    $existingItem->update([
+                        'quantity' => min(99, $existingItem->quantity + $guestItem->quantity)
+                    ]);
+                    $guestItem->delete();
+                } else {
+                    // Migración de propiedad
+                    $guestItem->update(['cart_id' => $userCart->id]);
                 }
-
-                // 3. Limpieza: El rastro anónimo desaparece
-                $guestCart->forceDelete();
             }
+
+            $guestCart->delete(); // Destrucción del contenedor temporal
         });
     }
 }

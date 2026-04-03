@@ -3,17 +3,29 @@
 namespace App\DTOs\Customer\Cart;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
-// Regla 2.A: readonly class obligatoria (PHP 8.2+)
-readonly class UpsertCartItemDTO
+final readonly class UpsertCartItemDTO
 {
+    public int $quantity;
+    public string $targetId;
+
     public function __construct(
-        public string $targetId,
+        string $targetId,
         public string $targetType,
-        public int $quantity,
+        int $quantity,
         public string $branchId,
         public array $customItems = []
-    ) {}
+    ) {
+        // LEY DE NORMALIZACIÓN: Clamping estricto [1-99]
+        $this->quantity = max(1, min(99, $quantity));
+        
+        // VALIDACIÓN DE IDENTIDAD: Asegurar formato UUID antes de tocar DB
+        if (!Str::isUuid($targetId)) {
+            throw new \InvalidArgumentException("PROTOCOLO_IDENTIDAD_VIOLADO: ID malformado.");
+        }
+        $this->targetId = $targetId;
+    }
 
     public static function fromRequest(Request $request, string $branchId): self
     {

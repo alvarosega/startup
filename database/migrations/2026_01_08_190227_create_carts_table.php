@@ -36,7 +36,8 @@ return new class extends Migration {
             $table->timestamps();
             
             // Evita duplicados: un carrito tiene un SKU o un Bundle específico
-            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'idx_cart_items_unique');php
+            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'cart_lookup_unique');
+            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'idx_cart_sku_unique');
         });
     }
 

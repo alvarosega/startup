@@ -21,18 +21,19 @@ class CartController extends Controller
         protected ShopContextService $shopContext
     ) {}
 
-    /**
-     * Renderiza el agrupador de ítems (Soft-Cart).
-     */
     public function index(Request $request, GetCustomerCartAction $action): Response
     {
         $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
-        $cart = $action->execute($guestUuid);
-
+        $branchId  = $this->shopContext->getActiveBranchId();
+        $userId    = auth()->guard('customer')->id();
+    
+        // RECTIFICACIÓN DE FIRMA (3 Argumentos)
+        $cart = $action->execute($guestUuid, $userId, $branchId);
+    
         return Inertia::render('Customer/Cart/Index', [
             'cart' => $cart,
             'shopContext' => [
-                'branch_id' => $this->shopContext->getActiveBranchId()
+                'branch_id' => $branchId
             ]
         ]);
     }

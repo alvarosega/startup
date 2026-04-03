@@ -45,7 +45,13 @@ class HandleCustomerInertiaRequests extends Middleware
                     'location' => $request->url(),
                 ]);
             },
-            'cart' => app(GetCustomerCartAction::class)->execute($guestUuid),
+            
+            // RECTIFICACIÓN: Paso de los 3 argumentos obligatorios
+            'cart' => app(GetCustomerCartAction::class)->execute(
+                $guestUuid, 
+                $user?->id, 
+                $branchId
+            ),
             
             // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId
             // MODIFICAR el cierre de 'categories_menu'

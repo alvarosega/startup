@@ -28,15 +28,18 @@ class LoginCustomerAction
             ]);
         }
 
-        // 2. Telemetría de acceso
-        Log::info('Customer Login Success', ['uuid_sync' => $data->guestUuid]);
-
-        // 3. Protocolo de Fusión de Carrito (Merge)
         if ($data->guestUuid) {
-            $this->cartService->fusionGuestCart(
-                (string) Auth::guard('customer')->id(),
-                $data->guestUuid
-            );
+            try {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+                    $this->cartService->fusionGuestCart(
+                        (string) Auth::guard('customer')->id(),
+                        $data->guestUuid
+                    );
+                });
+            } catch (\Exception $e) {
+                Log::error('Fallo crítico en fusión de carrito post-login', ['error' => $e->getMessage()]);
+                // No detenemos el login, pero registramos la falla de integridad.
+            }
         }
 
         return true;

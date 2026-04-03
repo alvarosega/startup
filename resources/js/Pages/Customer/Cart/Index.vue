@@ -21,12 +21,21 @@ const hasStockErrors = computed(() => {
     return cartItems.value.some(item => item.quantity > item.max_stock);
 });
 
+const isUpdating = ref(false);
+
 const updateQuantity = (item, newQty) => {
-    if (newQty < 1 || newQty > item.max_stock) return;
+    if (newQty < 1 || newQty > item.max_stock || isUpdating.value) return;
+    
+    isUpdating.value = true; // Bloqueo total de la UI
     processingItem.value = item.id;
+    
     router.patch(route('customer.cart.update', item.id), { quantity: newQty }, {
         preserveScroll: true,
-        onFinish: () => processingItem.value = null,
+        only: ['cart'], // REGLA QUERY LAW: Solo recargar la prop del carrito
+        onFinish: () => {
+            processingItem.value = null;
+            isUpdating.value = false;
+        },
     });
 };
 
@@ -37,6 +46,7 @@ const removeItem = (id) => {
 };
 
 const proceedToCheckout = () => {
+    if (isUpdating.value || hasStockErrors.value) return; // Impedir checkout si hay red en vuelo
     if (!user.value) { router.visit(route('login')); return; }
     router.visit(route('customer.checkout.index'));
 };
@@ -184,11 +194,13 @@ const proceedToCheckout = () => {
                                 </span>
                             </div>
                         </div>
-
                         <button @click="proceedToCheckout" 
-                                :disabled="hasStockErrors" 
-                                class="w-full h-16 bg-primary text-black font-black text-sm uppercase tracking-widest rounded-[20px] flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-xl shadow-primary/20">
-                            {{ user ? 'Continuar al Pago' : 'Iniciar Sesión' }} <ArrowRight :size="18" stroke-width="3"/>
+                                :disabled="hasStockErrors || isUpdating" 
+                                class="...">
+                            <Loader2 v-if="isUpdating" class="animate-spin" />
+                            <template v-else>
+                                {{ user ? 'Continuar al Pago' : 'Iniciar Sesión' }} <ArrowRight />
+                            </template>
                         </button>
                     </div>
                 </div>

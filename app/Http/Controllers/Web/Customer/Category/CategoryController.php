@@ -22,13 +22,14 @@ class CategoryController extends Controller
     ) {}
 
     public function __invoke(
-        string $category, // Parámetro que viene de la ruta {category:slug}
+        string $category, 
         Request $request, 
         GetCategoryDetailsAction $action, 
         ListSkusAction $listAction
     ): Response {
         $deviceType = $request->header('X-Device-Type', 'desktop');
         $branchId = $this->contextService->getActiveBranchId();
+        $customerId = \Illuminate\Support\Facades\Auth::guard('customer')->id(); // OBTENER ID
         
         $categoryDTO = $action->execute($category, $deviceType);
     
@@ -40,11 +41,12 @@ class CategoryController extends Controller
                 $listAction->execute(
                     $categoryDTO->id, 
                     $branchId, 
-                    $request->only(['search', 'sort']) // Simplificación de sintaxis
+                    $customerId, // INYECTAR IDENTIDAD
+                    $request->only(['search', 'sort'])
                 )
             ),
             
-            'filters'      => $request->only(['search', 'sort'])
+            'filters' => $request->only(['search', 'sort'])
         ]);
     }
 }

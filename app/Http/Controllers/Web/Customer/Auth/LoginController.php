@@ -33,7 +33,7 @@ class LoginController extends Controller
             // Seguridad de Sesión
             $request->session()->regenerate();
             
-            return redirect()->intended(route('customer.shop.index'));
+            return redirect()->intended(route('customer.index'));
             
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
@@ -46,6 +46,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
-        return redirect()->route('customer.shop.index');
+        return redirect()->route('customer.index');
     }
 }
