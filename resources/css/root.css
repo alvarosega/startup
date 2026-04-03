@@ -1,35 +1,113 @@
 :root {
-  /* MODO CLARO: APPLE/GOOGLE RETAIL */
-  --background: 0 0% 100%;
-  --foreground: 240 10% 12%; /* #1D1D1F */
-  
+  /* ESCALA NEUTRAL PURA (Saturación 0%) */
+  --neutral-50: 0 0% 98%;
+  --neutral-100: 0 0% 95%;
+  --neutral-200: 0 0% 90%;
+  --neutral-300: 0 0% 80%;
+  --neutral-400: 0 0% 65%;
+  --neutral-500: 0 0% 50%;
+  --neutral-600: 0 0% 35%;
+  --neutral-700: 0 0% 25%;
+  --neutral-800: 0 0% 15%;
+  --neutral-900: 0 0% 10%;
+  --neutral-950: 0 0% 4%;
+
+  /* ESCALA PRIMARIA (Naranja Terracota - Matiz 24) */
+  --primary-50: 24 95% 96%;
+  --primary-100: 24 95% 90%;
+  --primary-500: 24 95% 55%; /* Color de marca vibrante (UI) */
+  --primary-600: 24 95% 45%;
+  --primary-900: 24 95% 25%;
+  --primary-950: 24 95% 15%;
+
+  /* ESCALA DESTRUCTIVA (Rojo Independiente - Matiz 0) */
+  --destructive-50: 0 100% 97%;
+  --destructive-500: 0 100% 50%;
+  --destructive-700: 0 100% 35%;
+  --destructive-950: 0 100% 10%;
+
+  /* VARIABLES SEMÁNTICAS - MODO CLARO */
+  --background: var(--neutral-50);
+  --foreground: var(--neutral-900);
+
+  /* Superficies y Elevación */
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 12%;
-  --card-border: 240 5% 92%;
-  
-  --primary: 210 100% 50%; /* Azul Apple #007AFF Corregido */
+  --card-foreground: var(--neutral-900);
+  --card-border: var(--neutral-200);
+  --popover: 0 0% 100%;
+  --popover-foreground: var(--neutral-900);
+
+  /* Acciones y Estados */
+  --primary: var(--primary-500);
   --primary-foreground: 0 0% 100%;
+  --primary-text-aaa: 24 95% 32%; /* Naranja oscurecido para Texto AAA sobre Blanco */
   
-  --accent: 142 76% 45%; 
-  
-  --border: 240 5% 90%;
-  --input: 240 5% 96%;
+  --secondary: var(--neutral-100);
+  --secondary-foreground: var(--neutral-900);
+
+  --muted: var(--neutral-100);
+  --muted-foreground: var(--neutral-600);
+
+  --accent: 48 100% 55%; /* Amarillo Acercamiento */
+  --accent-foreground: var(--neutral-950);
+
+  --destructive: var(--destructive-500);
+  --destructive-foreground: 0 0% 100%;
+  --destructive-text-aaa: 0 100% 32%;
+
+  /* Formas e Interacción */
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --ring: var(--neutral-950); /* Foco negro puro para máximo contraste */
+
+  /* Estados de Sistema */
+  --success: 142 76% 30%; /* Ajustado para AAA */
+  --info: 210 100% 35%;    /* Ajustado para AAA */
+  --warning: 38 92% 35%;   /* Ajustado para AAA */
+  --error: 358 100% 35%;   /* Ajustado para AAA */
+
+  /* Contenedores Dinámicos de Categorías (Integración con DB) */
+  --category-bg-opacity: 0.15;
 }
 
 .dark {
-  /* MODO OSCURO: F1 TELEMETRY */
-  --background: 0 0% 2%; /* Negro Pitch #050505 */
-  --foreground: 0 0% 100%;
-  
-  --card: 240 10% 8%; /* #121217 */
-  --card-foreground: 0 0% 100%;
-  --card-border: 240 5% 15%; /* #262626 */
-  
-  --primary: 358 100% 44%; /* Rojo F1 #E10600 */
+  /* VARIABLES SEMÁNTICAS - MODO OSCURO */
+  --background: var(--neutral-950);
+  --foreground: var(--neutral-50);
+
+  /* Superficies y Elevación */
+  --card: var(--neutral-900);
+  --card-foreground: var(--neutral-50);
+  --card-border: var(--neutral-800);
+  --popover: var(--neutral-900);
+  --popover-foreground: var(--neutral-50);
+
+  /* Acciones y Estados */
+  --primary: var(--primary-500);
   --primary-foreground: 0 0% 100%;
-  
-  --accent: 142 100% 50%; 
-  
-  --border: 0 0% 15%;
-  --input: 0 0% 10%;
+  --primary-text-aaa: 24 100% 75%; /* Naranja aclarado para Texto AAA sobre Negro */
+
+  --secondary: var(--neutral-800);
+  --secondary-foreground: var(--neutral-50);
+
+  --muted: var(--neutral-800);
+  --muted-foreground: var(--neutral-400);
+
+  --accent: 30 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: var(--destructive-500);
+  --destructive-foreground: 0 0% 100%;
+  --destructive-text-aaa: 0 100% 80%;
+
+  /* Formas e Interacción */
+  --border: var(--neutral-800);
+  --input: var(--neutral-800);
+  --ring: var(--neutral-50);
+
+  /* Estados de Sistema (Modo Oscuro requieren más luminosidad) */
+  --success: 142 70% 55%;
+  --info: 210 80% 60%;
+  --warning: 38 92% 60%;
+  --error: 358 100% 65%;
 }
