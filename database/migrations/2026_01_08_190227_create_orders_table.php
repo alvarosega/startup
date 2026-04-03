@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('orders', function (Blueprint $table) {
             // 1. IDENTIDAD Y CONTROL
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->string('code')->unique()->index(); 
             
             // 2. RELACIONES (Aislamiento de Silos)
@@ -52,7 +52,7 @@ return new class extends Migration {
         });
 
         Schema::create('order_items', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('order_id')->constrained('orders')->onDelete('cascade');
             $table->foreignUuid('sku_id')->constrained('skus');
             $table->string('product_name');

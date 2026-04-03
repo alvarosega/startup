@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void {
         Schema::create('products', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('brand_id')->index()->constrained('brands');
             $table->foreignUuid('category_id')->index()->constrained('categories');
             $table->fullText('name', 'idx_product_name_fulltext');

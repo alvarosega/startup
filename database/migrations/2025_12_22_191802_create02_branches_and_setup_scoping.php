@@ -9,7 +9,7 @@ return new class extends Migration {
     public function up(): void 
     {
         Schema::create('branches', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             
             $table->string('name')->unique(); 
             $table->string('slug')->unique()->index(); 

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('removal_requests', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->string('code')->unique(); 
             
             $table->uuid('branch_id');
@@ -29,7 +29,7 @@ return new class extends Migration
         });
 
         Schema::create('removal_items', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             
             $table->uuid('removal_request_id');
             $table->foreign('removal_request_id')->references('id')->on('removal_requests')->onDelete('cascade');

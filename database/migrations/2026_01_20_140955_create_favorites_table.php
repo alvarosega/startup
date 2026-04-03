@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('favorites', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('customer_id')->constrained('customers')->cascadeOnDelete();
             
             // CAMBIO VITAL: El favorito se ancla al Producto, no al SKU individual

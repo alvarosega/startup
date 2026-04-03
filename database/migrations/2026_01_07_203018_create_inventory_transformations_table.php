@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('inventory_transformations', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
 
             $table->uuid('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches');

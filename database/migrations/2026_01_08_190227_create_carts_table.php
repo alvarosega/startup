@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void {
         // 1. EL CONTEXTO (Carts)
         Schema::create('carts', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->string('session_id')->nullable()->index();
             
             // Implementación óptima con foreignUuid
@@ -22,7 +22,7 @@ return new class extends Migration {
         });
 
         Schema::create('cart_items', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('cart_id')->constrained()->onDelete('cascade');
             
             // Identificadores (Polimorfismo manual)
@@ -36,8 +36,7 @@ return new class extends Migration {
             $table->timestamps();
             
             // Evita duplicados: un carrito tiene un SKU o un Bundle específico
-            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'cart_lookup_unique');
-            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'idx_cart_sku_unique');
+            $table->unique(['cart_id', 'sku_id', 'bundle_id'], 'idx_cart_items_unique');php
         });
     }
 

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('skus', function (Blueprint $table) {
             // IDENTIDAD ATÓMICA (UUIDv7 compatible)
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('product_id')->constrained('products')->cascadeOnDelete();
             
             // ATRIBUTOS DESCRIPTIVOS

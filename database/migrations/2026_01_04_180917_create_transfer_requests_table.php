@@ -10,7 +10,7 @@ return new class extends Migration {
         // 1. CREACIÓN DE TABLAS DE SOPORTE (TRANSFERS Y ITEMS)
         if (!Schema::hasTable('transfers')) {
             Schema::create('transfers', function (Blueprint $table) {
-                $table->uuid('id')->primary();
+                $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
                 $table->string('code')->unique();
                 $table->foreignUuid('origin_branch_id')->constrained('branches');
                 $table->foreignUuid('destination_branch_id')->constrained('branches');
@@ -26,7 +26,7 @@ return new class extends Migration {
 
         if (!Schema::hasTable('transfer_items')) {
             Schema::create('transfer_items', function (Blueprint $table) {
-                $table->uuid('id')->primary();
+                $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
                 $table->foreignUuid('transfer_id')->constrained()->onDelete('cascade');
                 $table->foreignUuid('sku_id')->constrained('skus');
                 $table->integer('qty_sent');

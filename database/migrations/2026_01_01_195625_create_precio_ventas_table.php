@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('prices', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             
             // LA LEY: Relaciones obligatorias y en cascada
             $table->foreignUuid('sku_id')->constrained('skus')->cascadeOnDelete();

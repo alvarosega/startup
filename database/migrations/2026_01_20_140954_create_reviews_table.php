@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('reviews', function (Blueprint $table) {
             // CORRECCIÓN: De integer a uuid primary
-            $table->uuid('id')->primary(); 
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             
             $table->foreignUuid('customer_id')->constrained()->onDelete('cascade');
             $table->foreignUuid('product_id')->constrained()->onDelete('cascade');

@@ -9,7 +9,7 @@ return new class extends Migration {
     public function up(): void {
         // I. TABLA DE COMPRAS (CABECERA)
         Schema::create('purchases', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('provider_id')->constrained('providers');
             $table->foreignUuid('admin_id')->constrained('admins');
@@ -24,7 +24,7 @@ return new class extends Migration {
 
         // II. LOTES (VERSIONADOS POR MARIADB)
         Schema::create('inventory_lots', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('purchase_id')->nullable()->constrained('purchases');
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('sku_id')->constrained('skus');
@@ -55,7 +55,7 @@ return new class extends Migration {
 
         // IV. KARDEX (MOVIMIENTOS INMUTABLES)
         Schema::create('inventory_movements', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('sku_id')->constrained('skus');
             $table->foreignUuid('inventory_lot_id')->constrained('inventory_lots');

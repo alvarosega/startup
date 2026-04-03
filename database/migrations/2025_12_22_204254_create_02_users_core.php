@@ -12,7 +12,7 @@ return new class extends Migration
         // SILO 1: ADMINS
         // =================================================================================
         Schema::create('admins', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->string('first_name');
             $table->string('last_name');
             $table->string('phone', 20)->nullable();
@@ -59,7 +59,7 @@ return new class extends Migration
         // SILO 2: DRIVERS
         // =================================================================================
         Schema::create('drivers', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->uuid('driver_id');
             $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
@@ -101,7 +101,7 @@ return new class extends Migration
         });
         // NUEVA TABLA: Historial GPS de alto rendimiento (Append-only)
         Schema::create('driver_location_logs', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->uuid('driver_id')->index();
             $table->uuid('order_id')->nullable()->index(); // Nulo si estaba solo navegando
             $table->decimal('latitude', 10, 8);
@@ -143,7 +143,7 @@ return new class extends Migration
 
 
         Schema::create('customers', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // UUIDv7 generado en el modelo
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->uuid('branch_id')->index();
             
             // Identidad y Seguridad
@@ -188,7 +188,7 @@ return new class extends Migration
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
         });
         Schema::create('customer_addresses', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->uuid('customer_id');
             $table->uuid('branch_id')->index();
             
