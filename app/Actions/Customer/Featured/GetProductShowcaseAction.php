@@ -1,37 +1,56 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Actions\Customer\Featured;
 
 use App\Models\{Product, Sku};
+use App\Services\Finance\PriceResolverService;
 use Illuminate\Pagination\CursorPaginator;
+use Illuminate\Support\Facades\DB;
 
-final readonly class GetProductShowcaseAction
+class GetProductShowcaseAction
 {
-    public function execute(string $slug): array
+    public function __construct(
+        private PriceResolverService $priceResolver
+    ) {}
+
+    public function execute(string $productSlug, string $branchId): array
     {
-        // 1. Identidad Maestra
-        $product = Product::where('slug', $slug)
+        $now = now();
+
+        // 1. Obtener Producto Raíz
+        $product = Product::where('slug', $productSlug)
             ->where('is_active', true)
             ->firstOrFail();
 
-        // 2. Stack Vertical de Variantes (Propio)
-        $currentSkus = Sku::where('product_id', $product->id)
+        // 2. SKUs del Producto (Variantes principales)
+        $mainSkus = Sku::with(['product.brand', 'prices' => fn($q) => $q->where('branch_id', $branchId)])
+            ->leftJoin('inventory_balances as ib', fn($j) => $j->on('skus.id', '=', 'ib.sku_id')->where('ib.branch_id', $branchId))
+            ->select(['skus.*', DB::raw('COALESCE(ib.total_physical - ib.total_reserved, 0) as available_stock')])
+            ->where('product_id', $product->id)
             ->where('is_active', true)
-            ->orderBy('sort_order', 'asc')
-            ->get();
+            ->get()
+            ->map(fn($sku) => $this->enrich($sku, $branchId, $now));
 
-        // 3. Feed Global (Otros) - CursorPaginate para Infinite Scroll
-        $others = Sku::where('product_id', '!=', $product->id)
+        // 3. Otros SKUs (Catálogo Global - Cursor Paginated)
+        $others = Sku::with(['product.brand', 'prices' => fn($q) => $q->where('branch_id', $branchId)])
+            ->leftJoin('inventory_balances as ib', fn($j) => $j->on('skus.id', '=', 'ib.sku_id')->where('ib.branch_id', $branchId))
+            ->select(['skus.*', DB::raw('COALESCE(ib.total_physical - ib.total_reserved, 0) as available_stock')])
+            ->where('product_id', '!=', $product->id)
             ->where('is_active', true)
             ->orderBy('sort_order', 'asc')
-            ->cursorPaginate(15);
+            ->cursorPaginate(15)
+            ->through(fn($sku) => $this->enrich($sku, $branchId, $now));
 
         return [
             'product' => $product,
-            'skus' => $currentSkus,
-            'others' => $others
+            'skus' => $mainSkus,
+            'others_paginated' => $others
         ];
+    }
+
+    private function enrich(Sku $sku, string $branchId, $now): Sku
+    {
+        $sku->resolved_price = $this->priceResolver->resolveWinningPrice($sku, 1, $now);
+        return $sku;
     }
 }

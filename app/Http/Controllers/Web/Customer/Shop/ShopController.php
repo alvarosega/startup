@@ -36,19 +36,20 @@ class ShopController extends Controller
         GetActiveBundlesAction $bundlesAction,
         GetHomeFeaturedAction $featuredAction,
         GetTopFavoritesAction $favoritesAction,
-        GetActiveBrandsAction $brandsAction // <--- AÑADIR ESTA LÍNEA
+        GetActiveBrandsAction $brandsAction        
     ): Response {
+        // PROTOCOLO DE CONTEXTO: Establecer identidad de sucursal antes de la orquestación
         $branchId = $this->contextService->getActiveBranchId();
         
         return Inertia::render('Customer/Shop/Index', [
-            'topBrands'        => BrandNavResource::collection($brandsAction->execute())->resolve(), // <--- AÑADIR
+            'topBrands'        => BrandNavResource::collection($brandsAction->execute())->resolve(),
             'brandBanners'     => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
-            'featuredProducts' => FeaturedProductResource::collection($featuredAction->execute()),
+            // INYECCIÓN RECTIFICADA
+            'featuredProducts' => FeaturedProductResource::collection($featuredAction->execute($branchId)),
             'bundleBanners'    => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),
             'zonesData'        => $zonesAction->execute($branchId), 
             'bundlesData'      => BundleResource::collection($bundlesAction->execute($branchId)),
             
-            // ACLARACIÓN: Resolvemos la colección para que llegue como Array [] y no como Objeto {}
             'favorites' => Auth::guard('customer')->check() 
                 ? FavoriteProductResource::collection($favoritesAction->execute())->resolve()
                 : [],

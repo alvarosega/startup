@@ -42,13 +42,15 @@ const handleScroll = () => {
 };
 
 const loadMore = () => {
+    if (isLoadingMore.value || !nextCursor.value) return;
     isLoadingMore.value = true;
-    router.get(window.location.href, 
+
+    router.get(route('customer.featured.show', { product: showcaseData.value.product.slug }), 
         { cursor: nextCursor.value }, 
         {
             preserveState: true,
             preserveScroll: true,
-            only: ['showcase'], // Carga parcial optimizada
+            only: ['showcase'], 
             onSuccess: (page) => {
                 const newData = page.props.showcase?.data?.others_paginated?.data 
                                || page.props.showcase?.others_paginated?.data 

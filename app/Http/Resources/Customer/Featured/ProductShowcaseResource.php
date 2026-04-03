@@ -15,33 +15,17 @@ final class ProductShowcaseResource extends JsonResource
     {
         return [
             'product' => [
-                'name' => mb_convert_encoding($this['product']->name, 'UTF-8', 'UTF-8'),
-                'description' => $this['product']->description,
+                'name' => $this->name,
+                'description' => $this->description,
+                'image_url' => $this->image_url,
             ],
-            'skus' => $this['skus']->map(fn($sku) => $this->formatSku($sku)),
+            'skus' => $this->skus, // Ya vienen mapeados como DTOs/Arrays desde la Action
             'others_paginated' => [
-                'data' => collect($this['others']->items())->map(fn($sku) => $this->formatSku($sku)),
-                'next_cursor' => $this['others']->nextCursor()?->encode(),
+                'data' => $this->others,
+                'next_cursor' => $this->next_cursor,
             ]
         ];
     }
 
-    /**
-     * Normaliza el SKU para que sea compatible con SkuCard.vue
-     */
-    private function formatSku($sku): array
-    {
-        return [
-            'id'          => $sku->id,
-            'name'        => $sku->name,
-            'brand_name'  => $sku->product->brand->name ?? 'GENERIC_ASSET',
-            'image'       => $sku->image_path ? asset('storage/' . $sku->image_path) : null,
-            'final_price' => (float) $sku->base_price,
-            'list_price'  => (float) $sku->base_price, // Fallback si no hay descuento
-            'discount_percentage' => 0,
-            'stock'       => 10, // Placeholder hasta integrar inventario real
-            'bg_color'    => $sku->bg_color ?? '#4ade80',
-            'upsell'      => null, // Evita error de toFixed en upsell.next_price
-        ];
-    }
+
 }
