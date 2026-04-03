@@ -6,9 +6,9 @@ use App\Models\Customer;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
 use App\Services\Geo\BranchCoverageService;
 use App\Services\ShopContextService;
+use App\Services\Cart\CartService;
 use App\Exceptions\IdentityCollisionException;
-use Illuminate\Support\Facades\{DB, Hash, Storage};
-use App\Actions\Customer\Cart\SyncGuestCartAction;
+use Illuminate\Support\Facades\{DB, Hash, Storage, Log};
 
 class RegisterCustomerAction
 {

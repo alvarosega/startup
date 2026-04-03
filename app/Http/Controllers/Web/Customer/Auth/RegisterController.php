@@ -64,7 +64,7 @@ class RegisterController extends Controller
             // 4. Limpieza de rastros de invitado
             $request->session()->forget('guest_client_uuid');
 
-            return redirect()->route('customer.shop.index')
+            return redirect()->route('customer.index')
                 ->with('status', 'Registro completado con éxito.');
     
         } catch (IdentityCollisionException $e) {
