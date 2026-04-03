@@ -33,22 +33,33 @@ class ShopController extends Controller
         GetActiveBrandBannersAction $brandBannersAction,
         GetActiveAdCreativesAction $adAction,
         GetHomeZonesAction $zonesAction,
-        GetActiveBundlesAction $bundlesAction,
+        GetActiveBundlesAction $bundlesAction, // <--- La acción está inyectada pero no se usó
         GetHomeFeaturedAction $featuredAction,
         GetTopFavoritesAction $favoritesAction,
-        GetActiveBrandsAction $brandsAction        
+        GetActiveBrandsAction $brandsAction
     ): Response {
-        // PROTOCOLO DE CONTEXTO: Establecer identidad de sucursal antes de la orquestación
         $branchId = $this->contextService->getActiveBranchId();
-        
+    
+        // 1. OBTENCIÓN NOMINAL DE DATOS (Faltaba esta línea)
+        $allBundles = $bundlesAction->execute($branchId);
+    
+        // 2. SEGMENTACIÓN TÁCTICA (Ahora sí existe la variable)
+        // Usamos el Higher Order Filter de Eloquent Collection
+        $templates = $allBundles->filter(fn($b) => $b->type === 'template');
+        $atomic    = $allBundles->filter(fn($b) => $b->type === 'atomic');
+    
         return Inertia::render('Customer/Shop/Index', [
             'topBrands'        => BrandNavResource::collection($brandsAction->execute())->resolve(),
             'brandBanners'     => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
-            // INYECCIÓN RECTIFICADA
             'featuredProducts' => FeaturedProductResource::collection($featuredAction->execute($branchId)),
             'bundleBanners'    => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),
             'zonesData'        => $zonesAction->execute($branchId), 
-            'bundlesData'      => BundleResource::collection($bundlesAction->execute($branchId)),
+            
+            // RECTIFICACIÓN DE PROPS: Segmentación para el frontend
+            'templateBundles'  => BundleResource::collection($templates), 
+            'atomicBundles'    => BundleResource::collection($atomic),
+            
+            // ELIMINACIÓN: 'bundlesData' ya no es necesario si segmentamos arriba
             
             'favorites' => Auth::guard('customer')->check() 
                 ? FavoriteProductResource::collection($favoritesAction->execute())->resolve()

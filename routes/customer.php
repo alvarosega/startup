@@ -49,6 +49,9 @@ Route::prefix('featured')->name('featured.')->group(function () {
 Route::prefix('cart')->name('cart.')->group(function () {
     Route::get('/', [CartController::class, 'index'])->name('index');
     Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
+
+    Route::post('/add-template', [CartController::class, 'addTemplate'])->name('add-template');
+
     Route::patch('/{id}', [CartController::class, 'update'])->name('update');
     Route::delete('/{id}', [CartController::class, 'remove'])->name('remove');
 });

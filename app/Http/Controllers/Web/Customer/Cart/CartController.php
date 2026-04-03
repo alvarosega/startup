@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Actions\Customer\Bundle\AddTemplateToCartAction;
 
 class CartController extends Controller
 {
@@ -89,5 +90,24 @@ class CartController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['cart' => $e->getMessage()]);
         }
+    }
+    public function addTemplate(Request $request, AddTemplateToCartAction $action): RedirectResponse
+    {
+        $request->validate([
+            'bundle_id' => ['required', 'string', 'exists:bundles,id']
+        ]);
+    
+        $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
+        $result = $action->execute($request->bundle_id, $guestUuid);
+    
+        if (!$result->success) {
+            return back()->withErrors(['cart' => $result->message]);
+        }
+    
+        // RECTIFICACIÓN DE RUTA: Redirección nominal al Carrito de Compras
+        return redirect()->route('customer.cart.index')->with('toast', [
+            'type'    => 'success',
+            'message' => '¡Pack añadido! Revisa tu selección.'
+        ]);
     }
 }

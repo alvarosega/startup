@@ -10,14 +10,17 @@ import BrandHeroWidget from '@/Components/Customer/Brand/BrandHeroWidget.vue';
 import BundleCarousel from '@/Components/Customer/Bundle/BundleCarousel.vue';
 import SkuCard from '@/Components/Customer/Product/SkuCard.vue';
 import FavoritesSection from '@/Components/Customer/Favorites/FavoriteCarousel.vue';
+import EditableBundleCarousel from '@/Components/Customer/Bundle/EditableBundleCarousel.vue';
 
 const props = defineProps({ 
     featuredProducts: { type: Object, default: () => ({ data: [] }) },
     brandBanners: { type: Object, default: () => ({ data: [] }) },
-    bundleBanners: { type: Object, default: () => ({ data: [] }) },
     zonesData: { type: Array, default: () => [] },
     bundlesData: { type: Object, default: () => ({ data: [] }) },
     favorites: { type: Array, default: () => [] },
+    bundleBanners: { type: Object, default: () => ({ data: [] }) }, // Banners de Retail Media
+    templateBundles: { type: Object, default: () => ({ data: [] }) }, // NUEVA PROP SEGMENTADA
+    atomicBundles: { type: Object, default: () => ({ data: [] }) },
 });
 
 const page = usePage();
@@ -30,6 +33,7 @@ const featuredList = computed(() => props.featuredProducts?.data || []);
 const brandAds = computed(() => props.brandBanners?.data || []);
 const promoAds = computed(() => props.bundleBanners?.data || []);
 const bundlesList = computed(() => Array.isArray(props.bundlesData) ? props.bundlesData : props.bundlesData?.data || []);
+const editablePacks = computed(() => props.templateBundles?.data || []);
 </script>
 
 <template>
@@ -37,7 +41,27 @@ const bundlesList = computed(() => Array.isArray(props.bundlesData) ? props.bund
         <div class="w-full min-h-screen bg-background pb-32 transition-colors duration-500">
             
             <Head title="CyberMarket | High-Density Retail" />
-            
+            <section v-show="editablePacks.length > 0" class="mt-12 mb-16">
+                <div v-if="promoAds.length > 0" class="px-4 lg:px-8 mb-8">
+                    <div class="max-w-7xl mx-auto rounded-[3rem] overflow-hidden shadow-2xl">
+                        <HeroBannerSlider :banners="promoAds" />
+                    </div>
+                </div>
+
+                <div class="px-6 lg:px-8 max-w-7xl mx-auto mb-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.4em] text-primary flex items-center gap-2">
+                            <Sparkles :size="14" class="text-accent animate-pulse" />
+                            Packs Editables / Arma tu Pedido
+                        </h2>
+                        <Link :href="route('customer.index')" class="text-[9px] font-bold uppercase tracking-widest text-foreground/40 hover:text-primary transition-colors flex items-center gap-1">
+                            Ver todos <ChevronRight :size="12" />
+                        </Link>
+                    </div>
+                </div>
+
+                <EditableBundleCarousel :bundles="editablePacks" />
+            </section>
             <CategoryCarousel 
                 v-show="categories.length > 0"
                 :categories="categories" 
