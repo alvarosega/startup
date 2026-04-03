@@ -3,11 +3,12 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'; // RECTIFICA
 import { Head, router } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import SkuCard from '@/Components/Customer/Product/SkuCard.vue';
+import FeaturedProductCarousel from '@/Components/Customer/Featured/FeaturedProductCarousel.vue';
 
 const props = defineProps({
-    showcase: { type: Object, required: true }
+    showcase: { type: Object, required: true },
+    featuredProducts: { type: Array, default: () => [] } // RECIBIR PARA EL CARRUSEL
 });
-
 // --- 1. RESOLUCIÓN DE DATA (RESILIENTE) ---
 // Normaliza el acceso si el Resource viene con o sin 'data' wrapping
 const showcaseData = computed(() => props.showcase?.data || props.showcase || {});
@@ -73,8 +74,11 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
 
 <template>
     <ShopLayout>
-        <Head :title="showcaseData.product?.name || 'Cargando...'" />
 
+        <Head :title="showcaseData.product?.name || 'Cargando...'" />
+        <div class="bg-card/20 border-b border-border/10 backdrop-blur-md">
+            <FeaturedProductCarousel :products="featuredProducts" />
+        </div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             
             <header v-if="showcaseData.product" class="mb-12">
