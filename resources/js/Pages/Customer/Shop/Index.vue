@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Head, usePage, Link, router } from '@inertiajs/vue3'; 
 import { 
     ChevronRight, Sparkles, Tag, Star, 
@@ -30,7 +30,10 @@ const categories = computed(() => {
     const menu = page.props.categories_menu;
     return menu?.data ? menu.data : (Array.isArray(menu) ? menu : []);
 });
-
+const isMounted = ref(false);
+onMounted(() => {
+    isMounted.value = true;
+});
 const featuredList = computed(() => props.featuredProducts?.data || []); 
 const brandAds = computed(() => props.brandBanners?.data || []);
 const bundlesList = computed(() => Array.isArray(props.bundlesData) ? props.bundlesData : props.bundlesData?.data || []);
@@ -115,6 +118,11 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                         <div class="content-shadow">
                             <BundleCarousel :bundles="bundlesList" :loading="bundlesList.length === 0" />
                         </div>
+                    </div>
+                </section>
+                <section v-if="isMounted" class="section-reveal py-4">
+                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
+                        <FavoritesSection :favorites="favorites" />
                     </div>
                 </section>
 

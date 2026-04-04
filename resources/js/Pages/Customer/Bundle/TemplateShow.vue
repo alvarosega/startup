@@ -2,30 +2,25 @@
 import { computed, ref } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
-import { ShoppingCart, Plus, Minus, Loader2, CheckCircle2, Zap } from 'lucide-vue-next';
+import { Plus, Minus, Loader2, CheckCircle2, Zap, LayoutGrid } from 'lucide-vue-next';
 import EditableBundleCarousel from '@/Components/Customer/Bundle/EditableBundleCarousel.vue';
 
 const props = defineProps({
     bundle: Object,
-    templateBundles: Object, // Ahora trae todos, incluyendo el actual
+    templateBundles: Object, 
     currentCart: Object
 });
 
-const isBulkLoading = ref(false);
 const processingItems = ref(new Set());
-
 const bundleData = computed(() => props.bundle?.data || props.bundle || {});
 
-// REORDENAMIENTO DEL CARRUSEL: Forzamos el pack actual a la primera posición
+// REORDENAMIENTO: Pack actual primero
 const carouselBundles = computed(() => {
     const all = props.templateBundles?.data || [];
     const currentId = bundleData.value.id;
-    
     if (!currentId) return all;
-    
     const current = all.find(b => b.id === currentId);
     const others = all.filter(b => b.id !== currentId);
-    
     return current ? [current, ...others] : all;
 });
 
@@ -41,17 +36,6 @@ const itemsWithState = computed(() => {
         };
     });
 });
-
-const handleAddFullPack = () => {
-    if (isBulkLoading.value || !bundleData.value.id) return;
-    isBulkLoading.value = true;
-    router.post(route('customer.cart.add-template'), { 
-        bundle_id: bundleData.value.id 
-    }, {
-        preserveScroll: true,
-        onFinish: () => isBulkLoading.value = false
-    });
-};
 
 const updateItem = (skuId, currentQty, delta) => {
     const newQty = Math.max(0, currentQty + delta);
@@ -72,83 +56,156 @@ const updateItem = (skuId, currentQty, delta) => {
     <ShopLayout>
         <Head :title="bundleData.name || 'Configurar Pack'" /> 
 
-        <div v-if="carouselBundles.length > 0" class="w-full pt-8 pb-6">
-            <div class="max-w-7xl mx-auto px-6 md:px-12 mb-4">
-                <h2 class="text-[10px] font-black uppercase tracking-[0.4em] text-foreground/40 flex items-center gap-2">
-                    <Zap :size="12" class="text-primary" /> Menú de Packs
-                </h2>
+        <div v-if="carouselBundles.length > 0" class="w-full pt-0 pb-10">
+            <div class="max-w-7xl mx-auto px-6 md:px-12 mb-6">
+                <div class="header-standard">
+                    <div class="title-block-wrapper">
+                        <Zap :size="16" class="text-black dark:text-primary" />
+                        <h2 class="text-black dark:text-white">Menú de Packs</h2>
+                    </div>
+                </div>
             </div>
             <EditableBundleCarousel :bundles="carouselBundles" :current-id="bundleData.id" />
         </div>
 
-        <main class="max-w-6xl mx-auto px-6 pb-24">
-            
-            <div class="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-12 border-b border-white/10 pb-8">
-                <div>
-                    <h1 class="text-4xl md:text-6xl font-black uppercase italic tracking-tighter leading-none mb-3 text-foreground">
-                        {{ bundleData.name }}
-                    </h1>
-                    <p class="text-foreground/50 text-sm md:text-base font-medium max-w-2xl">
-                        {{ bundleData.description }}
-                    </p>
+        <main class="max-w-7xl mx-auto px-6 pb-32">
+            <div class="header-standard mb-10">
+                <div class="title-block-wrapper">
+                    <LayoutGrid :size="18" class="text-black dark:text-primary" />
+                    <h2 class="text-black dark:text-white">Configurando: {{ bundleData.name }}</h2>
                 </div>
-
-                <button @click="handleAddFullPack" 
-                        :disabled="isBulkLoading"
-                        class="h-16 px-8 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all w-full md:w-auto shadow-xl shadow-primary/20 disabled:opacity-50 shrink-0">
-                    <Loader2 v-if="isBulkLoading" class="animate-spin" :size="20" />
-                    <ShoppingCart v-else :size="20" stroke-width="3"/>
-                    {{ isBulkLoading ? 'Procesando...' : 'Llevar Todo' }}
-                </button>
             </div>
-
-            <div class="grid md:grid-cols-2 gap-6">
+            
+            <div class="grid lg:grid-cols-2 gap-6">
                 <div v-for="item in itemsWithState" :key="item.sku_id" 
-                     class="group relative flex items-center gap-6 p-6 rounded-[3rem] border transition-all duration-500 bg-white/5 backdrop-blur-md"
-                     :class="item.is_exhausted ? 'opacity-40 grayscale border-transparent' : 'border-white/5 hover:border-primary/40 hover:bg-white/10 hover:shadow-xl'">
+                     class="glass-chassis group relative flex items-center gap-6 p-5 transition-all duration-500"
+                     :class="item.is_exhausted ? 'opacity-40 grayscale' : 'hover:border-primary/40 hover:shadow-2xl'">
                     
-                    <img :src="item.image" class="w-24 h-24 object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-lg">
+                    <div class="w-28 h-28 shrink-0 rounded-2xl sku-stage-bg p-3 flex items-center justify-center relative">
+                        <img :src="item.image" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-hardware">
+                        
+                        <div v-if="item.has_suggestion_met" class="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1 shadow-lg border-2 border-white dark:border-neutral-900 animate-in zoom-in">
+                            <CheckCircle2 :size="14" stroke-width="4" />
+                        </div>
+                    </div>
                     
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-black uppercase text-sm truncate text-foreground/90 group-hover:text-foreground transition-colors">{{ item.name }}</h4>
-                        <p class="text-[11px] font-bold text-primary mb-5">Bs. {{ item.final_price.toFixed(2) }} <span class="text-foreground/40 font-sans italic tracking-normal">c/u</span></p>
+                        <h4 class="font-black uppercase text-xs md:text-sm truncate text-black dark:text-white mb-1">
+                            {{ item.name }}
+                        </h4>
                         
-                        <div class="flex items-center gap-5">
-                            <div class="flex items-center bg-background border border-white/10 rounded-2xl p-1.5 shadow-inner">
+                        <div class="flex items-baseline gap-1 mb-4">
+                            <span class="text-[10px] font-black text-primary uppercase">Bs</span>
+                            <span class="text-xl font-black text-black dark:text-white font-mono leading-none">
+                                {{ item.final_price.toFixed(2) }}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-1 shadow-inner">
                                 <button @click="updateItem(item.sku_id, item.in_cart, -1)" 
                                         :disabled="processingItems.has(item.sku_id) || item.in_cart <= 0" 
-                                        class="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors disabled:opacity-20 text-foreground">
-                                    <Minus :size="16" stroke-width="3"/>
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition-all disabled:opacity-20">
+                                    <Minus :size="14" stroke-width="4"/>
                                 </button>
                                 
-                                <div class="w-10 text-center flex flex-col justify-center">
-                                    <Loader2 v-if="processingItems.has(item.sku_id)" class="animate-spin text-primary mx-auto" :size="16"/>
-                                    <span v-else class="font-mono font-black text-base">{{ item.in_cart }}</span>
+                                <div class="w-10 text-center">
+                                    <Loader2 v-if="processingItems.has(item.sku_id)" class="animate-spin text-primary mx-auto" :size="14"/>
+                                    <span v-else class="font-mono font-black text-sm text-black dark:text-white">{{ item.in_cart }}</span>
                                 </div>
                                 
                                 <button @click="updateItem(item.sku_id, item.in_cart, 1)" 
                                         :disabled="processingItems.has(item.sku_id) || item.in_cart >= item.stock_available" 
-                                        class="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors disabled:opacity-20 text-foreground">
-                                    <Plus :size="16" stroke-width="3"/>
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition-all disabled:opacity-20">
+                                    <Plus :size="14" stroke-width="4"/>
                                 </button>
                             </div>
                             
-                            <div class="flex flex-col">
-                                <span class="text-[9px] font-black uppercase tracking-widest text-foreground/40">
-                                    {{ item.is_exhausted ? 'Sin stock' : `Disponibles: ${item.stock_available}` }}
+                            <div class="flex flex-col leading-tight">
+                                <span v-if="item.quantity > 0" class="text-[9px] font-black text-primary uppercase tracking-tighter">
+                                    Sugerido: {{ item.quantity }}u
                                 </span>
-                                <span v-if="item.quantity > 0" class="text-[9px] font-bold text-accent uppercase italic mt-0.5">
-                                    Sugerencia: {{ item.quantity }}u
+                                <span v-if="item.is_exhausted" class="text-[9px] font-bold text-destructive uppercase italic">
+                                    Fuera de servicio
                                 </span>
                             </div>
                         </div>
-                    </div>
-
-                    <div v-if="item.has_suggestion_met" class="absolute top-6 right-6">
-                        <CheckCircle2 :size="20" class="text-emerald-500 drop-shadow-md" />
                     </div>
                 </div>
             </div>
         </main>
     </ShopLayout>
 </template>
+
+<style scoped>
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ENCABEZADO PRISMÁTICO */
+.header-standard {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+}
+
+.title-block-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-grow: 1;
+    padding-bottom: 8px;
+}
+
+.title-block-wrapper h2 {
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.4em;
+}
+
+.title-block-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
+    opacity: 0.8;
+}
+
+/* CHASIS DE CRISTAL (Glass Chassis) */
+.glass-chassis {
+    background-color: hsl(var(--background) / 0.4);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 2.5rem;
+}
+
+.dark .glass-chassis {
+    background-color: hsl(var(--background) / 0.6);
+}
+
+/* BANDEJA DE HARDWARE (Punto focal independiente) */
+.sku-stage-bg {
+    background-image: linear-gradient(135deg, hsl(var(--primary-50)) 0%, hsl(var(--primary)) 46%, hsl(var(--accent)) 100%);
+    box-shadow: 
+        rgba(0, 0, 0, 0.1) 0px -15px 20px 0px inset, 
+        rgba(0, 0, 0, 0.05) 0px -30px 25px 0px inset,
+        0 15px 25px -10px rgba(0, 0, 0, 0.2); /* Flotación */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.dark .sku-stage-bg {
+    background-image: linear-gradient(135deg, #1a1a1a 0%, hsl(var(--primary)) 46%, #000000 100%);
+    box-shadow: 
+        rgba(0, 0, 0, 0.4) 0px -15px 20px 0px inset,
+        0 15px 25px -10px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.drop-shadow-hardware {
+    filter: drop-shadow(0 8px 8px rgba(0,0,0,0.25));
+}
+</style>
