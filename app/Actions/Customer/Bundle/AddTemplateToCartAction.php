@@ -28,33 +28,34 @@ class AddTemplateToCartAction
                 })->addSelect(['skus.id', 'ib.total_physical', 'ib.total_reserved']);
             }])
             ->firstOrFail();
-
         return DB::transaction(function () use ($bundle, $guestUuid) {
             $addedCount = 0;
-            $ignoredCount = 0;
-
+            $errors = [];
+    
             foreach ($bundle->skus as $sku) {
-                $available = max(0, (int)($sku->total_physical ?? 0) - (int)($sku->total_reserved ?? 0));
                 $required = (int)($sku->pivot->quantity ?? 1);
-
-                // PROTOCOLO V.2: No agregar si no hay stock
-                if ($available >= $required) {
-                    $this->cartService->addSku(
-                        skuId: $sku->id,
-                        quantity: $required,
-                        guestUuid: $guestUuid,
-                        isAbsolute: false // Sumamos a lo que ya tenga en el carrito
-                    );
+    
+                // DELEGACIÓN TOTAL: El Service ya valida stock y suma cantidades
+                $result = $this->cartService->addSku(
+                    skuId: $sku->id,
+                    quantity: $required,
+                    guestUuid: $guestUuid,
+                    isAbsolute: false 
+                );
+    
+                if ($result->success) {
                     $addedCount++;
                 } else {
-                    $ignoredCount++;
+                    $errors[] = "{$sku->name}: {$result->message}";
                 }
             }
-
+    
             return (object) [
                 'success' => $addedCount > 0,
-                'message' => "Se agregaron {$addedCount} productos. (" . ($ignoredCount > 0 ? "{$ignoredCount} sin stock" : "Todo listo") . ")",
-                'code' => $addedCount > 0 ? 'SUCCESS' : 'NO_STOCK_AVAILABLE'
+                'message' => $addedCount > 0 
+                    ? "Se actualizaron {$addedCount} ítems del pack." 
+                    : "No se pudo añadir el pack: " . ($errors[0] ?? 'Stock agotado'),
+                'code' => $addedCount > 0 ? 'SUCCESS' : 'STOCK_FAILURE'
             ];
         });
     }

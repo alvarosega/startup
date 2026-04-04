@@ -27,8 +27,8 @@ class BundleController extends Controller
         $branchId = $this->contextService->getActiveBranchId();
         $guestUuid = request()->header('X-Guest-UUID') ?? session('guest_client_uuid');
         $now = now();
-
-        // 1. Carga de Alta Densidad (Pack Principal)
+    
+        // 1. Carga del Bundle Actual
         $bundle = Bundle::where('branch_id', $branchId)
             ->where('slug', $slug)
             ->active()
@@ -40,9 +40,9 @@ class BundleController extends Controller
                 })->addSelect(['skus.id', 'ib.total_physical', 'ib.total_reserved'])
             ])
             ->firstOrFail();
-
-        // 2. Descubrimiento: Otros packs (Excluyendo el actual)
-        $otherBundles = $this->bundlesAction->execute($branchId, $bundle->id, 'template');
+    
+        // 2. RECTIFICACIÓN: No excluimos el actual para mostrarlo en el carrusel
+        $allTemplateBundles = $this->bundlesAction->execute($branchId, null, 'template');
 
         // Hidratación en RAM
         $bundle->skus->each(function($sku) use ($now) {
@@ -54,9 +54,10 @@ class BundleController extends Controller
         $cart = $this->getCartAction->execute($guestUuid, auth()->id(), $branchId);
 
         return Inertia::render('Customer/Bundle/TemplateShow', [
-            'bundle'       => new BundleResource($bundle),
-            'otherBundles' => BundleResource::collection($otherBundles), 
-            'currentCart'  => collect($cart['items'] ?? [])->keyBy('sku_id')->map(fn($i) => ['qty' => $i['quantity']])
+            'bundle'           => new BundleResource($bundle),
+            // CAMBIO: El nombre debe coincidir con el prop de Vue
+            'templateBundles'  => BundleResource::collection($allTemplateBundles), 
+            'currentCart'      => collect($cart['items'] ?? [])->keyBy('sku_id')->map(fn($i) => ['qty' => $i['quantity']])
         ]);
     }
 }
