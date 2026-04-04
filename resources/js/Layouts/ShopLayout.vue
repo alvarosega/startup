@@ -90,7 +90,7 @@ const toggleSearch = () => {
                     class="flex items-center h-11 rounded-xl transition-all duration-200 group relative focus:ring-2 focus:ring-ring focus:outline-none"
                     :class="route().current(item.route) 
                         ? 'bg-primary/10 text-primary-aaa dark:text-primary shadow-sm' 
-                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground'">
+                        : 'text-black dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-foreground'">
                     
                     <div class="w-[52px] flex justify-center shrink-0">
                         <component :is="item.icon" :size="20" />
@@ -116,14 +116,14 @@ const toggleSearch = () => {
                         </div>
                     </div>
                     <div class="flex flex-col items-start transition-all" :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
-                        <span class="text-[11px] font-extrabold truncate w-32 uppercase tracking-tighter">{{ user?.name || 'Invitado' }}</span>
+                        <span class="text-[11px] font-extrabold truncate w-32 uppercase tracking-tighter text-black dark:text-white">{{ user?.name || 'Invitado' }}</span>
                         
                         <div v-if="!user" class="flex gap-2 items-center leading-none">
                             <Link :href="route('customer.login')" class="text-[9px] font-black text-primary uppercase hover:underline tracking-widest">
                                 Entrar
                             </Link>
-                            <span class="text-[9px] text-neutral-400">|</span>
-                            <Link :href="route('customer.register')" class="text-[9px] font-black text-neutral-600 dark:text-neutral-400 uppercase hover:underline tracking-widest">
+                            <span class="text-[9px] text-black/30 dark:text-white/30">|</span>
+                            <Link :href="route('customer.register')" class="text-[9px] font-black text-black dark:text-white/60 uppercase hover:underline tracking-widest">
                                 Unirse
                             </Link>
                         </div>
@@ -136,8 +136,8 @@ const toggleSearch = () => {
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col w-full pt-20 transition-all duration-500 ease-ios" 
-              :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'">
+        <main class="flex-1 flex flex-col w-full pt-[88px] lg:pt-[96px] transition-all duration-500 ease-ios relative z-10" 
+            :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'">
             
             <header class="fixed top-0 lg:top-4 left-0 lg:left-auto right-0 z-[60] w-full lg:w-[calc(100%-theme(spacing.20))] px-2 lg:px-8 pointer-events-none">
                 <div class="mx-auto max-w-7xl h-16 lg:h-14 glass-titanium border border-border rounded-none lg:rounded-3xl flex items-center justify-between px-4 pointer-events-auto shadow-apple-soft">
@@ -152,8 +152,8 @@ const toggleSearch = () => {
                                 <MapPin :size="14" class="text-primary-aaa dark:text-primary" />
                             </div>
                             <div class="flex flex-col items-start leading-none">
-                                <span class="text-[8px] font-black text-neutral-500 uppercase tracking-widest">Entregar en</span>
-                                <span class="text-[10px] font-extrabold text-foreground truncate max-w-[150px] uppercase">{{ location.label }}</span>
+                                <span class="text-[8px] font-black text-black/50 dark:text-white/50 uppercase tracking-widest">Entregar en</span>
+                                <span class="text-[10px] font-extrabold text-black dark:text-white truncate max-w-[150px] uppercase">{{ location.label }}</span>
                             </div>
                         </button>
                     </div>
@@ -409,8 +409,7 @@ const toggleSearch = () => {
     content: "";
     position: absolute;
     inset: 0;
-    z-index: 0;
-    /* Usamos el color de borde de tu configuración para las líneas */
+    z-index: 0; /* Suelo */
     background-image: linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
     background-size: 50px 100%;
     pointer-events: none;
