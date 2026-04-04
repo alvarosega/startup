@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
-import StaticLocationMap from '@/Components/Maps/StaticLocationMap.vue';
+import StaticLocationMap from '@/Components/Customer/Maps/StaticLocationMap.vue';
+
 import { 
     ArrowRight, AlertTriangle, Store, Truck, CreditCard, 
     Loader2, Sparkles, CheckCircle2, MapPin
@@ -12,41 +13,47 @@ const props = defineProps({
     cart: Object,
     pickup_logistics: Object,
     delivery_logistics: Object,
-    addresses: Array,
     customer_location: Object,
     config: Object
 });
 
-const deliveryType = ref('pickup'); 
-
 const form = useForm({
     delivery_type: 'pickup',
-    address_id: null,
     payment_method: 'qr'
 });
 
-const defaultAddress = computed(() => props.addresses.find(a => a.is_default) || props.addresses[0]);
+const deliveryType = ref('pickup'); 
+
+// BLINDAJE: Verificamos si el usuario realmente tiene coordenadas válidas
+const hasLocation = computed(() => {
+    return props.customer_location?.lat != null && props.customer_location?.lng != null;
+});
 
 onMounted(() => {
-    if (props.customer_location?.lat) {
+    if (hasLocation.value) {
         deliveryType.value = 'delivery';
         form.delivery_type = 'delivery';
-        form.address_id = defaultAddress.value?.id;
+    } else {
+        deliveryType.value = 'pickup';
+        form.delivery_type = 'pickup';
     }
 });
 
 watch(deliveryType, (newVal) => {
     form.delivery_type = newVal;
-    form.address_id = newVal === 'delivery' ? defaultAddress.value?.id : null;
 });
 
 const currentLogistics = computed(() => {
     return deliveryType.value === 'pickup' ? props.pickup_logistics : props.delivery_logistics;
 });
 
-const subtotalProducts = computed(() => props.cart?.total_price || 0);
+// SEGURIDAD DE TIPOS: Forzamos que siempre sean números para evitar errores de .toFixed()
+const subtotalProducts = computed(() => Number(props.cart?.total_price || 0));
+const deliveryFee = computed(() => Number(currentLogistics.value?.delivery_fee || 0));
+const serviceFee = computed(() => Number(currentLogistics.value?.service_fee || 0));
+
 const finalTotal = computed(() => {
-    return subtotalProducts.value + (currentLogistics.value?.delivery_fee || 0) + (currentLogistics.value?.service_fee || 0);
+    return subtotalProducts.value + deliveryFee.value + serviceFee.value;
 });
 
 const isPaymentDisabled = computed(() => {
@@ -83,33 +90,42 @@ const submit = () => {
                             <label class="cursor-pointer group">
                                 <input type="radio" v-model="deliveryType" value="pickup" class="peer hidden">
                                 <div class="h-full border-2 rounded-[28px] p-6 flex items-center gap-5 transition-all peer-checked:border-primary peer-checked:bg-primary/5 border-white/5 bg-black/20">
-                                    <Store :size="28" class="text-foreground/30 peer-checked:text-primary" />
+                                    <Store :size="28" class="text-foreground/30 peer-checked:text-primary shrink-0" />
                                     <div>
                                         <span class="block font-black text-sm uppercase">Retiro Local</span>
-                                        <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded">Bs 0.00</span>
+                                        <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded mt-1 inline-block">Bs 0.00</span>
                                     </div>
                                 </div>
                             </label>
 
-                            <label class="cursor-pointer group">
-                                <input type="radio" v-model="deliveryType" value="delivery" class="peer hidden">
-                                <div class="h-full border-2 rounded-[28px] p-6 flex items-center gap-5 transition-all peer-checked:border-primary peer-checked:bg-primary/5 border-white/5 bg-black/20">
-                                    <Truck :size="28" class="text-foreground/30 peer-checked:text-primary" />
-                                    <div>
-                                        <span class="block font-black text-sm uppercase">A Domicilio</span>
-                                        <span class="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded">Bs {{ delivery_logistics.delivery_fee.toFixed(2) }}</span>
+                            <label class="cursor-pointer group" :class="{ 'opacity-50 pointer-events-none': !hasLocation }">
+                                <input type="radio" v-model="deliveryType" value="delivery" class="peer hidden" :disabled="!hasLocation">
+                                <div class="h-full border-2 rounded-[28px] p-6 flex flex-col justify-center transition-all peer-checked:border-primary peer-checked:bg-primary/5 border-white/5 bg-black/20"
+                                     :class="{ 'border-f1-red/30 bg-f1-red/5': !hasLocation }">
+                                    <div class="flex items-center gap-5">
+                                        <Truck :size="28" class="text-foreground/30 peer-checked:text-primary shrink-0" 
+                                               :class="{ 'text-f1-red/50': !hasLocation }" />
+                                        <div>
+                                            <span class="block font-black text-sm uppercase">A Domicilio</span>
+                                            <span v-if="hasLocation" class="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded mt-1 inline-block">
+                                                Bs {{ Number(delivery_logistics?.delivery_fee || 0).toFixed(2) }}
+                                            </span>
+                                            <span v-else class="text-[9px] font-bold text-f1-red uppercase tracking-widest mt-1 block leading-tight">
+                                                Configura tu ubicación en el perfil
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </label>
                         </div>
                     </section>
 
-                    <section v-if="deliveryType === 'delivery'" class="space-y-4 animate-in slide-in-from-top-4 duration-500">
+                    <section v-if="deliveryType === 'delivery' && hasLocation" class="space-y-4 animate-in slide-in-from-top-4 duration-500">
                         <div class="bg-surface/40 backdrop-blur-xl rounded-[32px] border border-white/10 p-2 overflow-hidden">
                             <StaticLocationMap 
-                                :lat="customer_location.lat" 
-                                :lng="customer_location.lng" 
-                                :address="defaultAddress?.address || 'Ubicación seleccionada'" 
+                                :lat="Number(customer_location.lat)" 
+                                :lng="Number(customer_location.lng)" 
+                                address="Ubicación de tu Perfil" 
                             />
                         </div>
 
@@ -118,12 +134,12 @@ const submit = () => {
                                 <MapPin :size="18" class="text-primary" />
                                 <span class="text-[10px] font-black uppercase tracking-widest text-foreground/60">Distancia Estimada</span>
                             </div>
-                            <span class="font-mono font-black text-sm text-foreground">{{ delivery_logistics.distance_km }} KM</span>
+                            <span class="font-mono font-black text-sm text-foreground">{{ Number(delivery_logistics?.distance_km || 0).toFixed(2) }} KM</span>
                         </div>
 
-                        <div v-if="!delivery_logistics.is_available" class="p-4 bg-f1-red/10 border border-f1-red/20 rounded-2xl flex gap-3 items-center">
-                            <AlertTriangle class="text-f1-red" :size="20" />
-                            <p class="text-[10px] font-black text-f1-red uppercase tracking-tight">{{ delivery_logistics.error_message }}</p>
+                        <div v-if="!delivery_logistics?.is_available" class="p-4 bg-f1-red/10 border border-f1-red/20 rounded-2xl flex gap-3 items-center">
+                            <AlertTriangle class="text-f1-red shrink-0" :size="20" />
+                            <p class="text-[10px] font-black text-f1-red uppercase tracking-tight">{{ delivery_logistics?.error_message }}</p>
                         </div>
                     </section>
                 </div>
@@ -147,13 +163,13 @@ const submit = () => {
                                         <Sparkles :size="10"/> Loyalty Discount
                                     </span>
                                 </div>
-                                <span class="font-mono font-black">Bs {{ currentLogistics?.service_fee?.toFixed(2) }}</span>
+                                <span class="font-mono font-black">Bs {{ serviceFee.toFixed(2) }}</span>
                             </div>
 
                             <div class="flex justify-between text-sm">
                                 <span class="text-foreground/40 font-bold uppercase text-[10px] tracking-widest">Logística de Envío</span>
                                 <span v-if="deliveryType === 'pickup'" class="text-emerald-500 font-black text-[10px] uppercase">Free</span>
-                                <span v-else class="font-mono font-black">Bs {{ delivery_logistics.delivery_fee.toFixed(2) }}</span>
+                                <span v-else class="font-mono font-black">Bs {{ deliveryFee.toFixed(2) }}</span>
                             </div>
 
                             <div class="h-px bg-white/5 my-4"></div>

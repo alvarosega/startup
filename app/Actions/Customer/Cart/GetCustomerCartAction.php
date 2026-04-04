@@ -40,13 +40,20 @@ class GetCustomerCartAction
     
         if (!$cart) return $this->emptyCartResponse();
     
-        // HIDRATACIÓN EN RAM: Cero consultas adicionales
+        // HIDRATACIÓN EN RAM: Incluimos el total_safety en el cálculo
         $cart->items->each(function ($item) use ($now) {
             $sku = $item->sku;
-            $item->max_stock = max(0, (int)($sku->total_physical ?? 0) - (int)($sku->total_reserved ?? 0));
+            
+            // RECTIFICACIÓN: Restamos total_safety para que el carrito 
+            // sea honesto con lo que el Checkout permitirá procesar.
+            $item->max_stock = max(0, 
+                (int)($sku->total_physical ?? 0) - 
+                (int)($sku->total_reserved ?? 0) - 
+                (int)($sku->total_safety ?? 0)
+            );
+            
             $item->current_price_data = $this->priceResolver->resolveWinningPrice($sku, $item->quantity, $now);
         });
-    
         return (new \App\Http\Resources\Customer\Cart\CartResource($cart))->resolve();
     }
     private function emptyCartResponse(): array 

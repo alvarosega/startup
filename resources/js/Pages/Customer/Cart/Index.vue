@@ -9,7 +9,8 @@ const props = defineProps({
 });
 
 const page = usePage();
-const user = computed(() => page.props.auth?.user);
+
+const user = computed(() => page.props.auth?.customer);
 const processingItem = ref(null);
 
 const cartItems = computed(() => {
@@ -47,7 +48,7 @@ const removeItem = (id) => {
 
 const proceedToCheckout = () => {
     if (isUpdating.value || hasStockErrors.value) return; // Impedir checkout si hay red en vuelo
-    if (!user.value) { router.visit(route('login')); return; }
+    if (!user.value) { router.visit(route('customer.login')); return; }
     router.visit(route('customer.checkout.index'));
 };
 </script>
