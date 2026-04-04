@@ -39,14 +39,13 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
 
 <template>
     <ShopLayout>
-        <div class="w-full min-h-screen pb-24 transition-colors duration-500 overflow-x-hidden relative z-10">
+        <div class="w-full min-h-screen pb-2 transition-colors duration-500 overflow-x-hidden relative z-10">
             <div class="absolute inset-0 opacity-[0.03] pointer-events-none bg-noise mix-blend-overlay"></div>
             
             <Head title="Digital Unit | Abastecimiento" />
 
-            <div class="relative z-10 space-y-2 pt-6">
-                
-                <section v-show="editablePacks.length > 0" class="section-reveal py-4">
+            <div class="relative z-10 space-y-2 pt-0"> 
+                <section v-show="editablePacks.length > 0" class="section-reveal pb-4 pt-0">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">

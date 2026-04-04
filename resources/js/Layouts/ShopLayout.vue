@@ -3,13 +3,28 @@ import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
     Home, ShoppingCart, User, Receipt, ShieldCheck, MapPin,
-    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck, Loader2
+    Search, Menu, X, LogOut, Bell, Tag, ChevronRight, PackageCheck, 
+    Loader2, MessageCircle, Instagram, Facebook, Youtube, Twitter, Linkedin, 
+    Send, Disc, Tv, Pin, AtSign, Ghost, Music2
 } from 'lucide-vue-next';
 
 // Componentes Base
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
-
+const socialNetworks = [
+    { name: 'WhatsApp', icon: MessageCircle, link: '#' },
+    { name: 'Instagram', icon: Instagram, link: '#' },
+    { name: 'Facebook', icon: Facebook, link: '#' },
+    { name: 'TikTok', icon: Music2, link: '#' }, // Verifica que sea Music2
+    { name: 'YouTube', icon: Youtube, link: '#' },
+    { name: 'X / Twitter', icon: Twitter, link: '#' },
+    { name: 'LinkedIn', icon: Linkedin, link: '#' },
+    { name: 'Telegram', icon: Send, link: '#' },
+    { name: 'Discord', icon: Disc, link: '#' },
+    { name: 'Twitch', icon: Tv, link: '#' },
+    { name: 'Threads', icon: AtSign, link: '#' },
+    { name: 'Snapchat', icon: Ghost, link: '#' },
+];
 const page = usePage();
 const isSearchActive = ref(false);
 const searchQuery = ref('');
@@ -187,34 +202,58 @@ const toggleSearch = () => {
                 :class="route().current('customer.index') ? 'max-w-full' : 'max-w-7xl px-4 lg:px-8'">
                 <slot />
             </section>
+            <footer class="w-full border-t border-border py-16 px-6 lg:px-8 bg-transparent mt-auto relative z-10">
+                <div class="max-w-7xl mx-auto space-y-16">
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-y-10 gap-x-4">
+                        <a v-for="social in socialNetworks" :key="social.name" :href="social.link"
+                        class="group flex items-center gap-4 transition-all duration-300 outline-none">
+                            
+                            <div class="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center border border-border group-hover:border-primary/50 group-hover:shadow-f1-glow transition-all duration-500">
+                                <component :is="social.icon" :size="18" class="text-neutral-500 group-hover:text-primary transition-colors" />
+                            </div>
 
-            <footer class="w-full border-t border-border py-12 px-8 bg-neutral-50/50 dark:bg-neutral-950/50 mt-auto">
-                <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">
-                    <div class="flex flex-col items-center md:items-start">
-                        <div class="flex items-center gap-2 mb-2">
-                            <div class="w-4 h-4 bg-primary rounded-sm shadow-f1-glow"></div>
-                            <span class="text-foreground tracking-widest">De Una</span>
-                        </div>
-                        <span class="opacity-50 tracking-tighter">Bolivia Logistics Core v3.4.0</span>
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-foreground group-hover:text-primary transition-colors">
+                                    {{ social.name }}
+                                </span>
+                                <span class="text-[8px] font-bold text-neutral-400 uppercase tracking-[0.2em]">
+                                    De Una
+                                </span>
+                            </div>
+                        </a>
                     </div>
-                    <div class="flex gap-10">
-                        <a href="#" class="hover:text-primary transition-colors">Términos</a>
-                        <a href="#" class="hover:text-primary transition-colors">Privacidad</a>
-                        <a href="#" class="hover:text-primary transition-colors">Soporte</a>
+
+                    <div class="h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-200 dark:via-neutral-800 to-transparent relative">
+                        <div class="absolute inset-x-1/4 bottom-0 h-[1px] bg-gradient-to-r from-[#ff0000] via-[#00ff00] to-[#8b00ff] opacity-40"></div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">
+                        <div class="flex items-center gap-4">
+                            <div class="w-5 h-5 rounded-md bg-gradient-to-br from-[#0ed2da] to-[#5f29c7] shadow-lg animate-pulse"></div>
+                            <span class="text-foreground text-xs italic">De Una</span>
+                        </div>
+                        
+                        <div class="flex gap-10 opacity-70">
+                            <a href="#" class="hover:text-primary transition-colors underline-offset-4 hover:underline">Términos</a>
+                            <a href="#" class="hover:text-primary transition-colors underline-offset-4 hover:underline">Privacidad</a>
+                            <a href="#" class="hover:text-primary transition-colors underline-offset-4 hover:underline">Soporte</a>
+                        </div>
                     </div>
                 </div>
             </footer>
         </main>
 
-        <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[76px] bg-card/95 backdrop-blur-2xl border-t border-border z-[100] flex justify-around items-center px-4 pb-safe">
+        <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[76px] glass-titanium border-t border-border z-[100] flex justify-around items-center px-4 pb-safe shadow-2xl">
             <Link :href="route('customer.orders.history')" 
-                  class="flex flex-col items-center gap-1 transition-all"
-                  :class="route().current('customer.orders.*') ? 'text-primary' : 'text-neutral-500 dark:text-neutral-400'">
+                class="flex flex-col items-center gap-1 transition-all"
+                :class="route().current('customer.orders.*') ? 'text-primary' : 'text-black dark:text-neutral-400'">
                 <PackageCheck :size="24" :stroke-width="route().current('customer.orders.*') ? 2.5 : 2" />
                 <span class="text-[9px] font-black uppercase tracking-tighter">Pedidos</span>
             </Link>
 
-            <button @click="toggleSearch" class="flex flex-col items-center gap-1 text-neutral-500 dark:text-neutral-400">
+            <button @click="toggleSearch" 
+                    class="flex flex-col items-center gap-1 text-black dark:text-neutral-400 transition-all active:scale-90">
                 <Search :size="22" />
                 <span class="text-[9px] font-black uppercase tracking-tighter">Buscar</span>
             </button>
@@ -225,18 +264,22 @@ const toggleSearch = () => {
                 </div>
             </Link>
 
-            <Link :href="route('customer.cart.index')" class="flex flex-col items-center gap-1 text-neutral-500 dark:text-neutral-400 relative">
+            <Link :href="route('customer.cart.index')" 
+                class="flex flex-col items-center gap-1 text-black dark:text-neutral-400 relative transition-all">
                 <ShoppingCart :size="24" />
-                <span v-if="cartCount > 0" class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-background">{{ cartCount }}</span>
+                <span v-if="cartCount > 0" 
+                    class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-background">
+                    {{ cartCount }}
+                </span>
                 <span class="text-[9px] font-black uppercase tracking-tighter">Carrito</span>
             </Link>
 
             <Link :href="user ? route('customer.profile.index') : route('customer.login')" 
-                  class="flex flex-col items-center gap-1 transition-all"
-                  :class="route().current('customer.profile.*') ? 'text-primary' : 'text-neutral-500 dark:text-neutral-400'">
+                class="flex flex-col items-center gap-1 transition-all"
+                :class="route().current('customer.profile.*') ? 'text-primary' : 'text-black dark:text-neutral-400'">
                 <div v-if="user" class="w-6 h-6 rounded-lg border border-border overflow-hidden bg-neutral-100 shadow-sm">
                     <img v-if="user?.profile?.avatar_url" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
-                    <span v-else class="text-[9px] font-black h-full flex items-center justify-center">{{ userInitials }}</span>
+                    <span v-else class="text-[9px] font-black h-full flex items-center justify-center text-black">{{ userInitials }}</span>
                 </div>
                 <User v-else :size="24" />
                 <span class="text-[9px] font-black uppercase tracking-tighter">{{ user ? 'Perfil' : 'Entrar' }}</span>
@@ -306,14 +349,17 @@ const toggleSearch = () => {
 <style scoped>
 /* 1. ACABADO TITANIUM MATTE */
 .glass-titanium {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
-    backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Fondo con transparencia táctica */
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    /* El alma del efecto: desenfoque de alta densidad */
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 .dark .glass-titanium {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    /* En modo oscuro usamos una base casi negra pero translúcida */
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.7) 0%, rgba(10, 10, 10, 0.4) 100%);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* 2. ICONOS TÁCTICOS */
