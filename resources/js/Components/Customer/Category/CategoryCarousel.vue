@@ -27,7 +27,7 @@ const getCategoryStyle = (hex) => {
                      class="group relative flex flex-col items-center snap-start shrink-0 cursor-pointer w-[80px] md:w-[100px] transition-all duration-500 ease-ios outline-none"
                 >
                      
-                    <div class="relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center">
+                    <div class="relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-3">
                         
                         <div class="absolute inset-0 rounded-full transition-all duration-700 pointer-events-none layer-gpu"
                             :class="[
@@ -47,12 +47,21 @@ const getCategoryStyle = (hex) => {
                              :alt="cat.name">
                     </div>
 
-                    </Link>
+                    <span class="text-[9px] md:text-[10px] font-black tracking-[0.1em] uppercase text-center leading-tight line-clamp-2 w-full transition-all duration-300"
+                          :class="[
+                              String(activeId) === String(cat.id) 
+                              ? 'text-primary' 
+                              : 'text-black dark:text-neutral-400 group-hover:text-primary'
+                          ]">
+                        {{ cat.name }}
+                    </span>
+                </Link>
             </template>
 
             <template v-else>
-                <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-[80px] animate-pulse">
-                    <div class="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-800 border border-white/5 shadow-inner"></div>
+                <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-[80px] animate-pulse gap-3">
+                    <div class="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-800 border border-white/5"></div>
+                    <div class="h-2 w-12 bg-neutral-200 dark:bg-neutral-800 rounded-full"></div>
                 </div>
             </template>
 
@@ -74,7 +83,6 @@ const getCategoryStyle = (hex) => {
     transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1); 
 }
 
-/* Sombra proyectada por el objeto sobre el resplandor */
 img { 
     filter: drop-shadow(0 12px 15px rgba(0,0,0,0.25)); 
 }

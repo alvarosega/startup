@@ -115,21 +115,24 @@ onUnmounted(() => {
 
 <template>
     <ShopLayout>
-        <div class="w-full min-h-screen bg-background pb-32">
+        <div class="w-full min-h-screen bg-transparent pb-32 relative z-10">
+            
             <Head :title="category.name || 'Cargando...'" />
-
-            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-4 flex items-center gap-4">
-                <div v-show="category.name" class="flex items-center gap-4">
-                    <div class="w-1 h-8 rounded-full" :style="{ backgroundColor: category.bg_color }"></div>
-                    <h1 class="text-3xl md:text-4xl font-black uppercase tracking-tighter text-foreground italic">
-                        {{ category.name }}
-                    </h1>
+            
+            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-0">
+                <div v-show="category.name" class="header-standard">
+                    <div class="title-block-wrapper">
+                        <LayoutGrid :size="16" class="text-neutral-400" />
+                        <h1 class="text-3xl md:text-4xl font-black uppercase tracking-tighter text-foreground italic">
+                            {{ category.name }}
+                        </h1>
+                    </div>
                 </div>
             </header>
 
-            <div class="sticky top-16 z-40 bg-background/90 backdrop-blur-xl border-b border-border/10">
+            <div class="sticky top-[72px] z-40 glass-titanium border-b border-white/5">
                 <div class="max-w-7xl mx-auto">
-                    <CategoryCarousel :categories="globalCategories" :active-id="category.id" />
+                    <CategoryCarousel :categories="globalCategories" :active-id="category.id" />  
                     
                     <div class="px-4 lg:px-8 pb-3">
                         <div class="flex items-center gap-2 bg-foreground/[0.03] border border-border/40 p-1 rounded-xl w-full md:w-max">
@@ -151,11 +154,11 @@ onUnmounted(() => {
             <main class="px-4 lg:px-8 max-w-7xl mx-auto mt-6">
                 <section v-show="categoryBanners.length > 0" class="mb-8 space-y-4">
                     <div v-for="banner in categoryBanners" :key="banner.id" 
-                         @click="handleBannerNavigate(banner)"
-                         class="relative w-full overflow-hidden rounded-[2rem] cursor-pointer group shadow-apple-soft border border-border/40 transition-all duration-700 aspect-[21/9] lg:aspect-[3/1]">
+                        @click="handleBannerNavigate(banner)"
+                        class="relative w-full overflow-hidden rounded-[2rem] cursor-pointer group border border-white/10 transition-all duration-700 aspect-[21/9] lg:aspect-[3/1]">
                         <img :src="banner.image_desktop_url" :alt="banner.name"
-                             class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     </div>
                 </section>
 
@@ -183,4 +186,53 @@ onUnmounted(() => {
 .section-animate { animation: reveal 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
 @keyframes reveal { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 select option { background-color: #0b1221; color: white; }
+/* 1. SISTEMA PRISMÁTICO (COHERENCIA CON INDEX) */
+.header-standard {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.title-block-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-grow: 1;
+    padding-bottom: 8px;
+}
+
+.title-block-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
+    opacity: 0.8;
+}
+
+/* 2. ACABADO GLASS PARA FILTROS STICKY */
+.glass-titanium {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* 3. PURGA DE SELECTORES */
+select { background: transparent !important; }
+select option { background-color: #080808; color: white; }
+
+/* 4. ANIMACIONES AFILADAS */
+.section-animate { 
+    animation: reveal 0.4s cubic-bezier(0.32, 0.72, 0, 1) both; 
+}
+
+@keyframes reveal { 
+    from { opacity: 0; transform: translateY(15px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+
 </style>
