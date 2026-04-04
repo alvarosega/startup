@@ -23,10 +23,10 @@ const cartCount = computed(() => page.props.cart?.total_items || 0);
 const activeOrder = computed(() => page.props.active_order || null);
 
 const userInitials = computed(() => {
-    if (!user.value?.name) return '??';
-    return user.value.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const name = user.value?.name;
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 });
-
 // --- NAVEGACIÓN ---
 const navigation = [
     { name: 'Inicio', icon: Home, route: 'customer.index' },

@@ -1,7 +1,10 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, usePage, Link, router } from '@inertiajs/vue3'; 
-import { ChevronRight, PackageSearch, Sparkles, Tag, Star, LayoutGrid, Zap, Bookmark } from 'lucide-vue-next';
+import { 
+    ChevronRight, Sparkles, Tag, Star, 
+    LayoutGrid, Zap, Bookmark, PackageSearch 
+} from 'lucide-vue-next';
 
 // Layout y Componentes
 import ShopLayout from '@/Layouts/ShopLayout.vue';
@@ -41,45 +44,50 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
             
             <Head title="Digital Unit | Abastecimiento" />
 
-            <div class="relative z-10 space-y-4 pt-6">
+            <div class="relative z-10 space-y-2 pt-6">
                 
-                <section v-show="editablePacks.length > 0" class="section-reveal">
+                <section v-show="editablePacks.length > 0" class="section-reveal py-4">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
-                            <Sparkles :size="16" class="text-neutral-400" />
-                            <h2>Packs</h2>
+                            <div class="title-block-wrapper">
+                                <Sparkles :size="16" class="text-neutral-400" />
+                                <h2>Packs</h2>
+                            </div>
                             <Link :href="route('customer.index')" class="link-all">
                                 Todo <ChevronRight :size="12" />
                             </Link>
                         </div>
                     </div>
-
                     <div class="w-full">
                         <EditableBundleCarousel :bundles="editablePacks" />
                     </div>
-
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
-                        <div class="micro-divider"></div>
-                    </div>
                 </section>
 
-                <section v-show="categories.length > 0" class="section-reveal">
+                <div class="px-6 lg:px-8 max-w-7xl mx-auto"><div class="micro-divider"></div></div>
+
+                <section v-show="categories.length > 0" class="section-reveal py-4">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
-                            <LayoutGrid :size="16" class="text-primary" />
-                            <h2>Categorías</h2>
+                            <div class="title-block-wrapper">
+                                <LayoutGrid :size="16" class="text-neutral-400" />
+                                <h2>Categorías</h2>
+                            </div>
                         </div>
-                        <div class="content-shadow rounded-[2rem] bg-card/20 backdrop-blur-sm border border-white/5">
+                        <div class="content-shadow">
                             <CategoryCarousel :categories="categories" />
                         </div>
                     </div>
                 </section>
 
-                <section v-show="featuredList.length > 0" class="section-reveal">
+                <div class="px-6 lg:px-8 max-w-7xl mx-auto"><div class="micro-divider"></div></div>
+
+                <section v-show="featuredList.length > 0" class="section-reveal py-4">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
-                            <Star :size="16" class="text-primary" />
-                            <h2>Destacados</h2>
+                            <div class="title-block-wrapper">
+                                <Star :size="16" class="text-neutral-400" />
+                                <h2>Destacados</h2>
+                            </div>
                         </div>
                         <div class="content-shadow">
                             <FeaturedProductCarousel :products="featuredList" />
@@ -87,23 +95,31 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                     </div>
                 </section>
 
-                <section v-show="brandAds.length > 0" class="section-reveal">
+                <div class="px-6 lg:px-8 max-w-7xl mx-auto"><div class="micro-divider"></div></div>
+
+                <section v-show="brandAds.length > 0" class="section-reveal py-4">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
-                            <Tag :size="16" class="text-primary" />
-                            <h2>Marcas</h2>
+                            <div class="title-block-wrapper">
+                                <Tag :size="16" class="text-neutral-400" />
+                                <h2>Marcas</h2>
+                            </div>
                         </div>
-                        <div class="content-shadow rounded-[2.5rem] overflow-hidden">
+                        <div class="content-shadow">
                             <BrandHeroWidget :banners="brandAds" />
                         </div>
                     </div>
                 </section>
 
-                <section v-show="bundlesList.length > 0" class="section-reveal">
+                <div class="px-6 lg:px-8 max-w-7xl mx-auto"><div class="micro-divider"></div></div>
+
+                <section v-show="bundlesList.length > 0" class="section-reveal py-4">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
-                            <Zap :size="16" class="text-primary" />
-                            <h2>Ahorro</h2>
+                            <div class="title-block-wrapper">
+                                <Zap :size="16" class="text-neutral-400" />
+                                <h2>Ahorro</h2>
+                            </div>
                         </div>
                         <div class="content-shadow">
                             <BundleCarousel :bundles="bundlesList" />
@@ -117,11 +133,13 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                     <button @click="router.reload()" class="mt-4 text-[9px] font-bold uppercase text-primary underline underline-offset-4">Re-escaneo</button>
                 </div>
                 
-                <section v-show="favorites.length > 0" class="section-reveal border-t border-white/5 pt-6">
+                <section v-show="favorites.length > 0" class="section-reveal py-4 border-t border-white/5">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
-                            <Bookmark :size="16" class="text-primary" />
-                            <h2>Favoritos</h2>
+                            <div class="title-block-wrapper">
+                                <Bookmark :size="16" class="text-neutral-400" />
+                                <h2>Favoritos</h2>
+                            </div>
                         </div>
                         <div class="content-shadow">
                             <FavoritesSection :favorites="favorites" />
@@ -134,27 +152,49 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
 </template>
 
 <style scoped>
-/* ESTANDARIZACIÓN DE ENCABEZADOS */
+/* 1. ENCABEZADO PRISMÁTICO ESTRUCTURAL */
 .header-standard {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding-left: 1rem;
-    margin-bottom: 1rem;
-    /* Reemplazamos color primario por gradiente técnico */
-    border-left: 4px solid;
-    border-image: linear-gradient(to bottom, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff) 1;
+    align-items: flex-end;
+    gap: 1rem;
+    padding-left: 0; /* Eliminamos el espacio que ocupaba la barra vertical */
+    margin-bottom: 1.5rem;
+    /* Eliminados: border-left y border-image */
 }
-.header-standard h2 {
+
+/* 2. BLOQUE DINÁMICO DEL TÍTULO */
+.title-block-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-grow: 1; /* Expande el subrayado a todo el ancho disponible */
+    padding-bottom: 8px; /* Espacio exacto para el subrayado */
+}
+
+.title-block-wrapper h2 {
     font-size: 10px;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.4em;
     color: hsl(var(--foreground));
-    flex-grow: 1;
 }
 
+/* 3. SUBRAYADO ARCOÍRIS ÚNICO Y TOTAL */
+.title-block-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
+    opacity: 0.8;
+}
+
+/* 4. ENLACE "TODO" */
 .link-all {
+    padding-bottom: 8px;
     font-size: 9px;
     font-weight: 800;
     text-transform: uppercase;
@@ -163,25 +203,35 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
     display: flex;
     align-items: center;
     gap: 4px;
-    transition: color 0.3s;
+    transition: all 0.3s ease;
+    white-space: nowrap;
 }
 
 .link-all:hover {
     color: hsl(var(--primary));
+    transform: translateX(4px);
 }
 
-/* SISTEMA DE SOMBRAS MINIMALISTAS */
+/* 5. PURGA DE SOMBRAS Y CONTENEDORES */
 .content-shadow {
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1), 
-                0 10px 20px -10px rgba(0, 0, 0, 0.05);
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
 }
 
-.dark .content-shadow {
-    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), 
-                0 18px 36px -18px rgba(0, 0, 0, 0.3);
+/* 6. DIVISOR INDUSTRIAL */
+.micro-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, 
+        transparent 0%, 
+        rgba(255,255,255,0.08) 50%, 
+        transparent 100%
+    );
+    margin: 1rem 0;
 }
 
-/* FONTO MATE METÁLICO */
+/* 7. FONDO METÁLICO */
 .bg-metallic-matte {
     background-color: #f8f8f8;
     background-image: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 100%);
