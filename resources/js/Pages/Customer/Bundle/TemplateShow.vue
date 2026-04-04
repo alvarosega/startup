@@ -47,15 +47,23 @@ const handleAddFullPack = () => {
     });
 };
 
+// resources/js/Pages/Customer/Bundle/TemplateShow.vue
+
 const updateItem = (skuId, currentQty, delta) => {
     const newQty = Math.max(0, currentQty + delta);
     if (processingItems.value.has(skuId)) return;
+    
     processingItems.value.add(skuId);
+    
     router.post(route('customer.cart.upsert'), {
-        target_id: skuId, target_type: 'sku', quantity: newQty, mode: 'set'
+        target_id: skuId, 
+        target_type: 'sku', 
+        quantity: newQty, 
+        mode: 'set'
     }, {
         preserveScroll: true,
-        only: ['currentCart', 'flash'],
+        // RECTIFICACIÓN CRÍTICA: Debes pedir 'cart' para que el ShopLayout se actualice
+        only: ['currentCart', 'cart', 'flash'], 
         onFinish: () => processingItems.value.delete(skuId)
     });
 };
@@ -63,30 +71,24 @@ const updateItem = (skuId, currentQty, delta) => {
 
 <template>
     <ShopLayout>
-        <Head :title="bundle.name" />
-
-        <div v-if="otherBundles.data?.length > 0" class="w-full bg-background pt-8 pb-4 border-b border-white/5">
-            <div class="px-12 mb-4">
-                <h2 class="text-[9px] font-black uppercase tracking-[0.4em] text-foreground/30 flex items-center gap-2">
-                    <Zap :size="10" /> Explorar otros packs editables
-                </h2>
-            </div>
-            <EditableBundleCarousel :bundles="otherBundles.data" />
-        </div>
+        <Head :title="bundleData.name" /> 
 
         <div class="max-w-6xl mx-auto px-6 py-16">
             <div class="flex flex-col lg:flex-row gap-12 items-start mb-20">
                 <div class="w-full lg:w-96 relative">
-                    <img :src="bundle.image_url" class="w-full aspect-square object-cover rounded-[3.5rem] shadow-2xl border border-white/5">
+                    <img :src="bundleData.image_url" class="w-full aspect-square object-cover rounded-[3.5rem] shadow-2xl border border-white/5"> 
                     <div class="absolute -bottom-4 -right-4 bg-primary text-white p-5 rounded-3xl shadow-xl">
                         <Sparkles :size="24" fill="currentColor"/>
                     </div>
                 </div>
 
                 <div class="flex-1 pt-6">
-                    <h1 class="text-6xl font-black uppercase italic tracking-tighter leading-[0.9] mb-6">{{ bundle.name }}</h1>
-                    <p class="text-foreground/50 text-xl font-medium mb-10 max-w-2xl">{{ bundle.description }}</p>
-                    
+                    <h1 class="text-6xl font-black uppercase italic tracking-tighter leading-[0.9] mb-6">
+                        {{ bundleData.name }}
+                    </h1>
+                    <p class="text-foreground/50 text-xl font-medium mb-10 max-w-2xl">
+                        {{ bundleData.description }}
+                    </p>
                     <div class="inline-flex flex-col md:flex-row items-center gap-6 bg-card border border-white/5 p-6 rounded-[2.5rem] shadow-xl w-full md:w-auto">
                         <div class="text-center md:text-right px-4">
                             <p class="text-[10px] font-bold text-foreground/30 uppercase tracking-widest mb-1">Total de este pack</p>

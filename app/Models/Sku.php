@@ -77,24 +77,23 @@ class Sku extends Model
         return $this->hasMany(InventoryLot::class); 
     }
 
-    // --- SCOPES (LA RECTIFICACIÓN) ---
-
-    /**
-     * Scope para filtrar SKUs activos en el sistema.
-     * Requerido por: HeroBannerSeeder, InventorySeeder.
-     */
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-    // --- ATRIBUTOS (CLEAN CASTING) ---
+
 
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn () => $this->image_path 
-            ? asset('storage/' . $this->image_path) 
-            : asset('assets/img/placeholders/sku-default.png'));
+        return Attribute::get(function () {
+            if ($this->image_path) {
+                return asset('storage/' . $this->image_path);
+            }
+
+            // Placeholder para productos individuales
+            return asset('assets/img/sku_placeholder.png');
+        });
     }
 
     protected function basePrice(): Attribute
