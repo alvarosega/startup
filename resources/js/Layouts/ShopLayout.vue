@@ -51,7 +51,7 @@ const toggleSearch = () => {
 </script>
 
 <template>
-    <div class="flex min-h-[100svh] bg-background text-foreground font-sans transition-colors duration-500 overflow-x-hidden selection:bg-primary/30">
+    <div class="du-cyber-canvas flex min-h-[100svh] text-foreground font-sans transition-colors duration-500 overflow-x-hidden selection:bg-primary/30">
         
         <aside 
             @mouseenter="isSidebarExpanded = true"
@@ -340,5 +340,58 @@ const toggleSearch = () => {
 }
 .drawer-enter-from, .drawer-leave-to {
     transform: translateX(-100%);
+}
+
+/* 1. LIENZO MAESTRO DIGITAL UNIT */
+.du-cyber-canvas {
+    position: relative;
+    background-color: hsl(var(--background));
+    /* Degradado de profundidad: Blanco/Negro (40%) -> Transparente -> Base Arcoíris */
+    background-image: 
+        linear-gradient(
+            to bottom,
+            hsl(var(--background)) 0%,
+            hsl(var(--background)) 40%,
+            transparent 100%
+        ),
+        linear-gradient(to right, #0ed2da, #5f29c7);
+    background-attachment: fixed;
+}
+
+/* 2. MALLA DE PRECISIÓN (GRID VERTICAL) */
+.du-cyber-canvas::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* Usamos el color de borde de tu configuración para las líneas */
+    background-image: linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
+    background-size: 50px 100%;
+    pointer-events: none;
+
+    /* Máscara de desvanecimiento hacia el fondo */
+    mask-image: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 1) 0%,
+        rgba(0, 0, 0, 0) 70%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 1) 0%,
+        rgba(0, 0, 0, 0) 70%
+    );
+}
+
+/* 3. MODO OSCURO: ATENUACIÓN TÉCNICA */
+.dark .du-cyber-canvas {
+    /* Reducimos la intensidad de los colores para proteger el contraste del modo oscuro */
+    background-image: 
+        linear-gradient(
+            to bottom,
+            hsl(var(--background)) 0%,
+            hsl(var(--background)) 50%,
+            transparent 100%
+        ),
+        linear-gradient(to right, #0ed2da33, #5f29c733); /* 20% opacidad */
 }
 </style>

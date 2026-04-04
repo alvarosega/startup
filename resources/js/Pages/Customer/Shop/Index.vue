@@ -39,7 +39,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
 
 <template>
     <ShopLayout>
-        <div class="w-full min-h-screen bg-metallic-matte pb-24 transition-colors duration-500 overflow-x-hidden relative">
+        <div class="w-full min-h-screen pb-24 transition-colors duration-500 overflow-x-hidden relative z-10">
             <div class="absolute inset-0 opacity-[0.03] pointer-events-none bg-noise mix-blend-overlay"></div>
             
             <Head title="Digital Unit | Abastecimiento" />
