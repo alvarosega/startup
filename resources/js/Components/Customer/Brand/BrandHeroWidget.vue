@@ -1,86 +1,96 @@
 <script setup>
+import { ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ChevronRight } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const props = defineProps({
-    banners: { type: Array, default: () => [] }
+    banners: { type: Array, default: () => [] },
+    loading: { type: Boolean, default: false }
 });
+
+const scrollContainer = ref(null);
+
+const scroll = (direction) => {
+    if (!scrollContainer.value) return;
+    const offset = direction === 'left' ? -500 : 500;
+    scrollContainer.value.scrollBy({ left: offset, behavior: 'smooth' });
+};
 </script>
 
 <template>
-    <section v-if="banners.length > 0" class="w-full">
-        <div class="flex items-end justify-between mb-6 px-2">
-            <div class="flex flex-col">
-                <h2 class="text-2xl font-black uppercase tracking-tighter italic">
-                    Marcas Destacadas
-                </h2>
-            </div>
-            <div class="flex gap-2">
-                <div class="hidden md:flex items-center gap-1 text-[8px] font-black text-muted-foreground uppercase tracking-widest">
-                    Scroll para explorar <ChevronRight :size="10" />
+    <div class="relative w-full group/carousel">
+        <button @click="scroll('left')" 
+                class="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 items-center justify-center rounded-full bg-background/20 backdrop-blur-xl border border-white/10 text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-background/40 shadow-xl">
+            <ChevronLeft :size="24" stroke-width="3" />
+        </button>
+        <button @click="scroll('right')" 
+                class="hidden lg:flex absolute right-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 items-center justify-center rounded-full bg-background/20 backdrop-blur-xl border border-white/10 text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-background/40 shadow-xl">
+            <ChevronRight :size="24" stroke-width="3" />
+        </button>
+
+        <div ref="scrollContainer" 
+             class="flex overflow-x-auto snap-x snap-mandatory gap-6 px-6 md:px-12 pb-8 no-scrollbar scroll-smooth">
+            
+            <template v-if="loading || banners.length === 0">
+                <div v-for="n in 2" :key="n" 
+                     class="flex-none w-[85vw] md:w-[65vw] lg:w-[45vw] aspect-[21/9] md:aspect-[3/1] rounded-[2.5rem] glass-chassis-skeleton animate-pulse p-8 flex flex-col justify-end">
+                    <div class="h-8 w-1/3 bg-white/10 rounded-lg"></div>
                 </div>
-            </div>
-        </div>
+            </template>
 
-        <div class="flex gap-5 overflow-x-auto pb-8 scrollbar-hide snap-x snap-mandatory">
-            <Link 
-                v-for="banner in banners" 
-                :key="banner.id"
-                :href="route('customer.brand.show', { slug: banner.brand.slug })"
-                class="relative flex-none w-[85vw] md:w-[65vw] lg:w-[45vw] aspect-[21/9] md:aspect-[3/1] bg-card border-2 border-border rounded-[2rem] overflow-hidden snap-center group shadow-sm hover:shadow-2xl hover:border-primary/40 transition-all duration-500 ease-ios block"
-            >
-                <img 
-                    :src="banner.image_desktop" 
-                    :alt="banner.name"
-                    class="hidden md:block w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-1000 ease-ios"
-                    @error="(e) => e.target.src = '/assets/img/brand_banner_placeholder.jpg'" 
-                />
-                
-                <img 
-                    :src="banner.image_mobile" 
-                    :alt="banner.name"
-                    class="block md:hidden w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-1000 ease-ios"
-                    @error="(e) => e.target.src = '/assets/img/brand_banner_placeholder.jpg'"
-                />
-
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-8">
-                    <div class="flex items-center justify-between w-full">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Tienda Oficial</span>
-                            <span class="text-white text-xl font-black uppercase tracking-tighter italic group-hover:translate-x-2 transition-transform duration-500">
-                                {{ banner.brand.name }}
-                            </span>
-                        </div>
-                        
-                        <div class="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                            <ChevronRight :size="20" stroke-width="3" />
-                        </div>
+            <template v-else>
+                <Link 
+                    v-for="banner in banners" 
+                    :key="banner.id"
+                    :href="route('customer.brand.show', { slug: banner.brand.slug })"
+                    class="relative flex-none w-[85vw] md:w-[65vw] lg:w-[45vw] aspect-[21/9] md:aspect-[3/1] snap-start group/item rounded-[2.5rem] overflow-hidden glass-chassis border transition-all duration-500 outline-none active:scale-[0.98] cursor-pointer hover:border-white/20 block"
+                >
+                    <div class="absolute inset-0 z-0">
+                        <img 
+                            :src="banner.image_desktop" 
+                            :alt="banner.brand?.name || 'Marca'"
+                            class="hidden md:block w-full h-full object-cover transition-transform duration-[3s] group-hover/item:scale-105"
+                            @error="(e) => e.target.src = '/assets/img/brand_banner_placeholder.jpg'" 
+                        />
+                        <img 
+                            :src="banner.image_mobile" 
+                            :alt="banner.brand?.name || 'Marca'"
+                            class="block md:hidden w-full h-full object-cover transition-transform duration-[3s] group-hover/item:scale-105"
+                            @error="(e) => e.target.src = '/assets/img/brand_banner_placeholder.jpg'"
+                        />
                     </div>
-                </div>
-            </Link>
+
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+
+                    <div class="absolute inset-0 p-6 md:p-8 flex flex-col justify-end z-20">
+                        <h3 class="text-2xl md:text-3xl font-black text-white uppercase italic leading-none tracking-tighter drop-shadow-lg group-hover/item:translate-x-3 transition-transform duration-500">
+                            {{ banner.brand?.name || banner.name }}
+                        </h3>
+                    </div>
+                </Link>
+            </template>
+
+            <div class="w-12 shrink-0 invisible"></div>
         </div>
-    </section>
+    </div>
 </template>
 
 <style scoped>
-/* Utilidades de Scroll y Curva iOS */
-.scrollbar-hide::-webkit-scrollbar { 
-    display: none; 
-}
-.scrollbar-hide { 
-    -ms-overflow-style: none; 
-    scrollbar-width: none; 
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* CHASIS DE CRISTAL (Marco sutil sobre el panorámico) */
+.glass-chassis {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
 }
 
-/* Curva de aceleración tipo Apple para transiciones suaves */
-.ease-ios { 
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1); 
-}
-
-/* Soporte para snap en navegadores antiguos si fuera necesario */
-.snap-x {
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
+/* SKELETON ESTRUCTURAL (Alta densidad) */
+.glass-chassis-skeleton {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(40px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 </style>
