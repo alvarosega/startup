@@ -32,7 +32,7 @@ createInertiaApp({
             .mount(el);
     },
     progress: {
-        color: '#E10600', // Rojo F1 para la barra de carga
+        color: '#f97316', // Rojo F1 para la barra de carga
         showSpinner: false,
     },
 });

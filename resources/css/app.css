@@ -15,7 +15,22 @@
     @apply font-extrabold tracking-tight;
   }
 }
+/* EFECTO TITANIUM MATTE METÁLICO */
+.glass-titanium {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
+.dark .glass-titanium {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* CORRECCIÓN DE CONTRASTE ICONOS */
+:deep(svg) {
+  stroke-width: 2.5; /* Iconos más gruesos y legibles */
+}
 @layer components {
   /* LEY DE INERCIA: Curva de aceleración Apple/F1 */
   .ease-ios {
@@ -77,36 +92,3 @@
   }
 }
 
-:root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 12%; 
-  
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 12%;
-  --card-border: 240 5% 92%;
-  
-  --primary: 210 100% 50%; /* Azul Apple */
-  --primary-foreground: 0 0% 100%;
-  
-  --accent: 142 76% 45%; 
-  
-  --border: 240 5% 90%;
-  --input: 240 5% 96%;
-}
-
-.dark {
-  --background: 0 0% 2%; 
-  --foreground: 0 0% 100%;
-  
-  --card: 240 10% 8%; 
-  --card-foreground: 0 0% 100%;
-  --card-border: 240 5% 15%; 
-  
-  --primary: 358 100% 44%; /* Rojo F1 */
-  --primary-foreground: 0 0% 100%;
-  
-  --accent: 142 100% 50%; 
-  
-  --border: 0 0% 15%;
-  --input: 0 0% 10%;
-}
