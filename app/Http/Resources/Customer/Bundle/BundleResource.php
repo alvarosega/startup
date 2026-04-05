@@ -25,17 +25,24 @@ class BundleResource extends JsonResource
                 ? asset('storage/' . $this->image_path) 
                 : asset('assets/img/' . $placeholder),
             
-            // Los items ya vienen hidratados por el Controller/Action
-            'items' => $this->whenLoaded('skus', function() {
-                return $this->skus->map(fn($sku) => [
-                    'sku_id'          => (string) $sku->id,
-                    'name'            => trim(($sku->product?->name ?? '') . ' ' . $sku->name),
-                    'image'           => $sku->image_url, // Usar Accessor rectificado
-                    'quantity'        => (int)($sku->pivot->quantity ?? 1),
-                    'stock_available' => (int)($sku->max_stock ?? 0), // Ya inyectado
-                    'final_price'     => (float)($sku->resolved_price->final_price ?? 0), // Ya inyectado
-                ]);
-            }),
+                'items' => $this->whenLoaded('skus', function() {
+                    return $this->skus->map(fn($sku) => [
+                        // LLAVES ESTÁNDAR (Idénticas a SkuResource)
+                        'id'                 => (string) $sku->id,
+                        'product_id'         => (string) $sku->product_id,
+                        'name'               => trim(($sku->product?->name ?? '') . ' ' . $sku->name),
+                        'brand_name'         => $sku->product?->brand?->name ?? 'Digital Unit',
+                        'image'              => $sku->image_url, // Usando el Accessor
+                        'bg_color'           => $sku->bg_color ? '#' . ltrim((string) $sku->bg_color, '#') : null,
+                        'final_price'        => (float) ($sku->resolved_price->final_price ?? 0),
+                        'list_price'         => (float) ($sku->resolved_price->list_price ?? 0),
+                        'stock'              => (int) ($sku->available_stock ?? 0),
+                        'upsell'             => $sku->resolved_price->next_tier ?? null,
+                        
+                        // LLAVE DE CONTEXTO DE PACK (Exclusiva)
+                        'suggested_quantity' => (int) ($sku->pivot->quantity ?? 1),
+                    ]);
+                }),
         ];
     }
 }

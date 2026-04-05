@@ -15,7 +15,6 @@ use App\Http\Controllers\Web\Customer\Profiles\AddressController;
 use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Order\OrderController;
 use App\Http\Controllers\Web\Customer\Favorites\FavoriteController;
-use App\Http\Controllers\Web\Customer\Catalog\ReviewController;
 use App\Http\Controllers\Web\Customer\Brand\BrandController;
 use App\Http\Controllers\Web\Customer\Featured\FeaturedController;
 use App\Http\Controllers\Web\Customer\Sku\SkuController;
@@ -112,5 +111,5 @@ Route::middleware(['auth:customer'])->group(function () {
         Route::get('/{id}/telemetry', [OrderController::class, 'getTelemetry'])->name('telemetry');
     });
 
-    Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
+    //Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 });

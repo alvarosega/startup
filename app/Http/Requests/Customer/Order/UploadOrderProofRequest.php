@@ -11,19 +11,21 @@ class UploadOrderProofRequest extends FormRequest
         return true; 
     }
 
+
     public function rules(): array
     {
         return [
-            'proof' => ['required', 'file', 'mimes:jpeg,png,jpg,pdf', 'max:2048'] // 2MB Max
+            // RECTIFICACIÓN: Aumentamos a 5MB (5120) para evitar rebotes de validación
+            'proof' => ['required', 'file', 'mimes:jpeg,png,jpg,pdf', 'max:5120'] 
         ];
     }
-    
+
     public function messages(): array
     {
         return [
             'proof.required' => 'Debes adjuntar un archivo.',
-            'proof.mimes' => 'El comprobante debe ser una imagen (PNG/JPG) o un PDF.',
-            'proof.max' => 'El archivo no debe pesar más de 2MB.',
+            'proof.mimes'    => 'Usa PNG, JPG o PDF.',
+            'proof.max'      => 'El archivo no debe pesar más de 5MB.',
         ];
-    }
+}
 }

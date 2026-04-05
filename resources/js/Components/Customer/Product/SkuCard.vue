@@ -1,12 +1,13 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { Plus, Minus, Zap, Heart, Loader2, Trash2, LayoutGrid } from 'lucide-vue-next';
+import { Plus, Minus, Zap, Heart, Loader2, Trash2, LayoutGrid, CheckCircle2 } from 'lucide-vue-next';
 
 const props = defineProps({
     sku: { type: Object, required: true },
     loading: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: false }
+    isActive: { type: Boolean, default: false },
+    suggestedQuantity: { type: Number, default: 0 }
 });
 
 const formatPrice = (value) => parseFloat(value || 0).toFixed(2);
@@ -63,7 +64,7 @@ const toggleFavorite = (e) => {
     }
 };
 
-// --- LÓGICA DE CARRITO ---
+// --- LÓGICA DE CARRITO Y PRECIOS DINÁMICOS ---
 const cartItem = computed(() => {
     if (!props.sku) return null;
     const items = page.props.cart?.items || [];
@@ -71,9 +72,23 @@ const cartItem = computed(() => {
 });
 
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
-const hasDiscount = computed(() => props.sku?.list_price > props.sku?.final_price);
 
+// RECTIFICACIÓN: Lectura correcta de props.sku.final_price
+const currentPrice = computed(() => {
+    return cartItem.value ? Number(cartItem.value.unit_price) : Number(props.sku.final_price);
+});
+
+const currentListPrice = computed(() => {
+    return cartItem.value ? Number(cartItem.value.list_price) : Number(props.sku.list_price);
+});
+
+const currentUpsell = computed(() => {
+    return cartItem.value ? cartItem.value.upsell : props.sku.upsell;
+});
+
+const hasDiscount = computed(() => currentListPrice.value > currentPrice.value);
 const isProcessing = ref(false); 
+
 const handleAdd = () => {
     if (props.loading || isProcessing.value) return;
     
@@ -116,9 +131,13 @@ const dynamicStyle = computed(() => ({
     '--local-sku-color': props.sku?.bg_color || 'var(--primary)',
 }));
 
+const isSuggestionMet = computed(() => {
+    return props.suggestedQuantity > 0 && quantity.value >= props.suggestedQuantity;
+});
+
 const goToProduct = () => {
     if (props.loading || !props.sku) return;
-    router.visit(route('customer.product', { id: props.sku.id }));
+    router.visit(route('customer.product.show', { id: props.sku.id }));
 };
 </script>
 
@@ -161,19 +180,29 @@ const goToProduct = () => {
                 
                 <div v-if="hasDiscount" class="absolute top-3 left-3 z-30">
                     <span class="bg-primary text-primary-foreground text-[10px] font-black px-2.5 py-1 rounded-lg shadow-xl uppercase italic tracking-tighter">
-                        -{{ sku.discount_percentage }}%
+                        -{{ sku.discount_percentage || ((currentListPrice - currentPrice) / currentListPrice * 100).toFixed(0) }}%
                     </span>
                 </div>
 
                 <div v-if="sku.stock <= 0" class="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none"></div>
+
+                <div v-if="suggestedQuantity > 0" 
+                    class="absolute -top-1 -left-1 z-30 flex flex-col items-start gap-1">
+                    <span class="bg-accent text-accent-foreground text-[8px] font-black px-2 py-1 rounded-br-xl shadow-lg uppercase tracking-tighter border-b border-r border-white/20">
+                        Sugerido: {{ suggestedQuantity }}u
+                    </span>
+                    <div v-if="isSuggestionMet" class="ml-1 bg-emerald-500 text-white p-0.5 rounded-full shadow-lg border-2 border-white dark:border-neutral-900 animate-in zoom-in">
+                        <CheckCircle2 :size="10" stroke-width="4" />
+                    </div>
+                </div>
             </div>
 
             <div class="flex-1 flex flex-col">
-                <div v-if="sku.upsell?.next_price" class="mb-3">
+                <div v-if="currentUpsell && (currentUpsell.next_price || currentUpsell.potential_price)" class="mb-3">
                     <div class="inline-flex items-center gap-1.5 bg-accent text-accent-foreground px-2.5 py-1 rounded-md shadow-sm border border-accent/20">
                         <Zap :size="10" class="fill-current" />
                         <span class="text-[8.5px] font-black uppercase tracking-widest">
-                            Bs {{ formatPrice(sku.upsell.next_price) }} DESDE {{ sku.upsell.next_qty }} UNID
+                            Bs {{ formatPrice(currentUpsell.potential_price || currentUpsell.next_price) }} DESDE {{ currentUpsell.needed_quantity || currentUpsell.next_qty }} UNID
                         </span>
                     </div>
                 </div>
@@ -188,12 +217,12 @@ const goToProduct = () => {
             
             <div class="flex flex-col">
                 <span v-if="hasDiscount" class="text-[10px] font-bold text-muted-foreground line-through leading-none font-mono mb-0.5">
-                    {{ formatPrice(sku.list_price) }}
+                    {{ formatPrice(currentListPrice) }}
                 </span>
                 <div class="flex items-baseline gap-1">
                     <span class="text-[10px] font-black text-foreground/70 uppercase">Bs</span>
                     <span class="text-[32px] font-black tracking-tighter text-foreground font-mono leading-none">
-                        {{ formatPrice(sku.final_price) }}
+                        {{ formatPrice(currentPrice) }}
                     </span>
                 </div>
             </div>
@@ -241,11 +270,10 @@ const goToProduct = () => {
 <style scoped>
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-/* 1. CHASIS DE CRISTAL DIFUMINADO (Difumina la malla, deja pasar color) */
+/* 1. CHASIS DE CRISTAL DIFUMINADO */
 .glass-chassis {
     width: 100%;
     height: 100%;
-    /* 40% de opacidad para que el Blur haga su trabajo destructivo sobre la malla */
     background-color: hsl(var(--background) / 0.4);
     backdrop-filter: blur(40px) saturate(200%);
     -webkit-backdrop-filter: blur(40px) saturate(200%);
@@ -260,7 +288,7 @@ const goToProduct = () => {
     box-shadow: 0 10px 30px -10px rgba(0,0,0,0.4);
 }
 
-/* 2. PUNTO FOCAL INDEPENDIENTE: Escenario Uiverse Flotante */
+/* 2. PUNTO FOCAL INDEPENDIENTE */
 .sku-stage-bg {
     background-color: var(--local-sku-color);
     background-image: linear-gradient(
@@ -269,20 +297,16 @@ const goToProduct = () => {
         hsl(var(--primary)) 46%, 
         hsl(var(--accent)) 100%
     );
-    
-    /* Sombra interna (Uiverse) + Sombra externa masiva (FLOTACIÓN SOBRE EL CRISTAL) */
     box-shadow: 
         rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, 
         rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, 
         rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset,
-        inset 0 4px 10px rgba(255, 255, 255, 0.3), /* Highlights de Hardware */
-        0 25px 35px -15px rgba(0, 0, 0, 0.4); /* Flota sobre el cristal esmerilado */
-        
+        inset 0 4px 10px rgba(255, 255, 255, 0.3),
+        0 25px 35px -15px rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .dark .sku-stage-bg {
-    /* Conserva la explosión de color pero apaga el fondo para contraste oscuro */
     background-image: linear-gradient(
         43deg, 
         var(--local-sku-color) 0%, 

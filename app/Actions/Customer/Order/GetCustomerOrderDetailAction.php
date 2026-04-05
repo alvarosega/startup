@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customer\Order;
 
 use App\Models\Order;
@@ -8,32 +10,27 @@ use Illuminate\Support\Carbon;
 
 class GetCustomerOrderDetailAction
 {
-    /**
-     * Recupera el detalle de la orden con integridad histórica y contexto de pago.
-     */
     public function execute(GetCustomerOrderDTO $dto): array
     {
-        // 1. Carga con Snapshots (Relación items es vital)
         $order = Order::where('id', $dto->orderId)
             ->where('customer_id', $dto->customerId)
-            ->with(['items', 'branch:id,name,address']) // No cargamos SKU/Product para usar el Snapshot
+            ->with(['items', 'branch:id,name,address'])
             ->firstOrFail();
 
-        // 2. Motor de Tiempo (Sincronía Servidor-Cliente)
         $now = Carbon::now();
         $expiresAt = $order->reservation_expires_at;
         
-        $secondsRemaining = $expiresAt ? max(0, $expiresAt->diffInSeconds($now, false) * -1) : 0;
+        // Cálculo de segundos restantes (Blindaje contra negativos)
+        $secondsRemaining = $expiresAt ? max(0, $now->diffInSeconds($expiresAt, false)) : 0;
         
-        // Un pedido está expirado si el tiempo se acabó Y sigue en pending_payment
-        $isExpired = ($order->status === 'pending_payment' && $secondsRemaining <= 0) || $order->status === 'expired';
+        // RECTIFICACIÓN: Estado sincronizado con PlaceOrderAction ('pending')
+        $isExpired = ($order->status === 'pending' && $secondsRemaining <= 0) || $order->status === 'expired';
 
         return [
-            // Filtramos la salida para no exponer la DB cruda
             'order' => [
                 'id'             => $order->id,
                 'code'           => $order->code,
-                'status'         => $order->status,
+                'status' => $isExpired ? 'expired' : $order->status,
                 'delivery_type'  => $order->delivery_type,
                 'delivery_data'  => $order->delivery_data,
                 'items_subtotal' => (float) $order->items_subtotal,
@@ -44,35 +41,21 @@ class GetCustomerOrderDetailAction
                 'created_at'     => $order->created_at->toDateTimeString(),
                 'items'          => $order->items->map(fn($item) => [
                     'name'     => $item->product_name . ' ' . $item->sku_name,
-                    'image'    => $item->image_snapshot,
+                    'image'    => $item->image_snapshot ? asset('storage/' . $item->image_snapshot) : asset('assets/img/sku_placeholder.png'),
                     'quantity' => $item->quantity,
                     'price'    => (float) $item->unit_price,
                     'subtotal' => (float) $item->subtotal,
                 ]),
                 'branch' => $order->branch
             ],
-
-            // Lógica de Entrega (OTP visible solo en el momento justo)
             'delivery_otp' => $order->status === 'arrived' ? $order->delivery_otp : null,
-
-            // Contexto de Pago QR
             'payment_context' => [
                 'seconds_remaining' => $secondsRemaining,
                 'is_expired'        => $isExpired,
-                // Aquí inyectarás la data para el componente QR (Ej: SimplePay o link estático)
-                'qr_payload'        => $isExpired ? null : $this->generateQrPayload($order),
+                'qr_image'          => asset('assets/img/static_qr_payment.png'), // Asset estático confirmado
+                'qr_payload'        => $isExpired ? null : "PAY-ORDER-{$order->code}",
                 'bank_name'         => 'BANCO UNIÓN / BCP', 
             ]
         ];
-    }
-
-    /**
-     * Placeholder para la lógica de generación de QR (Silo de Finanzas)
-     */
-    private function generateQrPayload(Order $order): string
-    {
-        // En el futuro, aquí llamarás a un Service de Pasarela (Sintesis, Libélula, etc.)
-        // Por ahora devolvemos un string que identifique el pedido
-        return "PAY-ORDER-{$order->code}-AMOUNT-{$order->total_amount}";
     }
 }
