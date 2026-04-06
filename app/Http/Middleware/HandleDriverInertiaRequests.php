@@ -5,7 +5,8 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Resources\Driver\Auth\DriverResource;
+// RECTIFICACIÓN: Usamos el Resource del perfil que ya contiene el 'status' y 'profile'
+use App\Http\Resources\Driver\Profile\DriverProfileResource; 
 
 class HandleDriverInertiaRequests extends Middleware
 {
@@ -16,18 +17,21 @@ class HandleDriverInertiaRequests extends Middleware
         $driver = Auth::guard('driver')->user();
 
         if ($driver) {
-            // LEY DE EFICIENCIA: Solo actualizamos 'last_seen_at' si han pasado > 5 min
+            // LEY DE EFICIENCIA
             $lastSeen = session('driver_last_seen_at');
             if (!$lastSeen || now()->diffInMinutes($lastSeen) >= 5) {
                 $driver->updateQuietly(['last_seen_at' => now()]);
                 session(['driver_last_seen_at' => now()]);
             }
+            
+            // CRÍTICO: Cargar la relación antes de pasarla al Resource
+            $driver->loadMissing(['profile', 'branch']);
         }
 
         return array_merge(parent::share($request), [
             'auth' => [
-                // Uso del Resource para garantizar tipado estricto y blindaje de datos
-                'user' => $driver ? (new DriverResource($driver))->resolve() : null,
+                // Blindaje de datos y tipado estricto
+                'user' => $driver ? (new DriverProfileResource($driver))->resolve() : null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

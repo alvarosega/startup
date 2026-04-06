@@ -1,6 +1,6 @@
 <?php
 
-namespace App\DTOs\Driver;
+namespace App\DTOs\Driver\Profile;
 
 class DriverProfileData
 {

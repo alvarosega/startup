@@ -25,22 +25,19 @@ Route::middleware('guest:driver')->group(function () {
     Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
 });
 
-Route::middleware(['auth:driver'])->group(function () {
-    Route::post('/telemetry/update', [TelemetryController::class, 'update'])->name('telemetry.update');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/orders/poll', [DashboardController::class, 'pollPendingOrders'])->name('orders.poll');
-    Route::post('/orders/{id}/take', [DashboardController::class, 'takeOrder'])->name('orders.take');
-    Route::post('/orders/{id}/arrived', [DashboardController::class, 'markAsArrived'])->name('orders.arrived');
-    Route::post('/orders/{id}/complete', [DashboardController::class, 'completeOrder'])->name('orders.complete');
-    Route::post('/orders/{id}/pickup', [DashboardController::class, 'verifyPickup'])->name('orders.verify-pickup');
-    Route::post('/upload-docs', [DriverProfileController::class, 'uploadDocs'])->name('upload-docs');
-    Route::get('/history', [DashboardController::class, 'history'])->name('history');
-    Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
-    
-    Route::prefix('profile')->name('profile.')->group(function () {
-        Route::get('/', [DriverProfileController::class, 'index'])->name('index'); 
-        Route::patch('/', [DriverProfileController::class, 'update'])->name('update'); 
-    });
-    
+Route::middleware(['auth:driver'])->prefix('driver')->name('driver.')->group(function () {
+    // Gestión de disponibilidad
     Route::post('/status/toggle', [DashboardController::class, 'toggleStatus'])->name('status.toggle');
+
+    // Módulo de Órdenes (Silo Driver)
+    Route::get('/orders', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'index'])->name('orders.index');
+    Route::post('/orders/{id}/take', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'take'])->name('orders.take');
+    
+    // Flujo de entrega (OTP Cliente)
+    Route::post('/orders/{id}/arrived', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'markAsArrived'])->name('orders.arrived');
+    Route::post('/orders/{id}/complete', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'complete'])->name('orders.complete');
+    
+    // Perfil e Historial
+    Route::get('/history', [DashboardController::class, 'history'])->name('history');
+    Route::get('/profile', [DriverProfileController::class, 'index'])->name('profile.index');
 });

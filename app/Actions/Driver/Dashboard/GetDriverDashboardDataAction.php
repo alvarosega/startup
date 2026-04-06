@@ -12,11 +12,20 @@ class GetDriverDashboardDataAction
         $driver->load(['branch']);
 
         $activeOrder = Order::where('driver_id', $driver->id)
-            // Agregamos 'preparing' porque ahora el driver lo toma en ese estado
-            ->whereIn('status', ['preparing', 'dispatched', 'arrived'])
+            ->whereIn('status', ['preparing', 'ready_for_dispatch', 'dispatched', 'arrived'])
             ->with('customer:id,phone')
-            // SEGURIDAD: Nunca incluyas 'delivery_otp' ni 'pickup_otp' aquí
-            ->first(['id', 'code', 'delivery_data', 'delivery_fee', 'balance_amount', 'payment_type', 'status', 'customer_id']);
+            // RECTIFICADO: 'total_amount' en lugar de 'balance_amount' 
+            // RECTIFICADO: 'payment_method' en lugar de 'payment_type'
+            ->first([
+                'id', 
+                'code', 
+                'delivery_data', 
+                'delivery_fee', 
+                'total_amount', 
+                'payment_method', 
+                'status', 
+                'customer_id'
+            ]);
 
         $data = [
             'driver' => [
@@ -35,7 +44,7 @@ class GetDriverDashboardDataAction
 
         if (!$activeOrder) {
              $data['pendingOrders'] = Order::where('branch_id', $driver->branch_id)
-                ->where('status', 'preparing')
+                ->where('status', 'ready_for_dispatch') // Cambiado de 'preparing' a 'ready_for_dispatch' según tu lógica
                 ->whereNull('driver_id')
                 ->where('delivery_type', 'delivery')
                 ->orderBy('created_at', 'asc')

@@ -6,43 +6,34 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
-
-// DTOs
 use App\DTOs\Driver\Order\CompleteOrderDTO;
-
-// Actions
-use App\Actions\Driver\Dashboard\GetDriverDashboardDataAction;
-use App\Actions\Driver\Dashboard\GetPendingOrdersAction;
-use App\Actions\Driver\Order\TakeOrderAction;
-use App\Actions\Driver\Order\VerifyPickupAction; // Nuevo Fase 2
-use App\Actions\Driver\Order\MarkOrderAsArrivedAction;
-use App\Actions\Driver\Order\CompleteOrderAction; // Nuevo Fase 3
+use App\Actions\Driver\Dashboard\{GetDriverDashboardDataAction, GetPendingOrdersAction};
+use App\Actions\Driver\Order\{TakeOrderAction, VerifyPickupAction, MarkOrderAsArrivedAction, CompleteOrderAction};
 use App\Actions\Driver\Profile\ToggleDriverStatusAction;
 
 class DashboardController extends Controller
 {
-    /**
-     * Vista principal del Driver (Radar o Pedido Activo)
-     */
     public function index(GetDriverDashboardDataAction $action)
     {
         $driver = Auth::guard('driver')->user();
 
-        // Bloqueo de seguridad por documentos
-        if ($driver->status !== 'active') {
-            return redirect()->route('driver.profile.index')
-                ->with('error', 'Acceso denegado. Sube tus documentos para operar.');
+        // Si no tiene una orden activa, no tiene nada que hacer aquí
+        $activeOrder = Order::where('driver_id', $driver->id)
+            ->whereIn('status', ['dispatched', 'arrived'])
+            ->exists();
+
+        if (!$activeOrder) {
+            return redirect()->route('driver.orders.index');
         }
 
-        $data = $action->execute($driver);
-
-        return Inertia::render('Driver/Dashboard', $data);
+        return Inertia::render('Driver/Dashboard', $action->execute($driver));
     }
 
     public function history()
     {
         $driver = Auth::guard('driver')->user();
-        if ($driver->status !== 'active') return redirect()->route('driver.profile.index');
+        // RECTIFICACIÓN: Cambiar 'active' por 'approved'
+        if ($driver->status !== 'approved') return redirect()->route('driver.profile.index');
 
         return Inertia::render('Driver/History', [
             'driver' => [
@@ -51,7 +42,6 @@ class DashboardController extends Controller
             ]
         ]);
     }
-
     public function toggleStatus(Request $request, ToggleDriverStatusAction $action)
     {
         $isOnline = $request->boolean('is_online');

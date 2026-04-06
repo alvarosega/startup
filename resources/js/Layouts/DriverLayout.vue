@@ -1,31 +1,35 @@
 <script setup>
-import { Link, usePage, router } from '@inertiajs/vue3';
-import { computed, watchEffect, onMounted } from 'vue';
+import { Map, List, User, LogOut, Package } from 'lucide-vue-next';
+import { computed, onMounted } from 'vue';
 import Toast from '@/Components/Base/Toast.vue';
 import { Map, List, User, LogOut } from 'lucide-vue-next';
 
 const page = usePage();
+// REGLA: El usuario autenticado es la fuente de verdad primaria
 const user = computed(() => page.props.auth?.user);
 
 const driverStatus = computed(() => {
-    return page.props.driver?.status || user.value?.status || 'pending';
+    // RECTIFICACIÓN: Buscamos el status prioritariamente en el objeto compartido
+    return user.value?.status || page.props.driver?.status || 'pending';
 });
 
-const isVerified = computed(() => driverStatus.value === 'active');
+// RECTIFICACIÓN CRÍTICA: Cambiar 'active' por 'approved'
+const isVerified = computed(() => driverStatus.value === 'approved');
 
 const getUserInitial = () => {
-    if (!user.value?.name) return 'D';
-    return user.value.name.charAt(0).toUpperCase();
+    // Si el resource está bien estructurado, el nombre viene en profile
+    const name = user.value?.first_name || page.props.driver?.profile?.first_name || 'D';
+    return name.charAt(0).toUpperCase();
 };
 
 const navItems = [
-    { label: 'Ruta', route: 'driver.dashboard', icon: Map, activePrefix: '/driver/dashboard', requiresAuth: true },
+    { label: 'Órdenes', route: 'driver.orders.index', icon: Package, activePrefix: '/driver/orders', requiresAuth: true },
     { label: 'Historial', route: 'driver.history', icon: List, activePrefix: '/driver/history', requiresAuth: true },
     { label: 'Perfil', route: 'driver.profile.index', icon: User, activePrefix: '/driver/profile', requiresAuth: false },
 ];
 
-// Perro guardián en el Frontend: Si no está verificado y no está en el perfil, lo saca.
 onMounted(() => {
+    // Perro guardián: Si no está aprobado y trata de entrar a Ruta/Historial, al Perfil.
     if (!isVerified.value && !page.url.startsWith('/driver/profile')) {
         router.visit(route('driver.profile.index'));
     }
@@ -42,13 +46,13 @@ onMounted(() => {
             </div>
             
             <div class="flex items-center gap-3">
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-wider shadow-sm"
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider shadow-sm"
                      :class="isVerified ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-amber-500/10 border-amber-500/50 text-amber-400 animate-pulse'">
                     <span class="w-2 h-2 rounded-full" :class="isVerified ? 'bg-green-500' : 'bg-amber-500'"></span>
-                    {{ isVerified ? 'Operativo' : 'Verificando' }}
+                    {{ isVerified ? 'Operativo' : 'En Revisión' }}
                 </div>
                 
-                <Link :href="route('driver.profile.index')" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-xs font-bold transition border border-gray-600 shrink-0">
+                <Link :href="route('driver.profile.index')" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-xs font-bold transition border border-gray-600 shrink-0 uppercase">
                     {{ getUserInitial() }}
                 </Link>
             </div>
@@ -68,18 +72,18 @@ onMounted(() => {
                         <component :is="item.icon" :size="24" :stroke-width="$page.url.startsWith(item.activePrefix) ? 2.5 : 2" />
                         <span v-if="$page.url.startsWith(item.activePrefix)" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full"></span>
                     </div>
-                    <span class="text-[10px] font-bold mt-1 transition-colors" :class="$page.url.startsWith(item.activePrefix) ? 'text-blue-600' : 'text-gray-400'">{{ item.label }}</span>
+                    <span class="text-[10px] font-bold mt-1 uppercase transition-colors" :class="$page.url.startsWith(item.activePrefix) ? 'text-blue-600' : 'text-gray-400'">{{ item.label }}</span>
                 </Link>
                 
-                <div v-else class="flex flex-col items-center justify-center w-full h-full text-gray-300 cursor-not-allowed opacity-50">
+                <div v-else class="flex flex-col items-center justify-center w-full h-full text-gray-300 cursor-not-allowed opacity-40">
                     <div class="p-1.5 rounded-xl"><component :is="item.icon" :size="24" stroke-width="2" /></div>
-                    <span class="text-[10px] font-bold mt-1">{{ item.label }}</span>
+                    <span class="text-[10px] font-bold mt-1 uppercase">{{ item.label }}</span>
                 </div>
             </template>
 
             <Link :href="route('driver.logout')" method="post" as="button" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-red-500 transition-all duration-200 group active:scale-95">
                 <div class="p-1.5 rounded-xl group-hover:bg-red-50 transition"><LogOut :size="24" /></div>
-                <span class="text-[10px] font-bold mt-1">Salir</span>
+                <span class="text-[10px] font-bold mt-1 uppercase">Salir</span>
             </Link>
             
         </nav>
@@ -87,7 +91,3 @@ onMounted(() => {
         <Toast />
     </div>
 </template>
-
-<style scoped>
-.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
-</style>
