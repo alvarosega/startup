@@ -2,12 +2,11 @@
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import DriverLayout from '@/Layouts/DriverLayout.vue';
-import { Truck, RefreshCw, Hash, MapPin, CheckCircle, X } from 'lucide-vue-next';
+import { Truck, RefreshCw, Hash, MapPin, X } from 'lucide-vue-next';
 
 const props = defineProps({
     driver: Object,
-    availableOrders: Array, // Pedidos con status 'ready_for_dispatch'
-    activeOrder: Object,    // Pedido que ya está en camino
+    availableOrders: Array,
 });
 
 const isOnline = computed(() => props.driver.is_online);
@@ -19,7 +18,7 @@ const form = useForm({
 });
 
 const toggleOnline = () => {
-    router.post(route('driver.status.toggle'), { is_online: !isOnline.value });
+    router.post(route('driver.status.toggle'), { is_online: !isOnline.value }, { preserveScroll: true });
 };
 
 const refreshOrders = () => {
@@ -28,6 +27,8 @@ const refreshOrders = () => {
 
 const openOtpInput = (orderId) => {
     selectedOrderId.value = orderId;
+    form.clearErrors();
+    form.otp = '';
     showOtpModal.value = true;
 };
 
@@ -35,7 +36,6 @@ const submitTakeOrder = () => {
     form.post(route('driver.orders.take', selectedOrderId.value), {
         onSuccess: () => {
             showOtpModal.value = false;
-            form.reset();
         },
     });
 };
@@ -43,7 +43,7 @@ const submitTakeOrder = () => {
 
 <template>
     <DriverLayout>
-        <div class="max-w-md mx-auto p-4 space-y-6">
+        <div class="max-w-md mx-auto p-4 space-y-6 pb-24">
             
             <div class="bg-white p-5 rounded-[2rem] shadow-sm border flex items-center justify-between">
                 <div>
@@ -60,23 +60,9 @@ const submitTakeOrder = () => {
                 </button>
             </div>
 
-            <div v-if="activeOrder" class="space-y-4">
-                <div class="bg-blue-600 text-white p-6 rounded-[2.5rem] shadow-xl">
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-[10px] font-black uppercase bg-white/20 px-3 py-1 rounded-full">Viaje en Curso</span>
-                        <h3 class="font-mono font-black text-xl">#{{ activeOrder.code }}</h3>
-                    </div>
-                    <p class="text-sm font-bold opacity-90 mb-6">{{ activeOrder.delivery_data.address }}</p>
-                    <button @click="router.visit(route('driver.dashboard'))" 
-                        class="w-full bg-white text-blue-600 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">
-                        Ver Detalles del Viaje
-                    </button>
-                </div>
-            </div>
-
-            <div v-else-if="isOnline" class="space-y-4">
+            <div v-if="isOnline" class="space-y-4">
                 <div class="flex justify-between items-center px-2">
-                    <h3 class="text-xs font-black uppercase text-gray-500 italic">Pedidos en Mostrador ({{ availableOrders.length }})</h3>
+                    <h3 class="text-xs font-black uppercase text-gray-500 italic">Carga Lista ({{ availableOrders.length }})</h3>
                     <button @click="refreshOrders" class="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
                         <RefreshCw :size="18" />
                     </button>
@@ -97,15 +83,15 @@ const submitTakeOrder = () => {
                             <p class="text-[11px] font-bold text-gray-600 line-clamp-2 uppercase leading-tight">{{ order.delivery_data.address }}</p>
                         </div>
                         <button @click="openOtpInput(order.id)" 
-                            class="w-full py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] group-hover:bg-blue-600 transition-colors">
-                            Tomar con Código PIN
+                            class="w-full py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-colors active:scale-95">
+                            Reclamar Orden
                         </button>
                     </div>
                 </div>
 
                 <div v-else class="py-12 text-center bg-white rounded-[2.5rem] border border-dashed border-gray-300">
                     <Truck :size="40" class="mx-auto text-gray-300 mb-3" />
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Esperando pedidos listos...</p>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sin despacho pendiente</p>
                 </div>
             </div>
 
@@ -113,19 +99,19 @@ const submitTakeOrder = () => {
                 <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
                     <Truck :size="32" />
                 </div>
-                <p class="text-sm font-black text-gray-400 uppercase italic">Ponte en línea para ver la carga</p>
+                <p class="text-xs font-black text-gray-400 uppercase italic">Ponte en línea para ver la carga</p>
             </div>
         </div>
 
-        <div v-if="showOtpModal" class="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom-10">
+        <div v-if="showOtpModal" class="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl">
                 <div class="flex justify-between items-center mb-6">
-                    <h4 class="font-black uppercase italic text-gray-900">Validar Despacho</h4>
-                    <button @click="showOtpModal = false" class="text-gray-400 hover:text-gray-600"><X :size="24" /></button>
+                    <h4 class="font-black uppercase italic text-gray-900">Validar Extracción</h4>
+                    <button @click="showOtpModal = false" class="text-gray-400"><X :size="24" /></button>
                 </div>
                 
-                <p class="text-xs text-gray-500 font-bold mb-6 uppercase leading-relaxed text-center">
-                    Solicita el código de 5 dígitos al cajero para confirmar que tienes la mercancía física.
+                <p class="text-[10px] text-gray-500 font-bold mb-6 uppercase text-center">
+                    Ingresa el PIN de seguridad dictado por el administrador de base.
                 </p>
 
                 <input v-model="form.otp" type="text" maxlength="5" placeholder="_____" 
@@ -135,8 +121,8 @@ const submitTakeOrder = () => {
                 <p v-if="form.errors.otp" class="text-[10px] text-red-500 font-black text-center mb-4 uppercase">{{ form.errors.otp }}</p>
 
                 <button @click="submitTakeOrder" :disabled="form.processing || form.otp.length < 5"
-                        class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg disabled:opacity-30">
-                    {{ form.processing ? 'Verificando...' : 'Confirmar y Empezar' }}
+                        class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg disabled:opacity-30 active:scale-95">
+                    {{ form.processing ? 'Sincronizando...' : 'Confirmar' }}
                 </button>
             </div>
         </div>

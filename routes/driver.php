@@ -25,19 +25,28 @@ Route::middleware('guest:driver')->group(function () {
     Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
 });
 
-Route::middleware(['auth:driver'])->prefix('driver')->name('driver.')->group(function () {
-    // Gestión de disponibilidad
-    Route::post('/status/toggle', [DashboardController::class, 'toggleStatus'])->name('status.toggle');
+// routes/Driver.php
 
-    // Módulo de Órdenes (Silo Driver)
+// ... (imports)
+
+Route::middleware(['auth:driver'])->group(function () {
+    // 1. Estado y Perfil
+    Route::post('/status/toggle', [DashboardController::class, 'toggleStatus'])->name('status.toggle');
+    Route::get('/profile', [DriverProfileController::class, 'index'])->name('profile.index');
+    Route::post('/upload-docs', [DriverProfileController::class, 'uploadDocs'])->name('upload-docs');
+    
+    // 2. Módulo de Órdenes
     Route::get('/orders', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'index'])->name('orders.index');
     Route::post('/orders/{id}/take', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'take'])->name('orders.take');
     
-    // Flujo de entrega (OTP Cliente)
+    // 3. Módulo de Ruta (Dashboard)
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/orders/{id}/arrived', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'markAsArrived'])->name('orders.arrived');
-    Route::post('/orders/{id}/complete', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'complete'])->name('orders.complete');
+    Route::post('/orders/{id}/complete', [App\Http\Controllers\Web\Driver\Order\OrderController::class, 'completeOrder'])->name('orders.complete');
     
-    // Perfil e Historial
+    // 4. Historial y Salida
     Route::get('/history', [DashboardController::class, 'history'])->name('history');
-    Route::get('/profile', [DriverProfileController::class, 'index'])->name('profile.index');
+    
+    // RECTIFICACIÓN: Solo 'logout'. El prefijo 'driver.' se heredará automáticamente.
+    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout'); 
 });

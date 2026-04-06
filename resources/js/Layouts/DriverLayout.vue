@@ -1,8 +1,9 @@
 <script setup>
-import { Map, List, User, LogOut, Package } from 'lucide-vue-next';
+import { Link, usePage, router } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
 import Toast from '@/Components/Base/Toast.vue';
-import { Map, List, User, LogOut } from 'lucide-vue-next';
+// RECTIFICACIÓN: Una sola línea para todos los iconos de lucide
+import { Map, List, User, LogOut, Package } from 'lucide-vue-next';
 
 const page = usePage();
 // REGLA: El usuario autenticado es la fuente de verdad primaria
