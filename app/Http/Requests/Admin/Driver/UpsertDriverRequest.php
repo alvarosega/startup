@@ -20,10 +20,10 @@ class UpsertDriverRequest extends FormRequest
     public function rules(): array
     {
         $driverId = $this->route('driver');
-    
+
         return [
-            'branch_id'      => ['required', 'uuid', 'exists:branches,id'], // Siempre obligatorio ahora
-            'status'         => ['required', 'in:pending,active,inactive,rejected'],
+            'branch_id'      => ['required', 'uuid', 'exists:branches,id'],
+            'status' => ['required', 'in:pending,approved,suspended'],
             'first_name'     => ['required', 'string'],
             'last_name'      => ['required', 'string'],
             'phone'          => ['required', 'string', Rule::unique('drivers')->ignore($driverId)],

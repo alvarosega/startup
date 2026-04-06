@@ -7,15 +7,17 @@ use App\Http\Controllers\Web\Driver\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Driver\Auth\ResetPasswordController;
 use App\Http\Controllers\Web\Driver\DashboardController;
 use App\Http\Controllers\Web\Driver\Profile\DriverProfileController;
-use App\Http\Controllers\Web\Driver\Location\TelemetryController;
 
 Route::middleware('guest:driver')->group(function () {
     Route::get('register', [RegisterController::class, 'create'])->name('register'); 
     Route::post('register/validate-step-1', [RegisterController::class, 'validateStep1'])->name('register.validate-step-1');
     Route::post('register/store', [RegisterController::class, 'store'])->name('register.store');
     
+    // NUEVA RUTA: Página de espera de aprobación
+    Route::get('register/pending', [RegisterController::class, 'pending'])->name('register.pending');
+    
     Route::get('login', [LoginController::class, 'show'])->name('login');
-    Route::post('login', [LoginController::class, 'store']); 
+    Route::post('login', [LoginController::class, 'store']);
     
     Route::get('password/forgot', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
     Route::post('password/email', [ForgotPasswordController::class, 'sendResetCode'])->name('password.email');

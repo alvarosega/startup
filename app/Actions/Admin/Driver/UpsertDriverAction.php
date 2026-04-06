@@ -35,7 +35,7 @@ class UpsertDriverAction
                 'license_number'   => $dto->licenseNumber,
                 'license_plate'    => $dto->licensePlate,
                 'vehicle_type'     => $dto->vehicleType,
-                'rejection_reason' => $dto->status === 'rejected' ? $dto->rejectionReason : null,
+                'rejection_reason' => $dto->status === 'suspended' ? $dto->rejectionReason : null,
             ]);
     
             return $driver;

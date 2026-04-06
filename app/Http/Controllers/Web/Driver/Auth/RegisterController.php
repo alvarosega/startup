@@ -7,35 +7,42 @@ use App\Http\Requests\Driver\Auth\RegisterRequest;
 use App\DTOs\Driver\Auth\RegisterDriverData;
 use App\Http\Requests\Driver\Auth\ValidateStep1Request;
 use App\Actions\Driver\Auth\RegisterDriverAction;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log; // <--- IMPORTANTE
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class RegisterController extends Controller
 {
-    public function create()
+    public function create(): Response
     {
         return Inertia::render('Driver/Auth/Register');
     }
 
-    public function validateStep1(ValidateStep1Request $request)
+    public function validateStep1(ValidateStep1Request $request): RedirectResponse
     {
+        // Solo valida, si llega aquí es que el teléfono/email están libres
         return back(); 
     }
 
-    public function store(RegisterRequest $request, RegisterDriverAction $action)
+    public function store(RegisterRequest $request, RegisterDriverAction $action): RedirectResponse
     {
         try {
             $data = RegisterDriverData::fromRequest($request);
-            $driver = $action->execute($data);
+            $action->execute($data);
 
-            Auth::guard('driver')->login($driver);
-
-            return redirect()->route('driver.dashboard');
+            // RECTIFICACIÓN: No logueamos al usuario. 
+            // Redirigimos a una página de éxito/pendiente pública.
+            return redirect()->route('driver.register.pending');
             
         } catch (\Exception $e) {
-            Log::error('[DriverRegister] Fallo en la transacción: ' . $e->getMessage());
-            return back()->withErrors(['phone' => 'Hubo un problema al crear tu cuenta. Inténtalo de nuevo.'])->withInput();
+            Log::error('[DriverRegister] Fallo: ' . $e->getMessage());
+            return back()->withErrors(['phone' => 'Error al procesar la solicitud.'])->withInput();
         }
+    }
+
+    public function pending(): Response
+    {
+        return Inertia::render('Driver/Auth/AccountPending');
     }
 }

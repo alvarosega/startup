@@ -55,24 +55,25 @@ return new class extends Migration
             $table->timestamp('created_at')->nullable();
         });
 
-// =================================================================================
-        // SILO 2: DRIVERS
-        // =================================================================================
+        // En tu archivo de migración de drivers
         Schema::create('drivers', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
-            $table->uuid('driver_id');
+            // ELIMINADO: driver_id (Es redundante si 'id' es la PK)
             $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
             $table->string('password');
-            $table->string('status')->default('pending'); 
+            
+            // RECTIFICACIÓN: Estado con valores restringidos
+            $table->string('status')->default('pending')->comment('pending, approved, suspended'); 
+            
             $table->boolean('is_online')->default(false);
             $table->boolean('is_available')->default(false);
             $table->timestamp('last_login_at')->nullable(); 
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
             $table->softDeletes(); 
-            $table->index(['driver_id', 'created_at']);
+            
             $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
         });
 
@@ -99,21 +100,7 @@ return new class extends Migration
 
             $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
         });
-        // NUEVA TABLA: Historial GPS de alto rendimiento (Append-only)
-        Schema::create('driver_location_logs', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
-            $table->uuid('driver_id')->index();
-            $table->uuid('order_id')->nullable()->index(); // Nulo si estaba solo navegando
-            $table->decimal('latitude', 10, 8);
-            $table->decimal('longitude', 11, 8);
-            $table->timestamp('created_at')->useCurrent();
-            
-            $table->foreign('driver_id')->references('id')->on('drivers')->onDelete('cascade');
-            // Asumiendo que orders se crea después, de lo contrario mover esta llave foránea
-            // $table->foreign('order_id')->references('id')->on('orders')->nullOnDelete();
-        });
         
-        // ... (driver_tokens, driver_billing_infos, password_reset_codes_drivers igual) ...
         Schema::create('driver_tokens', function (Blueprint $table) {
             $table->id();
             $table->uuid('driver_id');

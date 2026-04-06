@@ -77,7 +77,7 @@ onMounted(() => {
                 </div>
             </template>
 
-            <Link :href="route('logout')" method="post" as="button" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-red-500 transition-all duration-200 group active:scale-95">
+            <Link :href="route('driver.logout')" method="post" as="button" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-red-500 transition-all duration-200 group active:scale-95">
                 <div class="p-1.5 rounded-xl group-hover:bg-red-50 transition"><LogOut :size="24" /></div>
                 <span class="text-[10px] font-bold mt-1">Salir</span>
             </Link>

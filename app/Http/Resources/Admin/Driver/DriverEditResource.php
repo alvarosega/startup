@@ -7,13 +7,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class DriverEditResource extends JsonResource
 {
+
     public function toArray(Request $request): array
     {
         return [
             'id'        => (string) $this->id,
             'branch_id' => $this->branch_id,
-            'phone'     => (string) $this->phone, // <--- CRÍTICO
-            'email'     => (string) $this->email, // <--- CRÍTICO
+            'phone'     => (string) $this->phone,
+            'email'     => (string) $this->email,
             'status'    => (string) $this->status,
             'profile'   => [
                 'first_name'     => $this->profile?->first_name,
@@ -22,7 +23,8 @@ class DriverEditResource extends JsonResource
                 'license_plate'  => $this->profile?->license_plate,
                 'vehicle_type'   => $this->profile?->vehicle_type,
                 'ci_front_path'  => $this->formatPrivateUrl($this->profile?->ci_front_path),
-                'license_path'   => $this->formatPrivateUrl($this->profile?->license_path),
+                // RECTIFICACIÓN: El nombre del atributo en el modelo es license_photo_path
+                'license_path'   => $this->formatPrivateUrl($this->profile?->license_photo_path), 
             ]
         ];
     }

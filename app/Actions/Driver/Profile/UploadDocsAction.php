@@ -10,29 +10,22 @@ class UploadDocsAction
 {
     public function execute(UploadDocsData $data, Driver $driver): void
     {
-        $details = $driver->details;
-        $path = "drivers/{$driver->id}/docs";
+        $profile = $driver->profile; // RECTIFICADO: Usar 'profile'
+        $path = "drivers/{$driver->id}/documents";
 
         if ($data->ciFront) {
-            if ($details->ci_front_path) Storage::disk('public')->delete($details->ci_front_path);
-            $details->ci_front_path = $data->ciFront->store($path, 'public');
+            if ($profile->ci_front_path) Storage::disk('private')->delete($profile->ci_front_path);
+            $profile->ci_front_path = $data->ciFront->store($path, 'private');
         }
 
         if ($data->licensePhoto) {
-            if ($details->license_photo_path) Storage::disk('public')->delete($details->license_photo_path);
-            $details->license_photo_path = $data->licensePhoto->store($path, 'public');
+            if ($profile->license_photo_path) Storage::disk('private')->delete($profile->license_photo_path);
+            $profile->license_photo_path = $data->licensePhoto->store($path, 'private');
         }
 
-        if ($data->vehiclePhoto) {
-            if ($details->vehicle_photo_path) Storage::disk('public')->delete($details->vehicle_photo_path);
-            $details->vehicle_photo_path = $data->vehiclePhoto->store($path, 'public');
-        }
+        $profile->save();
 
-        // 1. Guardamos las rutas en la tabla hija
-        $details->save();
-
-        // 2. Guardamos el estado unificado en la tabla padre (drivers)
-        $driver->status = 'pending';
-        $driver->save();
+        // Al subir documentos nuevos, el status vuelve a revisión
+        $driver->update(['status' => 'pending']);
     }
 }

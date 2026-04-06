@@ -36,15 +36,15 @@ const submit = () => {
     });
 };
 </script>
-
 <template>
     <Head title="Terminal de Mando - Driver Access" />
-    <ShopLayout> <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
-        <div class="absolute inset-0 z-0 pointer-events-none">
+    <ShopLayout> 
+        <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
+            <div class="absolute inset-0 z-0 pointer-events-none">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.03)_0%,transparent_70%)]" />
                 <div class="absolute inset-0 bg-dots opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" />
             </div>
-        <div class="flex-1 flex items-center justify-center relative overflow-hidden p-4 py-12">
+
             <div class="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-700">
                 <div class="bg-card backdrop-blur-xl border border-border rounded-[2.5rem] shadow-2xl overflow-hidden">
                     <div class="bg-amber-500 px-6 py-2.5 flex items-center justify-center gap-2">
@@ -86,7 +86,7 @@ const submit = () => {
 
                             <BaseCheckbox v-model="form.remember" label="Mantener sesión iniciada" />
 
-                            <button type="submit" :disabled="form.processing" class="btn w-full h-16 shadow-lg shadow-primary/20 group bg-amber-500 hover:bg-amber-600 text-white border-none rounded-2xl">
+                            <button type="submit" :disabled="form.processing" class="w-full h-16 shadow-lg shadow-amber-500/20 group bg-amber-500 hover:bg-amber-600 text-white border-none rounded-2xl transition-all active:scale-95 flex items-center justify-center">
                                 <span v-if="form.processing" class="loading loading-spinner"></span>
                                 <span v-else class="flex items-center justify-center gap-3 font-black uppercase tracking-widest text-base italic">
                                     Iniciar Turno <ArrowRight :size="20" class="group-hover:translate-x-2 transition-transform" />
@@ -106,7 +106,6 @@ const submit = () => {
                 </div>
             </div>
         </div>
-    </div>
-</ShopLayout>
+    </ShopLayout>
 </template>
 

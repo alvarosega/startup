@@ -26,7 +26,7 @@ class DriverProfile extends Model
         'avatar_source',
         'rejection_reason',
         'ci_front_path',
-        'license_path',
+        'license_photo_path', // RECTIFICADO: Cambio de license_path a license_photo_path
         'vehicle_photo_path',
     ];
 

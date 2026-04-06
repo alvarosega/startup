@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Driver\Auth;
 
 use App\DTOs\Driver\Auth\LoginDriverData;
@@ -15,16 +17,32 @@ class LoginDriverAction
             'password' => $data->password,
         ];
 
-        // 1. Autenticación estricta en el guard 'driver'
-        if (! Auth::guard('driver')->attempt($credentials)) {
+        // RECTIFICACIÓN: Se añade el segundo parámetro para la cookie 'remember'
+        if (! Auth::guard('driver')->attempt($credentials, $data->remember)) {
             throw ValidationException::withMessages([
-                'phone' => 'Las credenciales proporcionadas no coinciden con nuestros registros o la cuenta no existe.',
+                'phone' => 'Las credenciales no coinciden con nuestros registros.',
             ]);
         }
 
-        // El registro de último login (last_login_at) se puede disparar desde un Listener de Eventos
-        // o si prefieres, actualízalo aquí directamente:
         $driver = Auth::guard('driver')->user();
-        $driver->update(['last_login_at' => now()]);
+
+        if ($driver->status === 'pending') {
+            Auth::guard('driver')->logout();
+            throw ValidationException::withMessages([
+                'phone' => 'Tu cuenta está en revisión. Te notificaremos cuando sea aprobada.',
+            ]);
+        }
+
+        if ($driver->status === 'suspended') {
+            Auth::guard('driver')->logout();
+            throw ValidationException::withMessages([
+                'phone' => 'Tu cuenta ha sido suspendida.',
+            ]);
+        }
+
+        $driver->update([
+            'last_login_at' => now(),
+            'is_online'     => true
+        ]);
     }
 }
