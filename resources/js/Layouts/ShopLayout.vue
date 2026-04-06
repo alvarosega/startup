@@ -46,7 +46,7 @@ const userInitials = computed(() => {
 const navigation = [
     { name: 'Inicio', icon: Home, route: 'customer.index' },
     { name: 'Promociones', icon: Tag, route: 'customer.index' },
-    { name: 'Pedidos', icon: Receipt, route: 'customer.orders.history' },
+    { name: 'Pedidos', icon: Receipt, route: 'customer.orders.index' },
     { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses' },
     { name: 'Seguridad', icon: ShieldCheck, route: 'customer.profile.security' },
 ];
@@ -245,7 +245,7 @@ const toggleSearch = () => {
         </main>
 
         <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[76px] glass-titanium border-t border-border z-[100] flex justify-around items-center px-4 pb-safe shadow-2xl">
-            <Link :href="route('customer.orders.history')" 
+            <Link :href="route('customer.orders.index')" 
                 class="flex flex-col items-center gap-1 transition-all"
                 :class="route().current('customer.orders.*') ? 'text-primary' : 'text-black dark:text-neutral-400'">
                 <PackageCheck :size="24" :stroke-width="route().current('customer.orders.*') ? 2.5 : 2" />

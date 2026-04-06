@@ -2,56 +2,27 @@
 import { Head, Link } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import { 
-    Package, Calendar, ChevronRight, SearchX, FileText,
-    Clock, Receipt, CheckCircle2, Truck, XCircle, AlertTriangle, CreditCard 
-} from 'lucide-vue-next';
+    Package, Calendar, ChevronRight, FileText,
+    Clock, Receipt, CheckCircle2, Truck, XCircle, AlertTriangle, CreditCard, Store 
+} from 'lucide-vue-next'; // <-- RECTIFICACIÓN: 'Store' importado aquí
 
 defineProps({
     orders: Object
 });
 
-// RECTIFICACIÓN: Claves alineadas con la Migración del Turno 77
+// RECTIFICACIÓN: Mapeo absoluto de los 11 estados de la base de datos
 const statusMap = {
-    pending: { 
-        label: 'Esperando Pago', 
-        classes: 'bg-amber-500/10 text-amber-500 border-amber-500/30 animate-pulse', 
-        icon: CreditCard 
-    },
-    payment_pending: { 
-        label: 'Validando Pago', 
-        classes: 'bg-blue-400/10 text-blue-400 border-blue-400/30', 
-        icon: Receipt 
-    },
-    confirmed: { 
-        label: 'Confirmado', 
-        classes: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30', 
-        icon: CheckCircle2 
-    },
-    preparing: { 
-        label: 'Preparando', 
-        classes: 'bg-cyan-400/10 text-cyan-400 border-cyan-400/30', 
-        icon: Package 
-    },
-    ready_for_dispatch: { 
-        label: 'Listo p/ Despacho', 
-        classes: 'bg-indigo-400/10 text-indigo-400 border-indigo-400/30', 
-        icon: Package 
-    },
-    dispatched: { 
-        label: 'En Camino', 
-        classes: 'bg-purple-500/10 text-purple-500 border-purple-500/30', 
-        icon: Truck 
-    },
-    delivered: { 
-        label: 'Entregado', 
-        classes: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30', 
-        icon: CheckCircle2 
-    },
-    cancelled: { 
-        label: 'Cancelado', 
-        classes: 'bg-f1-red/10 text-f1-red border-f1-red/30 opacity-70', 
-        icon: XCircle 
-    },
+    pending: { label: 'Esperando Pago', classes: 'bg-amber-500/10 text-amber-500 border-amber-500/30 animate-pulse', icon: CreditCard },
+    payment_pending: { label: 'Validando Pago', classes: 'bg-blue-400/10 text-blue-400 border-blue-400/30', icon: Receipt },
+    rejected: { label: 'Pago Rechazado', classes: 'bg-red-500/10 text-red-500 border-red-500/30', icon: AlertTriangle },
+    confirmed: { label: 'Confirmado', classes: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30', icon: CheckCircle2 },
+    preparing: { label: 'Preparando', classes: 'bg-cyan-400/10 text-cyan-400 border-cyan-400/30', icon: Package },
+    ready_for_dispatch: { label: 'Listo p/ Despacho', classes: 'bg-indigo-400/10 text-indigo-400 border-indigo-400/30', icon: Package },
+    dispatched: { label: 'En Camino', classes: 'bg-purple-500/10 text-purple-500 border-purple-500/30', icon: Truck },
+    arrived: { label: 'En Destino', classes: 'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/30 animate-pulse', icon: Truck },
+    delivered: { label: 'Entregado', classes: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30', icon: CheckCircle2 },
+    cancelled: { label: 'Cancelado', classes: 'bg-f1-red/10 text-f1-red border-f1-red/30 opacity-70', icon: XCircle },
+    returned: { label: 'Devuelto', classes: 'bg-orange-500/10 text-orange-500 border-orange-500/30 opacity-70', icon: XCircle },
 };
 
 const formatDate = (dateString) => {
@@ -85,7 +56,7 @@ const formatDate = (dateString) => {
             <div v-if="orders.data && orders.data.length > 0" class="space-y-4">
                 <Link v-for="order in orders.data" :key="order.id" :href="route('customer.orders.show', order.id)"
                       class="block group relative bg-surface/40 backdrop-blur-xl rounded-[24px] border transition-all duration-300 overflow-hidden hover:shadow-xl active:scale-[0.98]"
-                      :class="['pending', 'arrived'].includes(order.status) 
+                      :class="['pending', 'arrived', 'rejected'].includes(order.status) 
                           ? 'border-primary/50 bg-primary/5' 
                           : 'border-white/10 hover:border-white/20'">
                     
@@ -122,7 +93,7 @@ const formatDate = (dateString) => {
                             </div>
                             
                             <div class="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300"
-                                 :class="['pending', 'arrived'].includes(order.status) 
+                                 :class="['pending', 'arrived', 'rejected'].includes(order.status) 
                                      ? 'bg-primary text-white shadow-lg shadow-primary/30' 
                                      : 'bg-white/5 text-foreground/30 group-hover:bg-primary group-hover:text-white border border-white/5 group-hover:border-primary'">
                                 <ChevronRight :size="24" stroke-width="2.5" />

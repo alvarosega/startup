@@ -103,13 +103,21 @@ Route::middleware(['auth:customer'])->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
-    Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/', [OrderController::class, 'index'])->name('history');
-        Route::get('/{id}', [OrderController::class, 'show'])->name('show');
-        Route::post('/{id}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
-        Route::get('/{id}/track', [OrderController::class, 'track'])->name('track');
-        Route::get('/{id}/telemetry', [OrderController::class, 'getTelemetry'])->name('telemetry');
-    });
+/*
+|--------------------------------------------------------------------------
+| Silo de Pedidos del Cliente (Bajo el prefijo 'customer.')
+|--------------------------------------------------------------------------
+*/
+Route::prefix('orders')->name('orders.')->group(function () {
+    // RECTIFICACIÓN: El nombre debe ser 'index' para que route('customer.orders.index') funcione
+    Route::get('/', [OrderController::class, 'index'])->name('index'); 
+    
+    // El 'show' actúa como el Enrutador de Estados (FSM)
+    Route::get('/{id}', [OrderController::class, 'show'])->name('show');
+    
+    // Subida de comprobante
+    Route::post('/{id}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
+});
 
     //Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 });

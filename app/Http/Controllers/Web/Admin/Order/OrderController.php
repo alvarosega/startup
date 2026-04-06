@@ -13,16 +13,11 @@ use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
 use Exception;
 
-// Acciones de Lectura (Data Loaders)
 use App\Actions\Admin\Order\{
     GetPaymentReviewDataAction,
     GetPreparationDataAction,
     GetDispatchDataAction,
-    GetReadOnlyOrderDataAction
-};
-
-// Acciones de Mutación (State Changers)
-use App\Actions\Admin\Order\{
+    GetReadOnlyOrderDataAction,
     GetAdminOrdersAction, 
     ApproveOrderPaymentAction, 
     RejectOrderPaymentAction, 
@@ -33,14 +28,9 @@ class OrderController extends Controller
 {
     public function index(GetAdminOrdersAction $action): Response
     {
-        return Inertia::render('Admin/Orders/Index', [
-            'orders' => $action->execute()
-        ]);
+        return Inertia::render('Admin/Orders/Index', ['orders' => $action->execute()]);
     }
 
-    /**
-     * ENRUTADOR FSM: Delega la vista y la carga de datos según el estado estricto de la DB.
-     */
     public function show(string $id): Response
     {
         $order = Order::findOrFail($id, ['id', 'status']);
@@ -81,12 +71,14 @@ class OrderController extends Controller
             $order = Order::findOrFail($id);
             if ($order->status !== 'preparing') throw new Exception("La orden debe estar en preparación para marcarse como lista.");
 
+            // RECTIFICACIÓN CRÍTICA: Generación dual de OTP (Driver y Customer)
             $order->update([
                 'status' => 'ready_for_dispatch',
-                'pickup_otp' => str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT)
+                'pickup_otp'   => str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT),
+                'delivery_otp' => str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT)
             ]);
 
-            return back()->with('success', 'Orden empaquetada. PIN de recogida generado.');
+            return back()->with('success', 'Orden empaquetada. PINs de recogida y entrega generados.');
         } catch (Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
