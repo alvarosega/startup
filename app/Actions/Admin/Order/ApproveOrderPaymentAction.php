@@ -17,7 +17,7 @@ class ApproveOrderPaymentAction
             // Precargar items para evitar N+1 al descontar inventario
             $order = Order::with('items')->where('id', $dto->orderId)->lockForUpdate()->firstOrFail();
 
-            if ($order->status !== 'under_review') {
+            if ($order->status !== 'payment_pending') {
                 throw new Exception('El pago de esta orden no está en revisión.');
             }
 
@@ -31,7 +31,7 @@ class ApproveOrderPaymentAction
                 'status' => 'preparing',
                 'bank_reference' => $dto->bankReference,
                 'reviewed_at' => now(),
-                'reservation_expires_at' => null // Detenemos el reloj
+                'reservation_expires_at' => null 
             ]);
         });
     }

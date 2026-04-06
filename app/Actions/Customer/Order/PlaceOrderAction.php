@@ -8,6 +8,7 @@ use App\DTOs\Customer\Order\CheckoutCartDTO;
 use App\Models\{Order, OrderItem, Cart, Branch, Customer};
 use App\Services\Order\OrderFinancialService;
 use App\Services\Finance\PriceResolverService;
+use App\Services\Inventory\InventoryOrchestrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Exception;
@@ -16,7 +17,8 @@ class PlaceOrderAction
 {
     public function __construct(
         private PriceResolverService $priceResolver,
-        private OrderFinancialService $financialService // Inyección para evitar discrepancias
+        private OrderFinancialService $financialService,
+        private InventoryOrchestrator $inventoryOrchestrator // RECTIFICACIÓN: Inyección de Cerebro Logístico
     ) {}
 
     public function execute(CheckoutCartDTO $dto): Order
@@ -24,6 +26,7 @@ class PlaceOrderAction
         return DB::transaction(function () use ($dto) {
             $customer = Customer::findOrFail($dto->customerId);
             $branch = Branch::findOrFail($dto->branchId);
+            
             $cart = Cart::where('customer_id', $dto->customerId)
                         ->where('branch_id', $dto->branchId)
                         ->with('items.sku.product')
@@ -37,17 +40,19 @@ class PlaceOrderAction
             $itemsSubtotal = 0;
             $orderItemsToInsert = [];
 
-            // 1. Procesamiento de Inventario
+            // 1. Procesamiento de Inventario y Precios
             foreach ($cart->items as $cartItem) {
                 $sku = $cartItem->sku;
-                $updated = DB::update(
-                    "UPDATE inventory_balances SET total_physical = total_physical - ?, total_reserved = total_reserved + ? 
-                     WHERE sku_id = ? AND branch_id = ? AND (total_physical - total_reserved) >= ?",
-                    [$cartItem->quantity, $cartItem->quantity, $sku->id, $dto->branchId, $cartItem->quantity]
-                );
-
-                if ($updated === 0) {
-                    throw new Exception("Stock insuficiente para '{$sku->name}'.");
+                
+                // RECTIFICACIÓN: Delegamos la reserva al orquestador para mantener sincronía entre Lotes (FEFO) y Balances
+                try {
+                    $this->inventoryOrchestrator->reserve(
+                        $sku->id, 
+                        $dto->branchId, 
+                        (int) $cartItem->quantity
+                    );
+                } catch (Exception $e) {
+                    throw new Exception("Stock insuficiente para '{$sku->name}' en los almacenes.");
                 }
 
                 $priceData = $this->priceResolver->resolveWinningPrice($sku, $cartItem->quantity, $now);
@@ -55,13 +60,13 @@ class PlaceOrderAction
                 $itemsSubtotal += $lineSubtotal;
 
                 $orderItemsToInsert[] = new OrderItem([
-                    'sku_id' => $sku->id,
-                    'product_name' => $sku->product->name ?? 'Producto',
-                    'sku_name' => $sku->name,
+                    'sku_id'         => $sku->id,
+                    'product_name'   => $sku->product->name ?? 'Producto',
+                    'sku_name'       => $sku->name,
                     'image_snapshot' => $sku->image_path,
-                    'quantity' => $cartItem->quantity,
-                    'unit_price' => $priceData->final_price,
-                    'subtotal' => $lineSubtotal
+                    'quantity'       => $cartItem->quantity,
+                    'unit_price'     => $priceData->final_price,
+                    'subtotal'       => $lineSubtotal
                 ]);
             }
 
@@ -74,22 +79,24 @@ class PlaceOrderAction
 
             // 3. Persistencia de la Orden
             $order = Order::create([
-                'code' => 'ORD-' . strtoupper(Str::random(8)),
-                'customer_id' => $dto->customerId,
-                'branch_id' => $dto->branchId,
-                'delivery_type' => $dto->deliveryType,
-                'delivery_data' => [
-                    'latitude' => $customer->latitude,
-                    'longitude' => $customer->longitude,
-                    'distance_km' => $financials['distance_km']
+                'code'                   => 'ORD-' . strtoupper(Str::random(8)),
+                'customer_id'            => $dto->customerId,
+                'branch_id'              => $dto->branchId,
+                'delivery_type'          => $dto->deliveryType,
+                'delivery_data'          => [
+                    'latitude'         => $customer->latitude,
+                    'longitude'        => $customer->longitude,
+                    'distance_km'      => $financials['distance_km'],
+                    // RECTIFICACIÓN: Snapshot para evitar vacíos en la vista
+                    'address_snapshot' => "Lat: {$customer->latitude}, Lng: {$customer->longitude}" 
                 ],
-                'status' => 'pending',
+                'status'                 => 'pending',
                 'reservation_expires_at' => $now->copy()->addMinutes(10),
-                'items_subtotal' => $itemsSubtotal,
-                'delivery_fee' => $financials['delivery_fee'],
-                'service_fee' => $financials['service_fee'],
-                'total_amount' => $financials['total_amount'],
-                'payment_method' => $dto->paymentMethod,
+                'items_subtotal'         => $itemsSubtotal,
+                'delivery_fee'           => $financials['delivery_fee'],
+                'service_fee'            => $financials['service_fee'],
+                'total_amount'           => $financials['total_amount'],
+                'payment_method'         => $dto->paymentMethod,
             ]);
 
             $order->items()->saveMany($orderItemsToInsert);

@@ -1,55 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { useForm, router, Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue'; 
 import { 
-    Search, Eye, CheckCircle, Clock, Truck, 
-    Package, Store, AlertTriangle, FileImage, User
+    Search, CheckCircle, Clock, Truck, 
+    Store, User, ArrowRight, Package, Eye
 } from 'lucide-vue-next';
 
 const props = defineProps({
     orders: Object
 });
-
-// --- ESTADO DEL MODAL DE REVISIÓN ---
-const isModalOpen = ref(false);
-const selectedOrder = ref(null);
-const actionType = ref('approve'); 
-
-const approveForm = useForm({ bank_reference: '' });
-const rejectForm = useForm({ rejection_reason: '' });
-
-const openReviewModal = (order) => {
-    selectedOrder.value = order;
-    approveForm.bank_reference = '';
-    rejectForm.rejection_reason = '';
-    actionType.value = 'approve';
-    isModalOpen.value = true;
-};
-
-const closeModal = () => {
-    isModalOpen.value = false;
-    selectedOrder.value = null;
-    approveForm.reset();
-    rejectForm.reset();
-};
-
-const currentProofUrl = computed(() => {
-    if (!selectedOrder.value?.proof_of_payment) return null;
-    return `/storage/${selectedOrder.value.proof_of_payment}`;
-});
-
-const submitApprove = () => {
-    approveForm.post(route('admin.orders.approve-payment', selectedOrder.value.id), {
-        onSuccess: () => closeModal()
-    });
-};
-
-const submitReject = () => {
-    rejectForm.post(route('admin.orders.reject-payment', selectedOrder.value.id), {
-        onSuccess: () => closeModal()
-    });
-};
 
 const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-BO', { 
@@ -112,10 +71,13 @@ const formatDate = (dateString) => {
                             <td class="px-6 py-5">
                                 <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black border-2 uppercase tracking-tighter"
                                      :class="{
-                                         'bg-yellow-500/10 text-yellow-600 border-yellow-500/20': order.status === 'pending_payment',
-                                         'bg-primary/10 text-primary border-primary/20 animate-pulse': order.status === 'under_review',
+                                         'bg-amber-500/10 text-amber-600 border-amber-500/20': order.status === 'pending',
+                                         'bg-primary/10 text-primary border-primary/20 animate-pulse': order.status === 'payment_pending',
                                          'bg-blue-500/10 text-blue-500 border-blue-500/20': order.status === 'preparing',
-                                         'bg-purple-500/10 text-purple-600 border-purple-500/20': order.status === 'dispatched'
+                                         'bg-indigo-500/10 text-indigo-500 border-indigo-500/20': order.status === 'ready_for_dispatch',
+                                         'bg-purple-500/10 text-purple-600 border-purple-500/20': order.status === 'dispatched',
+                                         'bg-emerald-500/10 text-emerald-600 border-emerald-500/20': ['delivered', 'completed'].includes(order.status),
+                                         'bg-f1-red/10 text-f1-red border-f1-red/20': ['cancelled', 'expired', 'returned'].includes(order.status)
                                      }">
                                     <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
                                     {{ order.status.replace('_', ' ') }}
@@ -134,74 +96,34 @@ const formatDate = (dateString) => {
                                 </div>
                             </td>
 
-                            <td class="px-6 py-5 text-right">
-                                <button v-if="order.status === 'under_review'" 
-                                    @click="openReviewModal(order)"
-                                    class="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center gap-2 ml-auto">
+                            <td class="px-6 py-5 text-right flex justify-end">
+                                <Link v-if="order.status === 'payment_pending'" 
+                                      :href="route('admin.orders.show', order.id)"
+                                      class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95">
                                     <CheckCircle :size="14"/> Auditar Pago
-                                </button>
-                                
-                                <div v-else-if="order.status === 'preparing' && order.driver_id" 
-                                     class="inline-flex flex-col items-center bg-gray-950 text-white p-3 rounded-2xl border-2 border-primary shadow-2xl">
-                                    <p class="text-[8px] font-black text-primary uppercase tracking-[0.2em] mb-1">PIN DE RECOGIDA</p>
-                                    <p class="text-2xl font-mono font-black tracking-[0.3em] leading-none text-white">{{ order.pickup_otp }}</p>
-                                </div>
+                                </Link>
 
-                                <div v-else-if="order.status === 'dispatched'" class="text-[10px] font-black text-purple-600 uppercase italic">
-                                    En tránsito...
-                                </div>
+                                <Link v-else-if="order.status === 'preparing'" 
+                                      :href="route('admin.orders.show', order.id)"
+                                      class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95">
+                                    <Package :size="14"/> Preparar Pack
+                                </Link>
 
-                                <span v-else class="text-[10px] font-bold text-muted-foreground uppercase opacity-40">Sin acciones</span>
+                                <Link v-else-if="order.status === 'ready_for_dispatch'" 
+                                      :href="route('admin.orders.show', order.id)"
+                                      class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                                    <ArrowRight :size="14"/> Ver Manifiesto
+                                </Link>
+
+                                <Link v-else
+                                      :href="route('admin.orders.show', order.id)"
+                                      class="inline-flex items-center gap-2 bg-muted hover:bg-muted-foreground/10 text-muted-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border border-border">
+                                    <Eye :size="14"/> Ver Detalles
+                                </Link>
                             </td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <div v-if="isModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md">
-            <div class="bg-card border-2 border-border w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[80vh]">
-                <div class="w-full md:w-1/2 bg-muted p-8 flex items-center justify-center relative">
-                    <img v-if="currentProofUrl" :src="currentProofUrl" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain border-4 border-white">
-                </div>
-
-                <div class="w-full md:w-1/2 p-10 flex flex-col justify-between">
-                    <div>
-                        <h2 class="text-3xl font-black uppercase italic leading-none mb-6">Validación <span class="text-primary">Financiera</span></h2>
-                        
-                        <div class="grid grid-cols-2 gap-4 mb-8">
-                            <div class="bg-muted p-4 rounded-2xl">
-                                <p class="text-[10px] font-black text-muted-foreground uppercase mb-1">Monto Esperado</p>
-                                <p class="text-xl font-black">Bs {{ parseFloat(selectedOrder?.total_amount).toFixed(2) }}</p>
-                            </div>
-                            <div class="bg-muted p-4 rounded-2xl">
-                                <p class="text-[10px] font-black text-muted-foreground uppercase mb-1">Código Orden</p>
-                                <p class="text-xl font-black text-primary">#{{ selectedOrder?.code }}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex gap-2 p-1 bg-muted rounded-2xl mb-6">
-                            <button @click="actionType = 'approve'" :class="['flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all', actionType === 'approve' ? 'bg-background shadow-xl text-foreground' : 'text-muted-foreground']">Aprobar</button>
-                            <button @click="actionType = 'reject'" :class="['flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all', actionType === 'reject' ? 'bg-background shadow-xl text-destructive' : 'text-muted-foreground']">Rechazar</button>
-                        </div>
-
-                        <div v-if="actionType === 'approve'" class="space-y-4 animate-in fade-in slide-in-from-right-4">
-                            <label class="text-[10px] font-black uppercase text-muted-foreground ml-2">Referencia Bancaria / ID Transacción</label>
-                            <input v-model="approveForm.bank_reference" type="text" class="w-full bg-muted border-2 border-border rounded-2xl px-6 py-4 text-sm font-black focus:border-primary outline-none">
-                        </div>
-
-                        <div v-if="actionType === 'reject'" class="space-y-4 animate-in fade-in slide-in-from-left-4">
-                            <label class="text-[10px] font-black uppercase text-muted-foreground ml-2">Motivo del rechazo (Cliente verá esto)</label>
-                            <textarea v-model="rejectForm.rejection_reason" class="w-full bg-muted border-2 border-border rounded-2xl px-6 py-4 text-sm font-bold focus:border-destructive outline-none h-32"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4">
-                        <button @click="closeModal" class="flex-1 py-4 font-black uppercase text-xs text-muted-foreground hover:text-foreground">Cerrar</button>
-                        <button v-if="actionType === 'approve'" @click="submitApprove" :disabled="approveForm.processing" class="flex-[2] bg-primary text-background font-black uppercase text-xs rounded-2xl shadow-xl shadow-primary/20">Confirmar Depósito</button>
-                        <button v-else @click="submitReject" :disabled="rejectForm.processing" class="flex-[2] bg-destructive text-white font-black uppercase text-xs rounded-2xl shadow-xl shadow-destructive/20">Rechazar Pago</button>
-                    </div>
-                </div>
             </div>
         </div>
     </AdminLayout>

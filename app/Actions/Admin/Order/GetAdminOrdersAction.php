@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\Admin\Order;
 
 use App\Models\Order;
@@ -12,20 +13,17 @@ class GetAdminOrdersAction
             'customer:id,phone', 
             'customer.profile:customer_id,first_name,last_name',
             'branch:id,name',
-            // CRÍTICO: Cargar Driver y su Perfil para evitar el error RelationNotFound
-            'driver' => function($query) {
-                $query->select('id');
-            },
-            'driver.profile' => function($query) {
-                $query->select('driver_id', 'first_name', 'last_name');
-            }
+            'driver' => fn($q) => $q->select('id'),
+            'driver.profile' => fn($q) => $q->select('driver_id', 'first_name', 'last_name')
         ])
-            ->whereNotIn('status', ['expired', 'cancelled', 'completed']) 
+            // RECTIFICACIÓN: Excluimos estados finales según la migración
+            ->whereNotIn('status', ['expired', 'cancelled', 'delivered', 'returned']) 
             ->orderByRaw("
                 CASE 
-                    WHEN status = 'under_review' THEN 1
+                    WHEN status = 'payment_pending' THEN 1 -- RECTIFICADO
                     WHEN status = 'preparing' THEN 2
-                    ELSE 3
+                    WHEN status = 'confirmed' THEN 3
+                    ELSE 4
                 END
             ")
             ->orderBy('created_at', 'asc') 

@@ -1,107 +1,120 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Inventory;
 
 use App\Models\InventoryLot;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class InventoryOrchestrator
 {
     /**
-     * Reserva stock de lotes específicos usando la lógica FEFO.
-     * Bloquea las filas para evitar colisiones de stock.
+     * Reserva stock de lotes específicos (FEFO) y actualiza el balance global.
      */
     public function reserve(string $skuId, string $branchId, int $quantity): void
     {
-        // 1. Recuperar lotes con stock disponible, ordenados por vencimiento (FEFO)
-        $lots = InventoryLot::where('sku_id', $skuId)
-            ->where('branch_id', $branchId)
-            ->where('is_safety_stock', false) // Protegemos el stock de seguridad
-            ->whereRaw('(quantity - reserved_quantity) > 0')
-            ->orderBy('expiration_date', 'asc') 
-            ->lockForUpdate() // BLOQUEO CRÍTICO: Nadie toca estos lotes hasta que termine la transacción
-            ->get();
+        DB::transaction(function () use ($skuId, $branchId, $quantity) {
+            // 1. Bloqueo y obtención de lotes (FEFO)
+            $lots = InventoryLot::where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->where('is_safety_stock', false)
+                ->whereRaw('(quantity - reserved_quantity) > 0')
+                ->orderBy('expiration_date', 'asc') 
+                ->lockForUpdate()
+                ->get(); // RECTIFICACIÓN: Flecha corregida.
 
-        $availableTotal = $lots->sum(fn($l) => $l->quantity - $l->reserved_quantity);
+            $availableTotal = $lots->sum(fn($l) => $l->quantity - $l->reserved_quantity);
 
-        if ($availableTotal < $quantity) {
-            throw new Exception("Stock insuficiente para completar la operación solicitada.");
-        }
+            if ($availableTotal < $quantity) {
+                throw new Exception("Stock insuficiente en lotes para SKU: {$skuId}");
+            }
 
-        $remainingToReserve = $quantity;
+            // 2. Distribución en lotes
+            $remaining = $quantity;
+            foreach ($lots as $lot) {
+                if ($remaining <= 0) break;
+                $canTake = min($remaining, ($lot->quantity - $lot->reserved_quantity));
+                $lot->increment('reserved_quantity', $canTake);
+                $remaining -= $canTake;
+            }
 
-        // 2. Distribuir la reserva entre los lotes disponibles
-        foreach ($lots as $lot) {
-            if ($remainingToReserve <= 0) break;
-
-            $availableInLot = $lot->quantity - $lot->reserved_quantity;
-            $canTakeFromThisLot = min($remainingToReserve, $availableInLot);
-
-            $lot->increment('reserved_quantity', $canTakeFromThisLot);
-            $remainingToReserve -= $canTakeFromThisLot;
-        }
+            // 3. Sincronía con Balance Global
+            DB::table('inventory_balances')
+                ->where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->update([
+                    'total_physical' => DB::raw("total_physical - {$quantity}"),
+                    'total_reserved' => DB::raw("total_reserved + {$quantity}"),
+                    'updated_at' => now()
+                ]);
+        });
     }
 
+    /**
+     * Libera una reserva (caso de expiración o rechazo) devolviendo el stock al balance.
+     */
     public function release(string $skuId, string $branchId, int $quantity): void
     {
-        // 1. Buscamos lotes que tengan reservas activas para este SKU
-        // Usamos LIFO (Last In, First Out) para liberar, o simplemente el orden de reserva
-        $lots = InventoryLot::where('sku_id', $skuId)
-            ->where('branch_id', $branchId)
-            ->where('reserved_quantity', '>', 0)
-            ->orderBy('created_at', 'desc') 
-            ->lockForUpdate() // Bloqueo de fila para evitar colisiones
-            ->get();
+        DB::transaction(function () use ($skuId, $branchId, $quantity) {
+            $lots = InventoryLot::where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->where('reserved_quantity', '>', 0)
+                ->orderBy('created_at', 'desc') 
+                ->lockForUpdate()
+                ->get();
 
-        $remainingToRelease = $quantity;
+            $remaining = $quantity;
+            foreach ($lots as $lot) {
+                if ($remaining <= 0) break;
+                $canRelease = min($remaining, $lot->reserved_quantity);
+                $lot->decrement('reserved_quantity', $canRelease);
+                $remaining -= $canRelease;
+            }
 
-        foreach ($lots as $lot) {
-            if ($remainingToRelease <= 0) break;
-
-            // Calculamos cuánto podemos liberar de este lote específico
-            $canReleaseFromThisLot = min($remainingToRelease, $lot->reserved_quantity);
-
-            // DECREMENTAMOS la reserva, NO la cantidad total.
-            // El stock vuelve a estar 'disponible' automáticamente al bajar la reserva.
-            $lot->decrement('reserved_quantity', $canReleaseFromThisLot);
-            
-            $remainingToRelease -= $canReleaseFromThisLot;
-        }
-
-        if ($remainingToRelease > 0) {
-            // Esto no debería pasar en un sistema íntegro, pero lo logueamos por seguridad
-            Log::error("Inconsistencia: Se intentó liberar {$quantity} unidades de SKU {$skuId}, pero solo se encontraron reservas para " . ($quantity - $remainingToRelease));
-        }
+            // El stock vuelve de 'reservado' a 'físico disponible'
+            DB::table('inventory_balances')
+                ->where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->update([
+                    'total_physical' => DB::raw("total_physical + {$quantity}"),
+                    'total_reserved' => DB::raw("total_reserved - {$quantity}"),
+                    'updated_at' => now()
+                ]);
+        });
     }
 
+    /**
+     * Confirma la venta: el stock reservado desaparece definitivamente.
+     */
     public function commitReservation(string $skuId, string $branchId, int $quantity): void
     {
-        // Importante usar el modelo correcto o asegurarte de que InventoryLot esté importado arriba
-        $lots = \App\Models\InventoryLot::where('sku_id', $skuId)
-            ->where('branch_id', $branchId)
-            ->where('reserved_quantity', '>', 0)
-            ->orderBy('created_at', 'asc')
-            ->lockForUpdate()
-            ->get();
+        DB::transaction(function () use ($skuId, $branchId, $quantity) {
+            $lots = InventoryLot::where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->where('reserved_quantity', '>', 0)
+                ->orderBy('created_at', 'asc')
+                ->lockForUpdate()
+                ->get();
 
-        $qtyToDeduct = $quantity;
+            $remaining = $quantity;
+            foreach ($lots as $lot) {
+                if ($remaining <= 0) break;
+                $amount = min($lot->reserved_quantity, $remaining);
+                
+                // Reducción física del lote
+                $lot->decrement('quantity', $amount);
+                $lot->decrement('reserved_quantity', $amount);
+                $remaining -= $amount;
+            }
 
-        foreach ($lots as $lot) {
-            if ($qtyToDeduct <= 0) break;
-
-            $amount = min($lot->reserved_quantity, $qtyToDeduct);
-
-            // Al confirmar la venta, el stock físico ('quantity') desaparece, 
-            // y también borramos la "reserva" ('reserved_quantity') porque ya no aplica.
-            $lot->decrement('quantity', $amount);
-            $lot->decrement('reserved_quantity', $amount);
-
-            $qtyToDeduct -= $amount;
-        }
-
-        if ($qtyToDeduct > 0) {
-            \Illuminate\Support\Facades\Log::error("Error crítico de inventario al confirmar venta. SKU: {$skuId}");
-        }
+            // En el balance, solo bajamos el reservado (el físico ya se bajó en 'reserve')
+            DB::table('inventory_balances')
+                ->where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->decrement('total_reserved', $quantity);
+        });
     }
 }

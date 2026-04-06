@@ -14,7 +14,7 @@ class RejectOrderPaymentAction
         DB::transaction(function () use ($dto) {
             $order = Order::where('id', $dto->orderId)->lockForUpdate()->firstOrFail();
 
-            if ($order->status !== 'under_review') {
+            if ($order->status !== 'payment_pending') { // RECTIFICADO
                 throw new Exception('El pago de esta orden no está en revisión.');
             }
 
@@ -25,10 +25,10 @@ class RejectOrderPaymentAction
 
             // 2. RETORNO DE ESTADO AL CLIENTE
             $order->update([
-                'status' => 'pending_payment',
+                'status' => 'pending', // RECTIFICADO: Vuelve al estado inicial
                 'rejection_reason' => $dto->rejectionReason,
                 'proof_of_payment' => null, 
-                'reservation_expires_at' => now()->addMinutes(10) // 10 min extra
+                'reservation_expires_at' => now()->addMinutes(10) 
             ]);
         });
     }

@@ -78,10 +78,13 @@ Route::middleware(['auth:super_admin'])->group(function () {
         
         Route::get('/logistics/monitor', [MonitorController::class, 'index'])->name('logistics.monitor');
 
+        // routes/web.php (Dentro del grupo de orders)
         Route::prefix('orders')->name('orders.')->group(function () {
             Route::get('/', [OrderController::class, 'index'])->name('index'); 
+            Route::get('/{id}', [OrderController::class, 'show'])->name('show'); // NUEVA: Detalle/Picking
             Route::post('/{id}/approve-payment', [OrderController::class, 'approvePayment'])->name('approve-payment');
             Route::post('/{id}/reject-payment', [OrderController::class, 'rejectPayment'])->name('reject-payment');
+            Route::post('/{id}/ready', [OrderController::class, 'markAsReady'])->name('mark-as-ready'); // NUEVA: Fin de picking
             Route::post('/{id}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
         });
 
