@@ -107,21 +107,21 @@ Route::middleware(['auth:customer'])->group(function () {
     Route::post('/checkout', [CheckoutOrchestratorController::class, 'store'])
         ->name('checkout.store')
         ->middleware('idempotency');
-/*
-|--------------------------------------------------------------------------
-| Silo de Pedidos del Cliente (Bajo el prefijo 'customer.')
-|--------------------------------------------------------------------------
-*/
-Route::prefix('orders')->name('orders.')->group(function () {
-    // RECTIFICACIÓN: El nombre debe ser 'index' para que route('customer.orders.index') funcione
-    Route::get('/', [OrderController::class, 'index'])->name('index'); 
-    
-    // El 'show' actúa como el Enrutador de Estados (FSM)
-    Route::get('/{id}', [OrderController::class, 'show'])->name('show');
-    
-    // Subida de comprobante
-    Route::post('/{id}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
-});
+    /*
+    |--------------------------------------------------------------------------
+    | Silo de Pedidos del Cliente (Unificado a 'order.' singular)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('order')->name('order.')->group(function () {
+        // La ruta resultante es: customer.order.index
+        Route::get('/', [OrderController::class, 'index'])->name('index'); 
+        
+        // La ruta resultante es: customer.order.show
+        Route::get('/{id}', [OrderController::class, 'show'])->name('show');
+        
+        // La ruta resultante es: customer.order.upload-proof
+        Route::post('/{id}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
+    });
 
     //Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 });

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Customer\Orders;
+namespace App\Actions\Customer\Order;
 
-use App\DTOs\Customer\Orders\TransitionToPaymentPendingDTO;
+use App\DTOs\Customer\Order\TransitionToPaymentPendingDTO;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -40,7 +40,7 @@ class TransitionToPaymentPendingAction
 
             // 4. Estrategia de Almacenamiento (Disco Privado / Estructura por fechas)
             $date = now();
-            $folder = sprintf('orders/%s/%s/%s', $date->format('Y'), $date->format('m'), $date->format('d'));
+            $folder = sprintf('order/%s/%s/%s', $date->format('Y'), $date->format('m'), $date->format('d'));
             $extension = $dto->proofFile->getClientOriginalExtension();
             $filename = sprintf('%s.%s', $order->id, $extension);
 

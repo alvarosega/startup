@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\DTOs\Customer\Order;
+namespace App\DTOs\Customer\Checkout;
 
 use Illuminate\Http\Request;
 

@@ -36,7 +36,7 @@ const form = useForm({ proof: null });
 const submitProof = () => {
     if (!form.proof) return;
     form.clearErrors();
-    form.post(route('customer.orders.upload-proof', props.order.id), {
+    form.post(route('customer.order.upload-proof', props.order.id), {
         onSuccess: () => form.reset(),
     });
 };
@@ -47,7 +47,7 @@ const submitProof = () => {
         <Head :title="'Pago Pendiente #' + order.code" />
         
         <div class="max-w-2xl mx-auto p-6 min-h-[80vh]">
-            <Link :href="route('customer.orders.index')" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground mb-8">
+            <Link :href="route('customer.order.index')" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground mb-8">
                 <ArrowLeft :size="14" /> Volver al historial
             </Link>
 

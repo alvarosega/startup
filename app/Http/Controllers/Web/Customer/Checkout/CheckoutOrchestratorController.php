@@ -43,7 +43,7 @@ class CheckoutOrchestratorController extends Controller
         $pickupLogistics = $this->financialService->calculate(app('App\Models\Branch')->find($branchId), $customer, $subtotal, 'pickup');
         $deliveryLogistics = $this->financialService->calculate(app('App\Models\Branch')->find($branchId), $customer, $subtotal, 'delivery');
 
-        // 2. Persistencia del Contrato (Snapshot) - Destruye cualquier snapshot previo del usuario
+        // RECTIFICACIÓN: Importación limpia y snapshot de ubicación incluido por integridad financiera
         DB::transaction(function () use ($customer, $branchId, $cartData, $pickupLogistics, $deliveryLogistics) {
             CheckoutSnapshot::where('customer_id', $customer->id)->where('branch_id', $branchId)->delete();
             
@@ -54,12 +54,16 @@ class CheckoutOrchestratorController extends Controller
                 'branch_id' => $branchId,
                 'logistics_data' => json_encode([
                     'pickup' => $pickupLogistics,
-                    'delivery' => $deliveryLogistics
+                    'delivery' => $deliveryLogistics,
+                    // Snapshot de coordenadas en el momento del cálculo de precio
+                    'location_snapshot' => [
+                        'lat' => $customer->latitude,
+                        'lng' => $customer->longitude
+                    ]
                 ]),
-                'expires_at' => now()->addMinutes(15) // 15 minutos para decidir y pagar
+                'expires_at' => now()->addMinutes(15)
             ]);
         });
-
         return Inertia::render('Customer/Checkout/Index', [
             'cart' => $cartData,
             'pickup_logistics' => $pickupLogistics,
@@ -82,7 +86,7 @@ class CheckoutOrchestratorController extends Controller
             // La validación de Idempotencia ya fue procesada por el Middleware CheckIdempotency
             $order = $action->execute($dto);
 
-            return redirect()->route('customer.orders.show', $order->id)
+            return redirect()->route('customer.order.show', $order->id)
                 ->with('success', 'Pedido reservado de forma segura.');
 
         } catch (Exception $e) {

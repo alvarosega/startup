@@ -6,10 +6,11 @@ namespace App\Http\Controllers\Web\Customer\Order;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Http\Requests\Customer\Orders\TransitionToPaymentPendingRequest;
-use App\DTOs\Customer\Orders\TransitionToPaymentPendingDTO;
-use App\Actions\Customer\Orders\TransitionToPaymentPendingAction;
-use App\Http\Resources\Customer\Orders\OrderPendingResource;
+use App\Http\Requests\Customer\Order\TransitionToPaymentPendingRequest;
+use App\DTOs\Customer\Order\TransitionToPaymentPendingDTO;
+use App\Actions\Customer\Order\TransitionToPaymentPendingAction;
+use App\Http\Resources\Customer\Order\OrderPendingResource;
+use App\Http\Resources\Customer\Order\OrderIndexResource;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,7 @@ class OrderController extends Controller
             ->orderBy('created_at', 'desc')
             ->cursorPaginate(15);
 
-        return Inertia::render('Customer/Orders/Index', [
+        return Inertia::render('Customer/Order/Index', [
             'orders' => OrderIndexResource::collection($orders)
         ]);
     }
@@ -43,9 +44,9 @@ class OrderController extends Controller
 
         return match ($order->status) {
             'pending' => $this->renderPendingPayment($order),
-            'payment_pending' => Inertia::render('Customer/Orders/PaymentWaiting', ['code' => $order->code]),
+            'payment_pending' => Inertia::render('Customer/Order/PaymentWaiting', ['code' => $order->code]),
             // Aquí se irán añadiendo los demás estados en las siguientes fases
-            default => Inertia::render('Customer/Orders/Show', ['order' => $order->toArray()]) 
+            default => Inertia::render('Customer/Order/Show', ['order' => $order->toArray()]) 
         };
     }
 
@@ -66,7 +67,7 @@ class OrderController extends Controller
 
             $action->execute($dto);
 
-            return redirect()->route('customer.orders.show', $id)
+            return redirect()->route('customer.order.show', $id)
                 ->with('success', 'Comprobante recibido. En proceso de validación táctica.');
 
         } catch (Exception $e) {
@@ -81,13 +82,13 @@ class OrderController extends Controller
     {
         // Si el estado es pending pero ya expiró el tiempo, se deniega la vista
         if ($order->reservation_expires_at < now()) {
-            return redirect()->route('customer.orders.index')
+            return redirect()->route('customer.order.index')
                 ->with('error', 'El tiempo de reserva ha finalizado. La orden será cancelada.');
         }
 
         $resource = (new OrderPendingResource($order))->resolve();
 
-        return Inertia::render('Customer/Orders/PendingPayment', [
+        return Inertia::render('Customer/Order/PendingPayment', [
             'order'           => $resource['order'],
             'payment_context' => $resource['payment_context']
         ]);
