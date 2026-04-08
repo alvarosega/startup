@@ -10,12 +10,18 @@ class GetPreparationDataAction
 {
     public function execute(string $orderId): array
     {
-        $order = Order::with(['items', 'customer.profile'])->findOrFail($orderId);
+        $order = Order::with(['items', 'customer.profile', 'driver.profile']) // Inyectamos driver
+            ->findOrFail($orderId);
 
         return [
             'order' => [
                 'id'   => $order->id,
                 'code' => $order->code,
+                'status'   => $order->status,
+                'driver'   => $order->driver ? [
+                    'name' => $order->driver->profile->first_name . ' ' . $order->driver->profile->last_name,
+                    'avatar' => $order->driver->profile->avatar_source,
+                ] : null,
                 'customer' => [
                     'name' => ($order->customer->profile->first_name ?? 'N/A') . ' ' . ($order->customer->profile->last_name ?? '')
                 ],

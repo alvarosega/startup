@@ -82,6 +82,15 @@ class OrderController extends Controller
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
+    public function unassignDriver(Order $order, UnassignDriverAction $action): RedirectResponse
+    {
+        try {
+            $action->execute($order->id);
+            return back()->with('success', 'Conductor removido. El pedido vuelve a estar disponible para la flota.');
+        } catch (Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
 
     public function markAsReady(Order $order, MarkOrderAsReadyAction $action): RedirectResponse
     {

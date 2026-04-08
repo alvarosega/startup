@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { router, Link, Head } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue'; 
-import { ArrowLeft, Box, CheckCircle, Package, AlertTriangle } from 'lucide-vue-next';
+import { ArrowLeft, Box, CheckCircle, Package, AlertTriangle, UserX, Truck } from 'lucide-vue-next';
 
 const props = defineProps({ order: Object });
 
@@ -11,6 +11,17 @@ const togglePack = (skuId) => packedItems.value.has(skuId) ? packedItems.value.d
 const allPacked = computed(() => packedItems.value.size === props.order.items.length && props.order.items.length > 0);
 
 const markAsReady = () => router.post(route('admin.orders.mark-as-ready', props.order.code));
+
+// PROTOCOLO DE EXPULSIÓN
+const isUnassigning = ref(false);
+const unassignDriver = () => {
+    if (confirm('¿Está seguro de remover a este conductor? La orden volverá a la bolsa general.')) {
+        isUnassigning.value = true;
+        router.post(route('admin.orders.unassign-driver', props.order.code), {}, {
+            onFinish: () => isUnassigning.value = false
+        });
+    }
+};
 </script>
 
 <template>
@@ -20,6 +31,23 @@ const markAsReady = () => router.post(route('admin.orders.mark-as-ready', props.
             <Link :href="route('admin.orders.index')" class="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground mb-6">
                 <ArrowLeft :size="16" /> Monitor Logístico
             </Link>
+
+            <div v-if="order.driver" class="mb-6 bg-blue-500/10 border-2 border-blue-500/20 p-4 rounded-3xl flex justify-between items-center animate-in slide-in-from-top-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 overflow-hidden">
+                        <img v-if="order.driver.avatar" :src="`/assets/avatars/${order.driver.avatar}`" class="w-full h-full object-cover">
+                        <Truck v-else class="text-blue-500" :size="20"/>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-black uppercase tracking-widest text-blue-500/70 mb-0.5">Conductor en camino</p>
+                        <p class="text-sm font-black uppercase text-blue-600">{{ order.driver.name }}</p>
+                    </div>
+                </div>
+                <button @click="unassignDriver" :disabled="isUnassigning" class="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all">
+                    <UserX v-if="!isUnassigning" :size="18" />
+                    <span v-else class="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin"></span>
+                </button>
+            </div>
 
             <div class="bg-card border-2 border-border rounded-3xl p-8 shadow-xl">
                 <div class="flex justify-between items-start mb-8">

@@ -16,7 +16,7 @@ use Illuminate\Http\RedirectResponse;
 
 class DashboardController extends Controller
 {
-    public function index(GetDriverDashboardDataAction $action): Response|RedirectResponse
+    public function index(): RedirectResponse
     {
         $driver = Auth::guard('driver')->user();
 
@@ -24,15 +24,19 @@ class DashboardController extends Controller
             return redirect()->route('driver.profile.index');
         }
 
-        $hasActiveOrder = Order::where('driver_id', $driver->id)
-            ->whereIn('status', ['dispatched', 'arrived'])
-            ->exists();
+        // Buscar si tiene UNA orden activa en cualquier fase de la misión
+        $activeOrder = Order::where('driver_id', $driver->id)
+            ->whereIn('status', ['preparing', 'ready_for_dispatch', 'dispatched', 'arrived'])
+            ->first();
 
-        if (!$hasActiveOrder) {
-            return redirect()->route('driver.orders.index');
+        if ($activeOrder) {
+            // Lo redirigimos a la vista de la orden. El OrderController se encargará de mostrar Recogida o Entrega.
+            return redirect()->route('driver.orders.show', $activeOrder->code);
         }
 
-        return Inertia::render('Driver/Dashboard', $action->execute($driver));
+        // Si no tiene misión activa, lo mandamos a pescar a la bolsa.
+        return redirect()->route('driver.orders.index')
+            ->with('error', 'No tienes ninguna misión en curso. Acepta una carga de la bolsa.');
     }
 
     public function history(): Response|RedirectResponse

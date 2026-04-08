@@ -124,7 +124,14 @@ const progressPercentage = computed(() => (currentStep.value / steps.length) * 1
     <ShopLayout>
         <div class="min-h-screen flex items-center justify-center p-4 bg-muted/30 pt-24 pb-12">
             <div class="w-full max-w-xl bg-card border rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-                
+                <div v-if="form.errors.error" class="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl flex items-center gap-3">
+                    <AlertTriangle :size="18" />
+                    <span class="text-xs font-black uppercase tracking-widest">{{ form.errors.error }}</span>
+                </div>
+
+                <div v-if="Object.keys(form.errors).length > 0" class="mb-4 p-4 bg-amber-500/10 text-amber-600 rounded-xl text-[10px] font-mono">
+                    {{ form.errors }}
+                </div>
                 <div class="p-8 bg-muted/20 border-b relative">
                     <div class="flex justify-between items-center mb-6">
                         <div class="space-y-1">

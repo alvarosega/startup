@@ -1,33 +1,40 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Driver\Order;
 
 use App\Models\Order;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class VerifyPickupAction
 {
-    /**
-     * Valida el código de la tienda y activa el modo Despacho.
-     */
-    public function execute(string $orderId, string $driverId, string $inputOtp): void
+    public function execute(string $orderId, string $driverId, string $providedOtp): void
     {
-        $order = Order::where('id', $orderId)
-            ->where('driver_id', $driverId)
-            ->firstOrFail();
+        DB::transaction(function () use ($orderId, $driverId, $providedOtp) {
+            $order = Order::where('id', $orderId)->lockForUpdate()->firstOrFail();
 
-        // Validamos el código dictado por la sucursal
-        if ($order->pickup_otp !== strtoupper($inputOtp)) {
-            throw new Exception('Código de recogida incorrecto. Solicítalo al personal de la tienda.');
-        }
+            // Bloqueo 1: Verificación de Estado (Punto de no retorno)
+            if ($order->status !== 'ready_for_dispatch') {
+                throw new Exception('Operación denegada. El almacén aún no ha finalizado el empaquetado.');
+            }
 
-        // Generamos el Delivery OTP final (el que el CLIENTE dará al conductor)
-        $deliveryOtp = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            // Bloqueo 2: Verificación de Identidad
+            if ($order->driver_id !== $driverId) {
+                throw new Exception('Violación de acceso. Usted no es el conductor asignado a este pedido.');
+            }
 
-        $order->update([
-            'status' => 'dispatched',
-            'delivery_otp' => $deliveryOtp,
-            'dispatched_at' => now(),
-        ]);
+            // Bloqueo 3: Verificación Criptográfica para evitar Timing Attacks
+            if (!hash_equals((string) $order->pickup_otp, $providedOtp)) {
+                throw new Exception('El PIN de recogida es incorrecto. Revise con el administrador.');
+            }
+
+            // Éxito: Cambio de estado y destrucción de la llave
+            $order->update([
+                'status'     => 'dispatched',
+                'pickup_otp' => null 
+            ]);
+        });
     }
 }

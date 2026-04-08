@@ -25,12 +25,12 @@ class RegisterDriverAction
             ]);
 
             $ciPath = $data->ciFront 
-                ? $data->ciFront->store("drivers/{$driver->id}/documents", 'private') 
-                : null;
-                
-            $licensePath = $data->licensePhoto 
-                ? $data->licensePhoto->store("drivers/{$driver->id}/documents", 'private') 
-                : null;
+            ? $data->ciFront->store("drivers/{$driver->id}/documents", 'local') // Cambiado a 'local'
+            : null;
+                    
+        $licensePath = $data->licensePhoto 
+            ? $data->licensePhoto->store("drivers/{$driver->id}/documents", 'local') // Cambiado a 'local'
+            : null;
 
             $driver->profile()->create([
                 'first_name'         => $data->firstName,

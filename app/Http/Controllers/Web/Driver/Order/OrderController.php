@@ -5,83 +5,77 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Driver\Order;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Order, Driver};
-use App\Actions\Driver\Order\TakeOrderWithOtpAction;
-use App\Actions\Driver\Order\MarkOrderAsArrivedAction;
-use App\Actions\Driver\Order\CompleteOrderAction;
-use App\DTOs\Driver\Order\CompleteOrderDTO;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
-use Inertia\Response;
+use App\Models\Order;
+use App\Actions\Driver\Order\{
+    GetAvailableOrdersAction, 
+    GetOrderTrackingDataAction, 
+    AcceptOrderAction, 
+    VerifyPickupAction
+};
+use App\Http\Requests\Driver\Order\{AcceptOrderRequest, VerifyPickupRequest};
 use Illuminate\Http\RedirectResponse;
+use Inertia\{Inertia, Response};
+use Exception;
+use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
-    public function index(): Response|RedirectResponse
+    /**
+     * Lista pedidos en 'preparing' y 'ready_for_dispatch' sin conductor.
+     */
+    public function index(GetAvailableOrdersAction $action): Response
     {
-        $driver = Auth::guard('driver')->user();
-
-        if ($driver->status !== 'approved') {
-            return redirect()->route('driver.profile.index');
-        }
-
-        // Bloqueo Monotarea
-        $hasActiveOrder = Order::where('driver_id', $driver->id)
-            ->whereIn('status', ['dispatched', 'arrived'])
-            ->exists();
-
-        if ($hasActiveOrder) {
-            return redirect()->route('driver.dashboard');
-        }
-
-        $availableOrders = Order::where('branch_id', $driver->branch_id)
-            ->where('status', 'ready_for_dispatch')
-            ->whereNull('driver_id')
-            ->orderBy('created_at', 'asc')
-            ->get(['id', 'code', 'delivery_data', 'delivery_fee', 'created_at']);
-
         return Inertia::render('Driver/Orders/Index', [
-            'driver' => [
-                'id' => $driver->id,
-                'is_online' => (bool) $driver->is_online,
-            ],
-            'availableOrders' => $availableOrders
+            'orders' => $action->execute()
         ]);
     }
 
-    public function take(Request $request, string $id, TakeOrderWithOtpAction $action): RedirectResponse
+    public function show(Order $order, GetOrderTrackingDataAction $action): Response|RedirectResponse
     {
-        $request->validate(['otp' => ['required', 'string', 'size:5']]);
-        
-        try {
-            $action->execute($id, Auth::guard('driver')->user(), $request->otp);
-            return redirect()->route('driver.dashboard');
-        } catch (\Exception $e) {
-            return back()->withErrors(['otp' => $e->getMessage()]);
+        $driverId = (string) Auth::id();
+
+        if ($order->driver_id && $order->driver_id !== $driverId) {
+            return redirect()->route('driver.orders.index')->with('error', 'Pedido asignado a otro conductor.');
         }
+
+        return match($order->status) {
+            // VISTA 2: Preparación y Validación de Recogida (PIN del Admin)
+            'preparing', 'ready_for_dispatch' => Inertia::render('Driver/Orders/ReadyForDispatch', $action->execute($order->id)),
+
+            // VISTA 3: Ruta de Entrega y Validación de Cliente (PIN del Cliente)
+            'dispatched' => Inertia::render('Driver/Orders/Delivery', $action->execute($order->id)),
+            
+            'arrived' => redirect()->route('driver.dashboard'), // Estado de "Llegué a la puerta"
+            
+            default => redirect()->route('driver.orders.index')->with('error', 'Pedido finalizado o no disponible.')
+        };
     }
 
-    public function markAsArrived(string $id, MarkOrderAsArrivedAction $action): RedirectResponse
+    /**
+     * Paso 1: El driver "reserva" el pedido (early assignment).
+     */
+    public function take(AcceptOrderRequest $request, Order $order, AcceptOrderAction $action): RedirectResponse
     {
         try {
-            $action->execute($id, Auth::guard('driver')->id());
-            return back();
-        } catch (\Exception $e) {
+            $action->execute($order->id, (string) Auth::id());
+            return redirect()->route('driver.orders.show', $order->code)
+                ->with('success', 'Pedido asignado. Dirígete a la sucursal.');
+        } catch (Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
-    public function completeOrder(Request $request, string $id, CompleteOrderAction $action): RedirectResponse
+    /**
+     * Paso 2: El driver ingresa el OTP dictado por el Admin para iniciar el viaje.
+     */
+    public function verifyPickup(VerifyPickupRequest $request, Order $order, VerifyPickupAction $action): RedirectResponse
     {
-        $request->validate(['otp' => ['required', 'string', 'size:4']]);
-
         try {
-            $dto = new CompleteOrderDTO($id, Auth::guard('driver')->id(), $request->otp);
-            $action->execute($dto);
-            return redirect()->route('driver.orders.index');
-        } catch (\Exception $e) {
-            return back()->withErrors(['otp' => $e->getMessage()]);
+            $action->execute($order->id, $request->validated('pickup_otp'));
+            return redirect()->route('driver.dashboard')
+                ->with('success', 'Carga verificada. Inicia la ruta de entrega.');
+        } catch (Exception $e) {
+            return back()->withErrors(['pickup_otp' => $e->getMessage()]);
         }
     }
 }

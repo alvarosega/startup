@@ -2,35 +2,34 @@
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
 import Toast from '@/Components/Base/Toast.vue';
-// RECTIFICACIÓN: Una sola línea para todos los iconos de lucide
-import { Map, List, User, LogOut, Package } from 'lucide-vue-next';
+import { Map, List, User, LogOut, Package, Navigation } from 'lucide-vue-next';
 
 const page = usePage();
-// REGLA: El usuario autenticado es la fuente de verdad primaria
 const user = computed(() => page.props.auth?.user);
 
 const driverStatus = computed(() => {
-    // RECTIFICACIÓN: Buscamos el status prioritariamente en el objeto compartido
     return user.value?.status || page.props.driver?.status || 'pending';
 });
 
-// RECTIFICACIÓN CRÍTICA: Cambiar 'active' por 'approved'
 const isVerified = computed(() => driverStatus.value === 'approved');
 
 const getUserInitial = () => {
-    // Si el resource está bien estructurado, el nombre viene en profile
-    const name = user.value?.first_name || page.props.driver?.profile?.first_name || 'D';
+    const name = user.value?.profile?.first_name || page.props.driver?.profile?.first_name || 'D';
     return name.charAt(0).toUpperCase();
 };
 
+// RECTIFICACIÓN: 4 Botones Absolutos. Uso de Regex para detectar sub-rutas dinámicas.
 const navItems = [
-    { label: 'Órdenes', route: 'driver.orders.index', icon: Package, activePrefix: '/driver/orders', requiresAuth: true },
-    { label: 'Historial', route: 'driver.history', icon: List, activePrefix: '/driver/history', requiresAuth: true },
-    { label: 'Perfil', route: 'driver.profile.index', icon: User, activePrefix: '/driver/profile', requiresAuth: false },
+    { label: 'Bolsa', route: 'driver.orders.index', icon: Package, activePattern: /^\/driver\/orders\/?$/, requiresAuth: true },
+    { label: 'Mi Ruta', route: 'driver.dashboard', icon: Navigation, activePattern: /^\/driver\/orders\/[A-Z0-9-]+/, requiresAuth: true },
+    { label: 'Historial', route: 'driver.history', icon: List, activePattern: /^\/driver\/history/, requiresAuth: true },
+    { label: 'Perfil', route: 'driver.profile.index', icon: User, activePattern: /^\/driver\/profile/, requiresAuth: false },
 ];
 
+// Helper para evaluar el Regex contra la URL actual
+const isRouteActive = (pattern) => pattern.test(page.url);
+
 onMounted(() => {
-    // Perro guardián: Si no está aprobado y trata de entrar a Ruta/Historial, al Perfil.
     if (!isVerified.value && !page.url.startsWith('/driver/profile')) {
         router.visit(route('driver.profile.index'));
     }
@@ -68,12 +67,12 @@ onMounted(() => {
             <template v-for="item in navItems" :key="item.route">
                 <Link v-if="isVerified || !item.requiresAuth" :href="route(item.route)" 
                       class="flex flex-col items-center justify-center w-full h-full transition-all duration-200 group active:scale-95"
-                      :class="{ 'text-blue-600': $page.url.startsWith(item.activePrefix) }">
-                    <div class="relative p-1.5 rounded-xl transition-all duration-300" :class="$page.url.startsWith(item.activePrefix) ? 'bg-blue-50 -translate-y-1 shadow-sm' : 'text-gray-400 group-hover:text-gray-600'">
-                        <component :is="item.icon" :size="24" :stroke-width="$page.url.startsWith(item.activePrefix) ? 2.5 : 2" />
-                        <span v-if="$page.url.startsWith(item.activePrefix)" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full"></span>
+                      :class="{ 'text-blue-600': isRouteActive(item.activePattern) }">
+                    <div class="relative p-1.5 rounded-xl transition-all duration-300" :class="isRouteActive(item.activePattern) ? 'bg-blue-50 -translate-y-1 shadow-sm' : 'text-gray-400 group-hover:text-gray-600'">
+                        <component :is="item.icon" :size="24" :stroke-width="isRouteActive(item.activePattern) ? 2.5 : 2" />
+                        <span v-if="isRouteActive(item.activePattern)" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full"></span>
                     </div>
-                    <span class="text-[10px] font-bold mt-1 uppercase transition-colors" :class="$page.url.startsWith(item.activePrefix) ? 'text-blue-600' : 'text-gray-400'">{{ item.label }}</span>
+                    <span class="text-[10px] font-bold mt-1 uppercase transition-colors" :class="isRouteActive(item.activePattern) ? 'text-blue-600' : 'text-gray-400'">{{ item.label }}</span>
                 </Link>
                 
                 <div v-else class="flex flex-col items-center justify-center w-full h-full text-gray-300 cursor-not-allowed opacity-40">
