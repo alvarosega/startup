@@ -32,12 +32,18 @@ onMounted(() => {
 onUnmounted(() => { if (timerInterval) clearInterval(timerInterval); });
 
 const form = useForm({ proof: null });
+const isButtonDisabled = computed(() => {
+    return !form.proof || form.processing || timeRemaining.value <= 0;
+});
 
 const submitProof = () => {
-    if (!form.proof) return;
+    // Bloqueo preventivo en JS
+    if (isButtonDisabled.value) return; 
+    
     form.clearErrors();
     form.post(route('customer.order.upload-proof', props.order.id), {
         onSuccess: () => form.reset(),
+        // No es necesario form.processing manual, useForm lo gestiona
     });
 };
 </script>

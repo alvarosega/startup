@@ -46,21 +46,20 @@ class CheckoutOrchestratorController extends Controller
         // RECTIFICACIÓN: Importación limpia y snapshot de ubicación incluido por integridad financiera
         DB::transaction(function () use ($customer, $branchId, $cartData, $pickupLogistics, $deliveryLogistics) {
             CheckoutSnapshot::where('customer_id', $customer->id)->where('branch_id', $branchId)->delete();
-            
+            // RECTIFICACIÓN: Pase el ARRAY directamente, NO el JSON string.
             CheckoutSnapshot::create([
                 'id' => (string) Uuid::v7(),
                 'cart_id' => $cartData['id'],
                 'customer_id' => $customer->id,
                 'branch_id' => $branchId,
-                'logistics_data' => json_encode([
+                'logistics_data' => [ // <--- ELIMINADO json_encode
                     'pickup' => $pickupLogistics,
                     'delivery' => $deliveryLogistics,
-                    // Snapshot de coordenadas en el momento del cálculo de precio
                     'location_snapshot' => [
                         'lat' => $customer->latitude,
                         'lng' => $customer->longitude
                     ]
-                ]),
+                ],
                 'expires_at' => now()->addMinutes(15)
             ]);
         });
@@ -90,6 +89,7 @@ class CheckoutOrchestratorController extends Controller
                 ->with('success', 'Pedido reservado de forma segura.');
 
         } catch (Exception $e) {
+            
             return back()->withErrors(['checkout_error' => $e->getMessage()]);
         }
     }

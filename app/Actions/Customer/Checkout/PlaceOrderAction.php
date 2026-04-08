@@ -20,22 +20,25 @@ readonly class PlaceOrderAction
             $now = now();
 
             $snapshot = CheckoutSnapshot::where('customer_id', $dto->customerId)
-                ->where('branch_id', $dto->branchId)
-                ->where('expires_at', '>', $now)
-                ->lockForUpdate()
-                ->first();
+            ->where('branch_id', $dto->branchId)
+            ->where('expires_at', '>', $now)
+            ->lockForUpdate()
+            ->first();
+        
+        // 1. EL SNAPSHOT DEBE VALIDARSE PRIMERO
+        if (!$snapshot) {
+            throw new Exception("El presupuesto ha expirado o es inexistente.");
+        }
+        
+        // 2. LOGISTICS_DATA YA ES ARRAY (Gracias al Cast y a quitar el json_encode en el controller)
+        $allData = $snapshot->logistics_data;
+        $financials = $allData[$dto->deliveryType] ?? null;
+        
+        if (!$financials || !($financials['is_available'] ?? false)) {
+            throw new Exception("Configuración logística no disponible o inválida.");
+        }
 
-            if (!$snapshot) {
-                throw new Exception("El presupuesto ha expirado o es inexistente.");
-            }
-
-            $allData = json_decode($snapshot->logistics_data, true);
-            $financials = $allData[$dto->deliveryType] ?? null;
-
-            if (!$financials || !$financials['is_available']) {
-                throw new Exception("Configuración logística no disponible.");
-            }
-
+            // 2. Bloqueo de Carrito
             $cart = Cart::where('id', $snapshot->cart_id)->with('items.sku.product')->lockForUpdate()->first();
             if (!$cart || $cart->items->isEmpty()) {
                 throw new Exception("Integridad de carrito comprometida.");
@@ -45,6 +48,7 @@ readonly class PlaceOrderAction
             $itemsSubtotal = 0.0;
 
             foreach ($cart->items as $cartItem) {
+                // Sincronía FEFO
                 $this->inventoryOrchestrator->reserve($cartItem->sku_id, $dto->branchId, (int)$cartItem->quantity);
                 
                 $lineSubtotal = (float)$cartItem->price_at_addition * $cartItem->quantity;
@@ -54,30 +58,27 @@ readonly class PlaceOrderAction
                     'sku_id'         => $cartItem->sku_id,
                     'product_name'   => $cartItem->sku->product->name,
                     'sku_name'       => $cartItem->sku->name,
-                    'image_snapshot' => $cartItem->sku->image_path,
+                    // RECTIFICACIÓN: Usar la propiedad física del modelo SKU
+                    'image_snapshot' => $cartItem->sku->image_path, 
                     'quantity'       => $cartItem->quantity,
                     'unit_price'     => $cartItem->price_at_addition,
                     'subtotal'       => $lineSubtotal
                 ]);
             }
 
-            // GENERADOR DE CÓDIGO (ENTROPÍA MILITAR): Prefijo + Fecha + Seq + Random
-            $orderCode = sprintf(
-                "ORD-%s-%s%04d",
-                date('ymd'),
-                strtoupper(substr($dto->customerId, 0, 3)),
-                rand(1000, 9999)
-            );
+            // 3. Generación de Identidad
+            $orderCode = sprintf("ORD-%s-%s%04d", date('ymd'), strtoupper(substr($dto->customerId, 0, 3)), rand(1000, 9999));
 
+            // 4. Persistencia
             $order = Order::create([
                 'code'                   => $orderCode,
                 'customer_id'            => $dto->customerId,
                 'branch_id'              => $dto->branchId,
                 'delivery_type'          => $dto->deliveryType,
                 'delivery_data'          => [
-                    'lat'         => $allData['location_snapshot']['lat'],
-                    'lng'         => $allData['location_snapshot']['lng'],
-                    'distance_km' => $financials['distance_km']
+                    'lat'         => $allData['location_snapshot']['lat'] ?? null,
+                    'lng'         => $allData['location_snapshot']['lng'] ?? null,
+                    'distance_km' => $financials['distance_km'] ?? 0
                 ], 
                 'status'                 => 'pending',
                 'reservation_expires_at' => $now->copy()->addMinutes(10),
@@ -89,6 +90,8 @@ readonly class PlaceOrderAction
             ]);
 
             $order->items()->saveMany($orderItemsToInsert);
+
+            // 5. Limpieza
             $cart->items()->delete();
             $cart->delete();
             $snapshot->delete();
