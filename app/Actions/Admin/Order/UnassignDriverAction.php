@@ -13,14 +13,13 @@ class UnassignDriverAction
     {
         $order = Order::findOrFail($orderId);
 
-        // Bloqueo de seguridad: No se puede desasignar si ya salió del almacén
-        if ($order->status === 'dispatched') {
-            throw new Exception("No se puede retirar al conductor; la carga ya está en tránsito.");
+        // REGLA DE NEGOCIO: Prohibir desasignación si ya se dictó el PIN y el driver se fue.
+        if (in_array($order->status, ['dispatched', 'arrived', 'delivered', 'completed'])) {
+            throw new Exception("Operación abortada: La carga ya salió del almacén o ha sido entregada.");
         }
 
         $order->update([
-            'driver_id' => null,
-            // El estado se mantiene (preparing o ready_for_dispatch)
+            'driver_id' => null
         ]);
     }
 }

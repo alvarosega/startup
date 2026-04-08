@@ -1,19 +1,29 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { ref } from 'vue'; // Añadido
+import { Link, router } from '@inertiajs/vue3'; // router añadido
 import AdminLayout from '@/Layouts/AdminLayout.vue'; 
 import { 
     Search, CheckCircle, Clock, Truck, 
-    Store, User, ArrowRight, Package, Eye
+    Store, User, ArrowRight, Package, Eye, UserX
 } from 'lucide-vue-next';
 
-const props = defineProps({
-    orders: Object
-});
+const props = defineProps({ orders: Object });
 
 const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-BO', { 
         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
     });
+};
+
+// PROTOCOLO DE EXPULSIÓN RÁPIDA
+const processingId = ref(null);
+const unassignDriver = (orderCode) => {
+    if (confirm('¿Liberar este pedido? El conductor actual será removido y la carga volverá a estar disponible.')) {
+        processingId.value = orderCode;
+        router.post(route('admin.orders.unassign-driver', orderCode), {}, {
+            onFinish: () => processingId.value = null
+        });
+    }
 };
 </script>
 
@@ -27,11 +37,7 @@ const formatDate = (dateString) => {
                     </h1>
                     <p class="text-xs font-bold text-muted-foreground mt-1">Monitoreo de la cadena de suministro en tiempo real.</p>
                 </div>
-                <div class="relative">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="16"/>
-                    <input type="text" placeholder="BUSCAR ORDEN..." class="pl-9 pr-4 py-2.5 bg-card border-2 border-border rounded-xl text-xs font-bold focus:border-primary w-64 transition-all">
                 </div>
-            </div>
 
             <div class="bg-card border-2 border-border rounded-3xl shadow-xl overflow-hidden">
                 <table class="w-full text-left text-sm border-collapse">
@@ -83,16 +89,26 @@ const formatDate = (dateString) => {
                                     {{ order.status.replace('_', ' ') }}
                                 </div>
 
-                                <div v-if="order.driver" class="mt-3 flex items-center gap-2 p-2 bg-muted/50 rounded-xl border border-border">
-                                    <div class="bg-foreground text-background p-1.5 rounded-lg">
-                                        <User :size="14"/>
+                                <div v-if="order.driver" class="mt-3 flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-xl border border-border group">
+                                    <div class="flex items-center gap-2">
+                                        <div class="bg-foreground text-background p-1.5 rounded-lg">
+                                            <User :size="14"/>
+                                        </div>
+                                        <div class="leading-none">
+                                            <p class="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">Repartidor</p>
+                                            <p class="text-[11px] font-bold text-foreground">
+                                                {{ order.driver.profile?.first_name }}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div class="leading-none">
-                                        <p class="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">Repartidor</p>
-                                        <p class="text-[11px] font-bold text-foreground">
-                                            {{ order.driver.profile?.first_name }} {{ order.driver.profile?.last_name }}
-                                        </p>
-                                    </div>
+                                    
+                                    <button v-if="!['dispatched', 'delivered', 'completed'].includes(order.status)"
+                                        @click="unassignDriver(order.code)"
+                                        :disabled="processingId === order.code"
+                                        class="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                                        <UserX v-if="processingId !== order.code" :size="14" />
+                                        <span v-else class="w-3 h-3 border-2 border-destructive border-t-transparent rounded-full animate-spin"></span>
+                                    </button>
                                 </div>
                             </td>
 

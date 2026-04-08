@@ -85,6 +85,7 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::post('/{order:code}/reject-payment', [OrderController::class, 'rejectPayment'])->name('reject-payment');
             Route::post('/{order:code}/ready', [OrderController::class, 'markAsReady'])->name('mark-as-ready');
             Route::post('/{order:code}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
+            Route::post('/{order:code}/unassign', [OrderController::class, 'unassignDriver'])->name('unassign-driver');
         });
         Route::prefix('retail-media')->name('retail-media.')->group(function () {
             // Endpoints de búsqueda para el Formulario (Targeting)

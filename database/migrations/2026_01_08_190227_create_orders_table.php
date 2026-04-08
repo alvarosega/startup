@@ -24,6 +24,8 @@ return new class extends Migration {
                 'preparing', 'ready_for_dispatch', 'dispatched', 'arrived',
                 'delivered', 'cancelled', 'returned'
             ])->default('pending')->index(); 
+            $table->string('pickup_otp', 5)->nullable();
+            $table->string('delivery_otp', 4)->nullable();
             
             // Expiración exclusiva para el estado 'pending'
             $table->timestamp('reservation_expires_at')->nullable()->index(); 
@@ -61,15 +63,6 @@ return new class extends Migration {
             $table->integer('quantity');
             $table->decimal('unit_price', 10, 2); 
             $table->decimal('subtotal', 10, 2); 
-        });
-        Schema::create('order_otps', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('order_id')->constrained('orders')->onDelete('cascade');
-            $table->enum('type', ['pickup', 'delivery']);
-            $table->string('code_hash'); // Almacenamiento seguro
-            $table->tinyInteger('attempts')->default(0);
-            $table->timestamp('expires_at');
-            $table->timestamps();
         });
     }
 
