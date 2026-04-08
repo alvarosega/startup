@@ -1,65 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\Order;
-use App\Models\InventoryLot;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use App\Services\Order\OrderCancellationService;
 
 class ReleaseExpiredReservations extends Command
 {
     protected $signature = 'orders:release-expired';
-    protected $description = 'Libera el stock de las órdenes que excedieron el tiempo de reserva sin comprobante.';
+    protected $description = 'Detecta órdenes en estado pending cuyo tiempo expiró y libera el stock.';
 
-    public function handle()
+    public function handle(OrderCancellationService $cancellationService): int
     {
-        $expiredOrders = Order::where('status', 'pending_proof')
-            ->where('reservation_expires_at', '<', Carbon::now())
+        // Solo buscamos órdenes 'pending' (FSM actual)
+        $expiredOrders = Order::where('status', 'pending')
+            ->where('reservation_expires_at', '<', now())
             ->with('items')
             ->get();
 
         if ($expiredOrders->isEmpty()) {
-            return;
+            $this->info('No hay órdenes expiradas.');
+            return self::SUCCESS;
         }
 
         foreach ($expiredOrders as $order) {
-            DB::transaction(function () use ($order) {
-                
-                $this->info("Liberando orden: {$order->code}");
-
-                // Devolver stock reservado
-                foreach ($order->items as $item) {
-                    $qtyToRelease = $item->quantity;
-
-                    // Buscamos lotes que tengan reservas para este SKU en esa sucursal
-                    // Ordenamos por created_at para deshacer en el mismo orden (FIFO) o inverso, 
-                    // realmente da igual mientras liberemos la cantidad correcta.
-                    $lots = InventoryLot::where('branch_id', $order->branch_id)
-                        ->where('sku_id', $item->sku_id)
-                        ->where('reserved_quantity', '>', 0)
-                        ->get();
-
-                    foreach ($lots as $lot) {
-                        if ($qtyToRelease <= 0) break;
-
-                        // Cuánto podemos liberar de este lote
-                        $amount = min($lot->reserved_quantity, $qtyToRelease);
-                        
-                        $lot->decrement('reserved_quantity', $amount);
-                        $qtyToRelease -= $amount;
-                    }
-                }
-
-                // Marcar orden como cancelada
-                $order->update([
-                    'status' => 'cancelled',
-                    'rejection_reason' => 'Tiempo de reserva agotado (Sistema)'
-                ]);
-            });
+            $this->info("Procesando expiración para orden: {$order->code}");
+            $cancellationService->handleExpiration($order);
         }
 
         $this->info("Se liberaron {$expiredOrders->count()} órdenes.");
+        return self::SUCCESS;
     }
 }

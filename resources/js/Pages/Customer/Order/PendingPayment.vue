@@ -59,7 +59,7 @@ const submitProof = () => {
 
             <div class="bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl overflow-hidden relative">
                 <div class="absolute top-0 left-0 w-full h-1 bg-amber-500 animate-pulse"></div>
-                
+                <pre class="text-xs text-red-500 bg-black p-4">{{ payment_context }}</pre>
                 <div class="text-center mb-10">
                     <div class="bg-black/20 text-amber-500 text-5xl font-black py-8 px-12 rounded-[2.5rem] font-mono tracking-[0.2em] inline-block border-2 border-amber-500/20 italic mb-4">
                         {{ formattedTime }}
@@ -97,7 +97,7 @@ const submitProof = () => {
                         <input type="file" @change="e => form.proof = e.target.files[0]" 
                                class="block w-full text-[10px] text-muted-foreground file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-primary file:text-white hover:file:bg-primary/90 cursor-pointer">
                         
-                        <button @click="submitProof" :disabled="!form.proof || form.processing" 
+                        <button @click="submitProof" :disabled="isButtonDisabled" 
                                 class="w-full py-5 bg-foreground text-background rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl disabled:opacity-30 active:scale-95 transition-all">
                             {{ form.processing ? 'Sincronizando...' : 'Confirmar Transferencia' }}
                         </button>

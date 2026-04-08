@@ -2,15 +2,15 @@
 import { Head, Link } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import { 
-    Package, Calendar, ChevronRight, FileText,
+    Package, Calendar, ChevronRight, ChevronLeft, FileText,
     Clock, Receipt, CheckCircle2, Truck, XCircle, AlertTriangle, CreditCard, Store 
-} from 'lucide-vue-next'; // <-- RECTIFICACIÓN: 'Store' importado aquí
+} from 'lucide-vue-next';
 
 defineProps({
     orders: Object
 });
 
-// RECTIFICACIÓN: Mapeo absoluto de los 11 estados de la base de datos
+// Mapeo absoluto de los 11 estados de la base de datos
 const statusMap = {
     pending: { label: 'Esperando Pago', classes: 'bg-amber-500/10 text-amber-500 border-amber-500/30 animate-pulse', icon: CreditCard },
     payment_pending: { label: 'Validando Pago', classes: 'bg-blue-400/10 text-blue-400 border-blue-400/30', icon: Receipt },
@@ -101,6 +101,24 @@ const formatDate = (dateString) => {
                         </div>
                     </div>
                 </Link>
+
+                <div class="flex items-center justify-center gap-4 pt-8 pb-4">
+                    <Link v-if="orders.prev_page_url" :href="orders.prev_page_url" 
+                          class="flex items-center gap-2 bg-surface/40 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-white/5 transition-all">
+                        <ChevronLeft :size="14" /> Recientes
+                    </Link>
+                    <span v-else class="flex items-center gap-2 border border-white/5 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-foreground/20 cursor-not-allowed">
+                        <ChevronLeft :size="14" /> Recientes
+                    </span>
+
+                    <Link v-if="orders.next_page_url" :href="orders.next_page_url" 
+                          class="flex items-center gap-2 bg-surface/40 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-white/5 transition-all">
+                        Anteriores <ChevronRight :size="14" />
+                    </Link>
+                    <span v-else class="flex items-center gap-2 border border-white/5 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-foreground/20 cursor-not-allowed">
+                        Anteriores <ChevronRight :size="14" />
+                    </span>
+                </div>
             </div>
 
             <div v-else class="flex flex-col items-center justify-center py-32 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">

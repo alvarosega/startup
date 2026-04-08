@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\DTOs\Customer\Orders;
+namespace App\DTOs\Customer\Order;
 
 use Illuminate\Http\UploadedFile;
 

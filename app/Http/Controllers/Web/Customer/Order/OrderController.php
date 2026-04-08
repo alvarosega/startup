@@ -31,9 +31,6 @@ class OrderController extends Controller
             'orders' => OrderIndexResource::collection($orders)
         ]);
     }
-    /**
-     * FSM Router: Decide qué vista renderizar basándose matemáticamente en el estado de la orden.
-     */
     public function show(string $id): Response|RedirectResponse
     {
         $customerId = (string) auth()->guard('customer')->id();
@@ -42,11 +39,22 @@ class OrderController extends Controller
             ->where('customer_id', $customerId)
             ->firstOrFail();
 
+        // BUSCAR ESTE BLOQUE EN public function show(string $id):
         return match ($order->status) {
             'pending' => $this->renderPendingPayment($order),
-            'payment_pending' => Inertia::render('Customer/Order/PaymentWaiting', ['code' => $order->code]),
-            // Aquí se irán añadiendo los demás estados en las siguientes fases
-            default => Inertia::render('Customer/Order/Show', ['order' => $order->toArray()]) 
+            
+            // RECTIFICACIÓN: Enviar un array estructurado bajo la llave 'order'
+            'payment_pending' => Inertia::render('Customer/Order/PaymentWaiting', [
+                'order' => [
+                    'id'           => $order->id,
+                    'code'         => $order->code,
+                    'total_amount' => (float) $order->total_amount,
+                    'status'       => $order->status
+                ]
+            ]),
+            
+            default => redirect()->route('customer.order.index')
+                        ->with('info', "La vista de detalle para el estado '{$order->status}' está en desarrollo.")
         };
     }
 

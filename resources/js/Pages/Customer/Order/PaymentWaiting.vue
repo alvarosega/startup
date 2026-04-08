@@ -25,7 +25,7 @@ const manualRefresh = () => {
         
         <div class="max-w-2xl mx-auto p-6 min-h-[80vh]">
             <div class="flex justify-between items-start mb-8">
-                <Link :href="route('customer.orders.index')" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+                <Link :href="route('customer.order.index')" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeft :size="14" /> Volver al historial
                 </Link>
 

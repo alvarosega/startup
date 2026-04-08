@@ -1,28 +1,51 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Order;
 
 use App\Models\Order;
 use App\Services\Inventory\InventoryOrchestrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Exception;
 
-class OrderCancellationService
+readonly class OrderCancellationService
 {
-    public function __construct(protected InventoryOrchestrator $inventory) {}
+    public function __construct(private InventoryOrchestrator $inventoryOrchestrator) {}
 
-    public function handleExpiration(Order $order): void
+    /**
+     * Cancela la orden y libera el stock atómicamente.
+     */
+    public function handleExpiration(Order $unlockedOrder): void
     {
-        DB::transaction(function () use ($order) {
-            // 1. Cambiar estado a 'expired'
-            $order->update(['status' => 'expired']);
+        try {
+            DB::transaction(function () use ($unlockedOrder) {
+                // 1. Bloqueo de fila para evitar colisión con el cliente subiendo un comprobante
+                $order = Order::where('id', $unlockedOrder->id)
+                    ->where('status', 'pending')
+                    ->lockForUpdate()
+                    ->first();
 
-            // 2. Liberar Stock de cada item
-            foreach ($order->items as $item) {
-                $this->inventory->release($item->sku_id, $order->branch_id, $item->quantity);
-            }
+                if (!$order) {
+                    return; // La orden ya fue procesada, pagada o cancelada por otro hilo
+                }
 
-            Log::info("Orden {$order->code} expirada. Stock liberado.");
-        });
+                // 2. Liberación de Inventario (Delega al Orquestador)
+                foreach ($order->items as $item) {
+                    $this->inventoryOrchestrator->release($item->sku_id, $order->branch_id, (int) $item->quantity);
+                }
+
+                // 3. Transición de Estado
+                $order->update([
+                    'status' => 'cancelled',
+                    'rejection_reason' => 'Tiempo de reserva agotado (Cancelación Automática)'
+                ]);
+                
+                Log::info("Orden {$order->code} cancelada por expiración de tiempo.");
+            });
+        } catch (Exception $e) {
+            Log::error("Fallo al expirar la orden {$unlockedOrder->code}: " . $e->getMessage());
+        }
     }
 }
