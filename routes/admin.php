@@ -77,17 +77,15 @@ Route::middleware(['auth:super_admin'])->group(function () {
         Route::resource('purchases', PurchaseController::class);
         
         Route::get('/logistics/monitor', [MonitorController::class, 'index'])->name('logistics.monitor');
-
-        // routes/web.php (Dentro del grupo de orders)
         Route::prefix('orders')->name('orders.')->group(function () {
             Route::get('/', [OrderController::class, 'index'])->name('index'); 
-            Route::get('/{id}', [OrderController::class, 'show'])->name('show'); // NUEVA: Detalle/Picking
-            Route::post('/{id}/approve-payment', [OrderController::class, 'approvePayment'])->name('approve-payment');
-            Route::post('/{id}/reject-payment', [OrderController::class, 'rejectPayment'])->name('reject-payment');
-            Route::post('/{id}/ready', [OrderController::class, 'markAsReady'])->name('mark-as-ready'); // NUEVA: Fin de picking
-            Route::post('/{id}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
+            Route::get('/{order:code}', [OrderController::class, 'show'])->name('show'); 
+            Route::get('/{order:code}/proof', [OrderController::class, 'showProof'])->name('show-proof');
+            Route::post('/{order:code}/approve-payment', [OrderController::class, 'approvePayment'])->name('approve-payment');
+            Route::post('/{order:code}/reject-payment', [OrderController::class, 'rejectPayment'])->name('reject-payment');
+            Route::post('/{order:code}/ready', [OrderController::class, 'markAsReady'])->name('mark-as-ready');
+            Route::post('/{order:code}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
         });
-
         Route::prefix('retail-media')->name('retail-media.')->group(function () {
             // Endpoints de búsqueda para el Formulario (Targeting)
             Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])->name('ad-creatives.search-skus');

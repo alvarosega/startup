@@ -113,14 +113,11 @@ Route::middleware(['auth:customer'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('order')->name('order.')->group(function () {
-        // La ruta resultante es: customer.order.index
         Route::get('/', [OrderController::class, 'index'])->name('index'); 
         
-        // La ruta resultante es: customer.order.show
-        Route::get('/{id}', [OrderController::class, 'show'])->name('show');
-        
-        // La ruta resultante es: customer.order.upload-proof
-        Route::post('/{id}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
+        // RECTIFICACIÓN: Cambiamos {id} por {order:code}
+        Route::get('/{order:code}', [OrderController::class, 'show'])->name('show');
+        Route::post('/{order:code}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
     });
 
     //Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');

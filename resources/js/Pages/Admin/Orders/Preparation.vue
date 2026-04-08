@@ -10,7 +10,7 @@ const packedItems = ref(new Set());
 const togglePack = (skuId) => packedItems.value.has(skuId) ? packedItems.value.delete(skuId) : packedItems.value.add(skuId);
 const allPacked = computed(() => packedItems.value.size === props.order.items.length && props.order.items.length > 0);
 
-const markAsReady = () => router.post(route('admin.orders.mark-as-ready', props.order.id));
+const markAsReady = () => router.post(route('admin.orders.mark-as-ready', props.order.code));
 </script>
 
 <template>

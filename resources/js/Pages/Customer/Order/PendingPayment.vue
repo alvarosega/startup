@@ -41,7 +41,7 @@ const submitProof = () => {
     if (isButtonDisabled.value) return; 
     
     form.clearErrors();
-    form.post(route('customer.order.upload-proof', props.order.id), {
+    form.post(route('customer.order.upload-proof', props.order.code), {
         onSuccess: () => form.reset(),
         // No es necesario form.processing manual, useForm lo gestiona
     });

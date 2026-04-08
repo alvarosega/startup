@@ -1,35 +1,47 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Order;
 
 use App\Models\Order;
-use App\DTOs\Admin\Order\ReviewPaymentDTO;
+use App\Services\Inventory\InventoryOrchestrator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage; // <- IMPORTAR STORAGE
 use Exception;
 
-class RejectOrderPaymentAction
+readonly class RejectOrderPaymentAction
 {
-    public function execute(ReviewPaymentDTO $dto): void
+    public function __construct(private InventoryOrchestrator $inventory) {}
+
+    public function execute(string $orderId, string $rejectionReason, string $rejectionAction): void
     {
-        DB::transaction(function () use ($dto) {
-            $order = Order::where('id', $dto->orderId)->lockForUpdate()->firstOrFail();
+        DB::transaction(function () use ($orderId, $rejectionReason, $rejectionAction) {
+            $order = Order::with('items')->where('id', $orderId)->lockForUpdate()->firstOrFail();
 
-            if ($order->status !== 'payment_pending') { // RECTIFICADO
-                throw new Exception('El pago de esta orden no está en revisión.');
+            if ($order->status !== 'payment_pending') {
+                throw new Exception('El pago no está en revisión.');
             }
 
-            // 1. LIMPIEZA ZERO-WASTE (Borrar archivo del disco)
-            if ($order->proof_of_payment) {
-                Storage::disk('public')->delete($order->proof_of_payment);
+            if ($rejectionAction === 'cancel') {
+                // Liberar el stock y matar la orden
+                foreach ($order->items as $item) {
+                    $this->inventory->release($item->sku_id, $order->branch_id, (int)$item->quantity);
+                }
+                $order->update([
+                    'status'           => 'cancelled',
+                    'rejection_reason' => $rejectionReason,
+                    'reviewed_at'      => now()
+                ]);
+            } else {
+                // Opción 'retry': Volver a pending, dar 15 minutos más y borrar comprobante
+                $order->update([
+                    'status'                 => 'pending',
+                    'rejection_reason'       => $rejectionReason,
+                    'proof_of_payment'       => null,
+                    'reservation_expires_at' => now()->addMinutes(15),
+                    'reviewed_at'            => now()
+                ]);
             }
-
-            // 2. RETORNO DE ESTADO AL CLIENTE
-            $order->update([
-                'status' => 'pending', // RECTIFICADO: Vuelve al estado inicial
-                'rejection_reason' => $dto->rejectionReason,
-                'proof_of_payment' => null, 
-                'reservation_expires_at' => now()->addMinutes(10) 
-            ]);
         });
     }
 }

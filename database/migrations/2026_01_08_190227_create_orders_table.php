@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->foreignUuid('customer_id')->constrained('customers');
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('driver_id')->nullable()->constrained('drivers');
-
+            $table->foreignUuid('reviewed_by')->nullable()->constrained('admins')->nullOnDelete();
             $table->enum('delivery_type', ['pickup', 'delivery'])->default('pickup');
             $table->json('delivery_data')->nullable(); // Snapshot de dirección y coordenadas
             

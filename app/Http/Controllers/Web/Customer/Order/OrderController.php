@@ -31,19 +31,21 @@ class OrderController extends Controller
             'orders' => OrderIndexResource::collection($orders)
         ]);
     }
-    public function show(string $id): Response|RedirectResponse
+
+    /**
+     * RECTIFICACIÓN: Enmascaramiento. Recibe $order resuelto por 'code'
+     */
+    public function show(Order $order): Response|RedirectResponse
     {
+        // Validación de propiedad (Seguridad Horizontal)
         $customerId = (string) auth()->guard('customer')->id();
+        if ($order->customer_id !== $customerId) {
+            abort(403, 'Acceso denegado a esta orden.');
+        }
 
-        $order = Order::where('id', $id)
-            ->where('customer_id', $customerId)
-            ->firstOrFail();
-
-        // BUSCAR ESTE BLOQUE EN public function show(string $id):
         return match ($order->status) {
             'pending' => $this->renderPendingPayment($order),
             
-            // RECTIFICACIÓN: Enviar un array estructurado bajo la llave 'order'
             'payment_pending' => Inertia::render('Customer/Order/PaymentWaiting', [
                 'order' => [
                     'id'           => $order->id,
@@ -59,23 +61,29 @@ class OrderController extends Controller
     }
 
     /**
-     * Punto de entrada para la inyección del comprobante.
+     * RECTIFICACIÓN: Enmascaramiento. Recibe $order resuelto por 'code'
      */
     public function uploadProof(
         TransitionToPaymentPendingRequest $request, 
-        string $id, 
+        Order $order, // <--- CAMBIO AQUÍ
         TransitionToPaymentPendingAction $action
     ): RedirectResponse {
         try {
+            $customerId = (string) auth()->guard('customer')->id();
+            if ($order->customer_id !== $customerId) {
+                throw new Exception("Acceso denegado a esta orden.");
+            }
+
             $dto = new TransitionToPaymentPendingDTO(
-                orderId: $id,
-                customerId: (string) auth()->guard('customer')->id(),
+                orderId: $order->id, // Pasamos el ID real al Action para integridad DB
+                customerId: $customerId,
                 proofFile: $request->file('proof')
             );
 
             $action->execute($dto);
 
-            return redirect()->route('customer.order.show', $id)
+            // Redirigimos usando el CODE
+            return redirect()->route('customer.order.show', $order->code)
                 ->with('success', 'Comprobante recibido. En proceso de validación táctica.');
 
         } catch (Exception $e) {
@@ -83,12 +91,8 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Sub-rutina de renderizado aislada.
-     */
     private function renderPendingPayment(Order $order): Response|RedirectResponse
     {
-        // Si el estado es pending pero ya expiró el tiempo, se deniega la vista
         if ($order->reservation_expires_at < now()) {
             return redirect()->route('customer.order.index')
                 ->with('error', 'El tiempo de reserva ha finalizado. La orden será cancelada.');

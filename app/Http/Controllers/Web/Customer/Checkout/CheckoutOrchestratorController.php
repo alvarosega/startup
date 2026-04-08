@@ -70,6 +70,10 @@ class CheckoutOrchestratorController extends Controller
             'customer_location' => [
                 'lat' => $customer->latitude,
                 'lng' => $customer->longitude,
+            ],
+            // RECTIFICACIÓN: Inyectar configuración para la UI
+            'config' => [
+                'reservation_minutes' => 10 // O el valor que tenga en su lógica
             ]
         ]);
     }
@@ -82,14 +86,14 @@ class CheckoutOrchestratorController extends Controller
 
             $dto = CheckoutCartDTO::fromRequest($request, $customerId, $branchId);
             
-            // La validación de Idempotencia ya fue procesada por el Middleware CheckIdempotency
             $order = $action->execute($dto);
 
-            return redirect()->route('customer.order.show', $order->id)
+            // RECTIFICACIÓN: Redirigir usando el objeto completo o el 'code'
+            // Laravel usará automáticamente getRouteKeyName() que definimos como 'code'
+            return redirect()->route('customer.order.show', $order) 
                 ->with('success', 'Pedido reservado de forma segura.');
 
         } catch (Exception $e) {
-            
             return back()->withErrors(['checkout_error' => $e->getMessage()]);
         }
     }

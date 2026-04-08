@@ -98,26 +98,26 @@ const formatDate = (dateString) => {
 
                             <td class="px-6 py-5 text-right flex justify-end">
                                 <Link v-if="order.status === 'payment_pending'" 
-                                      :href="route('admin.orders.show', order.id)"
-                                      class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95">
+                                    :href="route('admin.orders.show', order.code)" 
+                                    class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95">
                                     <CheckCircle :size="14"/> Auditar Pago
                                 </Link>
 
                                 <Link v-else-if="order.status === 'preparing'" 
-                                      :href="route('admin.orders.show', order.id)"
-                                      class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95">
+                                    :href="route('admin.orders.show', order.code)"
+                                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all active:scale-95">
                                     <Package :size="14"/> Preparar Pack
                                 </Link>
 
                                 <Link v-else-if="order.status === 'ready_for_dispatch'" 
-                                      :href="route('admin.orders.show', order.id)"
-                                      class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                                    :href="route('admin.orders.show', order.code)"
+                                    class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
                                     <ArrowRight :size="14"/> Ver Manifiesto
                                 </Link>
 
                                 <Link v-else
-                                      :href="route('admin.orders.show', order.id)"
-                                      class="inline-flex items-center gap-2 bg-muted hover:bg-muted-foreground/10 text-muted-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border border-border">
+                                    :href="route('admin.orders.show', order.code)"
+                                    class="inline-flex items-center gap-2 bg-muted hover:bg-muted-foreground/10 text-muted-foreground px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border border-border">
                                     <Eye :size="14"/> Ver Detalles
                                 </Link>
                             </td>

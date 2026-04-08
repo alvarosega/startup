@@ -54,7 +54,7 @@ const formatDate = (dateString) => {
             </div>
 
             <div v-if="orders.data && orders.data.length > 0" class="space-y-4">
-                <Link v-for="order in orders.data" :key="order.id" :href="route('customer.order.show', order.id)"
+                <Link v-for="order in orders.data" :key="order.id" :href="route('customer.order.show', order.code)"
                       class="block group relative bg-surface/40 backdrop-blur-xl rounded-[24px] border transition-all duration-300 overflow-hidden hover:shadow-xl active:scale-[0.98]"
                       :class="['pending', 'arrived', 'rejected'].includes(order.status) 
                           ? 'border-primary/50 bg-primary/5' 

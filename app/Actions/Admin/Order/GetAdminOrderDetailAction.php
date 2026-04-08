@@ -24,7 +24,7 @@ class GetAdminOrderDetailAction
                 'delivery_type'  => $order->delivery_type,
                 'total_amount'   => (float) $order->total_amount,
                 'created_at'     => $order->created_at->toDateTimeString(),
-                'proof_url'      => $order->proof_of_payment ? asset('storage/' . $order->proof_of_payment) : null,
+                'proof_url' => $order->proof_of_payment ? route('admin.orders.show-proof', $order->code) : null,
                 'pickup_otp'     => $order->pickup_otp,
                 'customer' => [
                     'name'  => $order->customer->profile->first_name . ' ' . $order->customer->profile->last_name,

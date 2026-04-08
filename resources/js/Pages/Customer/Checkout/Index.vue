@@ -61,7 +61,8 @@ const isPaymentDisabled = computed(() => {
     if (deliveryType.value === 'delivery' && !currentLogistics.value?.is_available) return true;
     return false;
 });
-const generateIdempotencyKey = () => {
+const 
+generateIdempotencyKey = () => {
     return window.crypto.randomUUID(); // Estándar moderno de navegador
 };
 
