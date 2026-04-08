@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Order;
 
 use App\Models\Order;
@@ -6,19 +9,27 @@ use Exception;
 
 class DispatchOrderAction
 {
-    public function execute(string $orderId): void
+    public function execute(string $orderId, string $providedOtp): void
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::lockForUpdate()->findOrFail($orderId);
         
-        if ($order->status !== 'preparing') {
-             throw new Exception('La orden debe estar preparada antes de ser despachada.');
+        if ($order->status !== 'ready_for_dispatch') {
+             throw new Exception('La orden debe estar lista para despacho.');
         }
 
-        // Importante: No debe avanzar a dispatched si no existe un Driver asignado (Opcional pero recomendable).
+        // Validación OTP de Grado Militar (Protección contra Timing Attacks)
+        if (!hash_equals($order->pickup_otp, $providedOtp)) {
+            throw new Exception('El PIN de recogida proporcionado es incorrecto.');
+        }
+
         if (!$order->driver_id && $order->delivery_type === 'delivery') {
-             throw new Exception('No hay un conductor asigando a esta orden todavía.');
+             throw new Exception('No se puede despachar una entrega a domicilio sin un conductor asignado.');
         }
         
-        $order->update(['status' => 'dispatched']);
+        // Al despachar, el pickup_otp ya no sirve, lo borramos por seguridad.
+        $order->update([
+            'status' => 'dispatched',
+            'pickup_otp' => null
+        ]);
     }
 }

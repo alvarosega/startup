@@ -26,7 +26,8 @@ class Order extends Model
         'delivery_type', 'delivery_data', 'status', 'reservation_expires_at',
         'items_subtotal', 'delivery_fee', 'service_fee', 'total_amount',
         'payment_method', 'proof_of_payment', 'bank_reference',
-        'billing_nit', 'billing_name', 'rejection_reason', 'reviewed_at', 'reviewed_by'
+        'billing_nit', 'billing_name', 'rejection_reason', 'reviewed_at', 'reviewed_by',
+        'pickup_otp', 'delivery_otp' // <-- AÑADIDOS PARA FASE 3
     ];
     public function otps(): HasMany { 
         return $this->hasMany(OrderOtp::class); 

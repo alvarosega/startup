@@ -14,6 +14,9 @@ use Illuminate\Http\RedirectResponse;
 use Exception;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Actions\Admin\Order\GetReadyForDispatchDataAction; // <-- ESTA LÍNEA
+use App\Http\Requests\Admin\Order\DispatchOrderRequest; // Añadir arriba
+use App\Actions\Admin\Order\MarkOrderAsReadyAction;
 
 use App\Actions\Admin\Order\{
     GetPaymentReviewDataAction,
@@ -39,7 +42,7 @@ class OrderController extends Controller
         return match($order->status) {
             'payment_pending'    => Inertia::render('Admin/Orders/PaymentReview', app(GetPaymentReviewDataAction::class)->execute($order->id)),
             'preparing'          => Inertia::render('Admin/Orders/Preparation', app(GetPreparationDataAction::class)->execute($order->id)),
-            'ready_for_dispatch' => Inertia::render('Admin/Orders/Dispatch', app(GetDispatchDataAction::class)->execute($order->id)),
+            'ready_for_dispatch' => Inertia::render('Admin/Orders/ReadyForDispatch', app(GetReadyForDispatchDataAction::class)->execute($order->id)),
             default              => Inertia::render('Admin/Orders/ReadOnly', app(GetReadOnlyOrderDataAction::class)->execute($order->id)),
         };
     }
@@ -80,28 +83,25 @@ class OrderController extends Controller
         }
     }
 
-    public function markAsReady(Order $order): RedirectResponse
+    public function markAsReady(Order $order, MarkOrderAsReadyAction $action): RedirectResponse
     {
         try {
-            if ($order->status !== 'preparing') throw new Exception("La orden debe estar en preparación para marcarse como lista.");
-
-            $order->update([
-                'status' => 'ready_for_dispatch',
-                'pickup_otp'   => str_pad((string)random_int(0, 99999), 5, '0', STR_PAD_LEFT),
-                'delivery_otp' => str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT)
-            ]);
-
-            return back()->with('success', 'Orden empaquetada. PINs de recogida y entrega generados.');
+            // Pasamos el ID real ($order->id) al Action para la operación en BD
+            $action->execute($order->id);
+            
+            // Redirigimos al Index central de logística
+            return redirect()->route('admin.orders.index')
+                ->with('success', 'Orden empaquetada. PINs de seguridad logística generados.');
         } catch (Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
-    public function dispatchOrder(Order $order, DispatchOrderAction $action): RedirectResponse
+    public function dispatchOrder(DispatchOrderRequest $request, Order $order, DispatchOrderAction $action): RedirectResponse
     {
         try {
-            $action->execute($order->id);
-            return back()->with('success', 'Orden marcada como Despachada.');
+            $action->execute($order->id, $request->validated('pickup_otp'));
+            return redirect()->route('admin.orders.index')->with('success', 'PIN verificado. Paquete liberado y en camino.');
         } catch (Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
