@@ -1,10 +1,12 @@
 <?php
-//ok
+
+declare(strict_types=1);
+
 namespace App\Actions\Customer\Cart;
 
 use App\Models\Cart;
 use App\Services\Finance\PriceResolverService;
-use Illuminate\Support\Facades\DB;
+use App\Http\Resources\Customer\Cart\CartResource;
 
 class GetCustomerCartAction
 {
@@ -23,47 +25,60 @@ class GetCustomerCartAction
             )
             ->with([
                 'items' => fn($q) => $q->select(['id', 'cart_id', 'sku_id', 'quantity', 'is_bundle']),
-                'items.sku' => fn($q) => $q->select(['skus.id', 'product_id', 'name', 'image_path', 'base_price']) // AÑADIR base_price
+                'items.sku' => fn($q) => $q->select(['skus.id', 'product_id', 'name', 'image_path', 'base_price']) 
                     ->leftJoin('inventory_balances as ib', function($j) use ($branchId) {
                         $j->on('skus.id', '=', 'ib.sku_id')->where('ib.branch_id', $branchId);
                     })
-                    ->addSelect(['ib.total_physical', 'ib.total_reserved']),
+                    // RECTIFICACIÓN: Extracción de total_safety obligatoria
+                    ->addSelect(['ib.total_physical', 'ib.total_reserved', 'ib.total_safety']),
 
-                'items.sku.prices' => fn($q) => $q->where('branch_id', $branchId)
-                    ->where('valid_from', '<=', $now)
-                    ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now)), // FILTRO TÁCTICO
                 'items.sku.product' => fn($q) => $q->select(['id', 'name', 'brand_id']),
                 'items.sku.product.brand' => fn($q) => $q->select(['id', 'name']),
                 'items.sku.prices' => fn($q) => $q->where('branch_id', $branchId)
+                    ->where('valid_from', '<=', $now)
+                    ->where(fn($sub) => $sub->whereNull('valid_to')->orWhere('valid_to', '>=', $now))
             ])
             ->first();
     
         if (!$cart) return $this->emptyCartResponse();
     
-        // HIDRATACIÓN EN RAM: Incluimos el total_safety en el cálculo
-        $cart->items->each(function ($item) use ($now) {
+        $totalItems = 0;
+        $totalPrice = 0.0;
+        $totalSavings = 0.0;
+
+        // HIDRATACIÓN EN RAM Y CÁLCULOS
+        $cart->items->each(function ($item) use ($now, &$totalItems, &$totalPrice, &$totalSavings) {
             $sku = $item->sku;
             
-            // RECTIFICACIÓN: Restamos total_safety para que el carrito 
-            // sea honesto con lo que el Checkout permitirá procesar.
             $item->max_stock = max(0, 
                 (int)($sku->total_physical ?? 0) - 
                 (int)($sku->total_reserved ?? 0) - 
                 (int)($sku->total_safety ?? 0)
             );
             
-            $item->current_price_data = $this->priceResolver->resolveWinningPrice($sku, $item->quantity, $now);
+            $priceData = $this->priceResolver->resolveWinningPrice($sku, $item->quantity, $now);
+            $item->current_price_data = $priceData;
+
+            $totalItems += $item->quantity;
+            $totalPrice += ($item->quantity * $priceData->final_price);
+            $totalSavings += ($item->quantity * ($priceData->list_price - $priceData->final_price));
         });
-        return (new \App\Http\Resources\Customer\Cart\CartResource($cart))->resolve();
+
+        $cart->calculated_total_items = $totalItems;
+        $cart->calculated_total_price = $totalPrice;
+        $cart->calculated_total_savings = $totalSavings;
+
+        return (new CartResource($cart))->resolve();
     }
+
     private function emptyCartResponse(): array 
     {
         return [
             'id'            => null,
             'items'         => [],
             'total_items'   => 0,
-            'total_price'   => 0,
-            'total_savings' => 0
+            'total_price'   => 0.0,
+            'total_savings' => 0.0
         ];
     }
 }

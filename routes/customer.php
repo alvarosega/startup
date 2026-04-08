@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Web\Customer\Checkout\CheckoutOrchestratorController;
 use App\Http\Controllers\Web\Customer\Auth\LoginController;
 use App\Http\Controllers\Web\Customer\Auth\RegisterController;
 use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Web\Customer\Favorites\FavoriteController;
 use App\Http\Controllers\Web\Customer\Brand\BrandController;
 use App\Http\Controllers\Web\Customer\Featured\FeaturedController;
 use App\Http\Controllers\Web\Customer\Sku\SkuController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -99,10 +101,12 @@ Route::middleware(['auth:customer'])->group(function () {
         });
     });
 
-    // Checkout y Pedidos
-    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::get('/checkout', [CheckoutOrchestratorController::class, 'index'])
+    ->name('checkout.index');
 
+    Route::post('/checkout', [CheckoutOrchestratorController::class, 'store'])
+        ->name('checkout.store')
+        ->middleware('idempotency');
 /*
 |--------------------------------------------------------------------------
 | Silo de Pedidos del Cliente (Bajo el prefijo 'customer.')

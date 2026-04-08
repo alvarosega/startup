@@ -7,11 +7,11 @@ import debounce from 'lodash/debounce';
 import { Loader2, Navigation, MapPin, Bug, AlertTriangle } from 'lucide-vue-next';
 
 const props = defineProps({
-    modelValueLat: Number,
-    modelValueLng: Number,
+    modelValueLat: [Number, String], // Aceptar String temporalmente para evitar el Warn
+    modelValueLng: [Number, String],
     modelValueAddress: String,
     activeBranches: { type: Array, default: () => [] },
-    center: { type: Array, default: () => [-16.5000, -68.1500] }, // Ciudad por defecto (ej. La Paz)
+    center: { type: Array, default: () => [-16.5000, -68.1500] },
     zoom: { type: Number, default: 15 }
 });
 

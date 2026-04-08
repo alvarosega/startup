@@ -8,36 +8,26 @@ use App\Services\Geo\BranchCoverageService;
 use App\Services\ShopContextService;
 use App\Services\Cart\CartService;
 use App\Exceptions\IdentityCollisionException;
-use Illuminate\Support\Facades\{DB, Hash, Storage, Log};
+use Illuminate\Support\Facades\{DB, Hash};
 
 class RegisterCustomerAction
 {
     public function __construct(
         protected ShopContextService $shopContext,
         protected BranchCoverageService $geoService,
-        protected CartService $cartService // <--- CAMBIAR AQUÍ
+        protected CartService $cartService
     ) {}
 
     public function execute(RegisterCustomerData $data, ?string $idempotencyKey = null): Customer
     {
-        // 1. Idempotencia Nivel L1 (Caché)
         if ($idempotencyKey && $cached = cache()->get("reg_key_{$idempotencyKey}")) {
             return $cached;
         }
 
-        // 2. Gestión de I/O (Fuera de la transacción para mayor velocidad de DB)
-        $avatarSource = $data->avatarSource;
-        if ($data->avatarType === 'custom' && $data->avatarFile) {
-            $path = $data->avatarFile->store('avatars/uploads', 'public');
-            $avatarSource = basename($path);
-        }
-
-        return DB::transaction(function () use ($data, $idempotencyKey, $avatarSource) {
+        return DB::transaction(function () use ($data, $idempotencyKey) {
             
-            // 3. Blindaje de Identidad (Bloqueo Pesimista)
             $this->validateGlobalUniqueness($data->email, $data->phone);
 
-            // 4. Verificación de duplicados por Idempotencia en DB
             if ($idempotencyKey) {
                 $duplicate = Customer::where('idempotency_key', $idempotencyKey)->lockForUpdate()->first();
                 if ($duplicate) return $duplicate;
@@ -46,7 +36,6 @@ class RegisterCustomerAction
             $assignedBranchId = $this->geoService->identifyBranch($data->latitude, $data->longitude) 
                                 ?? $this->shopContext->getDefaultBranchId();
 
-            // 5. Persistencia
             $customer = Customer::create([
                 'phone'           => $data->phone,
                 'email'           => $data->email,
@@ -62,8 +51,8 @@ class RegisterCustomerAction
             $customer->profile()->create([
                 'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
                 'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
-                'avatar_type'   => 'icon', // Forzado a icon
-                'avatar_source' => $data->avatarSource,
+                'avatar_type'   => 'icon', 
+                'avatar_source' => $data->avatarSource, // ej: "avatar_3.png"
             ]);
 
             $customer->addresses()->create([
@@ -78,13 +67,8 @@ class RegisterCustomerAction
 
             $customer->assignRole('customer');
 
-            // 6. Sincronización Post-Persistencia
             if ($data->guestUuid) {
-                // LLAMADA DIRECTA AL MOTOR DE FUSIÓN
-                $this->cartService->fusionGuestCart(
-                    (string) $customer->id,
-                    $data->guestUuid
-                );
+                $this->cartService->fusionGuestCart((string) $customer->id, $data->guestUuid);
             }
 
             if ($idempotencyKey) {
@@ -105,7 +89,7 @@ class RegisterCustomerAction
                 ->exists();
 
             if ($exists) {
-                throw new IdentityCollisionException("Conflicto de identidad detectado en silo.");
+                throw new IdentityCollisionException("El correo o teléfono ya están registrados en la plataforma.");
             }
         }
     }

@@ -40,6 +40,15 @@ class InventoryOrchestrator
                 $lot->increment('reserved_quantity', $canTake);
                 $remaining -= $canTake;
             }
+            $balance = DB::table('inventory_balances')
+                ->where('sku_id', $skuId)
+                ->where('branch_id', $branchId)
+                ->lockForUpdate() // <--- CRÍTICO: Bloquea el balance para evitar Lost Updates
+                ->first();
+
+            if (!$balance) {
+                throw new Exception("Balance no encontrado para SKU: {$skuId}");
+            }
 
             // 3. Sincronía con Balance Global
             DB::table('inventory_balances')

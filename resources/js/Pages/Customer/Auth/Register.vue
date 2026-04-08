@@ -28,6 +28,15 @@ const registrationId = ref(null);
 
 onMounted(() => {
     registrationId.value = crypto.randomUUID();
+    
+    // Si regresamos con errores de ubicación, saltamos al paso 2
+    if (form.errors.address || form.errors.latitude) {
+        currentStep.value = 2;
+    }
+    // Si regresamos con errores de avatar, saltamos al paso 3
+    else if (form.errors.avatar_source) {
+        currentStep.value = 3;
+    }
 });
 
 const form = useForm({
@@ -41,8 +50,8 @@ const form = useForm({
     alias: '', 
     address: '', 
     details: '', 
-    latitude: '', 
-    longitude: '',
+    latitude: null, 
+    longitude: null,
     branch_id: null, 
     avatar_type: 'icon', 
     avatar_source: null, 

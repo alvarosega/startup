@@ -46,12 +46,11 @@ class HandleCustomerInertiaRequests extends Middleware
                 ]);
             },
             
-            // RECTIFICACIÓN: Paso de los 3 argumentos obligatorios
-            'cart' => app(GetCustomerCartAction::class)->execute(
-                $guestUuid, 
-                $user?->id, 
-                $branchId
-            ),
+            'cart' => Inertia::lazy(fn () => app(GetCustomerCartAction::class)->execute(
+                    $guestUuid, 
+                    $user?->id, 
+                    $branchId
+                )),
             
             // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId
             // MODIFICAR el cierre de 'categories_menu'

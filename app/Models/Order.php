@@ -5,29 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use Symfony\Component\Uid\Uuid;
 
 class Order extends Model
 {
+
+
+    
     use SoftDeletes, HasUuids;
+    public function newUniqueId(): string
+    {
+        return (string) Uuid::v7();
+    }
 
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
         'id', 'code', 'customer_id', 'branch_id', 'driver_id',
-        'delivery_type', 'delivery_data', 'status', 'pickup_otp', 'delivery_otp', 
-        'reservation_expires_at',
-        
-        // Ledger Financiero (CRÍTICO: Añadido items_subtotal)
+        'delivery_type', 'delivery_data', 'status', 'reservation_expires_at',
         'items_subtotal', 'delivery_fee', 'service_fee', 'total_amount',
-        
-        // Pago y Facturación
         'payment_method', 'proof_of_payment', 'bank_reference',
-        'billing_nit', 'billing_name',
-                
-        // Auditoría
-        'rejection_reason', 'reviewed_at'
+        'billing_nit', 'billing_name', 'rejection_reason', 'reviewed_at'
     ];
+    public function otps(): HasMany { 
+        return $this->hasMany(OrderOtp::class); 
+    }
 
     protected $casts = [
         'delivery_data' => 'array',

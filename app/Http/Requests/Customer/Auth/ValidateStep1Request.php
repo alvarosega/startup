@@ -28,9 +28,10 @@ class ValidateStep1Request extends FormRequest
         return [
             'first_name'   => ['required', 'string', 'max:100'],
             'last_name'    => ['required', 'string', 'max:100'],
-            'country_code' => ['required', 'string', 'size:2'], // Faltaba mapear el país
+            'country_code' => ['required', 'string', 'size:2'],
             'email'        => $this->globalEmailRules(),
             'phone'        => $this->globalPhoneRules(),
+            // RECTIFICACIÓN: Asegurar que la confirmación se valide aquí también
             'password'     => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }

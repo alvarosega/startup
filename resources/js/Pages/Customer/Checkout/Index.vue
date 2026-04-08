@@ -61,10 +61,25 @@ const isPaymentDisabled = computed(() => {
     if (deliveryType.value === 'delivery' && !currentLogistics.value?.is_available) return true;
     return false;
 });
+const generateIdempotencyKey = () => {
+    return window.crypto.randomUUID(); // Estándar moderno de navegador
+};
 
 const submit = () => {
     if (isPaymentDisabled.value) return;
-    form.post(route('customer.checkout.store')); 
+    
+    form.post(route('customer.checkout.store'), {
+        headers: {
+            'X-Idempotency-Key': generateIdempotencyKey()
+        },
+        preserveScroll: true,
+        onSuccess: () => {
+            console.log('Orden procesada con éxito y sin duplicados.');
+        },
+        onError: (errors) => {
+            console.error('Error en el checkout:', errors);
+        }
+    }); 
 };
 </script>
 

@@ -49,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'inertia.customer'   => \App\Http\Middleware\HandleCustomerInertiaRequests::class,
             'inertia.admin'      => \App\Http\Middleware\HandleAdminInertiaRequests::class,
             'inertia.driver'     => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
+            'idempotency'        => \App\Http\Middleware\CheckIdempotency::class,
         ]);
 
         // --- REDIRECCIÓN DE USUARIOS LOGUEADOS (Preventivo) ---

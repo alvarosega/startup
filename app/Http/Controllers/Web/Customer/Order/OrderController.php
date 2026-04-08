@@ -5,58 +5,91 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Customer\Order;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Customer\Order\UploadOrderProofRequest;
-use App\DTOs\Customer\Order\{GetCustomerOrderDTO, UploadOrderProofDTO};
 use App\Models\Order;
+use App\Http\Requests\Customer\Orders\TransitionToPaymentPendingRequest;
+use App\DTOs\Customer\Orders\TransitionToPaymentPendingDTO;
+use App\Actions\Customer\Orders\TransitionToPaymentPendingAction;
+use App\Http\Resources\Customer\Orders\OrderPendingResource;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
 use Exception;
-
-use App\Actions\Customer\Order\GetCustomerOrdersAction;
-use App\Actions\Customer\Order\UploadOrderProofAction;
-use App\Actions\Customer\Order\States\{
-    GetPendingPaymentDataAction,
-    GetPaymentWaitDataAction,
-    GetRejectionDataAction,
-    GetStandardOrderDataAction,
-    GetInRouteDataAction
-};
 
 class OrderController extends Controller
 {
-    public function index(GetCustomerOrdersAction $action): Response
-    {
-        $dto = new GetCustomerOrderDTO(customerId: (string) auth()->guard('customer')->id());
-        
-        return Inertia::render('Customer/Orders/Index', [
-            'orders' => $action->execute($dto)
-        ]);
-    }
-
-    public function show(string $id): Response
+    public function index(): Response
     {
         $customerId = (string) auth()->guard('customer')->id();
-        $order = Order::where('customer_id', $customerId)->findOrFail($id, ['id', 'status']);
-        $dto = new GetCustomerOrderDTO(customerId: $customerId, orderId: $id);
 
-        return match($order->status) {
-            'pending'         => Inertia::render('Customer/Orders/States/PendingPayment', app(GetPendingPaymentDataAction::class)->execute($dto)),
-            'payment_pending' => Inertia::render('Customer/Orders/States/PaymentWait', app(GetPaymentWaitDataAction::class)->execute($dto)),
-            'rejected'        => Inertia::render('Customer/Orders/States/PaymentRejected', app(GetRejectionDataAction::class)->execute($dto)),
-            'dispatched', 'arrived' => Inertia::render('Customer/Orders/States/InRoute', app(GetInRouteDataAction::class)->execute($dto)),
-            default           => Inertia::render('Customer/Orders/States/StandardView', app(GetStandardOrderDataAction::class)->execute($dto)),
+        $orders = Order::where('customer_id', $customerId)
+            ->select(['id', 'code', 'status', 'delivery_type', 'total_amount', 'created_at']) // QUERY LAW
+            ->orderBy('created_at', 'desc')
+            ->cursorPaginate(15);
+
+        return Inertia::render('Customer/Orders/Index', [
+            'orders' => OrderIndexResource::collection($orders)
+        ]);
+    }
+    /**
+     * FSM Router: Decide qué vista renderizar basándose matemáticamente en el estado de la orden.
+     */
+    public function show(string $id): Response|RedirectResponse
+    {
+        $customerId = (string) auth()->guard('customer')->id();
+
+        $order = Order::where('id', $id)
+            ->where('customer_id', $customerId)
+            ->firstOrFail();
+
+        return match ($order->status) {
+            'pending' => $this->renderPendingPayment($order),
+            'payment_pending' => Inertia::render('Customer/Orders/PaymentWaiting', ['code' => $order->code]),
+            // Aquí se irán añadiendo los demás estados en las siguientes fases
+            default => Inertia::render('Customer/Orders/Show', ['order' => $order->toArray()]) 
         };
     }
 
-    public function uploadProof(UploadOrderProofRequest $request, string $id, UploadOrderProofAction $action): RedirectResponse
-    {
+    /**
+     * Punto de entrada para la inyección del comprobante.
+     */
+    public function uploadProof(
+        TransitionToPaymentPendingRequest $request, 
+        string $id, 
+        TransitionToPaymentPendingAction $action
+    ): RedirectResponse {
         try {
-            $dto = UploadOrderProofDTO::fromRequest($request, $id, auth()->guard('customer')->id());
+            $dto = new TransitionToPaymentPendingDTO(
+                orderId: $id,
+                customerId: (string) auth()->guard('customer')->id(),
+                proofFile: $request->file('proof')
+            );
+
             $action->execute($dto);
-            return back()->with('success', 'Comprobante recibido.');
+
+            return redirect()->route('customer.orders.show', $id)
+                ->with('success', 'Comprobante recibido. En proceso de validación táctica.');
+
         } catch (Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Sub-rutina de renderizado aislada.
+     */
+    private function renderPendingPayment(Order $order): Response|RedirectResponse
+    {
+        // Si el estado es pending pero ya expiró el tiempo, se deniega la vista
+        if ($order->reservation_expires_at < now()) {
+            return redirect()->route('customer.orders.index')
+                ->with('error', 'El tiempo de reserva ha finalizado. La orden será cancelada.');
+        }
+
+        $resource = (new OrderPendingResource($order))->resolve();
+
+        return Inertia::render('Customer/Orders/PendingPayment', [
+            'order'           => $resource['order'],
+            'payment_context' => $resource['payment_context']
+        ]);
     }
 }
