@@ -86,28 +86,47 @@ class CartService
 
     public function fusionGuestCart(string $customerId, string $guestUuid): void
     {
-        $branchId = $this->shopContext->getActiveBranchId();
-    
-        DB::transaction(function () use ($customerId, $guestUuid, $branchId) {
-            $guestCart = Cart::where('session_id', $guestUuid)->where('branch_id', $branchId)->with('items')->first();
-            if (!$guestCart || $guestCart->items->isEmpty()) return;
-    
-            $userCart = $this->getOrCreateCart($branchId);
+        DB::transaction(function () use ($customerId, $guestUuid) {
+            // RECTIFICACIÓN CRÍTICA (OPCIÓN A): Buscamos TODOS los carritos del Guest sin importar la sucursal.
+            $guestCarts = Cart::where('session_id', $guestUuid)->with('items')->get();
             
-            // RECTIFICACIÓN: Cargar items existentes del usuario para comparación en RAM
-            $existingItems = CartItem::where('cart_id', $userCart->id)->get()->keyBy('sku_id');
-    
-            foreach ($guestCart->items as $guestItem) {
-                $existingItem = $existingItems->get($guestItem->sku_id);
-    
-                if ($existingItem) {
-                    $existingItem->update(['quantity' => min(99, $existingItem->quantity + $guestItem->quantity)]);
-                    $guestItem->delete();
-                } else {
-                    $guestItem->update(['cart_id' => $userCart->id]);
+            if ($guestCarts->isEmpty()) return;
+
+            foreach ($guestCarts as $guestCart) {
+                // Si el carrito estaba vacío, simplemente lo destruimos y continuamos.
+                if ($guestCart->items->isEmpty()) {
+                    $guestCart->delete();
+                    continue;
                 }
+
+                // REGLA DE HIERRO: El carrito del usuario heredará la sucursal exacta donde el guest lo armó.
+                $originalBranchId = $guestCart->branch_id;
+
+                // 1. Crear o recuperar el carrito del Usuario para ESA sucursal específica
+                $userCart = Cart::firstOrCreate([
+                    'customer_id' => $customerId, 
+                    'branch_id' => $originalBranchId
+                ]);
+                
+                // 2. Cargar items existentes del usuario para comparación en RAM
+                $existingItems = CartItem::where('cart_id', $userCart->id)->get()->keyBy('sku_id');
+
+                foreach ($guestCart->items as $guestItem) {
+                    $existingItem = $existingItems->get($guestItem->sku_id);
+
+                    if ($existingItem) {
+                        // Fusión de cantidades respetando el límite de 99
+                        $existingItem->update(['quantity' => min(99, $existingItem->quantity + $guestItem->quantity)]);
+                        $guestItem->delete();
+                    } else {
+                        // Traspaso de propiedad manteniendo la integridad del SKU
+                        $guestItem->update(['cart_id' => $userCart->id]);
+                    }
+                }
+                
+                // 3. Eliminar el contenedor temporal del Guest
+                $guestCart->delete();
             }
-            $guestCart->delete();
         });
     }
 
