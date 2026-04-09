@@ -11,6 +11,7 @@ use App\DTOs\Customer\Order\TransitionToPaymentPendingDTO;
 use App\Actions\Customer\Order\TransitionToPaymentPendingAction;
 use App\Http\Resources\Customer\Order\OrderPendingResource;
 use App\Http\Resources\Customer\Order\OrderIndexResource;
+use App\Actions\Customer\Order\GetOrderTrackingDataAction;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,6 +55,10 @@ class OrderController extends Controller
                     'status'       => $order->status
                 ]
             ]),
+            'preparing', 'ready_for_dispatch', 'dispatched', 'arrived' => Inertia::render(
+                'Customer/Order/Tracking', 
+                app(GetOrderTrackingDataAction::class)->execute($order->id)
+            ),
             
             default => redirect()->route('customer.order.index')
                         ->with('info', "La vista de detalle para el estado '{$order->status}' está en desarrollo.")

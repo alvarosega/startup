@@ -12,6 +12,9 @@ use App\Actions\Driver\Order\{
     AcceptOrderAction, 
     VerifyPickupAction
 };
+use App\Actions\Driver\Order\MarkOrderAsArrivedAction;
+use App\Actions\Driver\Order\DeliverOrderAction;
+use App\Http\Requests\Driver\Order\DeliverOrderRequest;
 use App\Http\Requests\Driver\Order\{AcceptOrderRequest, VerifyPickupRequest};
 use Illuminate\Http\RedirectResponse;
 use Inertia\{Inertia, Response};
@@ -20,9 +23,7 @@ use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
-    /**
-     * Lista pedidos en 'preparing' y 'ready_for_dispatch' sin conductor.
-     */
+
     public function index(GetAvailableOrdersAction $action): Response
     {
         return Inertia::render('Driver/Orders/Index', [
@@ -42,18 +43,14 @@ class OrderController extends Controller
             // VISTA 2: Preparación y Validación de Recogida (PIN del Admin)
             'preparing', 'ready_for_dispatch' => Inertia::render('Driver/Orders/ReadyForDispatch', $action->execute($order->id)),
 
-            // VISTA 3: Ruta de Entrega y Validación de Cliente (PIN del Cliente)
-            'dispatched' => Inertia::render('Driver/Orders/Delivery', $action->execute($order->id)),
-            
-            'arrived' => redirect()->route('driver.dashboard'), // Estado de "Llegué a la puerta"
+            // RECTIFICACIÓN CRÍTICA: 'arrived' se une a 'dispatched' para renderizar la misma vista (Delivery.vue)
+            'dispatched', 'arrived' => Inertia::render('Driver/Orders/Delivery', $action->execute($order->id)),
             
             default => redirect()->route('driver.orders.index')->with('error', 'Pedido finalizado o no disponible.')
         };
     }
 
-    /**
-     * Paso 1: El driver "reserva" el pedido (early assignment).
-     */
+
     public function take(AcceptOrderRequest $request, Order $order, AcceptOrderAction $action): RedirectResponse
     {
         try {
@@ -65,17 +62,45 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Paso 2: El driver ingresa el OTP dictado por el Admin para iniciar el viaje.
-     */
     public function verifyPickup(VerifyPickupRequest $request, Order $order, VerifyPickupAction $action): RedirectResponse
     {
         try {
-            $action->execute($order->id, $request->validated('pickup_otp'));
+            $action->execute(
+                $order->id, 
+                (string) Auth::id(), 
+                // RECTIFICACIÓN: Casteo explícito a string para cumplir con el contrato del Action
+                (string) $request->validated('pickup_otp') 
+            );
+            
             return redirect()->route('driver.dashboard')
                 ->with('success', 'Carga verificada. Inicia la ruta de entrega.');
         } catch (Exception $e) {
             return back()->withErrors(['pickup_otp' => $e->getMessage()]);
+        }
+    }
+    public function markArrived(Order $order, MarkOrderAsArrivedAction $action): RedirectResponse
+    {
+        try {
+            $action->execute($order->id, (string) Auth::id());
+            return back()->with('success', 'Llegada registrada. Solicite el PIN al cliente.');
+        } catch (Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+
+    public function deliver(DeliverOrderRequest $request, Order $order, DeliverOrderAction $action): RedirectResponse
+    {
+        try {
+            $action->execute(
+                $order->id, 
+                (string) Auth::id(), 
+                (string) $request->validated('delivery_otp')
+            );
+            return redirect()->route('driver.dashboard')
+                ->with('success', 'Misión Cumplida. Carga entregada exitosamente.');
+        } catch (Exception $e) {
+            return back()->withErrors(['delivery_otp' => $e->getMessage()]);
         }
     }
 }

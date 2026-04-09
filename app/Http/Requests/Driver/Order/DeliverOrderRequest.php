@@ -6,15 +6,15 @@ namespace App\Http\Requests\Driver\Order;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class VerifyPickupRequest extends FormRequest
+class DeliverOrderRequest extends FormRequest
 {
     public function authorize(): bool { return auth()->guard('driver')->check(); }
 
     public function rules(): array
     {
         return [
-            // RECTIFICACIÓN: Cambiar 'string' y 'size' por 'numeric' y 'digits'
-            'pickup_otp' => ['required', 'numeric', 'digits:5'],
+            // El delivery_otp de nuestra migración es de 4 dígitos
+            'delivery_otp' => ['required', 'numeric', 'digits:4'],
         ];
     }
 }

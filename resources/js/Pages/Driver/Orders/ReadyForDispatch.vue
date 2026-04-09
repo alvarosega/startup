@@ -47,7 +47,7 @@ const submit = () => {
                 <div class="space-y-6">
                     <div class="text-center">
                         <label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-4">Ingrese el PIN dictado por el Admin</label>
-                        <input v-model="form.pickup_otp" type="number" maxlength="5" placeholder="00000"
+                        <input v-model="form.pickup_otp" type="text" inputmode="numeric" pattern="\d*" maxlength="5" placeholder="00000"
                             class="w-full text-center text-5xl font-mono font-black tracking-[0.3em] bg-muted border-none rounded-3xl py-6 focus:ring-4 focus:ring-primary/20 transition-all">
                         <p v-if="form.errors.pickup_otp" class="text-[10px] text-destructive font-black uppercase mt-4">{{ form.errors.pickup_otp }}</p>
                     </div>
