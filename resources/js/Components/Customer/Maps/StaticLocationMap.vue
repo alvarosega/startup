@@ -1,36 +1,33 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import L from 'leaflet';
+import { MapPin } from 'lucide-vue-next';
 
 const props = defineProps({
-    lat: Number,
-    lng: Number,
+    lat: [Number, String], // Tolerancia para evitar fallos si llega como string
+    lng: [Number, String],
     address: String,
     zoom: { type: Number, default: 16 }
 });
 
+// Estandarización de icono al radar táctico de la app
 const createTacticalIcon = () => {
     return L.divIcon({
-        className: 'static-pin-container',
-        html: `
-            <div class="relative flex flex-col items-center">
-                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center border-2 border-white shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A192F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                </div>
-            </div>
-        `,
+        className: 'static-preview-pin',
+        html: `<div class="w-8 h-8 bg-primary rounded-full border-[3px] border-white dark:border-[#0A192F] shadow-2xl flex items-center justify-center text-white"><div class="w-2 h-2 bg-white rounded-full"></div></div>`,
         iconSize: [32, 32],
-        iconAnchor: [16, 32],
+        iconAnchor: [16, 16],
     });
 };
 </script>
 
 <template>
-    <div class="w-full h-48 rounded-[24px] overflow-hidden border border-white/10 relative group">
+    <div class="w-full h-48 md:h-56 rounded-[2rem] overflow-hidden border border-border/40 relative group shadow-inner bg-foreground/5">
+        
         <l-map :zoom="zoom" 
-               :center="[lat, lng]" 
+               :center="[Number(lat || 0), Number(lng || 0)]" 
                :use-global-leaflet="false"
                :options="{ 
                    zoomControl: false, 
@@ -40,22 +37,38 @@ const createTacticalIcon = () => {
                    scrollWheelZoom: false, 
                    doubleClickZoom: false 
                }"
-               class="h-full w-full z-0">
+               class="h-full w-full z-0 dark-map-filter">
             
-            <l-tile-layer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" class-name="map-tiles" />
+            <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             
-            <l-marker :lat-lng="[lat, lng]" :icon="createTacticalIcon()" />
+            <l-marker v-if="lat && lng" :lat-lng="[Number(lat), Number(lng)]" :icon="createTacticalIcon()" />
         </l-map>
 
-        <div class="absolute bottom-3 left-3 right-3 z-[400] bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl flex items-center gap-3">
+        <div class="absolute bottom-3 left-3 right-3 md:bottom-4 md:left-4 md:right-4 z-[400] bg-background/85 backdrop-blur-md border border-border/40 p-3 md:p-4 rounded-[1.5rem] flex items-center gap-4 shadow-xl transition-all duration-300">
+            
+            <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-inner">
+                <MapPin :size="18" stroke-width="2.5" />
+            </div>
+            
             <div class="flex-1 min-w-0">
-                <p class="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">Destino Confirmado</p>
-                <p class="text-xs font-bold text-white truncate">{{ address }}</p>
+                <p class="text-[9px] font-black text-foreground/40 uppercase tracking-[0.2em] leading-none mb-1">
+                    Destino Confirmado
+                </p>
+                <p class="text-xs md:text-sm font-bold text-foreground truncate uppercase italic">
+                    {{ address || 'COORDENADA ESTÁTICA' }}
+                </p>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-.dark .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+/* Filtro paramétrico para invertir el mapa de Light All a Dark Táctico en Modo Oscuro */
+.dark-map-filter {
+    transition: filter 0.5s ease;
+}
+
+.dark .dark-map-filter {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
 </style>
