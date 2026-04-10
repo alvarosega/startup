@@ -29,11 +29,12 @@ class FeaturedController extends Controller
         $featured = $featuredAction->execute($branchId);
 
         return Inertia::render('Customer/Featured/Show', [
-            'featuredProducts' => FeaturedProductResource::collection($featured),
+            // RECTIFICACIÓN: .resolve() garantiza que el carrusel reciba el array directo
+            'featuredProducts' => FeaturedProductResource::collection($featured)->resolve(),
             'showcase' => [
                 'product' => $data['product'],
-                'skus' => SkuResource::collection($data['skus']),
-                'others_paginated' => SkuResource::collection($data['others_paginated'])
+                'skus' => SkuResource::collection($data['skus'])->resolve(),
+                'others_paginated' => SkuResource::collection($data['others_paginated'])->resolve()
             ]
         ]);
     }

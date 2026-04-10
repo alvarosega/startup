@@ -18,13 +18,12 @@ const otherSkus = ref([]);
 const nextCursor = ref(null);
 const isLoadingMore = ref(false);
 
-// --- 3. PROTOCOLO DE INICIALIZACIÓN ---
-// Sincroniza el estado interno con las props de forma segura
-watch(() => showcaseData.value, (newVal) => {
-    if (newVal?.others_paginated?.data) {
-        // Si no hay cursor (primera carga), inicializamos; si es recarga parcial, el Action maneja la lógica
-        otherSkus.value = newVal.others_paginated.data;
-        nextCursor.value = newVal.others_paginated.next_cursor;
+// RECTIFICACIÓN: Solo resetear si cambiamos de producto destacado, no por paginación.
+watch(() => showcaseData.value.product?.id, (newId, oldId) => {
+    if (newId !== oldId) {
+        const paginated = showcaseData.value.others_paginated;
+        otherSkus.value = paginated?.data || [];
+        nextCursor.value = paginated?.next_cursor || null;
     }
 }, { immediate: true });
 

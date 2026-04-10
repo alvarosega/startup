@@ -18,9 +18,8 @@ const scroll = (direction) => {
 
 const navigateToProduct = (slug) => {
     if (props.loading) return;
-    // RECTIFICACIÓN DE RUTA: Ajustado al estándar
-    router.visit(route('customer.product', { slug: slug }), { 
-        preserveScroll: true,
+    router.visit(route('customer.featured.show', { product: slug }), { 
+        preserveScroll: false, // Cambiado a false para que al navegar suba al inicio
         preserveState: true,
     });
 };
@@ -40,35 +39,36 @@ const navigateToProduct = (slug) => {
         </button>
 
         <div ref="scrollContainer" 
-             class="flex overflow-x-auto snap-x snap-center no-scrollbar px-6 lg:px-8 gap-6 md:gap-10 pb-6 pt-2 scroll-smooth">
+        class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-4 pb-6 pt-2 scroll-smooth">
             
             <template v-if="!loading && products.length > 0">
                 <div v-for="product in products" :key="product.id"
-                     @click="navigateToProduct(product.slug)"
-                     class="group/item relative flex flex-col items-center snap-center shrink-0 cursor-pointer w-[80px] md:w-[100px] transition-all duration-500 ease-ios outline-none active:scale-90">
-                     
-                     <div class="relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-4">
-    
-                        <div class="absolute inset-0 transition-all duration-700 pointer-events-none layer-gpu opacity-30 md:group-hover/item:opacity-80 scale-[1.1] md:group-hover/item:scale-[1.7] blur-[35px]"
+                    @click="navigateToProduct(product.slug)"
+                    class="group/item relative flex flex-col items-center snap-start shrink-0 cursor-pointer w-24 transition-all duration-500 ease-ios outline-none active:scale-95">
+                    
+                    <div class="relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-4">
+                        <div class="absolute inset-0 transition-all duration-700 pointer-events-none layer-gpu opacity-20 md:group-hover/item:opacity-60 scale-[1.2] md:group-hover/item:scale-[1.8] blur-[30px]"
                             style="background: radial-gradient(circle, hsl(var(--primary)) 10%, transparent 70%)">
                         </div>
 
                         <img :src="product.image_url" 
-                            class="relative z-10 w-18 h-18 md:w-22 md:h-22 object-contain transition-all duration-500 group-hover/item:scale-115 group-hover/item:-translate-y-4 layer-gpu drop-shadow-hardware"
+                            class="relative z-10 w-16 h-16 md:w-20 md:h-20 object-contain transition-all duration-500 group-hover/item:scale-110 group-hover/item:-translate-y-2 layer-gpu drop-shadow-hardware"
                             :alt="product.name"
                             @error="(e) => e.target.src = '/assets/img/product_placeholder.png'">
                     </div>
 
-                    <span class="text-[9px] md:text-[10px] font-black tracking-[0.1em] uppercase text-center leading-tight line-clamp-2 w-full transition-all duration-300 text-foreground/60 group-hover/item:text-foreground">
+                    <span class="text-xs font-black tracking-tight uppercase text-center leading-tight line-clamp-2 w-full transition-all duration-300 text-foreground/50 group-hover/item:text-foreground">
                         {{ product.name }}
                     </span>
                 </div>
+
+
             </template>
 
             <template v-else>
-                <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-[80px] md:w-[100px] animate-pulse gap-4">
-                    <div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/10 blur-2xl"></div>
-                    <div class="h-2 w-14 bg-foreground/10 rounded-full"></div>
+                <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-24 gap-4">
+                    <div class="w-16 h-16 md:w-20 md:h-20 rounded-full skeleton"></div>
+                    <div class="h-3 w-14 skeleton rounded-full"></div>
                 </div>
             </template>
 
