@@ -28,8 +28,8 @@ class CartController extends Controller
         $branchId  = $this->shopContext->getActiveBranchId();
         $userId    = auth()->guard('customer')->id();
     
-        // RECTIFICACIÓN DE FIRMA (3 Argumentos)
-        $cart = $action->execute($guestUuid, $userId, $branchId);
+        // RECTIFICACIÓN: Añadir ->resolve() al final de la ejecución de la acción
+        $cart = $action->execute($guestUuid, $userId, $branchId)->resolve();
     
         return Inertia::render('Customer/Cart/Index', [
             'cart' => $cart,

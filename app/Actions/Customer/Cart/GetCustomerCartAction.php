@@ -12,9 +12,6 @@ class GetCustomerCartAction
 {
     public function __construct(private PriceResolverService $priceResolver) {}
 
-    /**
-     * RECTIFICACIÓN: La firma ahora declara que devuelve un CartResource, no un array.
-     */
     public function execute(?string $guestUuid, ?string $customerId, string $branchId): CartResource
     {
         $now = now();
@@ -27,7 +24,9 @@ class GetCustomerCartAction
                 : $q->where('session_id', $guestUuid)
             )
             ->with([
-                'items' => fn($q) => $q->select(['id', 'cart_id', 'sku_id', 'quantity', 'is_bundle']),
+                'items' => fn($q) => $q->select(['id', 'cart_id', 'sku_id', 'bundle_id', 'quantity', 'is_bundle']),
+                'items.bundle' => fn($q) => $q->select(['id', 'name', 'image_path', 'fixed_price']),
+                'items.bundle.skus' => fn($q) => $q->select(['skus.id', 'name']),
                 'items.sku' => fn($q) => $q->select(['skus.id', 'product_id', 'name', 'image_path', 'base_price']) 
                     ->leftJoin('inventory_balances as ib', function($j) use ($branchId) {
                         $j->on('skus.id', '=', 'ib.sku_id')->where('ib.branch_id', $branchId);
@@ -58,23 +57,29 @@ class GetCustomerCartAction
         $totalPrice = 0.0;
         $totalSavings = 0.0;
 
+        // MODIFICAR: Bloque de hidratación en RAM
         $cart->items->each(function ($item) use ($now, &$totalItems, &$totalPrice, &$totalSavings) {
-            $sku = $item->sku;
-            
-            $item->max_stock = max(0, 
-                (int)($sku->total_physical ?? 0) - 
-                (int)($sku->total_reserved ?? 0) - 
-                (int)($sku->total_safety ?? 0)
-            );
-            
-            $priceData = $this->priceResolver->resolveWinningPrice($sku, $item->quantity, $now);
-            $item->current_price_data = $priceData;
+            if ($item->is_bundle && $item->bundle) {
+                // Lógica para Bundles (Tratado como SKU individual según tu requerimiento)
+                $item->max_stock = 99; // Límite virtual para packs
+                $item->current_price_data = (object)[
+                    'final_price' => (float) $item->bundle->fixed_price,
+                    'list_price'  => (float) $item->bundle->fixed_price,
+                    'type'        => 'bundle',
+                    'next_tier'   => null
+                ];
+            } else {
+                // Lógica existente para SKUs
+                $sku = $item->sku;
+                $item->max_stock = max(0, (int)($sku->total_physical ?? 0) - (int)($sku->total_reserved ?? 0) - (int)($sku->total_safety ?? 0));
+                $item->current_price_data = $this->priceResolver->resolveWinningPrice($sku, $item->quantity, $now);
+            }
 
+            $priceData = $item->current_price_data;
             $totalItems += $item->quantity;
             $totalPrice += ($item->quantity * $priceData->final_price);
             $totalSavings += ($item->quantity * ($priceData->list_price - $priceData->final_price));
         });
-
         // RECTIFICACIÓN CRÍTICA: values() resetea los índices para asegurar un JSON Array []
         $cart->setRelation('items', $cart->items->values()); 
 
