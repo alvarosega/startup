@@ -54,16 +54,16 @@ const carouselBundles = computed(() => {
                     </h2>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-[9px] font-black font-mono text-foreground/40 uppercase bg-black/5 dark:bg-white/5 px-2 py-1 rounded">
+                    <span class="text-xs font-black font-mono text-foreground/40 uppercase bg-foreground/5 px-2 py-1 rounded-lg">
                         Cod: {{ bundleData.slug }}
                     </span>
-                    <span class="text-[9px] font-black font-mono text-primary uppercase bg-primary/10 px-2 py-1 rounded">
+                    <span class="text-xs font-black font-mono text-primary uppercase bg-primary/10 px-2 py-1 rounded-lg">
                         {{ bundleData.items.length }} Unidades
                     </span>
                 </div>
             </div>
             
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8">
                 <SkuCard 
                     v-for="item in bundleData.items" 
                     :key="item.id" 

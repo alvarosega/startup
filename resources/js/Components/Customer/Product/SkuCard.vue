@@ -276,6 +276,12 @@ const goToProduct = () => {
 </template>
 
 <style scoped>
+/* REEMPLAZAR: Chassis de Cristal */
+.glass-chassis {
+    @apply product-card flex flex-col justify-between h-full w-full;
+    background-color: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(20px);
+}
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
 
@@ -308,10 +314,5 @@ const goToProduct = () => {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* REEMPLAZAR: Chassis de Cristal */
-.glass-chassis {
-    @apply product-card flex flex-col justify-between h-full w-full;
-    background-color: hsl(var(--card) / 0.8);
-    backdrop-filter: blur(20px);
-}
+
 </style>

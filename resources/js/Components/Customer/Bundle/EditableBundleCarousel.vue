@@ -31,11 +31,14 @@ const handleNavigate = (slug) => {
     router.visit(route('customer.bundle', { slug }));
 };
 
+// MODIFICAR: Añadir 'only' para evitar parpadeo global
 const handleQuickAdd = (bundleId) => {
     if (processingId.value) return;
     processingId.value = bundleId;
     router.post(route('customer.cart.add-template'), { bundle_id: bundleId }, {
         preserveScroll: true,
+        preserveState: true,
+        only: ['cart', 'flash'], // Solo actualizamos lo necesario
         onFinish: () => processingId.value = null
     });
 };
@@ -44,7 +47,7 @@ const handleQuickAdd = (bundleId) => {
 <template>
     <div class="relative w-full group/carousel">
         <button @click="scroll('left')" 
-                class="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 items-center justify-center rounded-full bg-background/20 backdrop-blur-xl border border-white/10 text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-background/40">
+                class="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 items-center justify-center rounded-full bg-background/40 backdrop-blur-xl border border-white/10 text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:scale-110 active:scale-95 shadow-2xl">
             <ChevronLeft :size="24" stroke-width="3" />
         </button>
         <button @click="scroll('right')" 
@@ -55,12 +58,11 @@ const handleQuickAdd = (bundleId) => {
         <div ref="scrollContainer" 
              class="flex overflow-x-auto snap-x snap-mandatory gap-6 px-6 md:px-12 pb-8 no-scrollbar scroll-smooth">
             
-            <template v-if="loading || bundles.length === 0">
+             <template v-if="loading || bundles.length === 0">
                 <div v-for="n in 3" :key="n" 
-                     class="flex-none w-[85vw] md:w-[400px] h-[340px] rounded-[2.5rem] glass-chassis-skeleton animate-pulse p-8 flex flex-col justify-end gap-4">
-                    <div class="h-8 w-2/3 bg-white/10 rounded-lg"></div>
-                    <div class="h-4 w-full bg-white/5 rounded-md"></div>
-                    <div class="h-12 w-full bg-white/10 rounded-2xl mt-4"></div>
+                    class="flex-none w-[85vw] md:w-[400px] h-[340px] rounded-3xl skeleton p-8 flex flex-col justify-end gap-4">
+                    <div class="h-8 w-2/3 bg-white/20 rounded-lg"></div>
+                    <div class="h-4 w-full bg-white/10 rounded-md"></div>
                 </div>
             </template>
 
@@ -88,8 +90,7 @@ const handleQuickAdd = (bundleId) => {
                         </p>
                         
                         <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/10">
-                            <span class="text-[10px] font-black text-white uppercase tracking-[0.2em]">Suministro Pack</span>
-                            
+                            <span class="text-xs font-black text-white uppercase tracking-[0.2em]">Suministro Pack</span>
                             <button @click.stop="handleQuickAdd(bundle.id)" 
                                     :disabled="processingId === bundle.id"
                                     class="w-14 h-12 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-neutral-200 transition-all active:scale-90 shadow-2xl disabled:opacity-50">
