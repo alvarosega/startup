@@ -22,59 +22,57 @@ const navigateToBrand = (slug) => {
     });
 };
 
-// --- CÁLCULO DE RESPLANDOR (GLOW SYSTEM) ---
 const getBrandStyle = (hex) => {
-    // Si la marca no tiene color definido, usamos el púrpura Cyber por defecto
-    const cleanHex = hex ? hex.replace('#', '') : 'a855f7';
+    const cleanHex = hex ? hex.replace('#', '') : 'f97316';
     const baseColor = `#${cleanHex}`;
     
     return {
-        '--brand-glow-core': `${baseColor}CC`, // 80% opacidad
-        '--brand-glow-outer': `${baseColor}33`, // 20% opacidad
+        '--brand-glow-core': `${baseColor}99`, // Reducido a 60% para elegancia
+        '--brand-glow-outer': `${baseColor}1A`, // Reducido a 10% para suavidad
     };
 };
 </script>
 
 <template>
     <section class="w-full py-4 bg-transparent relative z-10 overflow-visible">
-        <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-8 pb-4">
+        <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 gap-4 pb-4 scroll-smooth">
             
             <template v-if="!loading && brands.length > 0">
                 <div v-for="brand in brands" :key="brand.id"
-                     @click="navigateToBrand(brand.slug)"
-                     :style="getBrandStyle(brand.bg_color)"
-                     class="group flex flex-col items-center gap-5 snap-start shrink-0 cursor-pointer w-[90px] transition-all duration-500">
-                     
+                    @click="navigateToBrand(brand.slug)"
+                    :style="getBrandStyle(brand.bg_color)"
+                    class="group flex flex-col items-center gap-4 snap-start shrink-0 cursor-pointer 
+                        w-24 transition-all duration-500 ease-ios active:scale-95">
+                    
                     <div class="relative w-20 h-20 flex items-center justify-center">
-                        
-                        <div class="absolute inset-0 rounded-full transition-all duration-700 blur-[35px] pointer-events-none"
+                        <div class="absolute inset-0 rounded-full transition-all duration-700 blur-[30px] pointer-events-none layer-gpu"
                             :class="[
-                                (!activeId || String(activeId) === String(brand.id)) 
-                                ? 'opacity-100 scale-[2.5] lg:scale-[3]' 
-                                : 'opacity-0 group-hover:opacity-80 group-hover:scale-[2]'
+                                (String(activeId) === String(brand.id)) 
+                                ? 'opacity-100 scale-[2.2]' 
+                                : 'opacity-0 group-hover:opacity-60 group-hover:scale-[1.8]'
                             ]"
                             :style="{ 
-                                background: 'radial-gradient(circle, var(--brand-glow-core) 0%, var(--brand-glow-outer) 40%, transparent 75%)' 
+                                background: `radial-gradient(circle, var(--brand-glow-core) 0%, var(--brand-glow-outer) 40%, transparent 75%)` 
                             }">
                         </div>
 
                         <img :src="brand.logo_url" 
-                             class="relative z-10 w-16 h-16 object-contain transition-all duration-500 group-hover:-translate-y-3 filter drop-shadow-[0_0_15px_rgba(0,0,0,0.2)]"
-                             :alt="brand.name"
-                             @error="(e) => e.target.src = '/assets/img/brand_placeholder.png'">
+                            class="relative z-10 w-16 h-16 object-contain transition-all duration-500 group-hover:-translate-y-2 filter drop-shadow-hardware"
+                            :alt="brand.name"
+                            @error="(e) => e.target.src = '/assets/img/brand_placeholder.png'">
                     </div>
 
-                    <span class="text-[10px] font-black tracking-widest uppercase text-center leading-tight line-clamp-2 w-full px-1 transition-all duration-300"
-                          :class="String(activeId) === String(brand.id) ? 'text-primary scale-110' : 'text-foreground/70 group-hover:text-foreground'">
+                    <span class="text-xs font-black tracking-tight uppercase text-center leading-tight line-clamp-2 w-full px-1 transition-all duration-300"
+                        :class="String(activeId) === String(brand.id) ? 'text-primary' : 'text-foreground/50 group-hover:text-foreground'">
                         {{ brand.name }}
                     </span>
                 </div>
             </template>
 
             <template v-else>
-                <div v-for="n in 8" :key="n" class="flex flex-col items-center gap-5 shrink-0 w-[90px] animate-pulse">
-                    <div class="w-16 h-16 rounded-full bg-foreground/10"></div>
-                    <div class="h-2 w-16 bg-foreground/10 rounded-full"></div>
+                <div v-for="n in 8" :key="n" class="flex flex-col items-center gap-4 shrink-0 w-24">
+                    <div class="w-16 h-16 rounded-full skeleton"></div>
+                    <div class="h-3 w-16 skeleton rounded-full"></div>
                 </div>
             </template>
 

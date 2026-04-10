@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Web\Customer\Brand;
 use App\Http\Controllers\Controller;
 use App\Services\ShopContextService;
 use App\Models\Brand;
-
+use Inertia\Inertia;
 // ACCIONES FRACTURADAS
 use App\Actions\Customer\Brand\ListBrandNavigationAction;
 use App\Actions\Customer\Brand\GetBrandHeroAction;
@@ -44,10 +44,25 @@ class BrandController extends Controller
 
         return inertia('Customer/Brand/Show', [
             'currentBrand' => new BrandDetailResource($brand),
-            'brandNav'     => BrandNavResource::collection($navigation),
-            'brandHero'    => $hero ? new BrandHeroResource($hero) : null,
-            'products'     => SkuResource::collection($products),
-            'filters'      => $request->validated()
+            
+            // DEFER: Navegación de marcas
+            'brandNav' => Inertia::defer(fn() => 
+                BrandNavResource::collection($navAction->execute())
+            ),
+    
+            // DEFER: Banner Hero (Si existe)
+            'brandHero' => Inertia::defer(fn() => 
+                ($hero = $heroAction->execute((string)$brand->id, $branchId)) 
+                    ? new BrandHeroResource($hero) 
+                    : null
+            ),
+    
+            // DEFER: Listado de productos (Activa el Grid de Skeletons)
+            'products' => Inertia::defer(fn() => 
+                SkuResource::collection($skuAction->execute((string)$brand->id, $branchId, $request->validated()))
+            ),
+    
+            'filters' => $request->validated()
         ]);
     }
 }

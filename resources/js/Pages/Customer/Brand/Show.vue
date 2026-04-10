@@ -57,7 +57,8 @@ watch([searchQuery, sortBy], () => updateFilters());
                         <div class="flex items-center gap-2 bg-foreground/[0.05] border border-border/40 p-1 rounded-2xl w-full md:w-max backdrop-blur-md">
                             <Search class="ml-3 text-primary" :size="14" />
                             <input v-model="searchQuery" type="text" placeholder="FILTRAR EN ESTA MARCA..."
-                                   class="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-black dark:text-white outline-none focus:ring-0 w-full md:w-64 placeholder:text-foreground/40" />
+                                class="bg-transparent border-none text-xs font-black uppercase tracking-widest text-black dark:text-white outline-none focus:ring-0 w-full md:w-64 placeholder:text-foreground/40" />
+
                         </div>
                     </div>
                 </div>
@@ -80,18 +81,19 @@ watch([searchQuery, sortBy], () => updateFilters());
                     </div>
                 </header>
 
-                <div v-if="skus.length > 0" 
-                     class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
-                    <SkuCard v-for="sku in skus" :key="sku.id" :sku="sku" class="section-reveal" />
+                <div v-if="props.products === undefined" 
+                    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+                    <div v-for="n in 12" :key="n" class="product-card h-[400px] skeleton"></div>
                 </div>
 
-                <div v-else-if="loading" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
-                    <div v-for="n in 12" :key="n" class="aspect-[3/5] glass-chassis-skeleton animate-pulse rounded-[2.5rem]"></div>
+                <div v-else-if="skus.length > 0" 
+                    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+                    <SkuCard v-for="sku in skus" :key="sku.id" :sku="sku" class="section-reveal" />
                 </div>
 
                 <div v-else class="py-40 text-center opacity-30 flex flex-col items-center">
                     <PackageOpen :size="64" stroke-width="1" class="text-foreground mb-4" />
-                    <span class="text-[10px] font-black uppercase tracking-[0.3em]">Radar Despejado en {{ brand.name }}</span>
+                    <span class="text-xs font-black uppercase tracking-[0.3em]">Radar Despejado en {{ brand.name }}</span>
                 </div>
             </main>
         </div>

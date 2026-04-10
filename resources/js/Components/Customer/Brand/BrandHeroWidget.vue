@@ -29,12 +29,12 @@ const scroll = (direction) => {
         </button>
 
         <div ref="scrollContainer" 
-             class="flex overflow-x-auto snap-x snap-mandatory gap-6 px-6 md:px-12 pb-8 no-scrollbar scroll-smooth">
+            class="flex overflow-x-auto snap-x snap-mandatory gap-4 px-6 pb-8 no-scrollbar scroll-smooth">
             
-            <template v-if="loading || banners.length === 0">
+             <template v-if="loading || banners.length === 0">
                 <div v-for="n in 2" :key="n" 
-                     class="flex-none w-[85vw] md:w-[65vw] lg:w-[45vw] aspect-[21/9] md:aspect-[3/1] rounded-[2.5rem] glass-chassis-skeleton animate-pulse p-8 flex flex-col justify-end">
-                    <div class="h-8 w-1/3 bg-white/10 rounded-lg"></div>
+                class="flex-none w-[85%] md:w-[85%] lg:w-[85%] aspect-[21/9] md:aspect-[3/1] rounded-3xl skeleton p-8 flex flex-col justify-end">
+                    <div class="h-8 w-1/3 bg-white/20 rounded-lg"></div>
                 </div>
             </template>
 
@@ -43,7 +43,7 @@ const scroll = (direction) => {
                     v-for="banner in banners" 
                     :key="banner.id"
                     :href="route('customer.brand.show', { slug: banner.brand.slug })"
-                    class="relative flex-none w-[85vw] md:w-[65vw] lg:w-[45vw] aspect-[21/9] md:aspect-[3/1] snap-start group/item rounded-[2.5rem] overflow-hidden glass-chassis border transition-all duration-500 outline-none active:scale-[0.98] cursor-pointer hover:border-white/20 block"
+                    class="relative flex-none w-[85%] md:w-[85%] lg:w-[85%] aspect-[21/9] md:aspect-[3/1] snap-start group/item rounded-3xl overflow-hidden glass-chassis border transition-all duration-500 ease-ios outline-none active:scale-[0.98] cursor-pointer hover:border-white/20 block shadow-apple-soft"
                 >
                     <div class="absolute inset-0 z-0">
                         <img 
@@ -81,12 +81,11 @@ const scroll = (direction) => {
 
 /* CHASIS DE CRISTAL (Marco sutil sobre el panorámico) */
 .glass-chassis {
-    background: rgba(255, 255, 255, 0.03);
+    /* Fondo translúcido mínimo para proteger el contraste del texto */
+    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 100%);
     backdrop-filter: blur(2px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
 }
-
 /* SKELETON ESTRUCTURAL (Alta densidad) */
 .glass-chassis-skeleton {
     background: rgba(255, 255, 255, 0.05);
