@@ -59,14 +59,16 @@ const getCategoryStyle = (hex) => {
             
             <template v-if="!loading && categories.length > 0">
                 <Link v-for="cat in categories" :key="cat.id"
-                     :href="route('customer.category', { category: cat.slug })"
-                     :style="getCategoryStyle(cat.bg_color)"
-                     class="group/item relative flex flex-col items-center snap-center shrink-0 cursor-pointer w-[80px] md:w-[100px] transition-all duration-500 ease-ios outline-none active:scale-90"
-                     :class="{ 'is-active': String(activeId) === String(cat.id) }"
+                    :href="route('customer.category', { category: cat.slug })"
+                    :style="getCategoryStyle(cat.bg_color)"
+                    :preserve-scroll="true"
+                    :preserve-state="true"
+                    :only="['products', 'categoryData', 'banners', 'filters']"
+                    class="group/item relative flex flex-col items-center snap-center shrink-0 cursor-pointer w-[80px] md:w-[100px] transition-all duration-500 ease-ios outline-none active:scale-90"
+                    :class="{ 'is-active': String(activeId) === String(cat.id) }"
                 >
-                     
+                    
                     <div class="relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-4">
-                        
                         <div class="absolute inset-0 rounded-full transition-all duration-700 pointer-events-none layer-gpu"
                             :class="[
                                 String(activeId) === String(cat.id) 
@@ -77,21 +79,21 @@ const getCategoryStyle = (hex) => {
                         </div>
 
                         <div v-if="String(activeId) === String(cat.id)" 
-                             class="absolute inset-0 rounded-full p-[3px] prismatic-ring animate-in zoom-in-75 duration-500 shadow-f1-glow">
+                            class="absolute inset-0 rounded-full p-[3px] prismatic-ring animate-in zoom-in-75 duration-500 shadow-f1-glow">
                             <div class="w-full h-full rounded-full bg-background/80 backdrop-blur-sm"></div>
                         </div>
 
                         <img :src="cat.image_url" 
-                             class="relative z-10 w-16 h-16 md:w-20 md:h-20 object-contain transition-all duration-500 group-hover/item:scale-110 group-hover/item:-translate-y-2 layer-gpu drop-shadow-hardware"
-                             :alt="cat.name">
+                            class="relative z-10 w-16 h-16 md:w-20 md:h-20 object-contain transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-2 layer-gpu drop-shadow-hardware"
+                            :alt="cat.name">
                     </div>
 
-                    <span class="text-[9px] md:text-[10px] font-black tracking-[0.1em] uppercase text-center leading-tight line-clamp-2 w-full transition-all duration-300"
-                          :class="[
-                              String(activeId) === String(cat.id) 
-                              ? 'text-primary' 
-                              : 'text-foreground/60 group-hover/item:text-foreground'
-                          ]">
+                    <span class="text-xs font-black tracking-tight uppercase text-center leading-tight line-clamp-2 w-full transition-all duration-300"
+                        :class="[
+                            String(activeId) === String(cat.id) 
+                            ? 'text-primary' 
+                            : 'text-foreground/60 group-hover:text-foreground'
+                        ]">
                         {{ cat.name }}
                     </span>
                 </Link>
@@ -99,7 +101,7 @@ const getCategoryStyle = (hex) => {
 
             <template v-else>
                 <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-[80px] md:w-[100px] gap-4">
-                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-full skeleton shadow-inner"></div>
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-full skeleton"></div>
                     <div class="h-3 w-16 skeleton rounded-full"></div>
                 </div>
             </template>
