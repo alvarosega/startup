@@ -139,9 +139,9 @@ onUnmounted(() => {
                             <div class="relative group flex-1 md:flex-none">
                                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="12" />
                                 <input v-model="searchQuery" type="text" placeholder="BUSCAR..."
-                                       class="w-full md:w-60 pl-8 pr-4 py-1.5 bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none focus:ring-0" />
+                                       class="w-full md:w-60 pl-8 pr-4 py-1.5 bg-transparent border-none text-xs font-black uppercase tracking-widest outline-none focus:ring-0" />
                             </div>
-                            <select v-model="sortBy" class="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-8">
+                            <select v-model="sortBy" class="bg-transparent border-none text-xs font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-8">
                                 <option value="relevance">RELEVANCIA</option>
                                 <option value="price_asc">PRECIO: MENOR</option>
                                 <option value="price_desc">PRECIO: MAYOR</option>
@@ -162,12 +162,17 @@ onUnmounted(() => {
                     </div>
                 </section>
 
-                <div v-show="allProducts.length > 0" 
+                <div v-if="props.products === undefined" 
+                     class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
+                    <div v-for="i in 12" :key="i" class="product-card h-[320px] skeleton"></div>
+                </div>
+
+                <div v-else-if="allProducts.length > 0" 
                      class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
                     <SkuCard v-for="sku in allProducts" :key="sku.id" :sku="sku" class="section-animate" />
                 </div>
 
-                <div v-show="allProducts.length === 0 && !isFetching" class="py-40 flex flex-col items-center text-center">
+                <div v-else-if="allProducts.length === 0 && !isFetching" class="py-40 flex flex-col items-center text-center animate-in fade-in">
                     <PackageOpen :size="48" class="text-muted-foreground/20 mb-4" />
                     <h2 class="text-xs font-black uppercase tracking-[0.4em] text-muted-foreground/40">Sin Existencias</h2>
                 </div>

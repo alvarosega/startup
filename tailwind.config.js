@@ -10,7 +10,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Escala Neutral Pura mapeada
         neutral: {
           50: 'hsl(var(--neutral-50) / <alpha-value>)',
           100: 'hsl(var(--neutral-100) / <alpha-value>)',
@@ -53,9 +52,21 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
       },
+      fontWeight: {
+        normal: '400',
+        bold: '700',
+        black: '900',
+      },
       borderRadius: {
-        '3xl': '24px',
-        'xl': '12px',
+        'xl': '12px',    // Para interactivos menores
+        '3xl': '24px',   // Para estructuras mayores
+      },
+      zIndex: {
+        '0': '0',
+        '10': '10',     // Elevación Hover
+        '40': '40',     // Navegación sticky
+        '50': '50',     // Header global
+        '100': '100',   // Modales / Interrupciones
       },
       boxShadow: {
         'apple-soft': '0 8px 30px rgba(0, 0, 0, 0.04)',

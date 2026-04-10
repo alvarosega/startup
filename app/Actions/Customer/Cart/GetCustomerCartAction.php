@@ -12,7 +12,10 @@ class GetCustomerCartAction
 {
     public function __construct(private PriceResolverService $priceResolver) {}
 
-    public function execute(?string $guestUuid, ?string $customerId, string $branchId): array
+    /**
+     * RECTIFICACIÓN: La firma ahora declara que devuelve un CartResource, no un array.
+     */
+    public function execute(?string $guestUuid, ?string $customerId, string $branchId): CartResource
     {
         $now = now();
     
@@ -29,7 +32,6 @@ class GetCustomerCartAction
                     ->leftJoin('inventory_balances as ib', function($j) use ($branchId) {
                         $j->on('skus.id', '=', 'ib.sku_id')->where('ib.branch_id', $branchId);
                     })
-                    // RECTIFICACIÓN: Extracción de total_safety obligatoria
                     ->addSelect(['ib.total_physical', 'ib.total_reserved', 'ib.total_safety']),
 
                 'items.sku.product' => fn($q) => $q->select(['id', 'name', 'brand_id']),
@@ -40,13 +42,22 @@ class GetCustomerCartAction
             ])
             ->first();
     
-        if (!$cart) return $this->emptyCartResponse();
-    
+
+        if (!$cart) {
+            // Creamos una instancia de Cart vacía en RAM para que el Resource la procese
+            $emptyCart = new \App\Models\Cart();
+            $emptyCart->setRelation('items', collect());
+            $emptyCart->calculated_total_items = 0;
+            $emptyCart->calculated_total_price = 0.0;
+            $emptyCart->calculated_total_savings = 0.0;
+            
+            return new CartResource($emptyCart);
+        }
+            
         $totalItems = 0;
         $totalPrice = 0.0;
         $totalSavings = 0.0;
 
-        // HIDRATACIÓN EN RAM Y CÁLCULOS
         $cart->items->each(function ($item) use ($now, &$totalItems, &$totalPrice, &$totalSavings) {
             $sku = $item->sku;
             
@@ -64,21 +75,13 @@ class GetCustomerCartAction
             $totalSavings += ($item->quantity * ($priceData->list_price - $priceData->final_price));
         });
 
+        // RECTIFICACIÓN CRÍTICA: values() resetea los índices para asegurar un JSON Array []
+        $cart->setRelation('items', $cart->items->values()); 
+
         $cart->calculated_total_items = $totalItems;
         $cart->calculated_total_price = $totalPrice;
         $cart->calculated_total_savings = $totalSavings;
 
-        return (new CartResource($cart))->resolve();
-    }
-
-    private function emptyCartResponse(): array 
-    {
-        return [
-            'id'            => null,
-            'items'         => [],
-            'total_items'   => 0,
-            'total_price'   => 0.0,
-            'total_savings' => 0.0
-        ];
+        return new CartResource($cart);
     }
 }

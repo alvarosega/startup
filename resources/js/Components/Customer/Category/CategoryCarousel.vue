@@ -98,9 +98,9 @@ const getCategoryStyle = (hex) => {
             </template>
 
             <template v-else>
-                <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-[80px] animate-pulse gap-4">
-                    <div class="w-16 h-16 rounded-full bg-foreground/5 backdrop-blur-2xl border border-foreground/10 shadow-inner"></div>
-                    <div class="h-2 w-12 bg-foreground/10 rounded-full"></div>
+                <div v-for="n in 8" :key="n" class="flex flex-col items-center shrink-0 w-[80px] md:w-[100px] gap-4">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-full skeleton shadow-inner"></div>
+                    <div class="h-3 w-16 skeleton rounded-full"></div>
                 </div>
             </template>
 

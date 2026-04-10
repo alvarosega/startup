@@ -15,7 +15,7 @@
   /* ESCALA PRIMARIA (Naranja Terracota - Matiz 24) */
   --primary-50: 24 95% 96%;
   --primary-100: 24 95% 90%;
-  --primary-500: 24 95% 55%; /* Color de marca vibrante (UI) */
+  --primary-500: 24 95% 55%;
   --primary-600: 24 95% 45%;
   --primary-900: 24 95% 25%;
   --primary-950: 24 95% 15%;
@@ -30,17 +30,16 @@
   --background: var(--neutral-50);
   --foreground: var(--neutral-900);
 
-  /* Superficies y Elevación */
   --card: 0 0% 100%;
   --card-foreground: var(--neutral-900);
   --card-border: var(--neutral-200);
+  
   --popover: 0 0% 100%;
   --popover-foreground: var(--neutral-900);
 
-  /* Acciones y Estados */
   --primary: var(--primary-500);
   --primary-foreground: 0 0% 100%;
-  --primary-text-aaa: 24 95% 32%; /* Naranja oscurecido para Texto AAA sobre Blanco */
+  --primary-text-aaa: 24 95% 32%;
   
   --secondary: var(--neutral-100);
   --secondary-foreground: var(--neutral-900);
@@ -48,26 +47,21 @@
   --muted: var(--neutral-100);
   --muted-foreground: var(--neutral-600);
 
-  --accent: 48 100% 55%; /* Amarillo Acercamiento */
+  --accent: 48 100% 55%;
   --accent-foreground: var(--neutral-950);
 
   --destructive: var(--destructive-500);
   --destructive-foreground: 0 0% 100%;
   --destructive-text-aaa: 0 100% 32%;
 
-  /* Formas e Interacción */
   --border: var(--neutral-200);
   --input: var(--neutral-200);
-  --ring: var(--neutral-950); /* Foco negro puro para máximo contraste */
+  --ring: var(--neutral-950);
 
-  /* Estados de Sistema */
-  --success: 142 76% 30%; /* Ajustado para AAA */
-  --info: 210 100% 35%;    /* Ajustado para AAA */
-  --warning: 38 92% 35%;   /* Ajustado para AAA */
-  --error: 358 100% 35%;   /* Ajustado para AAA */
-
-  /* Contenedores Dinámicos de Categorías (Integración con DB) */
-  --category-bg-opacity: 0.15;
+  --success: 142 76% 30%;
+  --info: 210 100% 35%;
+  --warning: 38 92% 35%;
+  --error: 358 100% 35%;
 }
 
 .dark {
@@ -75,17 +69,16 @@
   --background: var(--neutral-950);
   --foreground: var(--neutral-50);
 
-  /* Superficies y Elevación */
   --card: var(--neutral-900);
   --card-foreground: var(--neutral-50);
   --card-border: var(--neutral-800);
+  
   --popover: var(--neutral-900);
   --popover-foreground: var(--neutral-50);
 
-  /* Acciones y Estados */
   --primary: var(--primary-500);
   --primary-foreground: 0 0% 100%;
-  --primary-text-aaa: 24 100% 75%; /* Naranja aclarado para Texto AAA sobre Negro */
+  --primary-text-aaa: 24 100% 75%;
 
   --secondary: var(--neutral-800);
   --secondary-foreground: var(--neutral-50);
@@ -100,12 +93,10 @@
   --destructive-foreground: 0 0% 100%;
   --destructive-text-aaa: 0 100% 80%;
 
-  /* Formas e Interacción */
   --border: var(--neutral-800);
   --input: var(--neutral-800);
   --ring: var(--neutral-50);
 
-  /* Estados de Sistema (Modo Oscuro requieren más luminosidad) */
   --success: 142 70% 55%;
   --info: 210 80% 60%;
   --warning: 38 92% 60%;

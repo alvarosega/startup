@@ -29,41 +29,56 @@ class ShopController extends Controller
 {
     public function __construct(protected readonly ShopContextService $contextService) {}
 
+
     public function __invoke(
         GetActiveBrandBannersAction $brandBannersAction,
         GetActiveAdCreativesAction $adAction,
         GetHomeZonesAction $zonesAction,
-        GetActiveBundlesAction $bundlesAction, // <--- La acción está inyectada pero no se usó
+        GetActiveBundlesAction $bundlesAction,
         GetHomeFeaturedAction $featuredAction,
         GetTopFavoritesAction $favoritesAction,
         GetActiveBrandsAction $brandsAction
     ): Response {
         $branchId = $this->contextService->getActiveBranchId();
-    
-        // 1. OBTENCIÓN NOMINAL DE DATOS (Faltaba esta línea)
-        $allBundles = $bundlesAction->execute($branchId);
-    
-        // 2. SEGMENTACIÓN TÁCTICA (Ahora sí existe la variable)
-        // Usamos el Higher Order Filter de Eloquent Collection
-        $templates = $allBundles->filter(fn($b) => $b->type === 'template');
-        $atomic    = $allBundles->filter(fn($b) => $b->type === 'atomic');
-    
+
         return Inertia::render('Customer/Shop/Index', [
-            'topBrands'        => BrandNavResource::collection($brandsAction->execute())->resolve(),
-            'brandBanners'     => BrandBannerResource::collection($brandBannersAction->execute($branchId)),
-            'featuredProducts' => FeaturedProductResource::collection($featuredAction->execute($branchId)),
-            'bundleBanners'    => HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO')),
-            'zonesData'        => $zonesAction->execute($branchId), 
-            
-            // RECTIFICACIÓN DE PROPS: Segmentación para el frontend
-            'templateBundles'  => BundleResource::collection($templates), 
-            'atomicBundles'    => BundleResource::collection($atomic),
-            
-            // ELIMINACIÓN: 'bundlesData' ya no es necesario si segmentamos arriba
-            
-            'favorites' => Auth::guard('customer')->check() 
-                ? FavoriteProductResource::collection($favoritesAction->execute())->resolve()
-                : [],
+            // 1. DATOS SINCRÓNICOS (Navegación inmediata)
+            // Mantenemos topBrands sync si son esenciales para el primer renderizado visual
+            'topBrands' => BrandNavResource::collection($brandsAction->execute())->resolve(),
+
+            // 2. DATOS DIFERIDOS (Activan Skeletons en el Frontend)
+            'brandBanners' => Inertia::defer(fn() => 
+                BrandBannerResource::collection($brandBannersAction->execute($branchId))
+            ),
+
+            'featuredProducts' => Inertia::defer(fn() => 
+                FeaturedProductResource::collection($featuredAction->execute($branchId))
+            ),
+
+            'bundleBanners' => Inertia::defer(fn() => 
+                HeroBannerResource::collection($adAction->execute($branchId, 'BUNDLE_HERO'))
+            ),
+
+            // Agrupamos la lógica de bundles para que una sola promesa resuelva ambos filtros
+            'templateBundles' => Inertia::defer(function() use ($branchId, $bundlesAction) {
+                $bundles = $bundlesAction->execute($branchId);
+                return BundleResource::collection($bundles->filter(fn($b) => $b->type === 'template'));
+            }),
+
+            'atomicBundles' => Inertia::defer(function() use ($branchId, $bundlesAction) {
+                $bundles = $bundlesAction->execute($branchId);
+                return BundleResource::collection($bundles->filter(fn($b) => $b->type === 'atomic'));
+            }),
+
+            'zonesData' => Inertia::defer(fn() => 
+                $zonesAction->execute($branchId)
+            ),
+
+            'favorites' => Inertia::defer(fn() => 
+                Auth::guard('customer')->check() 
+                    ? FavoriteProductResource::collection($favoritesAction->execute())->resolve()
+                    : []
+            ),
         ]);
     }
 }

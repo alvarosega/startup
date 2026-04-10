@@ -6,41 +6,32 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/30;
-    /* Evitamos el rebote elástico en iOS para una sensación más App-Like */
-    @apply overscroll-none;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 overscroll-none;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-extrabold tracking-tight;
+  /* Forzar jerarquía de fuentes permitidas. Se bloquean tamaños inferiores a text-xs (12px) */
+  html {
+    font-size: 16px; 
   }
 }
-/* EFECTO TITANIUM MATTE METÁLICO */
-.glass-titanium {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-  backdrop-filter: blur(24px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
 
-.dark .glass-titanium {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* CORRECCIÓN DE CONTRASTE ICONOS */
-:deep(svg) {
-  stroke-width: 2.5; /* Iconos más gruesos y legibles */
-}
 @layer components {
-  /* LEY DE INERCIA: Curva de aceleración Apple/F1 */
-  .ease-ios {
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  /* TITANIUM MATTE METÁLICO */
+  .glass-titanium {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(24px) saturate(120%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* CARD DE PRODUCTO: LEY DE RADIO Y LEY DE CAPAS */
+  .dark .glass-titanium {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* SISTEMA DE TARJETAS (Product Card / SkuCard) */
   .product-card {
     @apply relative overflow-hidden bg-card rounded-3xl border border-card-border;
-    @apply transition-all duration-500 ease-ios;
+    @apply transition-all duration-500 ease-ios z-0;
     @apply shadow-apple-soft dark:shadow-none;
   }
 
@@ -56,7 +47,7 @@
   }
 
   .product-image-container {
-    @apply flex items-center justify-center p-6 w-full aspect-square;
+    @apply flex items-center justify-center p-4 w-full aspect-square;
   }
 
   .product-img {
@@ -64,18 +55,20 @@
     filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.12));
   }
 
+  /* COMPONENTES DE INTERACCIÓN BÁSICA */
   .btn-primary {
-    @apply px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl;
+    @apply px-4 py-3 bg-primary text-primary-foreground font-bold rounded-xl text-sm;
     @apply transition-all duration-200 ease-ios;
-    @apply active:scale-95;
+    @apply active:scale-[0.98];
     @apply dark:hover:shadow-f1-glow;
   }
 
   .skeleton {
-    @apply animate-pulse bg-foreground/10 dark:bg-foreground/5;
+    @apply animate-pulse bg-neutral-200 dark:bg-neutral-800; /* Colores más sólidos */
+    position: relative;
+    overflow: hidden;
   }
-
-  /* UTILITY: NO-SCROLLBAR (Vital para el CategoryCarousel) */
+  /* UTILIDADES TÉCNICAS */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -84,11 +77,34 @@
     scrollbar-width: none;
   }
 }
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.05),
+      transparent
+  );
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
 
 @layer utilities {
-  /* Resplandor dinámico F1 para el modo oscuro */
   .shadow-f1-glow {
     box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
   }
+  
+  .ease-ios {
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
 }
 
+/* CORRECCIÓN DE CONTRASTE GLOBAL PARA ICONOS */
+:deep(svg) {
+  stroke-width: 2.5; 
+}

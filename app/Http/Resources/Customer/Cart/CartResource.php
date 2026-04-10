@@ -11,14 +11,13 @@ class CartResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Se asume que el Action ya adjuntó estos totales dinámicos a la instancia del carrito.
-        // Cero cálculos en esta capa.
         return [
             'id'            => (string) $this->id,
-            'items'         => CartItemResource::collection($this->items),
-            'total_items'   => (int) $this->calculated_total_items,
-            'total_price'   => (float) $this->calculated_total_price,
-            'total_savings' => (float) $this->calculated_total_savings,
+            // RECTIFICACIÓN: .resolve() elimina la llave 'data' anidada
+            'items'         => CartItemResource::collection($this->items)->resolve(),
+            'total_items'   => (int) ($this->calculated_total_items ?? 0),
+            'total_price'   => (float) ($this->calculated_total_price ?? 0),
+            'total_savings' => (float) ($this->calculated_total_savings ?? 0),
         ];
     }
 }

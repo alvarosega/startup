@@ -16,14 +16,13 @@ import FavoritesSection from '@/Components/Customer/Favorites/FavoriteCarousel.v
 import EditableBundleCarousel from '@/Components/Customer/Bundle/EditableBundleCarousel.vue';
 
 const props = defineProps({ 
-    featuredProducts: { type: Object, default: () => ({ data: [] }) },
-    brandBanners: { type: Object, default: () => ({ data: [] }) },
-    bundleBanners: { type: Object, default: () => ({ data: [] }) }, 
-    templateBundles: { type: Object, default: () => ({ data: [] }) }, 
-    bundlesData: { type: Object, default: () => ({ data: [] }) },
-    favorites: { type: Array, default: () => [] },
+    featuredProducts: Object,
+    brandBanners: Object,
+    bundleBanners: Object, 
+    templateBundles: Object, 
+    atomicBundles: Object, // Modificado de 'bundlesData' para coincidir con tu ShopController
+    favorites: Array,
 });
-
 const page = usePage();
 
 const categories = computed(() => {
@@ -36,7 +35,7 @@ onMounted(() => {
 });
 const featuredList = computed(() => props.featuredProducts?.data || []); 
 const brandAds = computed(() => props.brandBanners?.data || []);
-const bundlesList = computed(() => Array.isArray(props.bundlesData) ? props.bundlesData : props.bundlesData?.data || []);
+const bundlesList = computed(() => props.atomicBundles?.data || []); // Cambio de nombre
 const editablePacks = computed(() => props.templateBundles?.data || []);
 </script>
 
@@ -61,7 +60,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                         </div>
                     </div>
                     <div class="w-full">
-                        <EditableBundleCarousel :bundles="editablePacks" :loading="editablePacks.length === 0" />
+                        <EditableBundleCarousel :bundles="editablePacks" :loading="props.templateBundles === undefined" />
                     </div>
                 </section>
 
@@ -74,7 +73,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                             </div>
                         </div>
                         <div class="content-shadow">
-                            <CategoryCarousel :categories="categories" :loading="categories.length === 0" />
+                            <CategoryCarousel :categories="categories" :loading="page.props.categories_menu === undefined" />
                         </div>
                     </div>
                 </section>
@@ -88,7 +87,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                             </div>
                         </div>
                         <div class="content-shadow">
-                            <FeaturedProductCarousel :products="featuredList" :loading="featuredList.length === 0" />
+                            <FeaturedProductCarousel :products="featuredList" :loading="props.featuredProducts === undefined" />
                         </div>
                     </div>
                 </section>
@@ -102,7 +101,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                             </div>
                         </div>
                         <div class="content-shadow">
-                            <BrandHeroWidget :banners="brandAds" :loading="brandAds.length === 0" />
+                            <BrandHeroWidget :banners="brandAds" :loading="props.brandBanners === undefined" />
                         </div>
                     </div>
                 </section>
@@ -116,7 +115,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                             </div>
                         </div>
                         <div class="content-shadow">
-                            <BundleCarousel :bundles="bundlesList" :loading="bundlesList.length === 0" />
+                            <BundleCarousel :bundles="bundlesList" :loading="props.atomicBundles === undefined" />
                         </div>
                     </div>
                 </section>
@@ -130,39 +129,47 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
         </div>
     </ShopLayout>
 </template>
-
 <style scoped>
-/* 1. ENCABEZADO PRISMÁTICO (Estandarizado) */
+/* 1. ENCABEZADO: Limpieza de colisiones */
 .header-standard {
     display: flex;
-    align-items: flex-end;
+    /* Cambiamos a baseline para que el texto de 'Todo' se alinee con la base del título */
+    align-items: baseline; 
+    justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 2rem; /* Espaciado técnico entre título y contenido */
+    margin-bottom: 1.5rem;
 }
 
-/* 2. TÍTULO Y SUBRAYADO ARCOÍRIS */
+/* 2. TÍTULO Y LÍNEA: Aseguramos que no empujen al link 'Todo' */
 .title-block-wrapper {
     position: relative;
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    flex-grow: 1;
+    /* El título ocupa el espacio disponible pero respeta al vecino */
+    flex: 1; 
+    min-width: 0; 
     padding-bottom: 8px;
+    border-bottom: 1px solid transparent;
 }
 
 .title-block-wrapper h2 {
-    font-size: 11px;
+    /* REGLA MAESTRA: 12px mínimo */
+    font-size: 12px;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.4em;
-    /* Contraste Crudo: Negro en claro, blanco en oscuro */
-    color: theme('colors.black'); 
+    color: theme('colors.black');
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dark .title-block-wrapper h2 {
     color: theme('colors.white');
 }
 
+/* Línea arcoíris corregida para no pisar el layout */
 .title-block-wrapper::after {
     content: '';
     position: absolute;
@@ -170,26 +177,22 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
     left: 0;
     width: 100%;
     height: 1px;
-    background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
-    opacity: 0.8;
+    background: linear-gradient(to right, #ff0000, #00ff00, #8b00ff);
+    opacity: 0.5;
 }
 
-/* 3. ENLACE "TODO" (Hardware Premium) */
+/* 3. ENLACE 'TODO': Hardware Premium */
 .link-all {
-    padding-bottom: 8px;
-    font-size: 10px;
+    flex-shrink: 0; /* Evita que el título lo aplaste */
+    font-size: 12px;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.15em;
-    color: theme('colors.black');
+    color: theme('colors.neutral.500');
     display: flex;
     align-items: center;
     gap: 4px;
-    transition: all 0.3s ease;
-}
-
-.dark .link-all {
-    color: theme('colors.neutral.400');
+    transition: all 0.3s var(--ease-ios);
 }
 
 .link-all:hover {
@@ -203,9 +206,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
 }
 
 @keyframes reveal {
-    from { opacity: 0; transform: translateY(20px); }
+    from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
-/* ELIMINADOS: micro-divider, bg-metallic-matte, bg-noise */
 </style>

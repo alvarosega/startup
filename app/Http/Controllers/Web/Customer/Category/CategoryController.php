@@ -21,28 +21,40 @@ class CategoryController extends Controller
         private ShopContextService $contextService
     ) {}
 
-    public function __invoke(
-        string $category, 
-        Request $request, 
-        GetCategoryDetailsAction $action, 
-        ListSkusAction $listAction
+// app/Http/Controllers/Web/Customer/Category/CategoryController.php
+
+public function __invoke(
+    string $category, 
+    Request $request, 
+    GetCategoryDetailsAction $action, 
+    ListSkusAction $listAction
     ): Response {
         $deviceType = $request->header('X-Device-Type', 'desktop');
         $branchId = $this->contextService->getActiveBranchId();
-        $customerId = \Illuminate\Support\Facades\Auth::guard('customer')->id(); // OBTENER ID
-        
+        $customerId = \Illuminate\Support\Facades\Auth::guard('customer')->id();
+
+        // 1. OBTENCIÓN DE METADATOS (Sincrónico)
+        // Esto es rápido y nos da el ID necesario para las promesas posteriores.
         $categoryDTO = $action->execute($category, $deviceType);
-    
+
         return Inertia::render('Customer/Category/Show', [
+            // Metadatos rápidos: se envían de inmediato.
             'categoryData' => new CategoryResource($categoryDTO),
-            'banners'      => CategoryBannerResource::collection($categoryDTO->banners ?? []),
             
-            'products' => SkuResource::collection(
-                $listAction->execute(
-                    $categoryDTO->id, 
-                    $branchId, 
-                    $customerId, // INYECTAR IDENTIDAD
-                    $request->only(['search', 'sort'])
+            // DEFER: Los banners se cargan en segundo plano.
+            'banners' => Inertia::defer(fn() => 
+                CategoryBannerResource::collection($categoryDTO->banners ?? [])
+            ),
+            
+            // DEFER: El listado de productos (lo más pesado) activa el Skeleton Grid.
+            'products' => Inertia::defer(fn() => 
+                SkuResource::collection(
+                    $listAction->execute(
+                        $categoryDTO->id, 
+                        $branchId, 
+                        $customerId, 
+                        $request->only(['search', 'sort'])
+                    )
                 )
             ),
             

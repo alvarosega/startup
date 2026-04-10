@@ -81,7 +81,7 @@ const toggleSearch = () => {
                 <div class="ml-4 flex flex-col transition-opacity duration-300" 
                      :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
                     <span class="font-black text-lg leading-none tracking-tighter uppercase">De</span>
-                    <span class="text-primary-aaa dark:text-primary font-bold text-[10px] tracking-[0.3em] uppercase">Una</span>
+                    <span class="text-primary-aaa dark:text-primary font-bold text-xs tracking-[0.3em] uppercase">Una</span>
                 </div>
             </div>
 
@@ -96,7 +96,7 @@ const toggleSearch = () => {
                         <component :is="item.icon" :size="20" />
                     </div>
                     
-                    <span class="font-bold text-[10px] uppercase tracking-[0.15em] whitespace-nowrap transition-all"
+                    <span class="font-bold text-xs uppercase tracking-[0.15em] whitespace-nowrap transition-all"
                           :class="isSidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'">
                         {{ item.name }}
                     </span>
@@ -112,23 +112,23 @@ const toggleSearch = () => {
                     <div class="w-[52px] flex justify-center shrink-0">
                         <div class="w-8 h-8 rounded-lg border border-border overflow-hidden bg-background flex items-center justify-center shadow-sm">
                             <img v-if="user?.profile?.avatar_url" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
-                            <span v-else class="text-[10px] font-black text-foreground">{{ userInitials }}</span>
+                            <span v-else class="text-xs font-black text-foreground">{{ userInitials }}</span>
                         </div>
                     </div>
                     <div class="flex flex-col items-start transition-all" :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
-                        <span class="text-[11px] font-extrabold truncate w-32 uppercase tracking-tighter text-black dark:text-white">{{ user?.name || 'Invitado' }}</span>
+                        <span class="text-xs font-extrabold truncate w-32 uppercase tracking-tighter text-black dark:text-white">{{ user?.name || 'Invitado' }}</span>
                         
                         <div v-if="!user" class="flex gap-2 items-center leading-none">
-                            <Link :href="route('customer.login')" class="text-[9px] font-black text-primary uppercase hover:underline tracking-widest">
+                            <Link :href="route('customer.login')" class="text-xs font-black text-primary uppercase hover:underline tracking-widest">
                                 Entrar
                             </Link>
-                            <span class="text-[9px] text-black/30 dark:text-white/30">|</span>
-                            <Link :href="route('customer.register')" class="text-[9px] font-black text-black dark:text-white/60 uppercase hover:underline tracking-widest">
+                            <span class="text-xs text-black/30 dark:text-white/30">|</span>
+                            <Link :href="route('customer.register')" class="text-xs font-black text-black dark:text-white/60 uppercase hover:underline tracking-widest">
                                 Unirse
                             </Link>
                         </div>
                         
-                        <button v-else @click="logout" class="text-[9px] font-black text-primary-aaa dark:text-primary hover:underline uppercase tracking-widest">
+                        <button v-else @click="logout" class="text-xs font-black text-primary-aaa dark:text-primary hover:underline uppercase tracking-widest">
                             Cerrar Sesión
                         </button>
                     </div>
@@ -136,8 +136,8 @@ const toggleSearch = () => {
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col w-full pt-[88px] lg:pt-[96px] transition-all duration-500 ease-ios relative z-10" 
-            :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'">
+        <main class="flex-1 flex flex-col w-full pt-20 lg:pt-24 transition-all duration-500 ease-ios relative z-10" 
+    :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'">
             
             <header class="fixed top-0 lg:top-4 left-0 lg:left-auto right-0 z-[60] w-full lg:w-[calc(100%-theme(spacing.20))] px-2 lg:px-8 pointer-events-none">
                 <div class="mx-auto max-w-7xl h-16 lg:h-14 glass-titanium border border-border rounded-none lg:rounded-3xl flex items-center justify-between px-4 pointer-events-auto shadow-apple-soft">
@@ -152,8 +152,8 @@ const toggleSearch = () => {
                                 <MapPin :size="14" class="text-primary-aaa dark:text-primary" />
                             </div>
                             <div class="flex flex-col items-start leading-none">
-                                <span class="text-[8px] font-black text-black/50 dark:text-white/50 uppercase tracking-widest">Entregar en</span>
-                                <span class="text-[10px] font-extrabold text-black dark:text-white truncate max-w-[150px] uppercase">{{ location.label }}</span>
+                                <span class="text-xs font-black text-black/50 dark:text-white/50 uppercase tracking-widest">Entregar en</span>
+                                <span class="text-xs font-extrabold text-black dark:text-white truncate max-w-[150px] uppercase">{{ location.label }}</span>
                             </div>
                         </button>
                     </div>
@@ -167,7 +167,7 @@ const toggleSearch = () => {
                                     v-model="searchQuery" 
                                     type="text" 
                                     placeholder="¿QUÉ BUSCAS HOY?"
-                                    class="w-full h-11 bg-neutral-100 dark:bg-neutral-800 border-none rounded-2xl pl-11 pr-4 text-[11px] font-bold tracking-widest focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground placeholder:text-neutral-500 uppercase transition-all"
+                                    class="w-full h-11 bg-neutral-100 dark:bg-neutral-800 border-none rounded-2xl pl-11 pr-4 text-xs font-bold tracking-widest focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground placeholder:text-neutral-500 uppercase transition-all"
                                 />
                             </div>
                             <button @click="toggleSearch" class="p-3 bg-neutral-200 dark:bg-neutral-700 rounded-2xl text-foreground active:scale-90"><X :size="18" /></button>
@@ -189,7 +189,7 @@ const toggleSearch = () => {
                                     <ShoppingCart :size="20" />
                                 </div>
                                 <span v-if="cartCount > 0" 
-                                      class="absolute -top-1.5 -right-1.5 bg-white text-black text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-[2.5px] border-black shadow-lg animate-in zoom-in duration-300">
+                                      class="absolute -top-1.5 -right-1.5 bg-white text-black text-xs font-black w-6 h-6 rounded-full flex items-center justify-center border-[2.5px] border-black shadow-lg animate-in zoom-in duration-300">
                                     {{ cartCount }}
                                 </span>
                             </Link>
@@ -198,7 +198,7 @@ const toggleSearch = () => {
                 </div>
             </header>
 
-            <section class="flex-1 w-full mx-auto py-8 transition-all"
+            <section class="flex-1 w-full mx-auto pb-8 pt-4 transition-all"
                 :class="route().current('customer.index') ? 'max-w-full' : 'max-w-7xl px-4 lg:px-8'">
                 <slot />
             </section>
@@ -214,10 +214,10 @@ const toggleSearch = () => {
                             </div>
 
                             <div class="flex flex-col leading-tight">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-foreground group-hover:text-primary transition-colors">
+                                <span class="text-xs font-black uppercase tracking-widest text-foreground group-hover:text-primary transition-colors">
                                     {{ social.name }}
                                 </span>
-                                <span class="text-[8px] font-bold text-neutral-400 uppercase tracking-[0.2em]">
+                                <span class="text-xs font-bold text-neutral-400 uppercase tracking-[0.2em]">
                                     De Una
                                 </span>
                             </div>
@@ -228,7 +228,7 @@ const toggleSearch = () => {
                         <div class="absolute inset-x-1/4 bottom-0 h-[1px] bg-gradient-to-r from-[#ff0000] via-[#00ff00] to-[#8b00ff] opacity-40"></div>
                     </div>
 
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-8 text-xs font-black uppercase tracking-[0.3em] text-neutral-500">
                         <div class="flex items-center gap-4">
                             <div class="w-5 h-5 rounded-md bg-gradient-to-br from-[#0ed2da] to-[#5f29c7] shadow-lg animate-pulse"></div>
                             <span class="text-foreground text-xs italic">De Una</span>
@@ -249,13 +249,13 @@ const toggleSearch = () => {
                 class="flex flex-col items-center gap-1 transition-all"
                 :class="route().current('customer.order.*') ? 'text-primary' : 'text-black dark:text-neutral-400'">
                 <PackageCheck :size="24" :stroke-width="route().current('customer.order.*') ? 2.5 : 2" />
-                <span class="text-[9px] font-black uppercase tracking-tighter">Pedidos</span>
+                <span class="text-xs font-black uppercase tracking-tighter">Pedidos</span>
             </Link>
 
             <button @click="toggleSearch" 
                     class="flex flex-col items-center gap-1 text-black dark:text-neutral-400 transition-all active:scale-90">
                 <Search :size="22" />
-                <span class="text-[9px] font-black uppercase tracking-tighter">Buscar</span>
+                <span class="text-xs font-black uppercase tracking-tighter">Buscar</span>
             </button>
 
             <Link :href="route('customer.index')" class="relative -mt-10">
@@ -268,10 +268,10 @@ const toggleSearch = () => {
                 class="flex flex-col items-center gap-1 text-black dark:text-neutral-400 relative transition-all">
                 <ShoppingCart :size="24" />
                 <span v-if="cartCount > 0" 
-                    class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-background">
+                    class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-background">
                     {{ cartCount }}
                 </span>
-                <span class="text-[9px] font-black uppercase tracking-tighter">Carrito</span>
+                <span class="text-xs font-black uppercase tracking-tighter">Carrito</span>
             </Link>
 
             <Link :href="user ? route('customer.profile.index') : route('customer.login')" 
@@ -279,10 +279,10 @@ const toggleSearch = () => {
                 :class="route().current('customer.profile.*') ? 'text-primary' : 'text-black dark:text-neutral-400'">
                 <div v-if="user" class="w-6 h-6 rounded-lg border border-border overflow-hidden bg-neutral-100 shadow-sm">
                     <img v-if="user?.profile?.avatar_url" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
-                    <span v-else class="text-[9px] font-black h-full flex items-center justify-center text-black">{{ userInitials }}</span>
+                    <span v-else class="text-xs font-black h-full flex items-center justify-center text-black">{{ userInitials }}</span>
                 </div>
                 <User v-else :size="24" />
-                <span class="text-[9px] font-black uppercase tracking-tighter">{{ user ? 'Perfil' : 'Entrar' }}</span>
+                <span class="text-xs font-black uppercase tracking-tighter">{{ user ? 'Perfil' : 'Entrar' }}</span>
             </Link>
         </nav>
 
@@ -313,7 +313,7 @@ const toggleSearch = () => {
                         <Link v-for="item in filteredNavigation" :key="item.name" 
                             :href="route().has(item.route) ? route(item.route) : '#'" 
                             @click="isMobileMenuOpen = false"
-                            class="flex items-center gap-4 p-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] transition-all"
+                            class="flex items-center gap-4 p-4 rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all"
                             :class="route().current(item.route) 
                                 ? 'bg-primary/10 text-primary-aaa dark:text-primary shadow-sm' 
                                 : 'hover:bg-neutral-50 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400'"
@@ -325,17 +325,17 @@ const toggleSearch = () => {
 
                     <div class="p-6 border-t border-border bg-neutral-50/50 dark:bg-neutral-900/50 space-y-4">
                         <div v-if="user">
-                            <button @click="logout" class="w-full h-12 rounded-2xl border-2 border-primary/20 text-[10px] font-black text-primary-aaa dark:text-primary uppercase tracking-widest active:scale-95 transition-all">
+                            <button @click="logout" class="w-full h-12 rounded-2xl border-2 border-primary/20 text-xs font-black text-primary-aaa dark:text-primary uppercase tracking-widest active:scale-95 transition-all">
                                 Cerrar Sesión
                             </button>
                         </div>
                         <div v-else class="grid grid-cols-2 gap-3">
                             <Link :href="route('customer.login')" 
-                                class="flex items-center justify-center h-12 rounded-2xl bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest shadow-f1-glow active:scale-95 transition-all">
+                                class="flex items-center justify-center h-12 rounded-2xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest shadow-f1-glow active:scale-95 transition-all">
                                 Entrar
                             </Link>
                             <Link :href="route('customer.register')" 
-                                class="flex items-center justify-center h-12 rounded-2xl border-2 border-border text-foreground text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">
+                                class="flex items-center justify-center h-12 rounded-2xl border-2 border-border text-foreground text-xs font-black uppercase tracking-widest active:scale-95 transition-all">
                                 Registro
                             </Link>
                         </div>

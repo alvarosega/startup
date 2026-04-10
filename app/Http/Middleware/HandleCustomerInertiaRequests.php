@@ -46,32 +46,29 @@ class HandleCustomerInertiaRequests extends Middleware
                 ]);
             },
             
-            'cart' => Inertia::lazy(fn () => app(GetCustomerCartAction::class)->execute(
-                    $guestUuid, 
-                    $user?->id, 
-                    $branchId
-                )),
+            'cart' => Inertia::defer(fn () => app(GetCustomerCartAction::class)->execute(
+                $guestUuid, 
+                $user?->id, 
+                $branchId
+            )->resolve()),
             
             // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId
             // MODIFICAR el cierre de 'categories_menu'
-            'categories_menu' => function() use ($branchId) {
+            'categories_menu' => Inertia::defer(function() use ($branchId) {
                 $version = cache()->get('admin_categories_version', 1);
-                
                 $data = cache()->remember("global_menu_br_{$branchId}_v{$version}", 86400, function() use ($branchId) {
                     return app(GetCategoryDetailsAction::class)->getGlobalMenu($branchId);
                 });
-
-                // REPARACIÓN CRÍTICA: Inyectar la lógica de representación (Placeholder)
                 return CategoryResource::collection($data)->resolve();
-            },
+            }),
             
             'auth' => [
                 'customer' => $user ? (new CustomerResource($user))->resolve() : null,
             ],
             'shop_context'     => $this->resolveShopContext($branchId),
             'location_context' => $this->resolveLocationContext($user, $branchId),
-            'active_order'     => Inertia::lazy(fn () => $user ? $this->resolveActiveOrder((string) $user->id) : null),
-            
+        
+            'active_order' => Inertia::defer(fn () => $user ? $this->resolveActiveOrder((string) $user->id) : null),
             // ESTANDARIZACIÓN DE CONTRATO FLASH
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

@@ -64,13 +64,17 @@ const toggleFavorite = (e) => {
     }
 };
 
-// --- LÓGICA DE CARRITO Y PRECIOS DINÁMICOS ---
 const cartItem = computed(() => {
-    if (!props.sku) return null;
-    const items = page.props.cart?.items || [];
-    return items.find(item => item.sku_id === props.sku.id);
+    // 1. Si no hay SKU o el carrito aún no carga (defer), abortar.
+    if (!props.sku || !page.props.cart) return null;
+    
+    // 2. Extraer los items con fallback por si llegan envueltos o como objeto
+    const source = page.props.cart.items;
+    const items = Array.isArray(source) ? source : (source?.data || Object.values(source || {}));
+    
+    // 3. Búsqueda estricta
+    return items.find(item => String(item.sku_id) === String(props.sku.id));
 });
-
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
 
 // RECTIFICACIÓN: Lectura correcta de props.sku.final_price
@@ -100,6 +104,8 @@ const handleAdd = () => {
     }, { 
         preserveScroll: true, 
         preserveState: true,
+        // CIRUGÍA: Solo pedimos que el servidor nos devuelva el carrito y los mensajes flash
+        only: ['cart', 'flash'], 
         onError: () => { isProcessing.value = false; },
         onFinish: () => { isProcessing.value = false; }
     });
@@ -112,21 +118,23 @@ const updateQty = (delta) => {
     if (delta > 0 && newQty > props.sku.stock) return;
 
     isProcessing.value = true;
+    
+    const options = {
+        preserveScroll: true,
+        preserveState: true,
+        // CIRUGÍA: Evitamos que se recarguen los productos y skeletons
+        only: ['cart', 'flash'],
+        onFinish: () => isProcessing.value = false 
+    };
+
     if (newQty < 1) {
-        router.delete(route('customer.cart.remove', cartItem.value.id), { 
-            preserveScroll: true,
-            onFinish: () => isProcessing.value = false 
-        });
+        router.delete(route('customer.cart.remove', cartItem.value.id), options);
     } else {
         router.patch(route('customer.cart.update', cartItem.value.id), { 
             quantity: newQty 
-        }, { 
-            preserveScroll: true,
-            onFinish: () => isProcessing.value = false 
-        });
+        }, options);
     }
 };
-
 const dynamicStyle = computed(() => ({
     '--local-sku-color': props.sku?.bg_color || 'var(--primary)',
 }));
@@ -142,10 +150,10 @@ const goToProduct = () => {
 </script>
 
 <template>
-    <div v-if="!loading && sku" 
+    <div v-if="!loading && sku"
         @click="goToProduct"
         :style="dynamicStyle"
-        class="glass-chassis group relative flex flex-col justify-between overflow-hidden cursor-pointer transition-transform duration-300 active:scale-[0.97] outline-none"
+       class="glass-chassis group relative flex flex-col justify-between min-h-[400px] overflow-hidden cursor-pointer transition-transform duration-300 active:scale-[0.97] outline-none"
         :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': quantity > 0 || isActive }">
         
         <button @click.stop="toggleFavorite"
@@ -157,14 +165,14 @@ const goToProduct = () => {
 
         <div class="p-4 pb-0 flex flex-col relative z-10">
             <div class="flex items-start justify-between mb-4">
-                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/60 line-clamp-1 pr-8">
+                <span class="text-xs font-black uppercase tracking-[0.2em] text-foreground/50 line-clamp-1 pr-8">
                     {{ sku.brand_name || 'DIGITAL UNIT' }}
                 </span>
                 
                 <div v-if="sku.stock <= 5 && sku.stock > 0" 
-                     class="flex items-center gap-1 bg-accent/20 px-1.5 py-0.5 rounded border border-accent/30 shadow-sm">
+                    class="flex items-center gap-1 bg-accent/20 px-2 py-0.5 rounded-lg border border-accent/30">
                     <Zap :size="10" class="text-accent-foreground fill-accent-foreground animate-pulse" />
-                    <span class="text-[8px] font-black text-accent-foreground uppercase tracking-widest">Low Stock</span>
+                    <span class="text-[10px] font-black text-accent-foreground uppercase tracking-widest">Low Stock</span>
                 </div>
                 <div v-else-if="sku.stock <= 0" 
                      class="bg-destructive/10 px-2 py-1 rounded border border-destructive/20 shadow-sm">
@@ -216,12 +224,12 @@ const goToProduct = () => {
         <div class="p-4 pt-0 mt-auto relative z-10 space-y-4">
             
             <div class="flex flex-col">
-                <span v-if="hasDiscount" class="text-[10px] font-bold text-muted-foreground line-through leading-none font-mono mb-0.5">
+                <span v-if="hasDiscount" class="text-xs font-bold text-muted-foreground line-through leading-none font-mono mb-1">
                     {{ formatPrice(currentListPrice) }}
                 </span>
                 <div class="flex items-baseline gap-1">
-                    <span class="text-[10px] font-black text-foreground/70 uppercase">Bs</span>
-                    <span class="text-[32px] font-black tracking-tighter text-foreground font-mono leading-none">
+                    <span class="text-xs font-black text-foreground/50 uppercase">Bs</span>
+                    <span class="text-3xl font-black tracking-tighter text-foreground font-mono leading-none">
                         {{ formatPrice(currentPrice) }}
                     </span>
                 </div>
@@ -231,10 +239,10 @@ const goToProduct = () => {
                 <button v-if="quantity === 0" 
                         @click.stop="handleAdd"
                         :disabled="sku.stock <= 0 || isProcessing"
-                        class="w-full h-full bg-foreground text-background rounded-[1rem] flex items-center justify-center gap-2 transition-all duration-300 active:scale-95 disabled:opacity-40 shadow-lg hover:opacity-90">
+                        class="btn-primary w-full h-12 flex items-center justify-center gap-2 !rounded-2xl">
                     <Loader2 v-if="isProcessing" :size="16" class="animate-spin" />
-                    <Plus v-else :size="16" stroke-width="4" />
-                    <span class="text-[10px] font-black uppercase tracking-[0.15em] pt-0.5">Añadir al carrito</span>
+                    <Plus v-else :size="18" stroke-width="4" />
+                    <span class="text-xs font-black uppercase tracking-widest pt-0.5">Añadir</span>
                 </button>
 
                 <div v-else @click.stop 
@@ -270,17 +278,6 @@ const goToProduct = () => {
 <style scoped>
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-/* 1. CHASIS DE CRISTAL DIFUMINADO */
-.glass-chassis {
-    width: 100%;
-    height: 100%;
-    background-color: hsl(var(--background) / 0.4);
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
-    border: 1px solid hsl(var(--border) / 0.4);
-    border-radius: 1.5rem;
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
-}
 
 .dark .glass-chassis {
     background-color: hsl(var(--background) / 0.6);
@@ -289,36 +286,32 @@ const goToProduct = () => {
 }
 
 /* 2. PUNTO FOCAL INDEPENDIENTE */
+/* REEMPLAZAR EN <style scoped> */
 .sku-stage-bg {
     background-color: var(--local-sku-color);
-    background-image: linear-gradient(
-        43deg, 
-        var(--local-sku-color) 0%, 
-        hsl(var(--primary)) 46%, 
-        hsl(var(--accent)) 100%
+    background-image: radial-gradient(
+        circle at 50% 50%, 
+        rgba(255, 255, 255, 0.15) 0%, 
+        transparent 100%
     );
-    box-shadow: 
-        rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, 
-        rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, 
-        rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset,
-        inset 0 4px 10px rgba(255, 255, 255, 0.3),
-        0 25px 35px -15px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Sombra suave Apple */
+    box-shadow: var(--shadow-apple-soft);
 }
 
 .dark .sku-stage-bg {
-    background-image: linear-gradient(
-        43deg, 
+    background-image: radial-gradient(
+        circle at 50% 50%, 
         var(--local-sku-color) 0%, 
-        hsl(var(--primary)) 46%, 
-        #111111 100%
+        rgba(0, 0, 0, 0.4) 100%
     );
-    box-shadow: 
-        rgba(0, 0, 0, 0.4) 0px -23px 25px 0px inset, 
-        rgba(0, 0, 0, 0.4) 0px -36px 30px 0px inset, 
-        rgba(0, 0, 0, 0.3) 0px -79px 40px 0px inset,
-        inset 0 4px 10px rgba(255, 255, 255, 0.1),
-        0 25px 35px -15px rgba(0, 0, 0, 0.7);
-    border-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* REEMPLAZAR: Chassis de Cristal */
+.glass-chassis {
+    @apply product-card flex flex-col justify-between h-full w-full;
+    background-color: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(20px);
 }
 </style>
