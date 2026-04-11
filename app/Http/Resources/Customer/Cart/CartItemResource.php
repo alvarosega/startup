@@ -13,31 +13,36 @@ class CartItemResource extends JsonResource
     {
         $price = $this->current_price_data;
         $isBundle = (bool) $this->is_bundle;
+        
+        // PROTECCIÓN DE INTEGRIDAD: Si el SKU o Producto desaparecen, evitamos el crash
+        $skuName = $this->sku?->name ?? 'Hardware no disponible';
+        $productName = $this->sku?->product?->name ?? 'Catálogo';
+        $brandName = $this->sku?->product?->brand?->name ?? 'Digital Unit';
     
         return [
             'id'           => (string) $this->id,
             'sku_id'       => (string) $this->sku_id,
             'is_bundle'    => $isBundle,
-            // RECTIFICACIÓN: Selección dinámica de Nombre/Imagen para evitar nulos
             'name'         => $isBundle 
-                ? (string) ($this->bundle->name ?? 'Pack Personalizado') 
-                : mb_convert_encoding($this->sku->product->name . " " . $this->sku->name, 'UTF-8', 'auto'),
+                ? (string) ($this->bundle?->name ?? 'Pack Personalizado') 
+                : trim("{$productName} {$skuName}"),
+            'brand_name'   => $brandName,
             'image'        => $isBundle
-                ? ($this->bundle->image_path ? asset('storage/' . $this->bundle->image_path) : asset('assets/img/bundle_placeholder.webp'))
-                : asset('storage/' . $this->sku->image_path),
-            'unit_price'   => (float) $price->final_price,
-            'list_price'   => (float) $price->list_price,
+                ? ($this->bundle?->image_path ? asset('storage/' . $this->bundle->image_path) : asset('assets/img/bundle_placeholder.webp'))
+                : ($this->sku?->image_path ? asset('storage/' . $this->sku->image_path) : asset('assets/img/sku_placeholder.png')),
+            'unit_price'   => (float) ($price->final_price ?? 0),
+            'list_price'   => (float) ($price->list_price ?? 0),
             'quantity'     => (int) $this->quantity,
-            'max_stock'    => (int) $this->max_stock,
-            'subtotal'     => (float) ($this->quantity * $price->final_price),
-            'line_savings' => (float) (($price->list_price - $price->final_price) * $this->quantity),
-            'price_label'  => strtoupper($price->type),
-            'components'   => $isBundle ? $this->bundle->skus->map(fn($s) => [
+            'max_stock'    => (int) ($this->max_stock ?? 0),
+            'subtotal'     => (float) ($this->quantity * ($price->final_price ?? 0)),
+            'line_savings' => (float) ((($price->list_price ?? 0) - ($price->final_price ?? 0)) * $this->quantity),
+            'price_label'  => strtoupper($price->type ?? 'REGULAR'),
+            'components'   => $isBundle ? $this->bundle?->skus->map(fn($s) => [
                 'qty'  => (int) ($s->pivot->quantity ?? 1),
                 'name' => $s->name
             ]) : null,
-            'upsell'       => $price->next_tier ? [
-                'needed_quantity' => $price->next_tier['min_quantity'] - $this->quantity,
+            'upsell'       => ($price->next_tier ?? null) ? [
+                'needed_quantity' => (int) $price->next_tier['min_quantity'] - $this->quantity,
                 'potential_price' => (float) $price->next_tier['final_price']
             ] : null,
         ];
