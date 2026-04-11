@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import StaticLocationMap from '@/Components/Customer/Maps/StaticLocationMap.vue';
 
@@ -58,7 +58,8 @@ const finalTotal = computed(() => {
 
 const isPaymentDisabled = computed(() => {
     if (form.processing) return true;
-    if (deliveryType.value === 'delivery' && !currentLogistics.value?.is_available) return true;
+    // Si es delivery y no hay ubicación o la zona no está disponible
+    if (deliveryType.value === 'delivery' && (!hasLocation.value || !props.delivery_logistics?.is_available)) return true;
     return false;
 });
 const 
@@ -70,15 +71,11 @@ const submit = () => {
     if (isPaymentDisabled.value) return;
     
     form.post(route('customer.checkout.store'), {
-        headers: {
-            'X-Idempotency-Key': generateIdempotencyKey()
-        },
+        headers: { 'X-Idempotency-Key': generateIdempotencyKey() },
         preserveScroll: true,
-        onSuccess: () => {
-            console.log('Orden procesada con éxito y sin duplicados.');
-        },
+        onStart: () => { /* Bloqueo de UI opcional */ },
         onError: (errors) => {
-            console.error('Error en el checkout:', errors);
+            // Notificar error de stock o logística mediante flash/toast
         }
     }); 
 };
@@ -86,142 +83,187 @@ const submit = () => {
 
 <template>
     <ShopLayout>
-        <div class="container mx-auto px-4 py-8 max-w-6xl mb-24">
-            
-            <div class="mb-10 text-center lg:text-left">
-                <h1 class="font-black text-4xl text-foreground uppercase tracking-tighter italic">
-                    Finalizar <span class="text-primary">Pedido</span>
-                </h1>
-                <p class="text-xs text-foreground/40 font-mono mt-2 uppercase tracking-widest">
-                    Confirmación de parámetros y logística segura
+        <Head title="Protocolo de Despacho" />
+        <div v-if="$page.props.errors.checkout_error || Object.keys($page.props.errors).length > 0" 
+            class="mb-8 product-card bg-destructive/10 border-destructive/20 p-4 animate-in fade-in slide-in-from-top-2">
+            <div class="flex items-center gap-3">
+                <AlertTriangle class="text-destructive" :size="20" />
+                <p class="text-xs font-black text-destructive uppercase tracking-widest">
+                    Falla en Protocolo: {{ $page.props.errors.checkout_error || 'Error de Validación en Campos' }}
                 </p>
             </div>
+            <ul class="mt-2 ml-8 list-disc">
+                <li v-for="(error, field) in $page.props.errors" :key="field" class="text-[10px] text-destructive/80 font-bold uppercase">
+                    {{ field }}: {{ Array.isArray(error) ? error[0] : error }}
+                </li>
+            </ul>
+        </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div class="w-full pb-32 pt-8 relative z-10">
+            <div class="max-w-6xl mx-auto px-4 lg:px-8">
                 
-                <div class="lg:col-span-8 space-y-8">
-                    
-                    <section class="bg-surface/40 backdrop-blur-xl rounded-[32px] border border-white/10 p-8">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <label class="cursor-pointer group">
-                                <input type="radio" v-model="deliveryType" value="pickup" class="peer hidden">
-                                <div class="h-full border-2 rounded-[28px] p-6 flex items-center gap-5 transition-all peer-checked:border-primary peer-checked:bg-primary/5 border-white/5 bg-black/20">
-                                    <Store :size="28" class="text-foreground/30 peer-checked:text-primary shrink-0" />
-                                    <div>
-                                        <span class="block font-black text-sm uppercase">Retiro Local</span>
-                                        <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded mt-1 inline-block">Bs 0.00</span>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="cursor-pointer group" :class="{ 'opacity-50 pointer-events-none': !hasLocation }">
-                                <input type="radio" v-model="deliveryType" value="delivery" class="peer hidden" :disabled="!hasLocation">
-                                <div class="h-full border-2 rounded-[28px] p-6 flex flex-col justify-center transition-all peer-checked:border-primary peer-checked:bg-primary/5 border-white/5 bg-black/20"
-                                     :class="{ 'border-f1-red/30 bg-f1-red/5': !hasLocation }">
-                                    <div class="flex items-center gap-5">
-                                        <Truck :size="28" class="text-foreground/30 peer-checked:text-primary shrink-0" 
-                                               :class="{ 'text-f1-red/50': !hasLocation }" />
-                                        <div>
-                                            <span class="block font-black text-sm uppercase">A Domicilio</span>
-                                            <span v-if="hasLocation" class="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded mt-1 inline-block">
-                                                Bs {{ Number(delivery_logistics?.delivery_fee || 0).toFixed(2) }}
-                                            </span>
-                                            <span v-else class="text-[9px] font-bold text-f1-red uppercase tracking-widest mt-1 block leading-tight">
-                                                Configura tu ubicación en el perfil
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </section>
-
-                    <section v-if="deliveryType === 'delivery' && hasLocation" class="space-y-4 animate-in slide-in-from-top-4 duration-500">
-                        <div class="bg-surface/40 backdrop-blur-xl rounded-[32px] border border-white/10 p-2 overflow-hidden">
-                            <StaticLocationMap 
-                                :lat="Number(customer_location.lat)" 
-                                :lng="Number(customer_location.lng)" 
-                                address="Ubicación de tu Perfil" 
-                            />
-                        </div>
-
-                        <div class="flex items-center justify-between px-6 py-4 bg-white/5 rounded-2xl border border-white/5">
-                            <div class="flex items-center gap-3">
-                                <MapPin :size="18" class="text-primary" />
-                                <span class="text-[10px] font-black uppercase tracking-widest text-foreground/60">Distancia Estimada</span>
-                            </div>
-                            <span class="font-mono font-black text-sm text-foreground">{{ Number(delivery_logistics?.distance_km || 0).toFixed(2) }} KM</span>
-                        </div>
-
-                        <div v-if="!delivery_logistics?.is_available" class="p-4 bg-f1-red/10 border border-f1-red/20 rounded-2xl flex gap-3 items-center">
-                            <AlertTriangle class="text-f1-red shrink-0" :size="20" />
-                            <p class="text-[10px] font-black text-f1-red uppercase tracking-tight">{{ delivery_logistics?.error_message }}</p>
-                        </div>
-                    </section>
-                </div>
-
-                <div class="lg:col-span-4">
-                    <div class="bg-surface/60 backdrop-blur-2xl p-8 rounded-[40px] border border-white/10 shadow-2xl lg:sticky lg:top-28">
-                        <h3 class="font-black text-foreground/80 text-lg mb-8 uppercase tracking-tighter flex items-center gap-2 italic">
-                            <CreditCard :size="20" class="text-primary"/> Recibo Final
-                        </h3>
-                        
-                        <div class="space-y-5 mb-8">
-                            <div class="flex justify-between text-sm">
-                                <span class="text-foreground/40 font-bold uppercase text-[10px] tracking-widest">Subtotal Neto</span>
-                                <span class="font-mono font-black">Bs {{ subtotalProducts.toFixed(2) }}</span>
-                            </div>
-                            
-                            <div class="flex justify-between items-start">
-                                <div class="flex flex-col">
-                                    <span class="text-foreground/40 font-bold uppercase text-[10px] tracking-widest">Fee Digital</span>
-                                    <span v-if="currentLogistics?.savings_loyalty > 0" class="text-[9px] font-black text-emerald-400 uppercase mt-1 flex items-center gap-1">
-                                        <Sparkles :size="10"/> Loyalty Discount
-                                    </span>
-                                </div>
-                                <span class="font-mono font-black">Bs {{ serviceFee.toFixed(2) }}</span>
-                            </div>
-
-                            <div class="flex justify-between text-sm">
-                                <span class="text-foreground/40 font-bold uppercase text-[10px] tracking-widest">Logística de Envío</span>
-                                <span v-if="deliveryType === 'pickup'" class="text-emerald-500 font-black text-[10px] uppercase">Free</span>
-                                <span v-else class="font-mono font-black">Bs {{ deliveryFee.toFixed(2) }}</span>
-                            </div>
-
-                            <div class="h-px bg-white/5 my-4"></div>
-                            
-                            <div class="flex justify-between items-end">
-                                <span class="text-[10px] font-black text-foreground/20 uppercase mb-2 tracking-[0.2em]">Total</span>
-                                <span class="text-5xl font-black text-primary tracking-tighter drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
-                                    <span class="text-base font-mono mr-1">Bs</span>{{ finalTotal.toFixed(2) }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="bg-primary/10 border border-primary/20 p-4 rounded-2xl flex gap-3 mb-8">
-                            <CheckCircle2 class="text-primary shrink-0" :size="20" />
-                            <p class="text-[10px] font-bold text-foreground/70 leading-tight uppercase">
-                                Reserva válida por <span class="text-primary">{{ config?.reservation_minutes }} min</span>.
-                            </p>
-                        </div>
-
-                        <button @click="submit" :disabled="isPaymentDisabled" 
-                            class="w-full h-20 bg-primary hover:bg-primary/90 text-white font-black rounded-[24px] shadow-xl shadow-primary/20 flex flex-col items-center justify-center transition-all active:scale-95 disabled:opacity-20 disabled:grayscale">
-                            
-                            <template v-if="form.processing">
-                                <Loader2 class="animate-spin" :size="24"/>
-                            </template>
-                            <template v-else>
-                                <div class="flex items-center gap-2 text-lg uppercase italic tracking-tighter">
-                                    Confirmar Pedido <ArrowRight :size="20" stroke-width="3"/>
-                                </div>
-                                <span class="text-[9px] font-bold opacity-60 uppercase tracking-widest">Generar Comprobante QR</span>
-                            </template>
-                        </button>
+                <div class="mb-12 text-center lg:text-left border-b border-border/10 pb-8">
+                    <h1 class="font-black text-4xl md:text-5xl text-foreground uppercase tracking-tighter italic leading-none">
+                        Finalizar <span class="text-primary">Pedido</span>
+                    </h1>
+                    <div class="flex items-center justify-center lg:justify-start gap-3 mt-4">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <p class="text-xs text-foreground/40 font-mono uppercase tracking-[0.3em]">
+                            Protocolo de Logística Segura v4.0
+                        </p>
                     </div>
                 </div>
 
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    
+                    <div class="lg:col-span-8 space-y-10">
+                        <section class="space-y-6">
+                            <h2 class="text-xs font-black uppercase tracking-[0.3em] text-foreground/40 px-2">01. Selección de Modalidad</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <label class="cursor-pointer group">
+                                    <input type="radio" v-model="deliveryType" value="pickup" class="peer hidden">
+                                    <div class="product-card glass-manifest h-full p-6 flex items-center gap-6 border-2 border-transparent transition-all peer-checked:border-primary peer-checked:bg-primary/5 active:scale-[0.98]">
+                                        <div class="w-14 h-14 rounded-2xl bg-foreground/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Store :size="28" class="text-foreground/20 peer-checked:text-primary" />
+                                        </div>
+                                        <div>
+                                            <span class="block font-black text-sm uppercase tracking-tight">Retiro Local</span>
+                                            <span class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1 inline-block">Sin Costo</span>
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <label class="cursor-pointer group" :class="{ 'opacity-40 grayscale': !hasLocation }">
+                                    <input type="radio" v-model="deliveryType" value="delivery" class="peer hidden" :disabled="!hasLocation">
+                                    <div class="product-card glass-manifest h-full p-6 flex items-center gap-6 border-2 border-transparent transition-all peer-checked:border-primary peer-checked:bg-primary/5 active:scale-[0.98]">
+                                        <div class="w-14 h-14 rounded-2xl bg-foreground/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Truck :size="28" class="text-foreground/20 peer-checked:text-primary" />
+                                        </div>
+                                        <div class="flex-1">
+                                            <span class="block font-black text-sm uppercase tracking-tight">A Domicilio</span>
+                                            <span v-if="hasLocation" class="text-xs font-bold text-primary uppercase tracking-widest mt-1 inline-block">
+                                                Bs {{ deliveryFee.toFixed(2) }}
+                                            </span>
+                                            <span v-else class="text-[10px] font-black text-destructive uppercase tracking-tighter mt-1 block leading-tight">
+                                                Ubicación Requerida
+                                            </span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section v-if="deliveryType === 'delivery' && hasLocation" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <h2 class="text-xs font-black uppercase tracking-[0.3em] text-foreground/40 px-2">02. Punto de Despacho</h2>
+                            <div class="product-card glass-manifest p-3 overflow-hidden">
+                                <div class="rounded-2xl overflow-hidden grayscale-[0.5] contrast-[1.2] hover:grayscale-0 transition-all duration-1000">
+                                    <StaticLocationMap 
+                                        :lat="Number(customer_location.lat)" 
+                                        :lng="Number(customer_location.lng)" 
+                                        address="Punto de Entrega Validado" 
+                                    />
+                                </div>
+                                <div class="mt-4 px-4 py-3 flex items-center justify-between border-t border-border/10">
+                                    <div class="flex items-center gap-3">
+                                        <MapPin :size="16" class="text-primary" />
+                                        <span class="text-xs font-black uppercase tracking-widest text-foreground/60">Alcance de Radar</span>
+                                    </div>
+                                    <span class="font-mono font-black text-sm text-foreground">{{ Number(delivery_logistics?.distance_km || 0).toFixed(2) }} KM</span>
+                                </div>
+                            </div>
+                            
+                            <div v-if="!delivery_logistics?.is_available" class="product-card bg-destructive/10 border-destructive/20 p-5 flex gap-4 items-center">
+                                <AlertTriangle class="text-destructive shrink-0" :size="24" />
+                                <p class="text-xs font-black text-destructive uppercase leading-relaxed">{{ delivery_logistics?.error_message }}</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <aside class="lg:col-span-4">
+                        <div class="glass-titanium !rounded-3xl p-8 sticky top-28 shadow-apple-soft border border-primary/10">
+                            <h3 class="font-black text-foreground text-lg mb-8 uppercase tracking-tighter flex items-center gap-3 italic border-b border-border/10 pb-6">
+                                <CreditCard :size="20" class="text-primary"/> Recibo Final
+                            </h3>
+                            
+                            <div class="space-y-5 mb-10 font-mono">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-foreground/40 font-bold uppercase tracking-widest">Hardware Neto</span>
+                                    <span class="font-black">Bs {{ subtotalProducts.toFixed(2) }}</span>
+                                </div>
+                                
+                                <div class="flex justify-between items-start text-xs">
+                                    <div class="flex flex-col">
+                                        <span class="text-foreground/40 font-bold uppercase tracking-widest">Fee Digital</span>
+                                        <span v-if="pickup_logistics?.savings_loyalty > 0" class="text-[10px] font-black text-emerald-500 uppercase mt-1">
+                                            Loyalty Applied
+                                        </span>
+                                    </div>
+                                    <span class="font-black">
+                                        {{ pickup_logistics === undefined ? '---' : 'Bs ' + serviceFee.toFixed(2) }}
+                                    </span>
+                                </div>
+
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-foreground/40 font-bold uppercase tracking-widest">Logística</span>
+                                    <span v-if="deliveryType === 'pickup'" class="text-emerald-500 font-black uppercase">Liberado</span>
+                                    <span v-else class="font-black">Bs {{ deliveryFee.toFixed(2) }}</span>
+                                </div>
+
+                                <div class="h-px bg-border/10 my-6"></div>
+                                
+                                <div class="flex justify-between items-end">
+                                    <span class="text-xs font-black text-foreground/30 uppercase mb-2 tracking-[0.3em]">Total</span>
+                                    <span class="text-5xl font-black text-foreground tracking-tighter italic">
+                                        <span class="text-lg text-primary mr-1.5 not-italic font-sans font-black">Bs</span>{{ finalTotal.toFixed(2) }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="bg-primary/5 rounded-2xl p-4 flex gap-4 mb-8 border border-primary/10">
+                                <CheckCircle2 class="text-primary shrink-0" :size="20" />
+                                <p class="text-[10px] font-black text-foreground/60 leading-tight uppercase tracking-tight">
+                                    Hardware reservado por <span class="text-primary">{{ config?.reservation_minutes }} min</span> bajo protocolos de seguridad.
+                                </p>
+                            </div>
+
+                            <button @click="submit" :disabled="isPaymentDisabled" 
+                                class="btn-primary w-full h-20 !rounded-2xl shadow-f1-glow flex flex-col items-center justify-center transition-all group overflow-hidden">
+                                
+                                <template v-if="form.processing">
+                                    <Loader2 class="animate-spin" :size="24"/>
+                                </template>
+                                <template v-else>
+                                    <div class="flex items-center gap-3 text-xl font-black uppercase italic tracking-tighter group-hover:scale-105 transition-transform">
+                                        Confirmar <ArrowRight :size="24" stroke-width="3"/>
+                                    </div>
+                                    <span class="text-[10px] font-bold opacity-40 uppercase tracking-[0.3em] mt-1">Generar Comprobante QR</span>
+                                </template>
+                            </button>
+                        </div>
+                    </aside>
+
+                </div>
             </div>
         </div>
     </ShopLayout>
 </template>
+
+<style scoped>
+/* REUTILIZACIÓN DE CRISTALERÍA DEL CARRITO */
+.glass-manifest {
+    background-color: hsl(var(--card) / 0.5);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border-color: hsl(var(--border) / 0.4);
+}
+
+.dark .glass-manifest {
+    background-color: hsl(var(--card) / 0.7);
+}
+
+.shadow-f1-glow {
+    box-shadow: 0 0 25px -5px hsl(var(--primary) / 0.5);
+}
+
+.product-card { @apply !rounded-3xl; }
+</style>

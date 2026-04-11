@@ -27,34 +27,32 @@ class CheckoutOrchestratorController extends Controller
         private readonly GetCustomerCartAction $getCartAction
     ) {}
 
+
     public function index(): Response|RedirectResponse
     {
         $branchId = $this->contextService->getActiveBranchId();
         $customer = auth()->guard('customer')->user();
         
+        // 1. Obtención de Cart (Sincrónico para validación inmediata)
         $cartData = $this->getCartAction->execute(null, (string) $customer->id, $branchId);
 
         if (empty($cartData['items'])) {
             return redirect()->route('customer.cart.index')->with('error', 'El carrito está vacío.');
         }
 
-        // 1. Cálculo Logístico Oficial en RAM
         $subtotal = (float) $cartData['total_price'];
-        $pickupLogistics = $this->financialService->calculate(app('App\Models\Branch')->find($branchId), $customer, $subtotal, 'pickup');
-        $deliveryLogistics = $this->financialService->calculate(app('App\Models\Branch')->find($branchId), $customer, $subtotal, 'delivery');
+        $branch = app('App\Models\Branch')->find($branchId);
 
-        // RECTIFICACIÓN: Importación limpia y snapshot de ubicación incluido por integridad financiera
-        DB::transaction(function () use ($customer, $branchId, $cartData, $pickupLogistics, $deliveryLogistics) {
+        // 2. Snapshot de Integridad (Sincrónico - Garantiza el precio)
+        // El snapshot se crea de inmediato para blindar la operación.
+        DB::transaction(function () use ($customer, $branchId, $cartData) {
             CheckoutSnapshot::where('customer_id', $customer->id)->where('branch_id', $branchId)->delete();
-            // RECTIFICACIÓN: Pase el ARRAY directamente, NO el JSON string.
             CheckoutSnapshot::create([
-                'id' => (string) Uuid::v7(),
+                'id' => (string) \Symfony\Component\Uid\Uuid::v7(),
                 'cart_id' => $cartData['id'],
                 'customer_id' => $customer->id,
                 'branch_id' => $branchId,
-                'logistics_data' => [ // <--- ELIMINADO json_encode
-                    'pickup' => $pickupLogistics,
-                    'delivery' => $deliveryLogistics,
+                'logistics_data' => [
                     'location_snapshot' => [
                         'lat' => $customer->latitude,
                         'lng' => $customer->longitude
@@ -63,21 +61,29 @@ class CheckoutOrchestratorController extends Controller
                 'expires_at' => now()->addMinutes(15)
             ]);
         });
+
         return Inertia::render('Customer/Checkout/Index', [
             'cart' => $cartData,
-            'pickup_logistics' => $pickupLogistics,
-            'delivery_logistics' => $deliveryLogistics,
+            
+            // DEFER: Cálculos financieros y logísticos (Activan Skeletons)
+            'pickup_logistics' => Inertia::defer(fn() => 
+                $this->financialService->calculate($branch, $customer, $subtotal, 'pickup')
+            ),
+            
+            'delivery_logistics' => Inertia::defer(fn() => 
+                $this->financialService->calculate($branch, $customer, $subtotal, 'delivery')
+            ),
+
             'customer_location' => [
                 'lat' => $customer->latitude,
                 'lng' => $customer->longitude,
             ],
-            // RECTIFICACIÓN: Inyectar configuración para la UI
+            
             'config' => [
-                'reservation_minutes' => 10 // O el valor que tenga en su lógica
+                'reservation_minutes' => 10 
             ]
         ]);
     }
-
     public function store(PlaceOrderRequest $request, PlaceOrderAction $action): RedirectResponse
     {
         try {

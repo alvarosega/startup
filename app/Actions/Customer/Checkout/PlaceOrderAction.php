@@ -5,79 +5,91 @@ declare(strict_types=1);
 namespace App\Actions\Customer\Checkout;
 
 use App\DTOs\Customer\Checkout\CheckoutCartDTO;
-use App\Models\{Order, OrderItem, Cart, CheckoutSnapshot};
+use App\Models\{Order, OrderItem, Cart, CheckoutSnapshot, Branch, Customer};
 use App\Services\Inventory\InventoryOrchestrator;
+use App\Services\Order\OrderFinancialService; // INYECTAR SERVICIO
 use Illuminate\Support\Facades\DB;
 use Exception;
 
 readonly class PlaceOrderAction
 {
-    public function __construct(private InventoryOrchestrator $inventoryOrchestrator) {}
+    public function __construct(
+        private InventoryOrchestrator $inventoryOrchestrator,
+        private OrderFinancialService $financialService // Inyectamos el motor financiero
+    ) {}
 
     public function execute(CheckoutCartDTO $dto): Order
     {
         return DB::transaction(function () use ($dto) {
             $now = now();
 
+            // 1. VALIDACIÓN DE SNAPSHOT
             $snapshot = CheckoutSnapshot::where('customer_id', $dto->customerId)
-            ->where('branch_id', $dto->branchId)
-            ->where('expires_at', '>', $now)
-            ->lockForUpdate()
-            ->first();
+                ->where('branch_id', $dto->branchId)
+                ->where('expires_at', '>', $now)
+                ->lockForUpdate()
+                ->first();
         
-        // 1. EL SNAPSHOT DEBE VALIDARSE PRIMERO
-        if (!$snapshot) {
-            throw new Exception("El presupuesto ha expirado o es inexistente.");
-        }
-        
-        // 2. LOGISTICS_DATA YA ES ARRAY (Gracias al Cast y a quitar el json_encode en el controller)
-        $allData = $snapshot->logistics_data;
-        $financials = $allData[$dto->deliveryType] ?? null;
-        
-        if (!$financials || !($financials['is_available'] ?? false)) {
-            throw new Exception("Configuración logística no disponible o inválida.");
-        }
+            if (!$snapshot) {
+                throw new Exception("El protocolo de seguridad ha expirado. Por favor, reinicie el checkout.");
+            }
+            
+            // 2. BLOQUEO Y CARGA DE CARRITO
+            $cart = Cart::where('id', $snapshot->cart_id)
+                ->with('items.sku.product')
+                ->lockForUpdate()
+                ->first();
 
-            // 2. Bloqueo de Carrito
-            $cart = Cart::where('id', $snapshot->cart_id)->with('items.sku.product')->lockForUpdate()->first();
             if (!$cart || $cart->items->isEmpty()) {
-                throw new Exception("Integridad de carrito comprometida.");
+                throw new Exception("Integridad de hardware comprometida: El carrito está vacío.");
             }
 
-            $orderItemsToInsert = [];
-            $itemsSubtotal = 0.0;
+            // 3. CÁLCULO FINANCIERO EN TIEMPO REAL (Seguridad Total)
+            $itemsSubtotal = (float) $cart->items->sum(fn($item) => $item->price_at_addition * $item->quantity);
+            
+            $branch = Branch::findOrFail($dto->branchId);
+            $customer = Customer::findOrFail($dto->customerId);
 
+            // Recalculamos la logística elegida para asegurar que el precio es inmutable
+            $financials = $this->financialService->calculate(
+                $branch, 
+                $customer, 
+                $itemsSubtotal, 
+                $dto->deliveryType
+            );
+
+            if (!$financials['is_available']) {
+                throw new Exception("Falla Logística: " . ($financials['error_message'] ?? 'Servicio no disponible.'));
+            }
+
+            // 4. PROCESAMIENTO DE ITEMS E INVENTARIO
+            $orderItemsToInsert = [];
             foreach ($cart->items as $cartItem) {
-                // Sincronía FEFO
+                // Reserva física de stock
                 $this->inventoryOrchestrator->reserve($cartItem->sku_id, $dto->branchId, (int)$cartItem->quantity);
                 
-                $lineSubtotal = (float)$cartItem->price_at_addition * $cartItem->quantity;
-                $itemsSubtotal += $lineSubtotal;
-
                 $orderItemsToInsert[] = new OrderItem([
                     'sku_id'         => $cartItem->sku_id,
                     'product_name'   => $cartItem->sku->product->name,
                     'sku_name'       => $cartItem->sku->name,
-                    // RECTIFICACIÓN: Usar la propiedad física del modelo SKU
                     'image_snapshot' => $cartItem->sku->image_path, 
                     'quantity'       => $cartItem->quantity,
                     'unit_price'     => $cartItem->price_at_addition,
-                    'subtotal'       => $lineSubtotal
+                    'subtotal'       => (float)$cartItem->price_at_addition * $cartItem->quantity
                 ]);
             }
 
-            // 3. Generación de Identidad
+            // 5. CREACIÓN DE ORDEN (Telemetría Final)
             $orderCode = sprintf("ORD-%s-%s%04d", date('ymd'), strtoupper(substr($dto->customerId, 0, 3)), rand(1000, 9999));
 
-            // 4. Persistencia
             $order = Order::create([
                 'code'                   => $orderCode,
                 'customer_id'            => $dto->customerId,
                 'branch_id'              => $dto->branchId,
                 'delivery_type'          => $dto->deliveryType,
                 'delivery_data'          => [
-                    'lat'         => $allData['location_snapshot']['lat'] ?? null,
-                    'lng'         => $allData['location_snapshot']['lng'] ?? null,
+                    'lat'         => $snapshot->logistics_data['location_snapshot']['lat'] ?? null,
+                    'lng'         => $snapshot->logistics_data['location_snapshot']['lng'] ?? null,
                     'distance_km' => $financials['distance_km'] ?? 0
                 ], 
                 'status'                 => 'pending',
@@ -91,7 +103,7 @@ readonly class PlaceOrderAction
 
             $order->items()->saveMany($orderItemsToInsert);
 
-            // 5. Limpieza
+            // 6. LIMPIEZA DE PROTOCOLO
             $cart->items()->delete();
             $cart->delete();
             $snapshot->delete();
