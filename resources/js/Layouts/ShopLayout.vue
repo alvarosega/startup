@@ -42,12 +42,12 @@ const userInitials = computed(() => {
     if (!name) return '??';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 });
-// --- NAVEGACIÓN ---
 const navigation = [
     { name: 'Inicio', icon: Home, route: 'customer.index' },
     { name: 'Promociones', icon: Tag, route: 'customer.index' },
     { name: 'Pedidos', icon: Receipt, route: 'customer.order.index' },
-    { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses' },
+    // RECTIFICACIÓN: El nombre de la ruta es compuesto
+    { name: 'Direcciones', icon: MapPin, route: 'customer.profile.addresses.index' }, 
     { name: 'Seguridad', icon: ShieldCheck, route: 'customer.profile.security' },
 ];
 
@@ -147,7 +147,7 @@ const toggleSearch = () => {
                             <Menu :size="20" />
                         </button>
 
-                        <button @click="router.visit(route('customer.profile.addresses'))" class="flex items-center gap-3 px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-2xl transition-all group focus:outline-none">
+                        <button @click="router.visit(route('customer.profile.addresses.index'))" class="flex items-center gap-3 px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-2xl transition-all group focus:outline-none">
                             <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
                                 <MapPin :size="14" class="text-primary-aaa dark:text-primary" />
                             </div>
