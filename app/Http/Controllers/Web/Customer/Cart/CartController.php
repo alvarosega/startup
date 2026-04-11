@@ -27,15 +27,13 @@ class CartController extends Controller
         $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
         $branchId  = $this->shopContext->getActiveBranchId();
         $userId    = auth()->guard('customer')->id();
-    
-        // RECTIFICACIÓN: Añadir ->resolve() al final de la ejecución de la acción
-        $cart = $action->execute($guestUuid, $userId, $branchId)->resolve();
-    
+
         return Inertia::render('Customer/Cart/Index', [
-            'cart' => $cart,
-            'shopContext' => [
-                'branch_id' => $branchId
-            ]
+            // DEFER: Activamos carga asíncrona para la bandeja de hardware
+            'cart' => Inertia::defer(fn() => 
+                $action->execute($guestUuid, $userId, $branchId)->resolve()
+            ),
+            'shopContext' => ['branch_id' => $branchId]
         ]);
     }
 

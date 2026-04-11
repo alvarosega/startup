@@ -29,19 +29,19 @@ const hasStockErrors = computed(() => {
 const updateQuantity = (item, newQty) => {
     if (newQty < 1 || newQty > item.max_stock || isUpdating.value) return;
     
-    isUpdating.value = true; // Bloqueo total de la UI
+    isUpdating.value = true;
     processingItem.value = item.id;
     
     router.patch(route('customer.cart.update', item.id), { quantity: newQty }, {
         preserveScroll: true,
-        only: ['cart'], // REGLA QUERY LAW: Solo recargar la prop del carrito
+        preserveState: true,
+        only: ['cart', 'flash'], // Solo pedimos el carrito actualizado
         onFinish: () => {
             processingItem.value = null;
             isUpdating.value = false;
         },
     });
 };
-
 const removeItem = (id) => {
     // RESTAURADO: Funcionalidad original intacta
     if(confirm('¿Quitar elemento del carrito?')) {
@@ -58,196 +58,120 @@ const proceedToCheckout = () => {
 
 <template>
     <ShopLayout>
-        <Head title="Tu Carrito" />
+        <Head title="Radar de Despacho" />
 
-        <div class="du-cyber-canvas min-h-[100svh] pb-[140px] lg:pb-32 pt-8 relative z-10 transition-colors duration-500">
+        <div class="w-full pb-32 pt-4 relative z-10">
             <div class="max-w-7xl mx-auto px-4 lg:px-8">
                 
-                <div class="flex items-end justify-between mb-10 border-b border-border/20 pb-4">
+                <div class="flex items-end justify-between mb-8 border-b border-border/10 pb-6">
                     <div class="header-standard mb-0">
                         <div class="title-block-wrapper">
-                            <ShoppingBag :size="18" class="text-black dark:text-white fill-current" />
-                            <h1 class="text-2xl md:text-3xl text-black dark:text-white">Tu Pedido</h1>
+                            <Cpu :size="18" class="text-primary animate-pulse" />
+                            <h1 class="text-3xl font-black italic tracking-tighter uppercase">Radar de Despacho</h1>
                         </div>
                     </div>
-                    <div class="text-right pb-2" v-if="cart">
-                        <p class="font-mono text-xs md:text-sm text-foreground/60 font-black tracking-widest">
-                            [{{ cart.total_items }}] UNIDADES
-                        </p>
-                        <p class="font-mono text-[9px] text-foreground/40 uppercase tracking-[0.2em] mt-1">
-                            SYS_ID: {{ cart.id?.substring(0,8) || 'DRAFT' }}
-                        </p>
+                    <div v-if="props.cart !== undefined" class="text-right hidden sm:block">
+                        <span class="font-mono text-xs text-foreground/40 tracking-[0.3em] uppercase">Status: Validando Hardware</span>
                     </div>
                 </div>
 
-                <div v-if="cartItems.length > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-                    
-                    <div class="lg:col-span-8 space-y-6">
-                        <div v-for="item in cartItems" :key="item.id" class="flex flex-col gap-2">
-                            
-                            <div class="glass-chassis p-4 md:p-6 flex flex-col sm:flex-row gap-5 md:gap-8 transition-all duration-500 relative overflow-hidden group"
-                                 :class="[
-                                     item.quantity > item.max_stock ? 'border-destructive/50 shadow-[0_0_15px_rgba(var(--destructive-rgb),0.1)]' : '',
-                                     processingItem === item.id ? 'opacity-50 pointer-events-none scale-[0.98]' : ''
-                                 ]">
+                <div v-if="props.cart === undefined" class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    <div class="lg:col-span-8 space-y-4">
+                        <div v-for="i in 3" :key="i" class="h-32 w-full skeleton rounded-3xl"></div>
+                    </div>
+                    <div class="lg:col-span-4 h-[400px] skeleton rounded-3xl"></div>
+                </div>
+
+                <div v-else-if="cartItems.length === 0" class="py-32 flex flex-col items-center text-center">
+                    <div class="w-20 h-20 rounded-full bg-foreground/5 flex items-center justify-center mb-6">
+                        <PackageOpen :size="40" class="text-foreground/20" stroke-width="1"/>
+                    </div>
+                    <h2 class="text-2xl font-black uppercase tracking-tighter italic mb-2">Bandeja Vacía</h2>
+                    <p class="text-xs font-bold text-foreground/40 uppercase tracking-widest mb-8 max-w-xs">No hay hardware en tu zona de despacho actual.</p>
+                    <Link :href="route('customer.index')" class="btn-primary px-10 h-14 !rounded-2xl text-xs">
+                        Explorar Catálogo
+                    </Link>
+                </div>
+
+                <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+                    <div class="lg:col-span-8 space-y-4">
+                        <div v-for="item in cartItems" :key="item.id" class="relative group">
+                            <div class="product-card p-4 md:p-5 flex gap-6 items-center" 
+                                 :class="{'opacity-50': processingItem === item.id}">
                                 
-                                <div v-if="item.quantity > item.max_stock" class="absolute top-0 left-0 w-full bg-destructive/10 border-b border-destructive/20 text-destructive text-[9px] font-black uppercase tracking-[0.2em] px-4 py-2 flex items-center justify-center gap-2">
-                                    <AlertTriangle :size="12" /> Límite excedido (Max: {{ item.max_stock }})
+                                <div class="w-24 h-24 shrink-0 rounded-2xl sku-stage-bg p-2">
+                                    <img :src="item.image" class="w-full h-full object-contain drop-shadow-hardware">
                                 </div>
 
-                                <div class="w-full sm:w-32 h-32 shrink-0 rounded-2xl sku-stage-bg p-3 flex items-center justify-center relative mt-6 sm:mt-0"
-                                     :class="{'mt-10 sm:mt-6': item.quantity > item.max_stock}">
-                                    <img :src="item.image" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-hardware">
-                                </div>
-                                
-                                <div class="flex-1 flex flex-col justify-between pt-1">
-                                    <div>
-                                        <div class="flex justify-between items-start gap-4">
-                                            <div>
-                                                <h3 class="font-black text-sm md:text-base uppercase leading-tight text-foreground tracking-tight">
-                                                    {{ item.name }}
-                                                </h3>
-                                                
-                                                <div v-if="item.is_bundle && item.components" class="mt-3 flex flex-col gap-1.5 border-l-2 border-border/40 pl-3">
-                                                    <p v-for="(comp, i) in item.components" :key="i" class="text-[9px] text-foreground/60 font-black uppercase tracking-widest flex items-center gap-2">
-                                                        <span class="text-primary">{{ comp.qty }}x</span> {{ comp.name }}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <button @click="removeItem(item.id)" class="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-90 shrink-0">
-                                                <Loader2 v-if="processingItem === item.id" :size="14" class="animate-spin" />
-                                                <Trash2 v-else :size="14" stroke-width="2.5"/>
-                                            </button>
-                                        </div>
-
-                                        <div class="mt-3 flex items-center gap-2 flex-wrap">
-                                            <span v-if="item.price_label !== 'REGULAR'" 
-                                                  class="text-[8px] font-black px-2 py-1 rounded-md flex items-center gap-1 uppercase tracking-[0.2em]"
-                                                  :class="{
-                                                      'bg-warning/10 text-warning border border-warning/20': item.price_label === 'OFFER',
-                                                      'bg-purple-500/10 text-purple-500 border border-purple-500/20': item.is_bundle,
-                                                      'bg-primary/10 text-primary border border-primary/20': !item.is_bundle && item.price_label !== 'OFFER'
-                                                  }">
-                                                <Zap :size="10" v-if="item.price_label === 'OFFER'"/>
-                                                <Layers :size="10" v-else-if="item.is_bundle"/>
-                                                <Tag :size="10" v-else/>
-                                                {{ item.price_label }}
-                                            </span>
-                                        </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="text-sm md:text-base font-black uppercase leading-tight truncate pr-4">
+                                            {{ item.name }}
+                                        </h3>
+                                        <button @click="removeItem(item.id)" class="text-foreground/20 hover:text-destructive transition-colors p-1">
+                                            <Trash2 :size="16" />
+                                        </button>
                                     </div>
 
-                                    <div class="flex items-end justify-between mt-6 pt-4 border-t border-border/20">
-                                        <div class="flex items-center bg-foreground/5 border border-border/30 rounded-xl p-1 shadow-inner">
-                                            <button @click="updateQuantity(item, item.quantity - 1)" :disabled="processingItem === item.id || item.quantity <= 1" class="w-8 h-8 flex items-center justify-center rounded-lg bg-background text-foreground hover:opacity-80 disabled:opacity-30 transition-all shadow-sm">
+                                    <div class="mt-4 flex items-center justify-between">
+                                        <div class="flex items-center bg-foreground/5 rounded-xl p-1 border border-border/10">
+                                            <button @click="updateQuantity(item, item.quantity - 1)" 
+                                                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm hover:scale-105 active:scale-90 transition-all">
                                                 <Minus :size="14" stroke-width="3"/>
                                             </button>
-                                            <span class="w-12 text-center font-mono font-black text-sm text-foreground">
-                                                {{ item.quantity }}
-                                            </span>
-                                            <button @click="updateQuantity(item, item.quantity + 1)" :disabled="processingItem === item.id || item.quantity >= item.max_stock" class="w-8 h-8 flex items-center justify-center rounded-lg bg-background text-foreground hover:opacity-80 disabled:opacity-30 transition-all shadow-sm">
+                                            <span class="w-10 text-center font-mono font-black text-xs">{{ item.quantity }}</span>
+                                            <button @click="updateQuantity(item, item.quantity + 1)" 
+                                                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-background shadow-sm hover:scale-105 active:scale-90 transition-all">
                                                 <Plus :size="14" stroke-width="3"/>
                                             </button>
                                         </div>
                                         
                                         <div class="text-right">
-                                            <span v-if="item.line_savings > 0" class="block text-[9px] font-mono font-black text-emerald-500 uppercase tracking-widest mb-1">
-                                                AHORRO: Bs. {{ item.line_savings.toFixed(2) }}
-                                            </span>
-                                            <div class="flex items-baseline justify-end gap-1 font-mono">
-                                                <span class="text-[10px] font-bold text-foreground/40 uppercase">Bs.</span>
-                                                <span class="text-xl md:text-2xl font-black text-foreground tracking-tighter">{{ item.subtotal.toFixed(2) }}</span>
-                                            </div>
+                                            <span class="block text-[10px] font-mono font-black text-foreground/30 uppercase tracking-tighter">Subtotal</span>
+                                            <span class="text-xl font-mono font-black tracking-tighter">Bs. {{ item.subtotal.toFixed(2) }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <div v-if="!item.is_bundle && item.upsell" class="bg-foreground/5 border border-border/20 border-l-2 border-l-primary p-4 rounded-[1.5rem] flex items-start gap-4">
-                                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                                    <Cpu :size="14" />
-                                </div>
-                                <div>
-                                    <p class="text-[9px] font-black uppercase tracking-[0.2em] text-primary mb-1">Alerta de Eficiencia</p>
-                                    <p class="text-xs font-bold text-foreground/70 uppercase tracking-tighter leading-snug">
-                                        Adiciona <span class="text-foreground font-black">{{ item.upsell.needed_quantity }} uds</span> más a tu configuración y el costo unitario bajará a <span class="font-mono text-primary font-black">Bs. {{ item.upsell.potential_price.toFixed(2) }}</span>.
-                                    </p>
-                                </div>
-                            </div>
-
                         </div>
                     </div>
 
-                    <div v-if="cartItems.length > 0" class="hidden lg:block lg:col-span-4">
-                        <div class="glass-titanium rounded-[2.5rem] p-8 sticky top-28 shadow-2xl">
-                            <div class="header-standard mb-8">
-                                <div class="title-block-wrapper">
-                                    <CreditCard :size="16" class="text-black dark:text-white" />
-                                    <h2 class="text-black dark:text-white">Liquidación</h2>
-                                </div>
-                            </div>
-                            
-                            <div class="space-y-4 mb-8 text-xs font-bold text-foreground/60 uppercase tracking-widest font-mono">
-                                <div class="flex justify-between items-center">
+                    <aside class="lg:col-span-4 sticky top-28">
+                        <div class="glass-titanium !rounded-3xl p-8 border border-primary/20 shadow-f1-glow">
+                            <h2 class="text-xs font-black uppercase tracking-[0.3em] text-primary mb-8 flex items-center gap-2">
+                                <CreditCard :size="14" /> Liquidación Final
+                            </h2>
+
+                            <div class="space-y-4 font-mono text-xs font-bold uppercase tracking-widest border-b border-border/10 pb-6 mb-6">
+                                <div class="flex justify-between text-foreground/50">
                                     <span>Valor Crudo</span>
-                                    <span>Bs. {{ (cart.total_price + (cart.total_savings || 0)).toFixed(2) }}</span>
+                                    <span>Bs. {{ (props.cart.total_price + (props.cart.total_savings || 0)).toFixed(2) }}</span>
                                 </div>
-                                
-                                <div v-if="cart.total_savings > 0" class="flex justify-between items-center text-emerald-500 pt-2 border-t border-border/20">
-                                    <span class="flex items-center gap-2"><TrendingDown :size="14"/> Eficiencia</span>
-                                    <span>- Bs. {{ cart.total_savings.toFixed(2) }}</span>
+                                <div v-if="props.cart.total_savings > 0" class="flex justify-between text-emerald-500">
+                                    <span class="flex items-center gap-1"><TrendingDown :size="12"/> Ahorro Pack</span>
+                                    <span>- Bs. {{ props.cart.total_savings.toFixed(2) }}</span>
                                 </div>
                             </div>
 
-                            <div class="border-t border-border/30 pt-6 mb-8">
-                                <div class="flex justify-between items-end">
-                                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/50 mb-1">Total a Despachar</span>
-                                    <span class="text-4xl font-mono font-black text-foreground leading-none tracking-tighter">
-                                        <span class="text-lg text-foreground/40 mr-1">Bs.</span>{{ cart.total_price.toFixed(2) }}
+                            <div class="flex justify-between items-end mb-8">
+                                <span class="text-xs font-black uppercase tracking-widest text-foreground/40">Total</span>
+                                <div class="text-right">
+                                    <span class="text-4xl font-mono font-black tracking-tighter italic">
+                                        <span class="text-base not-italic text-primary mr-1">Bs</span>{{ props.cart.total_price.toFixed(2) }}
                                     </span>
                                 </div>
                             </div>
 
                             <button @click="proceedToCheckout" 
-                                    :disabled="hasStockErrors || isUpdating" 
-                                    class="w-full h-16 bg-foreground text-background rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
-                                <Loader2 v-if="isUpdating" class="animate-spin" />
-                                <template v-else>
-                                    {{ user ? 'Ejecutar Pago' : 'Autenticar Socio' }} <ArrowRight stroke-width="3" :size="18"/>
-                                </template>
+                                    :disabled="hasStockErrors || isUpdating"
+                                    class="btn-primary w-full h-16 !rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-apple-soft group">
+                                <span class="group-hover:translate-x-1 transition-transform flex items-center justify-center gap-3">
+                                    {{ user ? 'Ejecutar Pago' : 'Autenticar Socio' }} <ArrowRight :size="18" stroke-width="3" />
+                                </span>
                             </button>
                         </div>
-                    </div>
-
-                    <div v-if="cartItems.length === 0" class="text-center py-32 glass-chassis rounded-[3rem] mt-8 flex flex-col items-center">
-                        <PackageOpen :size="64" class="text-foreground/20 mb-6" stroke-width="1"/>
-                        <h2 class="text-2xl font-black uppercase tracking-tighter mb-3 italic">Bandeja Vacía</h2>
-                        <p class="text-foreground/50 text-[10px] uppercase font-black tracking-[0.2em] mb-10 max-w-sm">No hay hardware en tu radar de despacho. Inicia una exploración de catálogo.</p>
-                        <Link :href="route('customer.index')" class="h-14 px-8 bg-foreground text-background font-black text-[10px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 shadow-xl">
-                            <ShoppingBag :size="16" stroke-width="2.5"/> Explorar Catálogo
-                        </Link>
-                    </div>
+                    </aside>
                 </div>
-            </div>
-        </div>
-
-        <div v-if="cartItems.length > 0" class="lg:hidden fixed bottom-0 left-0 w-full z-[5000] pb-safe bg-background/90 backdrop-blur-2xl border-t border-border/20 shadow-[0_-15px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_-15px_40px_rgba(0,0,0,0.5)]">
-            <div class="px-6 py-4 flex items-center justify-between gap-4">
-                <div class="flex flex-col">
-                    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/50 mb-0.5">Total a Despachar</span>
-                    <span class="text-2xl font-mono font-black text-foreground leading-none tracking-tighter">
-                        <span class="text-sm text-foreground/40 mr-1">Bs.</span>{{ cart.total_price.toFixed(2) }}
-                    </span>
-                </div>
-                
-                <button @click="proceedToCheckout" 
-                        :disabled="hasStockErrors || isUpdating" 
-                        class="flex-1 max-w-[180px] h-14 bg-foreground text-background rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-30">
-                    <Loader2 v-if="isUpdating" class="animate-spin" :size="16" />
-                    <template v-else>
-                        Pagar <ArrowRight stroke-width="3" :size="14"/>
-                    </template>
-                </button>
             </div>
         </div>
     </ShopLayout>
