@@ -106,19 +106,6 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                     </div>
                 </section>
 
-                <section v-show="bundlesList.length > 0 || !isMounted" class="section-reveal">
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
-                        <div class="header-standard">
-                            <div class="title-block-wrapper">
-                                <Zap :size="16" class="text-black dark:text-white/60" />
-                                <h2>Ahorro</h2>
-                            </div>
-                        </div>
-                        <div class="content-shadow">
-                            <BundleCarousel :bundles="bundlesList" :loading="props.atomicBundles === undefined" />
-                        </div>
-                    </div>
-                </section>
                 <section v-if="isMounted" class="section-reveal py-4">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <FavoritesSection :favorites="favorites" />
