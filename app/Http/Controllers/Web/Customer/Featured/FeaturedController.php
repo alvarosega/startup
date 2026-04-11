@@ -17,25 +17,28 @@ class FeaturedController extends Controller
     public function show(
         string $slug, 
         GetProductShowcaseAction $showcaseAction,
-        GetHomeFeaturedAction $featuredAction, // Inyectar carrusel
+        GetHomeFeaturedAction $featuredAction,
         ShopContextService $context
-    ) {
+    ): \Inertia\Response {
         $branchId = $context->getActiveBranchId();
-        
-        // 1. Data del Showcase (Principal + Otros)
-        $data = $showcaseAction->execute($slug, $branchId);
-        
-        // 2. Data del Carrusel (Navegación horizontal entre destacados)
+
+        // RECTIFICACIÓN: Debes ejecutar la acción para definir la variable $featured
         $featured = $featuredAction->execute($branchId);
 
         return Inertia::render('Customer/Featured/Show', [
-            // RECTIFICACIÓN: .resolve() garantiza que el carrusel reciba el array directo
+            // Ahora la variable $featured ya existe y puede ser resuelta
             'featuredProducts' => FeaturedProductResource::collection($featured)->resolve(),
-            'showcase' => [
-                'product' => $data['product'],
-                'skus' => SkuResource::collection($data['skus'])->resolve(),
-                'others_paginated' => SkuResource::collection($data['others_paginated'])->resolve()
-            ]
+
+            // 2. DATA PRINCIPAL (Diferida para activar Skeletons)
+            'showcase' => Inertia::defer(function() use ($showcaseAction, $slug, $branchId) {
+                $data = $showcaseAction->execute($slug, $branchId);
+                
+                return [
+                    'product' => $data['product'],
+                    'skus' => SkuResource::collection($data['skus']),
+                    'others_paginated' => SkuResource::collection($data['others_paginated'])
+                ];
+            })
         ]);
     }
 }

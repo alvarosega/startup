@@ -89,22 +89,26 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
                 </p>
             </header>
 
-            <section v-if="showcaseData.skus?.length > 0" class="space-y-4 mb-20">
+            <section v-if="showcaseData.skus?.length > 0 || props.showcase === undefined" class="space-y-4 mb-20">
                 <div class="flex items-center gap-4 mb-6">
                     <span class="h-px flex-1 bg-primary/20"></span>
-                    <h2 class="text-[10px] font-black uppercase tracking-[0.4em] text-primary">
+                    <h2 class="text-xs font-black uppercase tracking-[0.4em] text-primary">
                         [ VARIANTES_EN_GÓNDOLA ]
                     </h2>
                     <span class="h-px flex-1 bg-primary/20"></span>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
-                    <div v-for="sku in showcaseData.skus" :key="sku.id" class="w-full">
-                        <SkuCard :sku="sku" :isActive="true" class="!max-w-none" />
+                <div v-if="props.showcase === undefined" 
+                    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+                    <div v-for="n in 5" :key="n" class="product-card h-[400px] skeleton"></div>
+                </div>
+
+                <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+                    <div v-for="sku in showcaseData.skus" :key="sku.id">
+                        <SkuCard :sku="sku" :isActive="true" />
                     </div>
                 </div>
             </section>
-
             <section>
                 <div class="flex items-center gap-4 mb-8">
                     <h2 class="text-2xl font-black uppercase tracking-tighter italic">Explorar más productos</h2>
@@ -119,8 +123,8 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
                     />
                 </div>
 
-                <div v-if="isLoadingMore" class="grid grid-cols-2 md:grid-cols-5 gap-6 mt-6">
-                    <div v-for="n in 5" :key="n" class="aspect-[3/4] bg-muted/20 rounded-3xl animate-pulse"></div>
+                <div v-if="isLoadingMore" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6 mt-6">
+                    <div v-for="n in 6" :key="n" class="product-card h-[400px] skeleton !rounded-3xl"></div>
                 </div>
             </section>
         </div>

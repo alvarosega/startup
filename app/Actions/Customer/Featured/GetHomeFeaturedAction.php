@@ -31,6 +31,7 @@ final readonly class GetHomeFeaturedAction
                 ->orderBy('sort_order', 'asc')
                 ->get()
                 ->map(fn(Product $product) => new FeaturedProductDTO(
+                    id: (string) $product->id, // <--- RECTIFICACIÓN: Parámetro obligatorio añadido
                     name: $product->name,
                     slug: $product->slug,
                     image_path: $product->image_path,

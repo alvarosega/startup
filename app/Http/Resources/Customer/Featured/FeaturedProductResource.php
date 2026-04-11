@@ -11,12 +11,12 @@ final class FeaturedProductResource extends JsonResource
 {
     public function toArray($request): array
     {
-        // El resource ahora es un pasamanos limpio del DTO sanitizado
         return [
-            'name'            => $this->name,
-            'slug'            => $this->slug,
-            'brand'           => $this->brand_name,
-            'image_url'       => $this->image_url,
+            'id'              => (string) $this->id, // RECTIFICACIÓN: Llave obligatoria para Vue :key
+            'name'            => (string) $this->name,
+            'slug'            => (string) $this->slug,
+            'brand'           => (string) $this->brand_name,
+            'image_url'       => (string) $this->image_url,
             'is_out_of_stock' => (bool) $this->is_out_of_stock,
         ];
     }
