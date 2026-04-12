@@ -11,7 +11,7 @@ import {
 } from 'lucide-vue-next';
 
 // Importamos nuestro componente de mapa unificado
-import MapComponent from '@/Components/Base/MapComponent.vue';
+//import MapComponent from '@/Components/Base/MapComponent.vue';
 
 const props = defineProps({
     branch: Object

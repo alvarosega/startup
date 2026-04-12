@@ -1,7 +1,7 @@
 <script setup>
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { KeyRound, CheckCircle, ShieldCheck, Hash, XCircle } from 'lucide-vue-next';
-import BaseInput from '@/Components/Base/BaseInput.vue';
+//import BaseInput from '@/Components/Base/BaseInput.vue';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 
 const props = defineProps({ email: String });

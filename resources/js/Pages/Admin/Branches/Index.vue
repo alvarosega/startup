@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import MapComponent from '@/Components/Base/MapComponent.vue';
+//import MapComponent from '@/Components/Base/MapComponent.vue';
 import { 
     MapPin, Edit, Building, Plus, 
     Copy, Target, Wifi, WifiOff, 

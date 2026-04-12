@@ -1,9 +1,9 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
-import StepProgress from '@/Components/StepProgress.vue';
-import ImageUploader from '@/Components/ImageUploader.vue';
-import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
+//import StepProgress from '@/Components/StepProgress.vue';
+//import ImageUploader from '@/Components/ImageUploader.vue';
+//import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue';
 import { 
     Tag, Factory, Globe, ArrowRight, ArrowLeft, Save, 
     Search, Cpu, Terminal, CheckCircle, AlertTriangle,

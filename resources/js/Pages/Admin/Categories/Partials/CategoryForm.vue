@@ -1,7 +1,7 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import ImageUploader from '@/Components/ImageUploader.vue';
+//import ImageUploader from '@/Components/ImageUploader.vue';
 import { Save, AlertOctagon, Info, ChevronLeft, LayoutGrid, Database, Share2 } from 'lucide-vue-next';
 
 const props = defineProps({

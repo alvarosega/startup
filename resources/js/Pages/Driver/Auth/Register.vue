@@ -4,7 +4,7 @@ import { useForm, Link, Head } from '@inertiajs/vue3';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
-import BaseInput from '@/Components/Base/BaseInput.vue';
+//import BaseInput from '@/Components/Base/BaseInput.vue';
 import { 
     Truck, Bike, Car, User, ArrowRight, ArrowLeft, 
     CheckCircle, Lock, Mail, FileText, Upload, Camera

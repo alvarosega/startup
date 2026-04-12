@@ -1,7 +1,7 @@
 <script setup>
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { Mail, ArrowLeft, Send, Truck } from 'lucide-vue-next';
-import BaseInput from '@/Components/Base/BaseInput.vue';
+//import BaseInput from '@/Components/Base/BaseInput.vue';
 
 const form = useForm({ email: '' });
 const submit = () => form.post(route('driver.password.email'));

@@ -2,8 +2,8 @@
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
-import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue'; 
-import BaseInput from '@/Components/Base/BaseInput.vue'; 
+//import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue'; 
+//import BaseInput from '@/Components/Base/BaseInput.vue'; 
 import { LogIn, Lock, Smartphone, ArrowRight, Truck } from 'lucide-vue-next';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 
