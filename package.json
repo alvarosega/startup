@@ -27,6 +27,7 @@
         "@inertiajs/vue3": "^3.0.3",
         "@vitejs/plugin-vue": "^5.2.4",
         "@vue-leaflet/vue-leaflet": "^0.10.1",
+        "animejs": "^4.3.6",
         "leaflet": "^1.9.4",
         "leaflet.markercluster": "^1.5.3",
         "lucide-vue-next": "^0.562.0",
