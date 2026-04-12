@@ -1,0 +1,1 @@
+import{c as a,b as t,o as s}from"./app-BTGQOaT9.js";/* empty css            */const o={class:"p-6"},p={__name:"Dashboard",setup(n){return(r,e)=>(s(),a("div",o,[...e[0]||(e[0]=[t("h1",{class:"text-2xl font-bold"},"Panel de Finanzas",-1),t("p",null,"Próximamente...",-1)])]))}};export{p as default};
