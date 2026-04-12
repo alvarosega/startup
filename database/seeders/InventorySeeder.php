@@ -39,13 +39,17 @@ class InventorySeeder extends Seeder
                 if (empty($row[0])) continue;
 
                 // Resolución de IDs
-                $skuId        = $skus[trim($row[0])] ?? null;
-                $branchId     = $branches[trim($row[1])] ?? null;
-                $providerName = trim($row[2]);
-                $providerId   = $providers[$providerName] ?? null;
-
+                $skuId      = $skus[trim($row[0])] ?? null;
+                $branchId   = $branches[trim($row[1])] ?? null;
+                $providerId = $providers[trim($row[2])] ?? null;
+                
                 if (!$skuId || !$branchId || !$providerId) {
-                    $this->command->warn("Fila saltada: Referencia fallida. SKU: {$row[0]}, Branch: {$row[1]}, Provider: {$providerName}");
+                    $missing = [];
+                    if (!$skuId) $missing[] = "SKU Code [{$row[0]}]";
+                    if (!$branchId) $missing[] = "Branch Slug [{$row[1]}]";
+                    if (!$providerId) $missing[] = "Provider Name [{$row[2]}]";
+                    
+                    $this->command->error("FILA OMITIDA: No se encontró: " . implode(', ', $missing));
                     continue;
                 }
 
