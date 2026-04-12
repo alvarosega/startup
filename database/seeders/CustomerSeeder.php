@@ -7,38 +7,54 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Models\Branch;
-use Faker\Factory as Faker;
 use Spatie\Permission\Models\Role;
 
 class CustomerSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Faker::create('es_ES');
-        // Recuperamos sucursales activas con sus polígonos
-        $branches = Branch::where('is_active', true)->get(['id']);
-        $customerRole = Role::firstOrCreate(['name' => 'customer']);
+        $csvPath = database_path('data/customers.csv');
 
-        DB::transaction(function () use ($faker, $branches, $customerRole) {
-            
-            for ($i = 0; $i < 10; $i++) {
-                $customerId = Str::uuid()->toString();
-                $branch = $branches->isNotEmpty() ? $branches->random() : null;
-                $branchId = $branch ? $branch->id : null;
+        if (!file_exists($csvPath)) {
+            $this->command->error("ARCHIVO NO ENCONTRADO: $csvPath");
+            return;
+        }
 
-                // --- 0. GEOPOSICIONAMIENTO SIMULADO (Eje La Paz, Bolivia) ---
-                $lat = -16.5000 + ($faker->randomFloat(8, -0.04, 0.04));
-                $lng = -68.1500 + ($faker->randomFloat(8, -0.04, 0.04));
+        $branches = Branch::where('is_active', true)->get();
+        if ($branches->isEmpty()) {
+            $this->command->error("No hay sucursales activas. Abortando.");
+            return;
+        }
 
-                // 1. Core Customer (Persistencia de Identidad)
+        $customerRole = Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+        $password = Hash::make('password');
+        
+        $file = fopen($csvPath, 'r');
+        fgetcsv($file, 0, ";"); // Omitir cabecera
+
+        $count = 0;
+
+        DB::transaction(function () use ($file, $branches, $customerRole, $password, &$count) {
+            while (($row = fgetcsv($file, 0, ";")) !== FALSE) {
+                $row = array_map('trim', $row);
+                if (count($row) < 9 || empty($row[2])) continue;
+
+                $customerId = (string) Str::uuid();
+                $branch = $branches->random();
+                
+                // Mapeo: 0:fn, 1:ln, 2:email, 3:phone, 4:lat, 5:lng, 6:alias, 7:address, 8:ref
+                $lat = floatval($row[4]);
+                $lng = floatval($row[5]);
+
+                // 1. Core
                 DB::table('customers')->insert([
                     'id'           => $customerId,
-                    'branch_id'    => $branchId,
-                    'phone'        => '+591' . $faker->numberBetween(60000000, 79999999),
+                    'branch_id'    => $branch->id,
+                    'phone'        => '+591' . $row[3],
                     'country_code' => 'BO',
-                    'email'        => $faker->unique()->safeEmail(),
-                    'password'     => Hash::make('password'), // Clave estándar de desarrollo
-                    'trust_score'  => rand(40, 95),
+                    'email'        => $row[2],
+                    'password'     => $password,
+                    'trust_score'  => 50,
                     'is_active'    => true,
                     'latitude'     => $lat,
                     'longitude'    => $lng,
@@ -46,43 +62,43 @@ class CustomerSeeder extends Seeder
                     'updated_at'   => now(),
                 ]);
 
-                // 2. Profile (Sincronizado con availableAvatars 1-8 .png)
+                // 2. Profile
                 DB::table('customer_profiles')->insert([
                     'customer_id'   => $customerId,
-                    'first_name'    => strtoupper($faker->firstName()),
-                    'last_name'     => strtoupper($faker->lastName()),
-                    'avatar_type'   => 'icon',
-                    'avatar_source' => 'avatar_' . rand(1, 8) . '.png', // Sincronizado con Assets
+                    'first_name'    => strtoupper($row[0]),
+                    'last_name'     => strtoupper($row[1]),
+                    'avatar_source' => 'avatar_' . rand(1, 8) . '.png',
                     'created_at'    => now(),
                     'updated_at'    => now(),
                 ]);
 
-                // 3. Address (Punto de Entrega Logístico)
-                if ($branchId) {
-                    DB::table('customer_addresses')->insert([
-                        'id'          => Str::uuid()->toString(),
-                        'customer_id' => $customerId,
-                        'branch_id'   => $branchId,
-                        'alias'       => $faker->randomElement(['CASA', 'TRABAJO', 'OFICINA', 'DEPÓSITO']),
-                        'address'     => strtoupper($faker->streetAddress()),
-                        'reference'   => strtoupper($faker->secondaryAddress() . ' - PORTÓN ' . $faker->colorName()), // El "details" del form
-                        'latitude'    => $lat,
-                        'longitude'   => $lng,
-                        'is_default'  => true,
-                        'created_at'  => now(),
-                        'updated_at'  => now(),
-                    ]);
-                }
+                // 3. Address
+                DB::table('customer_addresses')->insert([
+                    'id'          => (string) Str::uuid(),
+                    'customer_id' => $customerId,
+                    'branch_id'   => $branch->id,
+                    'alias'       => strtoupper($row[6]),
+                    'address'     => strtoupper($row[7]),
+                    'reference'   => strtoupper($row[8]),
+                    'latitude'    => $lat,
+                    'longitude'   => $lng,
+                    'is_default'  => true,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
 
-                // 4. Role (Spatie)
+                // 4. Role
                 DB::table('model_has_roles')->insert([
                     'role_id'    => $customerRole->id,
                     'model_type' => 'App\Models\Customer',
                     'model_id'   => $customerId,
                 ]);
+
+                $count++;
             }
         });
 
-        $this->command->info('✅ PROTOCOLO COMPLETADO: 10 Clientes inyectados con éxito.');
+        fclose($file);
+        $this->command->info("✅ CustomerSeeder: $count registros importados.");
     }
 }

@@ -10,104 +10,51 @@ class BranchSeeder extends Seeder
 {
     public function run(): void
     {
-        $branches = [
-            [
-                'name' => 'Sede Central La Paz',
-                'city' => 'La Paz',
-                'address' => 'Av. 6 de Agosto #2020, Sopocachi',
-                'phone' => '22445566',
-                'latitude' => -16.508356,
-                'longitude' => -68.126282,
-                'is_default' => true,
-                'delivery_base_fee' => 7.00,
-                'delivery_price_per_km' => 2.50,
-                'surge_multiplier' => 1.00,
-                'min_order_amount' => 45.00,
-                'small_order_fee' => 6.00,
-                'base_service_fee_percentage' => 5.00,
-                'coverage_polygon' => [
-                    [-16.450000, -68.170000], 
-                    [-16.450000, -68.080000],
-                    [-16.560000, -68.080000], 
-                    [-16.560000, -68.170000],
-                ],
-            ],
-            [
-                'name' => 'Sede Santa Cruz Equipetrol',
-                'city' => 'Santa Cruz',
-                'address' => 'Av. San Martín, Calle 5 Este',
-                'phone' => '33445566',
-                'latitude' => -17.769000,
-                'longitude' => -63.195000,
-                'is_default' => false,
-                'delivery_base_fee' => 5.00,
-                'delivery_price_per_km' => 1.80,
-                'surge_multiplier' => 1.00,
-                'min_order_amount' => 40.00,
-                'small_order_fee' => 5.00,
-                'base_service_fee_percentage' => 5.00,
-                'coverage_polygon' => [
-                    [-17.700000, -63.250000],
-                    [-17.700000, -63.130000],
-                    [-17.840000, -63.130000],
-                    [-17.840000, -63.250000],
-                ],
-            ],
-            [
-                'name' => 'Sede Cochabamba Cala Cala',
-                'city' => 'Cochabamba',
-                'address' => 'Av. Libertador Bolívar #100',
-                'phone' => '44445566',
-                'latitude' => -17.370000,
-                'longitude' => -66.160000,
-                'is_default' => false,
-                'delivery_base_fee' => 6.00,
-                'delivery_price_per_km' => 2.00,
-                'surge_multiplier' => 1.00,
-                'min_order_amount' => 35.00,
-                'small_order_fee' => 5.00,
-                'base_service_fee_percentage' => 5.00,
-                'coverage_polygon' => [
-                    [-17.310000, -66.220000],
-                    [-17.310000, -66.100000],
-                    [-17.430000, -66.100000],
-                    [-17.430000, -66.220000],
-                ],
-            ],
-        ];
+        $csvPath = database_path('data/branches.csv');
 
-        foreach ($branches as $branch) {
-            DB::transaction(function () use ($branch) {
-                // Generación de slug manual
-                $slug = mb_strtolower(trim($branch['name']));
+        if (!file_exists($csvPath)) {
+            $this->command->error("Archivo CSV no encontrado en: $csvPath");
+            return;
+        }
+
+        $file = fopen($csvPath, 'r');
+        fgetcsv($file, 0, ";"); // Omitir cabecera
+
+        DB::transaction(function () use ($file) {
+            while (($row = fgetcsv($file, 0, ";")) !== FALSE) {
+                if (empty($row[0])) continue;
+
+                // 1. Generación de slug (Lógica original)
+                $slug = mb_strtolower(trim($row[0]));
                 $slug = str_replace([' ', ' - '], '-', $slug);
                 $slug = preg_replace('/[^a-z0-9ñ\-]/u', '', $slug);
 
                 Branch::updateOrCreate(
-                    ['slug' => $slug], // Argumento 1: Búsqueda
-                    [                  // Argumento 2: Datos a insertar/actualizar
-                        'name' => $branch['name'],
-                        'city' => $branch['city'],
-                        'address' => $branch['address'],
-                        'phone' => $branch['phone'],
-                        'latitude' => $branch['latitude'],
-                        'longitude' => $branch['longitude'],
-                        'coverage_polygon' => $branch['coverage_polygon'],
-                        'is_default' => $branch['is_default'],
-                        'is_active' => true,
-                        'delivery_base_fee' => $branch['delivery_base_fee'],
-                        'delivery_price_per_km' => $branch['delivery_price_per_km'],
-                        'surge_multiplier' => $branch['surge_multiplier'],
-                        'min_order_amount' => $branch['min_order_amount'],
-                        'small_order_fee' => $branch['small_order_fee'],
-                        'base_service_fee_percentage' => $branch['base_service_fee_percentage'],
-                        'opening_hours' => [
-                            ['day' => 'L-V', 'range' => '08:00 - 18:00'],
-                            ['day' => 'S', 'range' => '09:00 - 13:00']
-                        ]
+                    ['slug' => $slug],
+                    [
+                        'name'                        => $row[0],
+                        'city'                        => $row[1],
+                        'address'                     => $row[2],
+                        'phone'                       => $row[3],
+                        'latitude'                    => floatval($row[4]),
+                        'longitude'                   => floatval($row[5]),
+                        'is_default'                  => (bool)$row[6],
+                        'delivery_base_fee'           => floatval($row[7]),
+                        'delivery_price_per_km'       => floatval($row[8]),
+                        'surge_multiplier'            => floatval($row[9]),
+                        'min_order_amount'            => floatval($row[10]),
+                        'small_order_fee'             => floatval($row[11]),
+                        'base_service_fee_percentage' => floatval($row[12]),
+                        // Decodificación de campos JSON
+                        'coverage_polygon'            => json_decode($row[13], true),
+                        'opening_hours'               => json_decode($row[14], true),
+                        'is_active'                   => true,
                     ]
                 );
-            });
-        }
+            }
+        });
+
+        fclose($file);
+        $this->command->info('✅ BranchSeeder: Sucursales sincronizadas con éxito.');
     }
 }
