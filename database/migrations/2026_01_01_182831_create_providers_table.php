@@ -9,6 +9,7 @@ return new class extends Migration {
             $table->uuid('id')->primary()->default(DB::raw('(UUID())'));          
             $table->string('company_name'); 
             $table->string('commercial_name')->nullable();
+            $table->string('slug')->unique();
             $table->string('tax_id')->unique(); 
             $table->string('internal_code')->nullable()->unique();
             $table->string('contact_name')->nullable();

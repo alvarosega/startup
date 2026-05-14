@@ -26,8 +26,8 @@ class DatabaseSeeder extends Seeder
             BundleSeeder::class,
             
             // --- SILO RETAIL MEDIA CONSOLIDADO ---
-            AdPlacementSeeder::class,   // Primero los espacios
-            AdCampaignSeeder::class,    // Segundo las campañas y banners
+            //AdPlacementSeeder::class,   // Primero los espacios
+            //AdCampaignSeeder::class,    // Segundo las campañas y banners
         ]);
     }
 }

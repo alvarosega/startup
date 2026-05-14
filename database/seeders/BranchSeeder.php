@@ -1,60 +1,104 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Branch;
 use Illuminate\Support\Facades\DB;
+use Exception;
+use Throwable;
 
 class BranchSeeder extends Seeder
 {
     public function run(): void
     {
         $csvPath = database_path('data/branches.csv');
-
         if (!file_exists($csvPath)) {
-            $this->command->error("Archivo CSV no encontrado en: $csvPath");
+            $this->command->error("CRÍTICO: Archivo CSV no encontrado en {$csvPath}.");
             return;
         }
 
         $file = fopen($csvPath, 'r');
-        fgetcsv($file, 0, ";"); // Omitir cabecera
+        $rawHeaders = fgetcsv($file, 0, ',');
+        if (!$rawHeaders) {
+            $this->command->error("CRÍTICO: CSV vacío o ilegible.");
+            return;
+        }
+        $headers = array_map(fn($h) => strtolower(preg_replace('/^[\xef\xbb\xbf]+/', '', trim((string)$h))), $rawHeaders);
 
-        DB::transaction(function () use ($file) {
-            while (($row = fgetcsv($file, 0, ";")) !== FALSE) {
-                if (empty($row[0])) continue;
+        $rowNumber = 1;
 
-                // 1. Generación de slug (Lógica original)
-                $slug = mb_strtolower(trim($row[0]));
-                $slug = str_replace([' ', ' - '], '-', $slug);
-                $slug = preg_replace('/[^a-z0-9ñ\-]/u', '', $slug);
+        DB::beginTransaction();
 
-                Branch::updateOrCreate(
-                    ['slug' => $slug],
-                    [
-                        'name'                        => $row[0],
-                        'city'                        => $row[1],
-                        'address'                     => $row[2],
-                        'phone'                       => $row[3],
-                        'latitude'                    => floatval($row[4]),
-                        'longitude'                   => floatval($row[5]),
-                        'is_default'                  => (bool)$row[6],
-                        'delivery_base_fee'           => floatval($row[7]),
-                        'delivery_price_per_km'       => floatval($row[8]),
-                        'surge_multiplier'            => floatval($row[9]),
-                        'min_order_amount'            => floatval($row[10]),
-                        'small_order_fee'             => floatval($row[11]),
-                        'base_service_fee_percentage' => floatval($row[12]),
-                        // Decodificación de campos JSON
-                        'coverage_polygon'            => json_decode($row[13], true),
-                        'opening_hours'               => json_decode($row[14], true),
-                        'is_active'                   => true,
-                    ]
-                );
+        try {
+            while (($data = fgetcsv($file, 0, ',')) !== false) {
+                $rowNumber++;
+                
+                if (empty(array_filter($data))) continue;
+
+                if (count($headers) !== count($data)) {
+                    throw new Exception("Error en fila {$rowNumber}: Número de columnas inconsistente.");
+                }
+
+                $row = array_combine($headers, $data);
+                $cleanRow = array_map(function($value) {
+                    $str = trim((string)$value);
+                    return $str === '' ? null : mb_convert_encoding($str, 'UTF-8', 'UTF-8');
+                }, $row);
+
+                if (empty($cleanRow['slug']) || empty($cleanRow['name'])) {
+                    throw new Exception("Fila {$rowNumber}: Campos 'name' y 'slug' son obligatorios.");
+                }
+
+                // Validación estricta de JSON
+                $coveragePolygon = null;
+                if ($cleanRow['coverage_polygon']) {
+                    $coveragePolygon = json_decode($cleanRow['coverage_polygon'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception("Fila {$rowNumber}: JSON inválido en 'coverage_polygon'.");
+                    }
+                }
+
+                $openingHours = null;
+                if ($cleanRow['opening_hours']) {
+                    $openingHours = json_decode($cleanRow['opening_hours'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception("Fila {$rowNumber}: JSON inválido en 'opening_hours'.");
+                    }
+                }
+
+                Branch::create([
+                    'name'                          => $cleanRow['name'],
+                    'slug'                          => strtolower($cleanRow['slug']),
+                    'city'                          => $cleanRow['city'] ?? 'La Paz',
+                    'phone'                         => $cleanRow['phone'] ?? null,
+                    'address'                       => $cleanRow['address'] ?? null,
+                    'latitude'                      => isset($cleanRow['latitude']) ? (float) $cleanRow['latitude'] : null,
+                    'longitude'                     => isset($cleanRow['longitude']) ? (float) $cleanRow['longitude'] : null,
+                    'coverage_polygon'              => $coveragePolygon,
+                    'opening_hours'                 => $openingHours,
+                    'delivery_base_fee'             => (float) ($cleanRow['delivery_base_fee'] ?? 0.00),
+                    'delivery_price_per_km'         => (float) ($cleanRow['delivery_price_per_km'] ?? 0.00),
+                    'surge_multiplier'              => (float) ($cleanRow['surge_multiplier'] ?? 1.00),
+                    'min_order_amount'              => (float) ($cleanRow['min_order_amount'] ?? 0.00),
+                    'small_order_fee'               => (float) ($cleanRow['small_order_fee'] ?? 0.00),
+                    'base_service_fee_percentage'   => (float) ($cleanRow['base_service_fee_percentage'] ?? 0.00),
+                    'is_default'                    => (bool) ($cleanRow['is_default'] ?? false),
+                    'is_active'                     => (bool) ($cleanRow['is_active'] ?? true),
+                ]);
             }
-        });
 
-        fclose($file);
-        $this->command->info('✅ BranchSeeder: Sucursales sincronizadas con éxito.');
+            DB::commit();
+            fclose($file);
+            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales procesadas.");
+
+        } catch (Throwable $e) {
+            DB::rollBack();
+            if (is_resource($file)) fclose($file);
+            $this->command->error("ABORTO: " . $e->getMessage());
+            throw $e;
+        }
     }
 }

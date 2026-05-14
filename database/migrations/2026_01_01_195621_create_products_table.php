@@ -11,9 +11,8 @@ return new class extends Migration
             $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('brand_id')->index()->constrained('brands');
             $table->foreignUuid('category_id')->index()->constrained('categories');
-            $table->fullText('name', 'idx_product_name_fulltext');
-            // LA LEY: Unicidad estricta. El slug es la identidad pública, el name la administrativa.
             $table->string('name')->unique(); 
+            $table->fullText('name', 'idx_product_name_fulltext');
             $table->string('slug')->unique();
             $table->boolean('is_featured')->default(true)->index();
             $table->text('description')->nullable();
