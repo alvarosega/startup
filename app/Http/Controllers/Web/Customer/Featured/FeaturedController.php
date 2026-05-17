@@ -24,19 +24,25 @@ class FeaturedController extends Controller
 
         // RECTIFICACIÓN: Debes ejecutar la acción para definir la variable $featured
         $featured = $featuredAction->execute($branchId);
-
         return Inertia::render('Customer/Featured/Show', [
-            // Ahora la variable $featured ya existe y puede ser resuelta
             'featuredProducts' => FeaturedProductResource::collection($featured)->resolve(),
 
-            // 2. DATA PRINCIPAL (Diferida para activar Skeletons)
+            // 2. DATA PRINCIPAL BIEN ESTRUCTURADA (Satisface los contratos de Vue)
             'showcase' => Inertia::defer(function() use ($showcaseAction, $slug, $branchId) {
                 $data = $showcaseAction->execute($slug, $branchId);
                 
                 return [
-                    'product' => $data['product'],
-                    'skus' => SkuResource::collection($data['skus']),
-                    'others_paginated' => SkuResource::collection($data['others_paginated'])
+                    'product' => [
+                        'id'          => (string) $data['product']->id,
+                        'name'        => (string) $data['product']->name,
+                        'slug'        => (string) $data['product']->slug,
+                        'description' => (string) $data['product']->description,
+                    ],
+                    'skus' => SkuResource::collection($data['skus'])->resolve(),
+                    'others_paginated' => [
+                        'data'        => SkuResource::collection($data['others_paginated']->items())->resolve(),
+                        'next_cursor' => $data['others_paginated']->nextCursor() ? $data['others_paginated']->nextCursor()->encode() : null,
+                    ]
                 ];
             })
         ]);
