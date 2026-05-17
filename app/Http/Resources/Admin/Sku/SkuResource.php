@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Admin\Product;
+namespace App\Http\Resources\Admin\Sku;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;

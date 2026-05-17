@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { PackageOpen, Search, Loader2 } from 'lucide-vue-next';
+// CORRECCIÓN 1: Inyección de LayoutGrid en los imports
+import { PackageOpen, Search, Loader2, LayoutGrid } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
 import ShopLayout from '@/Layouts/ShopLayout.vue';
@@ -22,55 +23,48 @@ const category = computed(() => props.categoryData?.data || props.categoryData |
 const globalCategories = computed(() => page.props.categories_menu?.data || page.props.categories_menu || []);
 const categoryBanners = computed(() => props.banners?.data || props.banners || []);
 
-// --- ESTADO DE SCROLL ---
+// --- ESTADO DE SCROLL Y CONTROL ESTRÍCTO ---
 const allProducts = ref([...(props.products?.data || [])]);
 const nextCursorUrl = ref(props.products?.next_page_url || null);
 const isFetching = ref(false);
+const isPaginating = ref(false);
 const observerTarget = ref(null);
 
+// CORRECCIÓN 2: Declaración y control del ciclo de vida de montaje
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
 onUnmounted(() => { isMounted.value = false; });
 
-// --- LÓGICA UNIFICADA DE BANNERS (Antes RetailBannerSlot) ---
-const handleBannerNavigate = (banner) => {
-    if (!banner.target) return;
-    const type = banner.target.type?.toLowerCase();
-    const id = banner.target.id;
+const searchQuery = ref(props.filters?.search || '');
+const sortBy = ref(props.filters?.sort || 'relevance');
 
-    if (type === 'sku') {
-        router.visit(route('customer.product', { id }));
-    } else if (type === 'bundle') {
-        router.visit(route('customer.bundle', { slug: banner.target.slug || id }));
-    }
-};
-
-// Cambiar el watch de productos por este:
+// 1. Limpieza absoluta al cambiar de categoría
 watch(() => category.value.slug, () => {
-    // Si cambia la categoría, reseteamos todo el array
     allProducts.value = [];
     nextCursorUrl.value = null;
     isFetching.value = false;
+    isPaginating.value = false;
+    searchQuery.value = ''; // Reset forzado
+    sortBy.value = 'relevance'; // Reset forzado
 });
 
+// 2. Resolución de inyección de datos
 watch(() => props.products, (newData) => {
     if (!isMounted.value) return;
 
-    // Si es una nueva búsqueda o filtro, reemplazamos. Si no, concatenamos.
-    const isResetAction = searchQuery.value !== '' || sortBy.value !== 'relevance';
-    
-    if (isResetAction) {
+    if (!isPaginating.value) {
+        // Es una carga inicial, cambio de categoría o filtro: REEMPLAZO ABSOLUTO
         allProducts.value = [...(newData?.data || [])];
     } else {
+        // Es el IntersectionObserver: CONCATENACIÓN
         const existingIds = new Set(allProducts.value.map(p => p.id));
         const uniqueItems = (newData?.data || []).filter(p => !existingIds.has(p.id));
         allProducts.value.push(...uniqueItems);
     }
+    
     nextCursorUrl.value = newData?.next_page_url || null;
+    isPaginating.value = false; // Reiniciar barrera
 }, { deep: true });
-
-const searchQuery = ref(props.filters?.search || '');
-const sortBy = ref(props.filters?.sort || 'relevance');
 
 const updateFilters = debounce(() => {
     if (!isMounted.value) return;
@@ -89,11 +83,14 @@ const updateFilters = debounce(() => {
 
 watch([searchQuery, sortBy], () => updateFilters());
 
+// 3. Modificación del trigger de paginación
 const loadNextPage = (entries) => {
     const target = entries[0];
     if (!isMounted.value || !target.isIntersecting || !nextCursorUrl.value || isFetching.value) return;
 
     isFetching.value = true;
+    isPaginating.value = true; // ACTIVAR BARRERA DE CONCATENACIÓN
+    
     router.get(nextCursorUrl.value, {}, {
         preserveState: true,
         preserveScroll: true,

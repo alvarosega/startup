@@ -137,11 +137,35 @@ class Sku extends Model
                     ->withTimestamps()
                     ->using(BundleItem::class);
     }
+    // 1. REEMPLAZAR: Resolución condicional de stock
     protected function availableStock(): Attribute
     {
-        return Attribute::get(fn () => max(0, 
-            ((int)($this->total_physical ?? 0)) - 
-            ((int)($this->total_reserved ?? 0))
-        ));
+        return Attribute::get(function () {
+            // Prioridad absoluta al dato inyectado por el Query Builder (ListSkusAction)
+            if (array_key_exists('available_stock', $this->attributes)) {
+                return max(0, (int) $this->attributes['available_stock']);
+            }
+
+            // Fallback para consultas aisladas (Eloquent default)
+            return max(0, 
+                ((int)($this->total_physical ?? 0)) - 
+                ((int)($this->total_reserved ?? 0))
+            );
+        });
+    }
+
+    // 2. AÑADIR: Motor de compilación de precios esperado por el Resource
+    protected function resolvedPrice(): Attribute
+    {
+        return Attribute::get(function () {
+            // Extrae el precio de la relación si fue precargada por el contexto de la sucursal
+            $price = $this->relationLoaded('prices') ? $this->prices->first() : null;
+
+            return (object) [
+                'final_price' => $price ? (float) $price->final_price : (float) $this->base_price,
+                'list_price'  => $price ? (float) $price->list_price : (float) $this->base_price,
+                'next_tier'   => null // Reservado para inyección de lógica de ventas por volumen
+            ];
+        });
     }
 }
