@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\{Purchase, InventoryLot, InventoryBalance, InventoryMovement, Branch, Provider, Admin, Sku};
+use App\Models\{Purchase, InventoryLot, InventoryMovement, Branch, Provider, Admin, Sku};
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Throwable;
@@ -21,13 +21,13 @@ class InventorySeeder extends Seeder
             return;
         }
 
-        // 1. Carga de Diccionarios en Memoria para Resolución Atómica
+        // 1. Carga de Diccionarios en Memoria (Blindado para tipos numéricos)
         $branches = Branch::pluck('id', 'slug')
-            ->mapWithKeys(fn($id, $slug) => [strtolower(trim($slug)) => $id])
+            ->mapWithKeys(fn($id, $slug) => [strtolower(trim((string)$slug)) => $id])
             ->toArray();
             
         $providers = Provider::pluck('id', 'slug')
-            ->mapWithKeys(fn($id, $slug) => [strtolower(trim($slug)) => $id])
+            ->mapWithKeys(fn($id, $slug) => [strtolower(trim((string)$slug)) => $id])
             ->toArray();
             
         $admins = Admin::pluck('id', 'phone')->toArray();
@@ -80,7 +80,6 @@ class InventorySeeder extends Seeder
             foreach ($purchases as $docNumber => $group) {
                 $headerData = $group[0];
 
-                // Resolución de Llaves Foráneas de Cabecera
                 $branchSlug = strtolower($headerData['branch_slug'] ?? '');
                 $providerSlug = strtolower($headerData['provider_slug'] ?? '');
                 $adminPhone = $headerData['admin_phone'] ?? '';
@@ -93,13 +92,12 @@ class InventorySeeder extends Seeder
                     throw new Exception("Dependencia rota en Doc {$docNumber}: branch_slug, provider_slug o admin_phone no resueltos.");
                 }
 
-                // Cálculo Dinámico del Total Financiero
                 $totalAmount = 0;
                 foreach ($group as $item) {
                     $totalAmount += ((int)($item['quantity'] ?? 0) * (float)($item['unit_cost'] ?? 0));
                 }
 
-                // A. Persistencia de Cabecera (Purchase)
+                // A. Persistencia de Cabecera
                 $purchase = Purchase::firstOrCreate(
                     ['document_number' => $docNumber],
                     [
@@ -113,18 +111,16 @@ class InventorySeeder extends Seeder
                     ]
                 );
 
-                // B. Procesamiento del Detalle (Lotes, Kardex y Balances)
+                // B. Procesamiento del Detalle
                 foreach ($group as $index => $item) {
                     $realRowNumber = "Doc: {$docNumber} | Item: " . ($index + 1);
 
-                    // Resolución Estricta de SKU
                     $skuCode = $item['sku_code'] ?? null;
                     if (!$skuCode || !isset($skus[$skuCode])) {
                         throw new Exception("{$realRowNumber} -> SKU Code '{$skuCode}' no existe en base de datos.");
                     }
                     $skuId = $skus[$skuCode];
 
-                    // Validación Estricta de Trazabilidad Física
                     $lotCode = $item['lot_code'] ?? null;
                     if (!$lotCode) {
                         throw new Exception("{$realRowNumber} -> Ausencia crítica de 'lot_code'. Operación rechazada.");
@@ -150,7 +146,6 @@ class InventorySeeder extends Seeder
                         ]
                     );
 
-                    // Si el lote acaba de ser inyectado, registramos movimientos y saldos
                     if ($lot->wasRecentlyCreated) {
                         
                         // 2. Movimiento Inmutable (Kardex)
@@ -159,28 +154,49 @@ class InventorySeeder extends Seeder
                             'sku_id'           => $skuId,
                             'inventory_lot_id' => $lot->id,
                             'admin_id'         => $adminId,
-                            'type'             => 'ENTRY_INITIAL', // Tipificación explícita de inventario inicial
+                            'type'             => 'ENTRY_INITIAL',
                             'quantity'         => $quantity,
                             'unit_cost'        => $unitCost,
                             'reference'        => "APERTURA DOC: {$docNumber}",
                         ]);
 
-                        // 3. Sumatoria de Balances (Lectura Rápida)
-                        $balance = InventoryBalance::firstOrCreate(
-                            ['branch_id' => $branchId, 'sku_id' => $skuId],
-                            ['total_physical' => 0, 'total_reserved' => 0, 'total_safety' => 0]
-                        );
+                        // 3. Sumatoria de Balances (Query Builder - Evita error 1054)
+                        $balanceExists = DB::table('inventory_balances')
+                            ->where('branch_id', $branchId)
+                            ->where('sku_id', $skuId)
+                            ->exists();
 
-                        $balance->increment('total_physical', $quantity);
-                        if ($isSafety) {
-                            $balance->increment('total_safety', $quantity);
+                        if ($balanceExists) {
+                            $updateData = [
+                                'total_physical' => DB::raw("total_physical + {$quantity}"),
+                                'updated_at'     => now(),
+                            ];
+                            
+                            if ($isSafety) {
+                                $updateData['total_safety'] = DB::raw("total_safety + {$quantity}");
+                            }
+
+                            DB::table('inventory_balances')
+                                ->where('branch_id', $branchId)
+                                ->where('sku_id', $skuId)
+                                ->update($updateData);
+                        } else {
+                            DB::table('inventory_balances')->insert([
+                                'branch_id'      => $branchId,
+                                'sku_id'         => $skuId,
+                                'total_physical' => $quantity,
+                                'total_reserved' => 0,
+                                'total_safety'   => $isSafety ? $quantity : 0,
+                                'created_at'     => now(),
+                                'updated_at'     => now(),
+                            ]);
                         }
                     }
                 }
             }
 
             DB::commit();
-            $this->command->info("ÉXITO: Motor de inventario procesado. Compras, lotes, balances y kardex generados.");
+            $this->command->info("ÉXITO: Motor de inventario procesado (Saldos cruzados vía Query Builder).");
 
         } catch (Throwable $e) {
             DB::rollBack();
