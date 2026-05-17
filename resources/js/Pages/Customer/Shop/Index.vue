@@ -1,9 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Head, usePage, Link, router } from '@inertiajs/vue3'; 
 import { 
     ChevronRight, Sparkles, Tag, Star, 
-    LayoutGrid, Zap, Bookmark, PackageSearch 
+    LayoutGrid, Zap, Bookmark, PackageSearch
 } from 'lucide-vue-next';
 
 // Layout y Componentes
@@ -37,6 +37,22 @@ const featuredList = computed(() => props.featuredProducts?.data || []);
 const brandAds = computed(() => props.brandBanners?.data || []);
 const bundlesList = computed(() => props.atomicBundles?.data || []); // Cambio de nombre
 const editablePacks = computed(() => props.templateBundles?.data || []);
+// --- SISTEMA DE TELEMETRÍA Y DIAGNÓSTICO (HOME) ---
+watch(() => props.brandBanners, (newBanners) => {
+    console.group('▼ DEFER: BANNERS DE MARCA RECIBIDOS');
+    console.log('Estado del prop:', newBanners === undefined ? 'PENDING (Skeleton activo)' : 'RESOLVED');
+    console.log('Arreglo crudo:', JSON.parse(JSON.stringify(newBanners)));
+    console.log('Longitud calculada:', newBanners?.data?.length || newBanners?.length || 0);
+    console.groupEnd();
+}, { deep: true, immediate: true });
+
+watch(() => props.featuredProducts, (newFeatured) => {
+    console.group('▼ DEFER: PRODUCTOS DESTACADOS RECIBIDOS');
+    console.log('Cantidad en lista:', newFeatured?.data?.length || newFeatured?.length || 0);
+    console.groupEnd();
+}, { deep: true, immediate: true });
+
+console.log('► PANTALLA DE INICIO (INDEX) CONFIGURADA. MONITOREANDO PROPS DEFER...');
 </script>
 
 <template>
@@ -92,7 +108,7 @@ const editablePacks = computed(() => props.templateBundles?.data || []);
                     </div>
                 </section>
 
-                <section v-show="brandAds.length > 0 || !isMounted" class="section-reveal">
+                <section v-show="props.brandBanners === undefined || brandAds.length > 0" class="section-reveal">
                     <div class="px-6 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">

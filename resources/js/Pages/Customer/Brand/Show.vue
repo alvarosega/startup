@@ -41,6 +41,30 @@ const updateFilters = debounce(() => {
 }, 400);
 
 watch([searchQuery, sortBy], () => updateFilters());
+// --- SISTEMA DE TELEMETRÍA Y DIAGNÓSTICO (MARCAS) ---
+watch(() => props.currentBrand, (newBrand) => {
+    console.group('▲ METADATOS DE MARCA CAMBIADOS');
+    console.log('ID Actual:', newBrand?.data?.id || newBrand?.id);
+    console.log('Slug Actual:', newBrand?.data?.slug || newBrand?.slug);
+    console.groupEnd();
+}, { deep: true, immediate: true });
+
+watch(() => props.products, (newProducts) => {
+    console.group('▲ INYECCIÓN DE SKUS (BACKEND -> FRONTEND)');
+    console.log('Cantidad de SKUs recibidos:', newProducts?.data?.length || 0);
+    console.log('Estructura completa de products:', JSON.parse(JSON.stringify(newProducts)));
+    console.groupEnd();
+}, { deep: true, immediate: true });
+
+watch([searchQuery, sortBy], ([newSearch, newSort]) => {
+    console.log(`[FILTROS LOCALES MUTADOS] -> Search: "${newSearch}" | Sort: "${newSort}"`);
+});
+
+console.log('► COMPONENTE BRAND/SHOW MONTADO EN EL DOM CON PROPS:', {
+    brand_id: brand.value?.id,
+    skus_count: skus.value?.length,
+    hero_loaded: heroBanner.value?.length > 0
+});
 </script>
 
 <template>

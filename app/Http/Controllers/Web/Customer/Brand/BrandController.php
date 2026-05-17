@@ -24,7 +24,6 @@ class BrandController extends Controller
     public function __construct(
         protected readonly ShopContextService $contextService
     ) {}
-
     public function show(
         string $slug, 
         BrandCatalogRequest $request,
@@ -36,33 +35,32 @@ class BrandController extends Controller
         
         // 1. Identificar Marca Raíz
         $brand = Brand::where('slug', $slug)->active()->firstOrFail();
-
-
-        $navigation = $navAction->execute();
-        $hero       = $heroAction->execute((string)$brand->id, $branchId);
-        $products   = $skuAction->execute((string)$brand->id, $branchId, $request->validated()); // <--- Pasa el array validado
+        
+        // 2. Blindaje de variables para los closures diferidos
+        $brandId = (string) $brand->id;
+        $filters = $request->validated();
 
         return inertia('Customer/Brand/Show', [
             'currentBrand' => new BrandDetailResource($brand),
             
-            // DEFER: Navegación de marcas
+            // DEFER: Navegación de marcas (Ejecución única)
             'brandNav' => Inertia::defer(fn() => 
                 BrandNavResource::collection($navAction->execute())
             ),
     
-            // DEFER: Banner Hero (Si existe)
+            // DEFER: Banner Hero (Ejecución única)
             'brandHero' => Inertia::defer(fn() => 
-                ($hero = $heroAction->execute((string)$brand->id, $branchId)) 
+                ($hero = $heroAction->execute($brandId, $branchId)) 
                     ? new BrandHeroResource($hero) 
                     : null
             ),
     
-            // DEFER: Listado de productos (Activa el Grid de Skeletons)
+            // DEFER: Listado de productos con filtros capturados
             'products' => Inertia::defer(fn() => 
-                SkuResource::collection($skuAction->execute((string)$brand->id, $branchId, $request->validated()))
+                SkuResource::collection($skuAction->execute($brandId, $branchId, $filters))
             ),
     
-            'filters' => $request->validated()
+            'filters' => $filters
         ]);
     }
 }
