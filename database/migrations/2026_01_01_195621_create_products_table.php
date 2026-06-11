@@ -12,8 +12,10 @@ return new class extends Migration {
             $table->uuid('id')->primary();
             $table->foreignUuid('brand_id')->index()->constrained('brands');
             $table->foreignUuid('category_id')->index()->constrained('categories');
+            
             $table->string('name'); 
-            $table->string('slug')->unique();
+            $table->string('slug');
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->text('description')->nullable();
             $table->string('image_path')->nullable();
             
@@ -25,7 +27,9 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
 
+            // Índices de optimización y restricciones compuestas
             $table->index(['is_active', 'is_featured', 'sort_order'], 'idx_featured_lookup');
+            $table->unique(['slug', 'deleted_epoch'], 'idx_products_slug_unique');
             $table->fullText('name', 'idx_product_name_fulltext');
         });
     }

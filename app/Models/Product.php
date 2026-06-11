@@ -1,11 +1,13 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\{HasMany, BelongsTo, HasManyThrough};
-use App\Models\InventoryBalance;
+use Illuminate\Database\Eloquent\Relations\{HasMany, BelongsTo, HasManyThrough, BelongsToMany};
 
 class Product extends Model
 {
@@ -16,48 +18,83 @@ class Product extends Model
 
     protected $fillable = [
         'brand_id', 'category_id', 'name', 'slug', 'description', 
-        'image_path','sort_order', 'is_active', 'is_alcoholic'
+        'image_path', 'sort_order', 'is_active', 'is_alcoholic', 'deleted_epoch'
     ];
-    protected static function booted()
+
+    protected $casts = [
+        'is_active'     => 'boolean',
+        'is_featured'   => 'boolean',
+        'is_alcoholic'  => 'boolean',
+        'sort_order'    => 'integer',
+        'deleted_epoch' => 'integer',
+    ];
+
+    protected static function booted(): void
     {
         static::addGlobalScope('order', function ($builder) {
             $builder->orderBy('sort_order', 'asc')->orderBy('name', 'asc');
         });
+
+        static::deleting(function (self $model) {
+            $model->deleted_epoch = time();
+            $model->save();
+        });
+
+        static::restoring(function (self $model) {
+            $model->deleted_epoch = 0;
+        });
     }
-    protected $casts = [
-        'is_active' => 'boolean',
-        'is_alcoholic' => 'boolean'
-    ];
 
-    public function skus(): HasMany { return $this->hasMany(Sku::class); }
-    public function brand(): BelongsTo { return $this->belongsTo(Brand::class); }
-    public function category(): BelongsTo { return $this->belongsTo(Category::class); }
+    // --- RELACIONES JERÁRQUICAS ---
 
-    public function prices(): HasManyThrough {
+    public function skus(): HasMany 
+    { 
+        return $this->hasMany(Sku::class); 
+    }
+
+    public function brand(): BelongsTo 
+    { 
+        return $this->belongsTo(Brand::class); 
+    }
+
+    public function category(): BelongsTo 
+    { 
+        return $this->belongsTo(Category::class); 
+    }
+
+    // --- ENLACES TRANSACCIONALES AVANZADOS ---
+
+    public function prices(): HasManyThrough 
+    {
         return $this->hasManyThrough(Price::class, Sku::class, 'product_id', 'sku_id');
     }
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+
+    public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
-    public function favoritedBy(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function favoritedBy(): BelongsToMany
     {
         return $this->belongsToMany(Customer::class, 'favorites', 'product_id', 'customer_id');
     }
+
     public function inventoryBalances(): HasManyThrough
     {
         return $this->hasManyThrough(
             InventoryBalance::class, 
             Sku::class,
-            'product_id', // Llave foránea en Skus
-            'sku_id',     // Llave foránea en InventoryBalances
-            'id',         // Llave local en Products
-            'id'          // Llave local en Skus
+            'product_id', 
+            'sku_id',     
+            'id',         
+            'id'          
         );
+    }
+
+    // --- SCOPES DE FILTRADO ---
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

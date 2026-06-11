@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Product;
 
 use App\Models\Product;
@@ -9,10 +11,12 @@ class CheckProductExistenceAction
     public function execute(?string $name): bool
     {
         $cleanName = trim($name ?? '');
-        if (strlen($cleanName) < 3) return false;
+        if (strlen($cleanName) < 3) {
+            return false;
+        }
 
-        // LA LEY: Solo verificamos contra productos VIVOS. 
-        // Si uno fue borrado, permitimos reutilizar el nombre.
-        return Product::where('name', $cleanName)->exists();
+        return Product::where('name', $cleanName)
+            ->where('deleted_epoch', 0)
+            ->exists();
     }
 }

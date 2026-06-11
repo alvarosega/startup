@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\Product;
 
 use App\Http\Controllers\Controller;
@@ -14,17 +16,21 @@ use App\Actions\Admin\Product\{
 use App\Http\Resources\Admin\Product\ProductResource;
 use Illuminate\Http\{Request, JsonResponse, RedirectResponse};
 use Inertia\{Inertia, Response as InertiaResponse};
-use Illuminate\Support\Facades\{Cache, Auth};
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use App\Actions\Admin\Shared\ReorderEntityAction; // INFRAESTRUCTURA
-use App\Http\Resources\Admin\Product\ProductOrderResource; // RECURSO DE ORDEN
+use App\Actions\Admin\Shared\ReorderEntityAction;
+use App\Http\Resources\Admin\Product\ProductOrderResource;
+use Illuminate\Support\Str;
+
 class ProductController extends Controller
 {
     use AuthorizesRequests;
+    
     private string $guard = 'super_admin';
-    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction)
+
+    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction): InertiaResponse
     {
         $this->authorize('viewAny', Product::class);
+        
         $products = $listAction->execute($request);
     
         return Inertia::render('Admin/Products/Index', [
@@ -32,10 +38,11 @@ class ProductController extends Controller
             'filters'    => $request->only(['search', 'category', 'brand', 'status']),
             'stats'      => $statsAction->execute(),
             'options'    => app(GetProductFormDataAction::class)->execute(),
-            'can_manage' => auth()->user()->can('create', Product::class),
+            'can_manage' => $request->user($this->guard)->can('create', Product::class),
         ]);
     }
-    public function reorder(): InertiaResponse
+
+    public function reorder(Request $request): InertiaResponse
     {
         $this->authorize('update', Product::class);
 
@@ -48,48 +55,56 @@ class ProductController extends Controller
             'products' => ProductOrderResource::collection($products)
         ]);
     }
+
     public function updateOrder(Request $request, ReorderEntityAction $action): RedirectResponse
     {
         $this->authorize('update', Product::class);
         
         $request->validate(['ids' => 'required|array']);
 
-        // SE INYECTA LA LLAVE DE CACHÉ DEL SILO CUSTOMER PARA INVALIDACIÓN INMEDIATA
-        $action->execute('products', $request->ids, 'customer_featured_global_top5');
+        // Ejecución directa en base de datos sin lógica de purga de caché
+        $action->execute('products', $request->ids);
 
         return redirect()->route('admin.products.index')
-            ->with('success', 'Orden del catálogo global actualizado.');
+            ->with('success', 'Orden del catálogo global actualizado de forma secuencial.');
     }
 
     public function checkName(Request $request, CheckProductExistenceAction $action): JsonResponse
     {
-        return response()->json(['available' => !$action->execute($request->query('name'))]);
+        return response()->json(['available' => !$action->execute((string) $request->query('name'))]);
     }
 
     public function create(GetProductFormDataAction $dataAction): InertiaResponse
     {
         $this->authorize('create', Product::class);
         
-        // LA LEY: Pre-generación de llave de idempotencia
-        return Inertia::render('Admin/Products/Create', array_merge(
+        return Inertia::render('Admin/Products/Workspace', array_merge(
             $dataAction->execute(),
-            ['idempKey' => (string) \Illuminate\Support\Str::uuid7()]
+            [
+                'product'  => null,
+                'idempKey' => (string) Str::uuid()
+            ]
         ));
     }
+
     public function store(StoreProductRequest $request, UpsertProductAction $action): RedirectResponse
     {
         $this->authorize('create', Product::class);
         $product = $action->execute(ProductData::fromRequest($request));
         
-        return redirect()->route('admin.products.skus.create', $product->id)
-            ->with('success', 'Maestro creado. Proceda a configurar variantes.');
+        // Flujo unificado: Redirecciona al Workspace de edición para desbloquear las pestañas de SKUs y Precios
+        return redirect()->route('admin.products.edit', $product->id)
+            ->with('success', 'Información base materializada. Proceda a configurar variantes físicas y precios.');
     }
 
     public function edit(Product $product, GetProductFormDataAction $dataAction): InertiaResponse
     {
         $this->authorize('update', $product);
         
-        return Inertia::render('Admin/Products/Edit', array_merge(
+        // Carga atómica de relaciones requeridas para las pestañas secundarias del Workspace
+        $product->load(['skus.prices', 'brand', 'category']);
+        
+        return Inertia::render('Admin/Products/Workspace', array_merge(
             ['product' => new ProductResource($product)],
             $dataAction->execute()
         ));
@@ -99,13 +114,15 @@ class ProductController extends Controller
     {
         $this->authorize('update', $product);
         $action->execute(ProductData::fromRequest($request), $product);
-        return redirect()->route('admin.products.index')->with('success', 'Catálogo actualizado.');
+        
+        return redirect()->route('admin.products.index')->with('success', 'Atributos maestros actualizados.');
     }
 
     public function destroy(Product $product, DeleteProductAction $action): RedirectResponse
     {
         $this->authorize('delete', $product);
         $action->execute($product);
-        return redirect()->route('admin.products.index')->with('warning', 'Maestro eliminado.');
+        
+        return redirect()->route('admin.products.index')->with('success', 'Producto maestro y sus variantes extraídos de circulación.');
     }
 }

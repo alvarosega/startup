@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs\Admin\Sku;
 
 use Illuminate\Http\Request;
@@ -7,7 +9,7 @@ use Illuminate\Http\Request;
 readonly class CreateBulkSkuDTO
 {
     /**
-     * @param SkuDataDTO[] $skus
+     * @param array<SkuDataDTO> $skus
      */
     public function __construct(
         public array $skus
@@ -15,11 +17,18 @@ readonly class CreateBulkSkuDTO
 
     public static function fromRequest(Request $request): self
     {
-        return new self(
-            skus: array_map(
-                fn($item) => SkuDataDTO::fromArray($item),
-                $request->validated('skus')
-            )
-        );
+        $skus = [];
+        foreach ($request->input('skus', []) as $skuData) {
+            $skus[] = new SkuDataDTO(
+                name: (string) $skuData['name'],
+                code: !empty($skuData['code']) ? (string) $skuData['code'] : null,
+                price: (float) $skuData['price'],
+                conversionFactor: (float) $skuData['conversionFactor'],
+                weight: (float) $skuData['weight'],
+                isActive: (bool) $skuData['isActive']
+            );
+        }
+
+        return new self($skus);
     }
 }

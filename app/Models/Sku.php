@@ -6,10 +6,8 @@ namespace App\Models;
 
 use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, BelongsToMany};
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
 
 class Sku extends Model
 {
@@ -21,12 +19,13 @@ class Sku extends Model
     protected $fillable = [
         'product_id', 'name', 'code', 'base_price', 
         'conversion_factor', 'weight', 'image_path',
-        'sort_order', 'is_active'
+        'sort_order', 'is_active', 'deleted_epoch'
     ];
 
     protected $casts = [
         'is_active'         => 'boolean',
         'sort_order'        => 'integer',
+        'deleted_epoch'     => 'integer',
         'base_price'        => 'decimal:2',
         'weight'            => 'decimal:3',
         'conversion_factor' => 'decimal:3',
@@ -35,17 +34,24 @@ class Sku extends Model
     protected static function booted(): void
     {
         static::creating(function (Sku $sku) {
-            // LEY DE IDENTIDAD: EAN-13 Automático si el code es null
             if (empty($sku->code)) {
                 $sku->code = self::generateInternalEan();
             }
         });
 
         static::updating(function (Sku $sku) {
-            // PROTOCOLO DE TRAZABILIDAD: Inmutabilidad del código asignado
             if ($sku->isDirty('code') && !empty($sku->getOriginal('code'))) {
                 throw new \Exception("VIOLACIÓN_DE_PROTOCOLO: El código SKU es inmutable.");
             }
+        });
+
+        static::deleting(function (self $model) {
+            $model->deleted_epoch = time();
+            $model->save();
+        });
+
+        static::restoring(function (self $model) {
+            $model->deleted_epoch = 0;
         });
     }
 
@@ -54,13 +60,13 @@ class Sku extends Model
         $base = '21' . substr(number_format(microtime(true) * 1000, 0, '', ''), -10);
         $sum = 0;
         foreach (str_split($base) as $i => $digit) {
-            $sum += $digit * ($i % 2 === 0 ? 1 : 3);
+            $sum += (int)$digit * ($i % 2 === 0 ? 1 : 3);
         }
         $checkDigit = (10 - ($sum % 10)) % 10;
         return $base . $checkDigit;
     }
 
-    // --- RELACIONES (PROTOCOLOS DE ENLACE) ---
+    // --- RELACIONES ---
 
     public function product(): BelongsTo 
     { 
@@ -77,12 +83,22 @@ class Sku extends Model
         return $this->hasMany(InventoryLot::class); 
     }
 
+    public function bundles(): BelongsToMany
+    {
+        return $this->belongsToMany(Bundle::class, 'bundle_items')
+                    ->withPivot('quantity')
+                    ->withTimestamps()
+                    ->using(BundleItem::class);
+    }
+
+    // --- SCOPES ---
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-
+    // --- MUTADORES Y MUTADORES DE ACCESO (ATTRIBUTES) ---
 
     protected function imageUrl(): Attribute
     {
@@ -90,8 +106,6 @@ class Sku extends Model
             if ($this->image_path) {
                 return asset('storage/' . $this->image_path);
             }
-
-            // Placeholder para productos individuales
             return asset('assets/img/sku_placeholder.png');
         });
     }
@@ -120,7 +134,30 @@ class Sku extends Model
         );
     }
 
-    // --- MÉTODOS ESTÁTICOS ---
+    protected function availableStock(): Attribute
+    {
+        return Attribute::get(function () {
+            if (array_key_exists('available_stock', $this->attributes)) {
+                return max(0, (int) $this->attributes['available_stock']);
+            }
+            return max(0, ((int)($this->total_physical ?? 0)) - ((int)($this->total_reserved ?? 0)));
+        });
+    }
+
+    protected function resolvedPrice(): Attribute
+    {
+        return Attribute::get(function () {
+            $price = $this->relationLoaded('prices') ? $this->prices->first() : null;
+
+            return (object) [
+                'final_price' => $price ? (float) $price->final_price : (float) $this->base_price,
+                'list_price'  => $price ? (float) $price->list_price : (float) $this->base_price,
+                'next_tier'   => null
+            ];
+        });
+    }
+
+    // --- CONSULTAS COMPUESTAS ---
 
     public static function getAvailableForBundles()
     {
@@ -129,43 +166,5 @@ class Sku extends Model
             ->active()
             ->orderBy('name')
             ->get();
-    }
-    public function bundles(): BelongsToMany
-    {
-        return $this->belongsToMany(Bundle::class, 'bundle_items')
-                    ->withPivot('quantity')
-                    ->withTimestamps()
-                    ->using(BundleItem::class);
-    }
-    // 1. REEMPLAZAR: Resolución condicional de stock
-    protected function availableStock(): Attribute
-    {
-        return Attribute::get(function () {
-            // Prioridad absoluta al dato inyectado por el Query Builder (ListSkusAction)
-            if (array_key_exists('available_stock', $this->attributes)) {
-                return max(0, (int) $this->attributes['available_stock']);
-            }
-
-            // Fallback para consultas aisladas (Eloquent default)
-            return max(0, 
-                ((int)($this->total_physical ?? 0)) - 
-                ((int)($this->total_reserved ?? 0))
-            );
-        });
-    }
-
-    // 2. AÑADIR: Motor de compilación de precios esperado por el Resource
-    protected function resolvedPrice(): Attribute
-    {
-        return Attribute::get(function () {
-            // Extrae el precio de la relación si fue precargada por el contexto de la sucursal
-            $price = $this->relationLoaded('prices') ? $this->prices->first() : null;
-
-            return (object) [
-                'final_price' => $price ? (float) $price->final_price : (float) $this->base_price,
-                'list_price'  => $price ? (float) $price->list_price : (float) $this->base_price,
-                'next_tier'   => null // Reservado para inyección de lógica de ventas por volumen
-            ];
-        });
     }
 }

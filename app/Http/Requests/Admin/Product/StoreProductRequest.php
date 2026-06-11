@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Admin\Product;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,35 +14,14 @@ class StoreProductRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => [
-                'required', 'string', 'max:255', 
-                // LA LEY: Ignorar registros con SoftDeletes
-                Rule::unique('products', 'name')->whereNull('deleted_at')
-            ],
-            'brand_id' => [
-                'required', 'uuid', 
-                // LA LEY: Asegurar que la marca existe y no está en la papelera
-                Rule::exists('brands', 'id')->whereNull('deleted_at')
-            ],
-            'category_id' => [
-                'required', 'uuid', 
-                // CORRECCIÓN CRÍTICA: Se eliminó la restricción de subcategoría
-                // para que coincida con los datos que envía el Controller (raíces).
-                Rule::exists('categories', 'id')->whereNull('deleted_at')
-            ],
-            'description'  => ['nullable', 'string'],
-            'image'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'is_active'    => ['boolean'],
-            'is_alcoholic' => ['boolean'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'category_id.exists' => '// ERROR_404: CATEGORÍA INEXISTENTE O DADA DE BAJA',
-            'brand_id.exists'    => '// ERROR_404: MARCA INEXISTENTE O DADA DE BAJA',
-            'name.unique'        => '// CONFLICTO: ESTE MAESTRO YA EXISTE EN EL SISTEMA VIVO',
+            'name'           => ['required', 'string', 'max:255'],
+            'brand_id'       => ['required', 'uuid', Rule::exists('brands', 'id')->where('deleted_epoch', 0)],
+            'category_id'    => ['required', 'uuid', Rule::exists('categories', 'id')->where('deleted_epoch', 0)],
+            'description'    => ['nullable', 'string', 'max:2000'],
+            'is_active'      => ['required', 'boolean'],
+            'is_alcoholic'   => ['required', 'boolean'],
+            'idempotencyKey' => ['required', 'string', 'uuid'],
+            'image'          => ['nullable', 'image', 'mimes:webp,jpg,png', 'max:2048'],
         ];
     }
 }

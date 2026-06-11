@@ -1,8 +1,10 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Http\Requests\Admin\Sku;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreBulkSkuRequest extends FormRequest
 {
@@ -11,18 +13,13 @@ class StoreBulkSkuRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'skus' => ['required', 'array', 'min:1'],
-            'skus.*.name' => ['required', 'string', 'max:255'],
-            'skus.*.code' => [
-                'nullable', 'string', 
-                // LA LEY: Ignorar SKUs eliminados
-                Rule::unique('skus', 'code')->whereNull('deleted_at')
-            ],
-            // CORRECCIÓN CRÍTICA: Alineado con el DTO y el Frontend
-            'skus.*.base_price' => ['required', 'numeric', 'min:0'], 
-            'skus.*.conversion_factor' => ['required', 'numeric', 'min:0.001'],
-            'skus.*.weight' => ['required', 'numeric', 'min:0'],
-            'skus.*.image' => ['nullable', 'image', 'max:2048'],
+            'skus'                    => ['required', 'array', 'min:1', 'max:50'],
+            'skus.*.name'             => ['required', 'string', 'max:255'],
+            'skus.*.code'             => ['nullable', 'string', 'max:50'],
+            'skus.*.price'            => ['required', 'numeric', 'min:0'],
+            'skus.*.conversionFactor' => ['required', 'numeric', 'min:0.001'],
+            'skus.*.weight'           => ['required', 'numeric', 'min:0'],
+            'skus.*.isActive'         => ['required', 'boolean'],
         ];
     }
 }

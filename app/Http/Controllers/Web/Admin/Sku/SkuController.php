@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\Sku;
 
 use App\Http\Controllers\Controller;
@@ -8,62 +10,46 @@ use App\Http\Requests\Admin\Sku\{StoreBulkSkuRequest, UpdateSkuRequest};
 use App\DTOs\Admin\Sku\{CreateBulkSkuDTO, SkuDataDTO};
 use App\Actions\Admin\Sku\{CreateBulkSkuAction, UpdateSkuAction, DeleteSkuAction};
 use Illuminate\Http\RedirectResponse;
-use Inertia\{Inertia, Response as InertiaResponse};
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class SkuController extends Controller
 {
     use AuthorizesRequests;
 
-    public function create(Product $product): InertiaResponse
-    {
-        $this->authorize('create', Sku::class);
-        return Inertia::render('Admin/Skus/Create', [
-            'product' => ['id' => $product->id, 'name' => $product->name]
-        ]);
-    }
-    
+    /**
+     * Procesa la inserción masiva de SKUs desde la pestaña correspondiente del Workspace.
+     */
     public function store(StoreBulkSkuRequest $request, Product $product, CreateBulkSkuAction $action): RedirectResponse
     {
         $this->authorize('create', Sku::class);
 
-        // LA LEY: Transformamos el Request en el DTO envoltorio
         $dto = CreateBulkSkuDTO::fromRequest($request);
-
-        // RECTIFICACIÓN: Pasamos solo el array de SKUs ($dto->skus)
         $action->execute($product->id, $dto->skus);
 
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Variantes inyectadas al catálogo.');
+        // Retorna un redireccionamiento inyectado hacia atrás para recargar las propiedades del Workspace de forma asíncrona
+        return redirect()->back()->with('success', 'Variantes físicas vinculadas correctamente.');
     }
 
-    public function edit(Sku $sku): InertiaResponse
-    {
-        $this->authorize('update', $sku);
-        $sku->load('product');
-    
-        return Inertia::render('Admin/Skus/Edit', [
-            'sku' => $sku,
-            'product' => $sku->product
-        ]);
-    }
-
+    /**
+     * Actualiza los parámetros de una presentación específica de forma atómica.
+     */
     public function update(UpdateSkuRequest $request, Sku $sku, UpdateSkuAction $action): RedirectResponse
     {
         $this->authorize('update', $sku);
         
-        // LA LEY: SkuDataDTO individual para edición simple
         $action->execute($sku, SkuDataDTO::fromRequest($request)); 
     
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Parámetros de variante actualizados.');
+        return redirect()->back()->with('success', 'Parámetros de la variante sincronizados.');
     }
 
+    /**
+     * Remueve lógicamente una variante sin destruir el resto del Workspace.
+     */
     public function destroy(Sku $sku, DeleteSkuAction $action): RedirectResponse
     {
         $this->authorize('delete', $sku);
         $action->execute($sku);
 
-        return back()->with('warning', 'Variante extraída de circulación.');
+        return redirect()->back()->with('success', 'Variante extraída de circulación de forma permanente.');
     }
 }

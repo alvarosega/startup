@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Sku;
 
 use App\Models\Sku;
@@ -11,7 +13,6 @@ class UpdateSkuAction
     public function execute(Sku $sku, SkuDataDTO $data): void
     {
         DB::transaction(function () use ($sku, $data) {
-            // LA LEY: Bloqueo de fila antes de mutar
             $lockedSku = Sku::where('id', $sku->id)->lockForUpdate()->firstOrFail();
 
             $attributes = [

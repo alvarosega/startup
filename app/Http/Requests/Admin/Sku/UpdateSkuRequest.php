@@ -1,9 +1,11 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Http\Requests\Admin\Sku;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Models\Sku;
 
 class UpdateSkuRequest extends FormRequest
 {
@@ -11,22 +13,16 @@ class UpdateSkuRequest extends FormRequest
 
     public function rules(): array
     {
-        // Resolución segura de UUID contra inyecciones
-        $sku = $this->route('sku');
-        $skuId = $sku instanceof Sku ? $sku->id : $sku;
+        $skuId = $this->route('sku')?->id;
 
         return [
             'name'              => ['required', 'string', 'max:255'],
-            'code'              => [
-                'nullable', 'string', 
-                Rule::unique('skus', 'code')->ignore($skuId)->whereNull('deleted_at')
-            ],
-            // LA LEY: Consistencia estricta con la base de datos
-            'base_price'        => ['required', 'numeric', 'min:0'],
-            'conversion_factor' => ['required', 'numeric', 'min:0.001'],
+            'code'              => ['required', 'string', 'max:50', Rule::unique('skus', 'code')->ignore($skuId)->where('deleted_epoch', 0)],
+            'price'             => ['required', 'numeric', 'min:0'],
+            'conversionFactor'  => ['required', 'numeric', 'min:0.001'],
             'weight'            => ['required', 'numeric', 'min:0'],
-            'image'             => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'is_active'         => ['boolean'],
+            'isActive'          => ['required', 'boolean'],
+            'image'             => ['nullable', 'image', 'mimes:webp,jpg,png', 'max:2048'],
         ];
     }
 }

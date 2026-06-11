@@ -1,44 +1,43 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Product;
 
 use App\Models\Product;
 use App\DTOs\Admin\Product\ProductData;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\{DB, Storage, Cache};
+use Illuminate\Support\Facades\{DB, Storage};
 
 class UpsertProductAction
 {
-    public function execute(ProductData $data, ?string $productId = null): Product
+    public function execute(ProductData $data, ?Product $product = null): Product
     {
-        $cacheKey = $data->idempotencyKey ? "idemp_prod_{$data->idempotencyKey}" : null;
-
-        // 1. BLINDAJE DE IDEMPOTENCIA
-        if ($cacheKey && Cache::has($cacheKey)) {
-            return Product::findOrFail(Cache::get($cacheKey));
-        }
-
-        return DB::transaction(function () use ($data, $productId, $cacheKey) {
-            $isUpdate = !is_null($productId);
+        return DB::transaction(function () use ($data, $product) {
+            $isUpdate = !is_null($product);
             
-            // 2. BLOQUEO PESIMISTA
-            $product = $isUpdate 
-                ? Product::where('id', $productId)->lockForUpdate()->firstOrFail() 
-                : new Product();
+            if ($isUpdate) {
+                $product = Product::where('id', $product->id)->lockForUpdate()->firstOrFail();
+            } else {
+                $product = new Product();
+            }
 
-            // 3. INTEGRIDAD DE SLUG (Inmutable en Update si ya existe)
-            // LEY: No permitimos cambios de slug post-creación para preservar trazabilidad
             $newSlug = $isUpdate ? $product->slug : Str::slug($data->name);
             
             if (!$isUpdate) {
-                $slugExists = Product::where('slug', $newSlug)->exists();
+                $slugExists = Product::where('slug', $newSlug)->where('deleted_epoch', 0)->exists();
                 if ($slugExists) {
-                    throw ValidationException::withMessages(['name' => 'CONFLICTO_INTEGRIDAD: El slug generado ya existe.']);
+                    throw ValidationException::withMessages([
+                        'name' => 'CONFLICTO_INTEGRIDAD: El slug automático derivado ya se encuentra registrado.'
+                    ]);
                 }
+                
+                // Algoritmo de Ordenamiento Lineal (+1)
+                $maxSortOrder = Product::where('deleted_epoch', 0)->max('sort_order');
+                $product->sort_order = $maxSortOrder ? $maxSortOrder + 1 : 1;
             }
 
-            // 4. GESTIÓN FÍSICA
             if ($data->image) {
                 if ($isUpdate && $product->image_path) {
                     Storage::disk('public')->delete($product->image_path);
@@ -57,10 +56,6 @@ class UpsertProductAction
             ]);
 
             $product->save();
-
-            if ($cacheKey) {
-                Cache::put($cacheKey, $product->id, 86400);
-            }
 
             return $product;
         });

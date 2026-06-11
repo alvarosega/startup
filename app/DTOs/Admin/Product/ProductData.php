@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs\Admin\Product;
 
 use Illuminate\Http\Request;
@@ -14,8 +16,8 @@ readonly class ProductData
         public ?string $description,
         public bool $isActive,
         public bool $isAlcoholic,
-        public ?UploadedFile $image,
-        public ?string $idempotencyKey = null
+        public ?string $idempotencyKey,
+        public ?UploadedFile $image
     ) {}
 
     public static function fromRequest(Request $request): self
@@ -25,10 +27,10 @@ readonly class ProductData
             brandId: (string) $request->validated('brand_id'),
             categoryId: (string) $request->validated('category_id'),
             description: $request->validated('description'),
-            isActive: (bool) $request->boolean('is_active', true),
-            isAlcoholic: (bool) $request->boolean('is_alcoholic', false),
-            image: $request->file('image'),
-            idempotencyKey: $request->header('X-Idempotency-Key')
+            isActive: (bool) $request->validated('is_active'),
+            isAlcoholic: (bool) $request->validated('is_alcoholic'),
+            idempotencyKey: $request->validated('idempotencyKey'),
+            image: $request->file('image')
         );
     }
 }
