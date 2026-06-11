@@ -11,23 +11,35 @@ class UpdateCategoryRequest extends FormRequest
 
     public function rules(): array
     {
-        $catId = $this->route('category')->id;
+        $catId = $this->route('category')?->id;
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'parent_id' => ['nullable', 'exists:categories,id', 'different:id'], // No ser padre de sí mismo
-            'external_code' => ['nullable', 'string', 'max:50', Rule::unique('categories')->ignore($catId)],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('categories')->ignore($catId)],
-            'description' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'max:2048'],
-            
-            'seo_title' => ['nullable', 'string', 'max:255'],
-            'seo_description' => ['nullable', 'string'],
+            'name'               => ['required', 'string', 'max:100'],
+            'slug'               => ['required', 'string', 'max:120', Rule::unique('categories')->ignore($catId)->where('deleted_epoch', 0)],
+            'parent_id'          => [
+                'nullable', 
+                'uuid', 
+                Rule::exists('categories', 'id')->whereNull('parent_id')->withoutTrashed(),
+                function ($attribute, $value, $fail) use ($catId) {
+                    if ($value === $catId) {
+                        $fail('Operación inválida: Una categoría no puede ser hija de sí misma.');
+                    }
+                    if ($value && \App\Models\Category::where('parent_id', $catId)->exists()) {
+                        $fail('Restricción de nivel: Esta categoría ya posee subcategorías asignadas y no puede descender en la jerarquía.');
+                    }
+                }
+            ],
+            'external_code'      => ['nullable', 'string', 'max:50', Rule::unique('categories')->ignore($catId)->where('deleted_epoch', 0)],
             'tax_classification' => ['nullable', 'string', 'max:50'],
-            'requires_age_check' => ['boolean'],
-            'is_active' => ['boolean'],
-            'is_featured' => ['boolean'],
-            'version' => ['required', 'integer'],
+            'requires_age_check' => ['required', 'boolean'],
+            'is_active'          => ['required', 'boolean'],
+            'is_featured'        => ['required', 'boolean'],
+            'bg_color'           => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'image'              => ['nullable', 'image', 'max:2048'],
+            'icon'               => ['nullable', 'image', 'max:512'],
+            'description'        => ['nullable', 'string', 'max:1000'],
+            'seo_title'          => ['nullable', 'string', 'max:60'],
+            'seo_description'    => ['nullable', 'string', 'max:160'],
         ];
     }
 }

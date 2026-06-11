@@ -55,11 +55,13 @@ Route::middleware(['auth:super_admin'])->group(function () {
         Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);
         
         Route::prefix('categories')->name('categories.')->group(function () {
-            Route::get('{category}/sku-order', [CategoryController::class, 'skuOrder'])->name('sku-order');
-            Route::patch('{category}/sku-order', [CategoryController::class, 'updateSkuOrder'])->name('sku-order.update');
+            // Opción A: Endpoint atómico para alimentar el SkuOrderModal vía JSON
+            Route::get('{category}/skus', [CategoryController::class, 'skus'])->name('skus');
+            
+            // Persistencia masiva de posiciones (Alineado con el verbo PUT del frontend)
+            Route::put('{category}/sku-order', [CategoryController::class, 'updateSkuOrder'])->name('update-sku-order');
         });
         Route::resource('categories', CategoryController::class)->except(['show']);
-        
         Route::resource('market-zones', MarketZoneController::class)->parameters(['market-zones' => 'market_zone']);
         Route::resource('bundles', BundleController::class);
         Route::resource('brands', BrandController::class);

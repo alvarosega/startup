@@ -1,115 +1,185 @@
 <script setup>
-import { ref, watch } from 'vue';
-import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Search, Plus, Settings, Trash2, ArrowUpDown, ChevronLeft, ChevronRight, Wifi, WifiOff } from 'lucide-vue-next';
-import debounce from 'lodash/debounce';
+import { ref } from 'vue';
+import { router, Head, Link } from '@inertiajs/vue3';
+import { 
+    FolderTree, Plus, Edit2, Trash2, ArrowUpDown, 
+    ChevronDown, ChevronRight, Eye, EyeOff, Star, Search
+} from 'lucide-vue-next';
+import CategoryDrawer from './Components/CategoryDrawer.vue';
+import SkuOrderModal from './Components/SkuOrderModal.vue';
 
 const props = defineProps({
-    categories: Object, // Trae data, next_page_url, prev_page_url
+    categories: Object,
+    parents: Array,
     filters: Object,
     can_manage: Boolean
 });
 
-const search = ref(props.filters?.search || '');
+const search = ref(props.filters.search || '');
+const expandedRows = ref(new Set());
+const isDrawerOpen = ref(false);
+const isModalOpen = ref(false);
+const selectedCategory = ref(null);
 
-watch(search, debounce((val) => {
-    router.get(route('admin.categories.index'), { search: val }, { 
-        preserveState: true, replace: true, preserveScroll: true
+const handleSearch = () => {
+    router.get(route('admin.categories.index'), { search: search.value }, {
+        preserveState: true,
+        replace: true
     });
-}, 400));
+};
+
+const toggleRow = (id) => {
+    if (expandedRows.value.has(id)) {
+        expandedRows.value.delete(id);
+    } else {
+        expandedRows.value.add(id);
+    }
+};
+
+const openCreateDrawer = () => {
+    selectedCategory.value = null;
+    isDrawerOpen.value = true;
+};
+
+const openEditDrawer = (category) => {
+    selectedCategory.value = category;
+    isDrawerOpen.value = true;
+};
+
+const openSkuModal = (category) => {
+    selectedCategory.value = category;
+    isModalOpen.value = true;
+};
 
 const deleteCategory = (category) => {
-    if (confirm(`AUDIT_ALERT: ¿Neutralizar categoría ${category.name}?`)) {
+    if (confirm(`¿Confirmar neutralización estricta de la categoría: ${category.name}?`)) {
         router.delete(route('admin.categories.destroy', category.id));
     }
 };
 </script>
 
 <template>
-    <AdminLayout>
-        <Head title="Control de Categorías" />
+    <Head title="Góndola - Categorías" />
 
-        <div class="p-4 max-w-[1600px] mx-auto space-y-4">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-card p-3 border border-border">
-                <div class="relative w-full md:w-96">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="16" />
-                    <input v-model="search" type="text" placeholder="Buscar por Nombre o Código..."
-                           class="w-full pl-9 pr-4 py-1.5 bg-background border border-border text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
+    <div class="p-6 max-w-7xl mx-auto space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                    <FolderTree :size="24" />
                 </div>
-
-                <Link v-if="can_manage" :href="route('admin.categories.create')" 
-                      class="w-full md:w-auto bg-primary text-primary-foreground px-4 py-1.5 text-xs font-black uppercase flex items-center justify-center gap-2 hover:opacity-90">
-                    <Plus :size="16" stroke-width="3" />
-                    AÑADIR CATEGORÍA
-                </Link>
+                <div>
+                    <h1 class="font-sans font-bold text-xl text-foreground">Pasillos y Categorías</h1>
+                    <p class="text-xs text-muted-foreground">Estructura jerárquica del catálogo OLTP</p>
+                </div>
             </div>
+            
+            <button v-if="can_manage" @click="openCreateDrawer" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg shadow-sm hover:bg-primary/90 transition-colors">
+                <Plus :size="16" />
+                Materializar Categoría
+            </button>
+        </div>
 
-            <div class="border border-border bg-card overflow-x-auto">
-                <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                        <tr class="bg-muted/50 border-b border-border uppercase font-mono text-muted-foreground">
-                            <th class="p-3 font-bold border-r border-border/50">Orden</th>
-                            <th class="p-3 font-bold border-r border-border/50">Jerarquía / Nombre</th>
-                            <th class="p-3 font-bold border-r border-border/50">Código Ext.</th>
-                            <th class="p-3 font-bold border-r border-border/50">Estado</th>
-                            <th class="p-3 font-bold text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border font-medium">
-                        <tr v-for="category in categories.data" :key="category.id" class="hover:bg-muted/30 transition-none">
-                            <td class="p-3 font-mono text-primary w-16 text-center">
-                                {{ String(category.sort_order).padStart(2, '0') }}
+        <div class="flex items-center gap-2 max-w-md bg-card border border-border rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-primary">
+            <Search :size="18" class="text-muted-foreground" />
+            <input v-model="search" @input="handleSearch" type="text" placeholder="Buscar por denominación o código externo..." class="w-full bg-transparent text-sm text-foreground outline-none border-none p-0 focus:ring-0" />
+        </div>
+
+        <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-muted/40 text-muted-foreground text-xs font-semibold uppercase border-b border-border">
+                        <th class="p-4 w-10"></th>
+                        <th class="p-4">Estructura / Nombre</th>
+                        <th class="p-4">Código Ext.</th>
+                        <th class="p-4 w-24 text-center">Estado</th>
+                        <th class="p-4 w-24 text-center">Destacado</th>
+                        <th class="p-4 w-20 text-center">Orden</th>
+                        <th class="p-4 w-44 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm divide-y divide-border">
+                    <template v-for="category in categories.data" :key="category.id">
+                        <tr class="hover:bg-muted/20 transition-colors">
+                            <td class="p-4">
+                                <button v-if="category.children && category.children.length" @click="toggleRow(category.id)" class="p-1 rounded hover:bg-muted text-muted-foreground">
+                                    <ChevronDown v-if="expandedRows.has(category.id)" :size="16" />
+                                    <ChevronRight v-else :size="16" />
+                                </button>
                             </td>
-                            <td class="p-3">
-                                <div v-if="category.parent" class="text-[10px] text-primary uppercase font-mono mb-0.5">
-                                    {{ category.parent.name }} >
+                            <td class="p-4 font-medium text-foreground">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-3 h-3 rounded-full border border-border" :style="{ backgroundColor: category.bg_color }"></span>
+                                    {{ category.name }}
                                 </div>
-                                <div class="font-bold text-sm uppercase tracking-tight">{{ category.name }}</div>
-                                <div class="text-[10px] text-muted-foreground font-mono italic">{{ category.slug }}</div>
                             </td>
-                            <td class="p-3 font-mono">{{ category.external_code || '---' }}</td>
-                            <td class="p-3">
-                                <span :class="['flex items-center gap-1.5 font-bold uppercase text-[10px]', category.is_active ? 'text-success' : 'text-destructive']">
-                                    <component :is="category.is_active ? Wifi : WifiOff" :size="12" />
-                                    {{ category.is_active ? 'Online' : 'Offline' }}
+                            <td class="p-4 text-muted-foreground font-mono text-xs">{{ category.external_code || 'N/A' }}</td>
+                            <td class="p-4 text-center">
+                                <span :class="category.is_active ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'" class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border">
+                                    <Eye v-if="category.is_active" :size="12" class="mr-1" />
+                                    <EyeOff v-else :size="12" class="mr-1" />
+                                    {{ category.is_active ? 'Activo' : 'Oculto' }}
                                 </span>
                             </td>
-                            <td class="p-3 text-right">
-                                <div class="flex justify-end gap-1">
-                                    <Link :href="route('admin.categories.sku-order', category.id)" class="p-1.5 border border-border hover:bg-muted text-muted-foreground" title="Reordenar SKUs">
-                                        <ArrowUpDown :size="14" />
-                                    </Link>
-                                    <Link :href="route('admin.categories.edit', category.id)" class="p-1.5 border border-border hover:bg-muted text-muted-foreground">
-                                        <Settings :size="14" />
-                                    </Link>
-                                    <button @click="deleteCategory(category)" class="p-1.5 border border-border hover:bg-destructive hover:text-destructive-foreground text-muted-foreground">
-                                        <Trash2 :size="14" />
-                                    </button>
-                                </div>
+                            <td class="p-4 text-center">
+                                <Star :size="16" :class="category.is_featured ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/40'" class="mx-auto" />
+                            </td>
+                            <td class="p-4 text-center font-mono text-xs">{{ category.sort_order }}</td>
+                            <td class="p-4 text-right space-x-1 whitespace-nowrap">
+                                <button @click="openSkuModal(category)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors" title="Ordenar Góndola">
+                                    <ArrowUpDown :size="16" />
+                                </button>
+                                <button @click="openEditDrawer(category)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" title="Editar Atributos">
+                                    <Edit2 :size="16" />
+                                </button>
+                                <button @click="deleteCategory(category)" class="inline-flex items-center p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Neutralizar">
+                                    <Trash2 :size="16" />
+                                </button>
                             </td>
                         </tr>
-                        <tr v-if="categories.data.length === 0">
-                            <td colspan="5" class="p-12 text-center text-muted-foreground font-mono uppercase italic">No se detectaron registros en este sector del catálogo.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
 
-            <div class="flex justify-between items-center py-2 border-t border-border/50">
-                <div class="text-[10px] font-mono text-muted-foreground uppercase">Protocolo: Cursor-Based Hierarchy Scan</div>
-                <div class="flex gap-1">
-                    <Link v-if="categories.prev_page_url" :href="categories.prev_page_url" class="p-2 border border-border bg-card hover:bg-muted transition-none">
-                        <ChevronLeft :size="16" />
-                    </Link>
-                    <div v-else class="p-2 border border-border opacity-20 cursor-not-allowed bg-card"><ChevronLeft :size="16" /></div>
-                    
-                    <Link v-if="categories.next_page_url" :href="categories.next_page_url" class="p-2 border border-border bg-card hover:bg-muted transition-none">
-                        <ChevronRight :size="16" />
-                    </Link>
-                    <div v-else class="p-2 border border-border opacity-20 cursor-not-allowed bg-card"><ChevronRight :size="16" /></div>
-                </div>
-            </div>
+                        <template v-if="expandedRows.has(category.id) && category.children">
+                            <tr v-for="child in category.children" :key="child.id" class="bg-muted/10 hover:bg-muted/20 transition-colors">
+                                <td class="p-4"></td>
+                                <td class="p-4 pl-10 text-muted-foreground">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-muted-foreground/40">└──</span>
+                                        {{ child.name }}
+                                    </div>
+                                </td>
+                                <td class="p-4 text-muted-foreground font-mono text-xs">{{ child.external_code || 'N/A' }}</td>
+                                <td class="p-4 text-center">
+                                    <span :class="child.is_active ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'" class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border">
+                                        {{ child.is_active ? 'Activo' : 'Oculto' }}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <Star :size="14" :class="child.is_featured ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/30'" class="mx-auto" />
+                                </td>
+                                <td class="p-4 text-center font-mono text-xs">{{ child.sort_order }}</td>
+                                <td class="p-4 text-right space-x-1 whitespace-nowrap">
+                                    <button @click="openSkuModal(child)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors">
+                                        <ArrowUpDown :size="14" />
+                                    </button>
+                                    <button @click="openEditDrawer(child)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
+                                        <Edit2 :size="14" />
+                                    </button>
+                                    <button @click="deleteCategory(child)" class="inline-flex items-center p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
+                                        <Trash2 :size="14" />
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </template>
+                    <tr v-if="categories.data.length === 0">
+                        <td colspan="7" class="p-8 text-center text-muted-foreground">
+                            Ninguna categoría intersecta los parámetros de búsqueda actuales.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-    </AdminLayout>
+    </div>
+
+    <CategoryDrawer :show="isDrawerOpen" :category="selectedCategory" :parents="parents" @close="isDrawerOpen = false" />
+    <SkuOrderModal :show="isModalOpen" :category="selectedCategory" @close="isModalOpen = false" />
 </template>

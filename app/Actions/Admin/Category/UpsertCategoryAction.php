@@ -5,7 +5,7 @@ namespace App\Actions\Admin\Category;
 use App\Models\Category;
 use App\DTOs\Admin\Category\CategoryData;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\{DB, Storage, Cache};
+use Illuminate\Support\Facades\{DB, Storage};
 
 class UpsertCategoryAction
 {
@@ -14,15 +14,12 @@ class UpsertCategoryAction
         return DB::transaction(function () use ($data, $category) {
             $isNew = !$category;
             $pathsToClean = [];
-
             $attributes = $data->toArray();
             
-            // Forzar slug si está vacío
             if (empty($attributes['slug'])) {
                 $attributes['slug'] = Str::slug($data->name);
             }
 
-            // Gestión de Assets con rollback manual en caso de fallo de DB
             if ($data->image) {
                 if ($category?->image_path) $oldImage = $category->image_path;
                 $attributes['image_path'] = $data->image->store('categories/images', 'public');
@@ -37,12 +34,15 @@ class UpsertCategoryAction
 
             try {
                 if ($isNew) {
+                    // Algoritmo OLTP: Autocalcular el final de la cola por contexto jerárquico
+                    $maxSortOrder = Category::where('parent_id', $attributes['parent_id'])
+                        ->where('deleted_epoch', 0)
+                        ->max('sort_order');
+
+                    $attributes['sort_order'] = $maxSortOrder ? $maxSortOrder + 10 : 10;
+
                     $category = Category::create($attributes);
                 } else {
-                    // REGLA 2.B: Verificación de Integridad Temporal
-                    if ($category->version !== $data->version) {
-                        throw new \Exception("CONCURRENCY_ERROR: Nodo modificado por otro proceso. Recargue la jerarquía.");
-                    }
                     $category->update($attributes);
                 }
 
@@ -52,8 +52,9 @@ class UpsertCategoryAction
                 return $category;
 
             } catch (\Exception $e) {
-                // Si la DB falla, borramos las imágenes que acabamos de subir
-                foreach ($pathsToClean as $path) Storage::disk('public')->delete($path);
+                foreach ($pathsToClean as $path) {
+                    Storage::disk('public')->delete($path);
+                }
                 throw $e;
             }
         });

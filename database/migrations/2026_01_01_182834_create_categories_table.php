@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('categories', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('id')->primary();
             $table->foreignUuid('parent_id')->nullable()->index()->constrained('categories')->nullOnDelete();
-            $table->unsignedInteger('version')->default(0); // Control de Concurrencia
             $table->string('name');
-            $table->string('slug')->unique();
-            $table->string('external_code')->nullable()->unique();
+            $table->string('slug');
+            $table->string('external_code')->nullable();
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             
             $table->string('tax_classification')->nullable();
             $table->boolean('requires_age_check')->default(false);
@@ -30,11 +30,14 @@ return new class extends Migration {
             $table->string('seo_title')->nullable();
             $table->text('seo_description')->nullable();
             
-            // --- AUDITORÍA Y ESTADO (Única declaración) ---
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['is_active', 'parent_id', 'sort_order'], 'idx_category_hierarchy');
+            
+            // Índices compuestos para asegurar integridad en registros vivos
+            $table->unique(['slug', 'deleted_epoch'], 'idx_category_slug_unique');
+            $table->unique(['external_code', 'deleted_epoch'], 'idx_category_code_unique');
         });
     }
 
