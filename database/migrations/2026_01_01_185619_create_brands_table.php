@@ -15,7 +15,8 @@ return new class extends Migration {
             $table->foreignUuid('category_id')->constrained('categories')->cascadeOnDelete();
 
             $table->string('name'); 
-            $table->string('slug')->unique();
+            $table->string('slug');
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->string('bg_color', 7)->nullable();
             $table->string('image_path')->nullable();
             $table->string('website')->nullable();
@@ -28,7 +29,9 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
 
+            // Índices de optimización y restricciones compuestas
             $table->index(['is_active', 'category_id', 'sort_order'], 'idx_brands_active_cat');
+            $table->unique(['slug', 'deleted_epoch'], 'idx_brands_slug_unique');
         });
     }
 

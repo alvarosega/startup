@@ -19,25 +19,18 @@ class StoreBrandRequest extends FormRequest
 
     public function rules(): array
     {
-        $brandId = $this->route('brand')?->id;
-
         return [
-            'name'              => ['required', 'string', 'max:100'],
-            'slug'              => ['required', 'string', 'max:120', Rule::unique('brands')->ignore($brandId)->withoutTrashed()],
-            'parent_id'         => ['nullable', 'uuid', Rule::exists('brands', 'id')->withoutTrashed()],
-            'provider_id'       => ['required', 'uuid', Rule::exists('providers', 'id')],
-            'category_id'       => ['required', 'uuid', Rule::exists('categories', 'id')->withoutTrashed()],
-            
-            // Relación M:N obligatoria
-            'market_zone_ids'   => ['required', 'array', 'min:1'],
-            'market_zone_ids.*' => ['uuid', Rule::exists('market_zones', 'id')->withoutTrashed()],
-            
-            'website'           => ['nullable', 'url', 'max:255'],
-            'image'             => ['nullable', 'image', 'mimes:webp,jpg,png', 'max:2048'],
-            'is_active'         => ['boolean'],
-            'is_featured'       => ['boolean'],
-            'sort_order'        => ['integer', 'min:0'],
-            'description'       => ['nullable', 'string', 'max:1000'],
+            'name'            => ['required', 'string', 'max:100'],
+            'slug'            => ['required', 'string', 'max:120', Rule::unique('brands')->where('deleted_epoch', 0)],
+            'parent_id'       => ['nullable', 'uuid', Rule::exists('brands', 'id')->whereNull('parent_id')->withoutTrashed()],
+            'provider_id'     => ['required', 'uuid', Rule::exists('providers', 'id')],
+            'category_id'     => ['required', 'uuid', Rule::exists('categories', 'id')->whereNull('parent_id')->withoutTrashed()],
+            'website'         => ['nullable', 'url', 'max:255'],
+            'image'           => ['nullable', 'image', 'mimes:webp,jpg,png', 'max:2048'],
+            'is_active'       => ['required', 'boolean'],
+            'is_featured'     => ['required', 'boolean'],
+            'description'     => ['nullable', 'string', 'max:1000'],
+            'bg_color'        => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
         ];
     }
 }

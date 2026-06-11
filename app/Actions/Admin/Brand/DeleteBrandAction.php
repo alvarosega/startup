@@ -4,29 +4,27 @@ namespace App\Actions\Admin\Brand;
 
 use App\Models\Brand;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 
 class DeleteBrandAction
 {
-    /**
-     * Ejecuta el Soft Delete de la marca bajo protección Zero-Trust.
-     */
     public function execute(Brand $brand): bool
     {
         return DB::transaction(function () use ($brand) {
             
-            // REGLA 2.B: Verificación Zero-Trust
-            if ($brand->products()->exists()) {
-                throw new \Exception("DENEGADO: La marca tiene productos activos. Desvincúlelos primero.");
+            if ($brand->subBrands()->exists()) {
+                throw ValidationException::withMessages([
+                    'brand' => 'Operación denegada: Este nodo actúa como raíz de sub-marcas activas.'
+                ]);
             }
 
-            // CRÍTICO: Romper la caché al eliminar (Para métricas y listados)
-            Cache::increment('admin_brands_version');
-            
-            // Purga de la imagen física si fuera necesario (Opcional en SoftDeletes)
-            // if ($brand->image_path) Storage::disk('public')->delete($brand->image_path);
+            if ($brand->products()->exists()) {
+                throw ValidationException::withMessages([
+                    'brand' => 'Integridad comprometida: Existen productos vinculados a esta marca en la base de datos.'
+                ]);
+            }
 
-            return $brand->delete();
+            return (bool) $brand->delete();
         });
     }
 }

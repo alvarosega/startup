@@ -5,6 +5,7 @@ import {
     FolderTree, Plus, Edit2, Trash2, ArrowUpDown, 
     ChevronDown, ChevronRight, Eye, EyeOff, Star, Search
 } from 'lucide-vue-next';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CategoryDrawer from './Components/CategoryDrawer.vue';
 import SkuOrderModal from './Components/SkuOrderModal.vue';
 
@@ -59,6 +60,7 @@ const deleteCategory = (category) => {
 </script>
 
 <template>
+    <AdminLayout>
     <Head title="Góndola - Categorías" />
 
     <div class="p-6 max-w-7xl mx-auto space-y-6">
@@ -182,4 +184,5 @@ const deleteCategory = (category) => {
 
     <CategoryDrawer :show="isDrawerOpen" :category="selectedCategory" :parents="parents" @close="isDrawerOpen = false" />
     <SkuOrderModal :show="isModalOpen" :category="selectedCategory" @close="isModalOpen = false" />
+</AdminLayout>
 </template>
