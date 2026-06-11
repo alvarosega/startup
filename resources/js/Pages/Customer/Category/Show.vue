@@ -1,7 +1,6 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-// CORRECCIÓN 1: Inyección de LayoutGrid en los imports
 import { PackageOpen, Search, Loader2, LayoutGrid } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
@@ -18,19 +17,16 @@ const props = defineProps({
 
 const page = usePage();
 
-// --- DATA BINDING ---
 const category = computed(() => props.categoryData?.data || props.categoryData || {});
 const globalCategories = computed(() => page.props.categories_menu?.data || page.props.categories_menu || []);
 const categoryBanners = computed(() => props.banners?.data || props.banners || []);
 
-// --- ESTADO DE SCROLL Y CONTROL ESTRÍCTO ---
 const allProducts = ref([...(props.products?.data || [])]);
 const nextCursorUrl = ref(props.products?.next_page_url || null);
 const isFetching = ref(false);
 const isPaginating = ref(false);
 const observerTarget = ref(null);
 
-// CORRECCIÓN 2: Declaración y control del ciclo de vida de montaje
 const isMounted = ref(false);
 onMounted(() => { isMounted.value = true; });
 onUnmounted(() => { isMounted.value = false; });
@@ -38,32 +34,28 @@ onUnmounted(() => { isMounted.value = false; });
 const searchQuery = ref(props.filters?.search || '');
 const sortBy = ref(props.filters?.sort || 'relevance');
 
-// 1. Limpieza absoluta al cambiar de categoría
 watch(() => category.value.slug, () => {
     allProducts.value = [];
     nextCursorUrl.value = null;
     isFetching.value = false;
     isPaginating.value = false;
-    searchQuery.value = ''; // Reset forzado
-    sortBy.value = 'relevance'; // Reset forzado
+    searchQuery.value = ''; 
+    sortBy.value = 'relevance'; 
 });
 
-// 2. Resolución de inyección de datos
 watch(() => props.products, (newData) => {
     if (!isMounted.value) return;
 
     if (!isPaginating.value) {
-        // Es una carga inicial, cambio de categoría o filtro: REEMPLAZO ABSOLUTO
         allProducts.value = [...(newData?.data || [])];
     } else {
-        // Es el IntersectionObserver: CONCATENACIÓN
         const existingIds = new Set(allProducts.value.map(p => p.id));
         const uniqueItems = (newData?.data || []).filter(p => !existingIds.has(p.id));
         allProducts.value.push(...uniqueItems);
     }
     
     nextCursorUrl.value = newData?.next_page_url || null;
-    isPaginating.value = false; // Reiniciar barrera
+    isPaginating.value = false; 
 }, { deep: true });
 
 const updateFilters = debounce(() => {
@@ -83,13 +75,12 @@ const updateFilters = debounce(() => {
 
 watch([searchQuery, sortBy], () => updateFilters());
 
-// 3. Modificación del trigger de paginación
 const loadNextPage = (entries) => {
     const target = entries[0];
     if (!isMounted.value || !target.isIntersecting || !nextCursorUrl.value || isFetching.value) return;
 
     isFetching.value = true;
-    isPaginating.value = true; // ACTIVAR BARRERA DE CONCATENACIÓN
+    isPaginating.value = true; 
     
     router.get(nextCursorUrl.value, {}, {
         preserveState: true,
@@ -116,10 +107,10 @@ onUnmounted(() => {
             
             <Head :title="category.name || 'Cargando...'" />
             
-            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-0">
+            <header class="px-4 lg:px-8 max-w-7xl mx-auto pt-4">
                 <div v-show="category.name" class="header-standard">
                     <div class="title-block-wrapper">
-                        <LayoutGrid :size="16" class="text-neutral-400" />
+                        <LayoutGrid :size="16" :stroke-width="2" class="text-neutral-500" />
                         <h1 class="text-3xl md:text-4xl font-black uppercase tracking-tighter text-foreground italic">
                             {{ category.name }}
                         </h1>
@@ -127,21 +118,22 @@ onUnmounted(() => {
                 </div>
             </header>
 
-            <div class="sticky top-[72px] z-40 glass-titanium border-b border-white/5">
+            <div class="sticky top-[64px] lg:top-[64px] z-40 bg-background border-b border-[#32323b] shadow-sm transition-colors duration-150">
                 <div class="max-w-7xl mx-auto">
                     <CategoryCarousel :categories="globalCategories" :active-id="category.id" />  
                     
                     <div class="px-4 lg:px-8 pb-3">
-                        <div class="flex items-center gap-2 bg-foreground/[0.03] border border-border/40 p-1 rounded-xl w-full md:w-max">
+                        <div class="flex items-center gap-2 bg-transparent border border-[#32323b] p-1 rounded-xl w-full md:w-max">
                             <div class="relative group flex-1 md:flex-none">
-                                <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="12" />
+                                <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" :size="14" :stroke-width="2" />
                                 <input v-model="searchQuery" type="text" placeholder="BUSCAR..."
-                                       class="w-full md:w-60 pl-8 pr-4 py-1.5 bg-transparent border-none text-xs font-black uppercase tracking-widest outline-none focus:ring-0" />
+                                       class="w-full md:w-60 pl-8 pr-4 py-1.5 bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none focus:ring-0 text-foreground placeholder:text-neutral-500" />
                             </div>
-                            <select v-model="sortBy" class="bg-transparent border-none text-xs font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-8">
-                                <option value="relevance">RELEVANCIA</option>
-                                <option value="price_asc">PRECIO: MENOR</option>
-                                <option value="price_desc">PRECIO: MAYOR</option>
+                            <div class="w-[1px] h-4 bg-[#32323b] hidden md:block"></div>
+                            <select v-model="sortBy" class="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer pr-8 text-foreground outline-none">
+                                <option value="relevance" class="bg-background text-foreground">RELEVANCIA</option>
+                                <option value="price_asc" class="bg-background text-foreground">PRECIO: MENOR</option>
+                                <option value="price_desc" class="bg-background text-foreground">PRECIO: MAYOR</option>
                             </select>
                         </div>
                     </div>
@@ -152,10 +144,10 @@ onUnmounted(() => {
                 <section v-show="categoryBanners.length > 0" class="mb-8 space-y-4">
                     <div v-for="banner in categoryBanners" :key="banner.id" 
                         @click="handleBannerNavigate(banner)"
-                        class="relative w-full overflow-hidden rounded-[2rem] cursor-pointer group border border-white/10 transition-all duration-700 aspect-[21/9] lg:aspect-[3/1]">
+                        class="relative w-full overflow-hidden rounded-xl cursor-pointer group border border-[#32323b] transition-all duration-150 aspect-[21/9] lg:aspect-[3/1]">
                         <img :src="banner.image_desktop_url" :alt="banner.name"
-                            class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            class="w-full h-full object-cover transition-transform duration-500 ease-f1 group-hover:scale-105" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-[#15151f]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150"></div>
                     </div>
                 </section>
 
@@ -169,14 +161,14 @@ onUnmounted(() => {
                     <SkuCard v-for="sku in allProducts" :key="sku.id" :sku="sku" class="section-animate" />
                 </div>
 
-                <div v-else-if="allProducts.length === 0 && !isFetching" class="py-40 flex flex-col items-center text-center animate-in fade-in">
-                    <PackageOpen :size="48" class="text-muted-foreground/20 mb-4" />
-                    <h2 class="text-xs font-black uppercase tracking-[0.4em] text-muted-foreground/40">Sin Existencias</h2>
+                <div v-else-if="allProducts.length === 0 && !isFetching" class="py-40 flex flex-col items-center text-center section-animate">
+                    <PackageOpen :size="48" :stroke-width="1.5" class="text-neutral-500 mb-4" />
+                    <h2 class="text-xs font-black uppercase tracking-[0.4em] text-neutral-500">Sin Existencias</h2>
                 </div>
 
                 <div ref="observerTarget" class="w-full py-12 flex justify-center">
                     <div v-show="isFetching" class="flex flex-col items-center gap-2">
-                        <Loader2 class="animate-spin text-primary/40" :size="24" />
+                        <Loader2 class="animate-spin text-primary" :size="24" :stroke-width="2" />
                     </div>
                 </div>
             </main>
@@ -185,26 +177,24 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.section-animate { animation: reveal 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
-@keyframes reveal { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-select option { background-color: #0b1221; color: white; }
-/* 1. SISTEMA PRISMÁTICO (COHERENCIA CON INDEX) */
+/* ESTRUCTURA DEL TÍTULO F1 */
 .header-standard {
     display: flex;
     align-items: flex-end;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .title-block-wrapper {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.75rem;
     flex-grow: 1;
     padding-bottom: 8px;
 }
 
+/* Base de la línea: Gris Técnico */
 .title-block-wrapper::after {
     content: '';
     position: absolute;
@@ -212,29 +202,30 @@ select option { background-color: #0b1221; color: white; }
     left: 0;
     width: 100%;
     height: 1px;
-    background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
-    opacity: 0.8;
+    background-color: #32323b;
 }
 
-/* 2. ACABADO GLASS PARA FILTROS STICKY */
-.glass-titanium {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+/* Acento F1: Rojo puro */
+.title-block-wrapper::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background-color: hsl(var(--primary));
+    z-index: 1;
 }
 
-/* 3. PURGA DE SELECTORES */
 select { background: transparent !important; }
-select option { background-color: #080808; color: white; }
 
-/* 4. ANIMACIONES AFILADAS */
+/* ANIMACIÓN AFILADA (Curva Mecánica F1) */
 .section-animate { 
-    animation: reveal 0.4s cubic-bezier(0.32, 0.72, 0, 1) both; 
+    animation: reveal 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; 
 }
 
 @keyframes reveal { 
-    from { opacity: 0; transform: translateY(15px); } 
+    from { opacity: 0; transform: translateY(10px); } 
     to { opacity: 1; transform: translateY(0); } 
 }
-
 </style>

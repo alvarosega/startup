@@ -9,36 +9,35 @@
     @apply bg-background text-foreground antialiased selection:bg-primary/30 overscroll-none;
   }
 
-  /* Forzar jerarquía de fuentes permitidas. Se bloquean tamaños inferiores a text-xs (12px) */
   html {
     font-size: 16px; 
   }
 }
 
 @layer components {
-  /* TITANIUM MATTE METÁLICO */
-  .glass-titanium {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-    backdrop-filter: blur(24px) saturate(120%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  /* FIBRA DE CARBONO Y CRISTAL (Reemplaza el Titanium Apple) */
+  .glass-carbon {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    backdrop-filter: blur(16px) saturate(120%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  .dark .glass-titanium {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+  .dark .glass-carbon {
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.8) 0%, rgba(0, 0, 0, 0.9) 100%);
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  /* SISTEMA DE TARJETAS (Product Card / SkuCard) */
+  /* SISTEMA DE TARJETAS: Bordes sutiles definidos (rounded-xl máximo) */
   .product-card {
-    @apply relative overflow-hidden bg-card rounded-3xl border border-card-border;
-    @apply transition-all duration-500 ease-ios z-0;
-    @apply shadow-apple-soft dark:shadow-none;
+    @apply relative overflow-hidden bg-card rounded-xl border border-card-border;
+    @apply transition-all duration-300 ease-f1 z-0;
+    @apply shadow-subtle dark:shadow-none;
   }
 
   @media (hover: hover) {
     .product-card:hover {
       @apply -translate-y-1 dark:border-primary/50;
-      @apply shadow-lg dark:shadow-f1-glow z-10;
+      @apply shadow-f1-glow z-10;
     }
 
     .product-card:hover .product-img {
@@ -51,24 +50,22 @@
   }
 
   .product-img {
-    @apply object-contain w-full h-full transition-transform duration-700 ease-ios;
+    @apply object-contain w-full h-full transition-transform duration-500 ease-f1;
     filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.12));
   }
 
-  /* COMPONENTES DE INTERACCIÓN BÁSICA */
+  /* BOTONES: Tipografía pesada y uppercase */
   .btn-primary {
-    @apply px-4 py-3 bg-primary text-primary-foreground font-bold rounded-xl text-sm;
-    @apply transition-all duration-200 ease-ios;
+    @apply px-4 py-3 bg-primary text-primary-foreground font-bold rounded-lg text-sm uppercase tracking-wider;
+    @apply transition-all duration-200 ease-f1;
     @apply active:scale-[0.98];
-    @apply dark:hover:shadow-f1-glow;
+    @apply hover:shadow-f1-glow;
   }
 
   .skeleton {
-    @apply animate-pulse bg-neutral-200 dark:bg-neutral-800; /* Colores más sólidos */
-    position: relative;
-    overflow: hidden;
+    @apply animate-pulse bg-neutral-200 dark:bg-neutral-800 relative overflow-hidden;
   }
-  /* UTILIDADES TÉCNICAS */
+  
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -76,7 +73,42 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .bg-f1-lines-random {
+    /* MODO CLARO: Gris titanio traslúcido que corta el blanco simulando el pulido físico del metal */
+    background-image: 
+      linear-gradient(-45deg, transparent 5%,   rgba(0, 0, 0, 0.04) 5%,   rgba(0, 0, 0, 0.04) 5.2%,  transparent 5.2%),
+      linear-gradient(-45deg, transparent 14%,  rgba(0, 0, 0, 0.06) 14%,  rgba(0, 0, 0, 0.06) 14.8%, transparent 14.8%),
+      linear-gradient(-45deg, transparent 22%,  rgba(0, 0, 0, 0.03) 22%,  rgba(0, 0, 0, 0.03) 22.3%, transparent 22.3%),
+      linear-gradient(-45deg, transparent 32%,  rgba(0, 0, 0, 0.08) 32%,  rgba(0, 0, 0, 0.08) 34%,   transparent 34%),   /* Línea gruesa grabada */
+      linear-gradient(-45deg, transparent 41%,  rgba(0, 0, 0, 0.04) 41%,  rgba(0, 0, 0, 0.04) 41.4%, transparent 41.4%),
+      linear-gradient(-45deg, transparent 49%,  rgba(0, 0, 0, 0.06) 49%,  rgba(0, 0, 0, 0.06) 50%,   transparent 50%),
+      linear-gradient(-45deg, transparent 58%,  rgba(0, 0, 0, 0.03) 58%,  rgba(0, 0, 0, 0.03) 58.2%, transparent 58.2%),
+      linear-gradient(-45deg, transparent 66%,  rgba(0, 0, 0, 0.07) 66%,  rgba(0, 0, 0, 0.07) 67.5%, transparent 67.5%),
+      linear-gradient(-45deg, transparent 75%,  rgba(0, 0, 0, 0.04) 75%,  rgba(0, 0, 0, 0.04) 75.3%, transparent 75.3%),
+      linear-gradient(-45deg, transparent 83%,  rgba(0, 0, 0, 0.08) 83%,  rgba(0, 0, 0, 0.08) 84.8%, transparent 84.8%),  /* Línea gruesa grabada */
+      linear-gradient(-45deg, transparent 90%,  rgba(0, 0, 0, 0.03) 90%,  rgba(0, 0, 0, 0.03) 90.2%, transparent 90.2%),
+      linear-gradient(-45deg, transparent 96%,  rgba(0, 0, 0, 0.05) 96%,  rgba(0, 0, 0, 0.05) 96.6%, transparent 96.6%);
+    background-size: 100% 100%;
+  }
+
+  /* MODO OSCURO: Se mantiene intacto con tu gris técnico #32323b sobre fondo #15151f */
+  .dark .bg-f1-lines-random {
+    background-image: 
+      linear-gradient(-45deg, transparent 5%,   #32323b 5%,   #32323b 5.2%,  transparent 5.2%),
+      linear-gradient(-45deg, transparent 14%,  #32323b 14%,  #32323b 14.8%, transparent 14.8%),
+      linear-gradient(-45deg, transparent 22%,  #32323b 22%,  #32323b 22.3%, transparent 22.3%),
+      linear-gradient(-45deg, transparent 32%,  #32323b 32%,  #32323b 34%,   transparent 34%),
+      linear-gradient(-45deg, transparent 41%,  #32323b 41%,  #32323b 41.4%, transparent 41.4%),
+      linear-gradient(-45deg, transparent 49%,  #32323b 49%,  #32323b 50%,   transparent 50%),
+      linear-gradient(-45deg, transparent 58%,  #32323b 58%,  #32323b 58.2%, transparent 58.2%),
+      linear-gradient(-45deg, transparent 66%,  #32323b 66%,  #32323b 67.5%, transparent 67.5%),
+      linear-gradient(-45deg, transparent 75%,  #32323b 75%,  #32323b 75.3%, transparent 75.3%),
+      linear-gradient(-45deg, transparent 83%,  #32323b 83%,  #32323b 84.8%, transparent 84.8%),
+      linear-gradient(-45deg, transparent 90%,  #32323b 90%,  #32323b 90.2%, transparent 90.2%),
+      linear-gradient(-45deg, transparent 96%,  #32323b 96%,  #32323b 96.6%, transparent 96.6%);
+  }
 }
+
 .skeleton::after {
   content: "";
   position: absolute;
@@ -88,23 +120,45 @@
       rgba(255, 255, 255, 0.05),
       transparent
   );
-  animation: shimmer 2s infinite;
+  animation: shimmer 1.5s infinite;
 }
+
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
 
 @layer utilities {
   .shadow-f1-glow {
-    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
+    box-shadow: 0 0 15px -3px hsl(var(--primary) / 0.5);
   }
   
-  .ease-ios {
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Curva de aceleración agresiva (mecánica) */
+  .ease-f1 {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
-/* CORRECCIÓN DE CONTRASTE GLOBAL PARA ICONOS */
 :deep(svg) {
-  stroke-width: 2.5; 
+  stroke-width: 2; /* 2.5 rompe la limpieza de la interfaz en alta densidad de datos */
+}
+
+.du-cyber-canvas {
+  position: relative;
+  background-color: #ffffff; /* Modo Claro: Blanco Puro */
+  transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modo Oscuro: Fondo asfalto exacto sin mallas ni rejillas */
+.dark .du-cyber-canvas {
+  background-color: #15151e;
+  background-image: none;
+}
+
+/* Forzar la eliminación de cualquier residuo de malla antigua */
+.du-cyber-canvas::before,
+.du-cyber-canvas::after,
+.dark .du-cyber-canvas::before,
+.dark .du-cyber-canvas::after {
+  display: none !important;
+  content: none !important;
 }

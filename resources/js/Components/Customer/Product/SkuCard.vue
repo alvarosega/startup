@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { Plus, Minus, Zap, Heart, Loader2, Trash2, LayoutGrid, CheckCircle2 } from 'lucide-vue-next';
+import { Plus, Minus, Zap, Heart, Loader2, Trash2, CheckCircle2 } from 'lucide-vue-next';
 
 const props = defineProps({
     sku: { type: Object, required: true },
@@ -65,19 +65,14 @@ const toggleFavorite = (e) => {
 };
 
 const cartItem = computed(() => {
-    // 1. Si no hay SKU o el carrito aún no carga (defer), abortar.
     if (!props.sku || !page.props.cart) return null;
-    
-    // 2. Extraer los items con fallback por si llegan envueltos o como objeto
     const source = page.props.cart.items;
     const items = Array.isArray(source) ? source : (source?.data || Object.values(source || {}));
-    
-    // 3. Búsqueda estricta
     return items.find(item => String(item.sku_id) === String(props.sku.id));
 });
+
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
 
-// RECTIFICACIÓN: Lectura correcta de props.sku.final_price
 const currentPrice = computed(() => {
     return cartItem.value ? Number(cartItem.value.unit_price) : Number(props.sku.final_price);
 });
@@ -94,7 +89,7 @@ const hasDiscount = computed(() => currentListPrice.value > currentPrice.value);
 const isProcessing = ref(false); 
 
 const handleAdd = () => {
-    if (props.loading || isProcessing.value) return;
+    if (props.loading || isProcessing.value || props.sku.stock <= 0) return;
     
     isProcessing.value = true;
     router.post(route('customer.cart.upsert'), {
@@ -104,7 +99,6 @@ const handleAdd = () => {
     }, { 
         preserveScroll: true, 
         preserveState: true,
-        // CIRUGÍA: Solo pedimos que el servidor nos devuelva el carrito y los mensajes flash
         only: ['cart', 'flash'], 
         onError: () => { isProcessing.value = false; },
         onFinish: () => { isProcessing.value = false; }
@@ -122,7 +116,6 @@ const updateQty = (delta) => {
     const options = {
         preserveScroll: true,
         preserveState: true,
-        // CIRUGÍA: Evitamos que se recarguen los productos y skeletons
         only: ['cart', 'flash'],
         onFinish: () => isProcessing.value = false 
     };
@@ -135,9 +128,6 @@ const updateQty = (delta) => {
         }, options);
     }
 };
-const dynamicStyle = computed(() => ({
-    '--local-sku-color': props.sku?.bg_color || 'var(--primary)',
-}));
 
 const isSuggestionMet = computed(() => {
     return props.suggestedQuantity > 0 && quantity.value >= props.suggestedQuantity;
@@ -145,174 +135,157 @@ const isSuggestionMet = computed(() => {
 
 const goToProduct = () => {
     if (props.loading || !props.sku) return;
-    router.visit(route('customer.product.show', { id: props.sku.id }));
+    // CORRECCIÓN: Cambiar props.sku.id por props.sku.product_id
+    router.visit(route('customer.product.show', { id: props.sku.product_id }));
 };
+
+// --- ALGORITMO DE DEGRADADO LINEAL AL 15% ---
+const getSkuStyle = computed(() => {
+    if (!props.sku) return {};
+    
+    let cleanHex = props.sku.bg_color ? props.sku.bg_color.replace('#', '') : '32323b';
+    
+    if (cleanHex.length === 3) {
+        cleanHex = cleanHex.split('').map(c => c + c).join('');
+    }
+
+    const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
+    const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
+    const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
+
+    const dr = Math.floor(r * 0.15);
+    const dg = Math.floor(g * 0.15);
+    const db = Math.floor(b * 0.15);
+
+    const darkHex = [dr, dg, db].map(x => x.toString(16).padStart(2, '0')).join('');
+
+    return {
+        background: `linear-gradient(to bottom, #${cleanHex} 0%, #${darkHex} 100%)`
+    };
+});
 </script>
 
 <template>
     <div v-if="!loading && sku"
         @click="goToProduct"
-        :style="dynamicStyle"
-       class="glass-chassis group relative flex flex-col justify-between min-h-[400px] overflow-hidden cursor-pointer transition-transform duration-300 active:scale-[0.97] outline-none"
-        :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': quantity > 0 || isActive }">
+        :style="getSkuStyle"
+        class="group relative flex flex-col justify-between min-h-[400px] border border-[#32323b] rounded-xl overflow-hidden cursor-pointer outline-none transition-transform duration-150 ease-f1 active:scale-95"
+        :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-[#15151f]': quantity > 0 || isActive }">
         
         <button @click.stop="toggleFavorite"
-                class="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-background/50 backdrop-blur-md border border-border/50 transition-all duration-300 hover:scale-110 hover:bg-background/80 active:scale-90 shadow-sm">
+                class="absolute top-3 right-3 z-30 p-2 bg-[#15151f]/80 backdrop-blur-md border border-[#32323b] rounded-md transition-all duration-150 hover:bg-[#15151f] active:scale-95 shadow-sm outline-none">
             <Heart :size="16" 
-                :stroke-width="isFavorite ? 0 : 2.5"
-                :class="isFavorite ? 'text-primary fill-primary drop-shadow-md' : 'text-foreground/70'" />
+                :stroke-width="isFavorite ? 0 : 1.5"
+                :class="isFavorite ? 'text-primary fill-primary' : 'text-white'" />
         </button>
 
-        <div class="p-4 pb-0 flex flex-col relative z-10">
-            <div class="flex items-start justify-between mb-4">
-                <span class="text-xs font-black uppercase tracking-[0.2em] text-foreground/50 line-clamp-1 pr-8">
+        <div class="p-4 pb-0 flex flex-col relative z-10 flex-1">
+            <div class="flex items-start justify-between mb-2">
+                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-white/60 line-clamp-1 pr-10">
                     {{ sku.brand_name || 'DIGITAL UNIT' }}
                 </span>
                 
-                <div v-if="sku.stock <= 5 && sku.stock > 0" 
-                    class="flex items-center gap-1 bg-accent/20 px-2 py-0.5 rounded-lg border border-accent/30">
-                    <Zap :size="10" class="text-accent-foreground fill-accent-foreground animate-pulse" />
-                    <span class="text-[10px] font-black text-accent-foreground uppercase tracking-widest">Low Stock</span>
+                <div v-if="sku.stock <= 5 && sku.stock > 0" class="flex items-center gap-1 bg-[#15151f] px-1.5 py-0.5 rounded border border-yellow-500/50">
+                    <Zap :size="10" class="text-yellow-500 fill-yellow-500" />
+                    <span class="text-[8px] font-black text-yellow-500 uppercase tracking-widest">Low Stock</span>
                 </div>
-                <div v-else-if="sku.stock <= 0" 
-                     class="bg-destructive/10 px-2 py-1 rounded border border-destructive/20 shadow-sm">
-                    <span class="text-[8px] font-black text-destructive uppercase tracking-widest">Agotado</span>
+                <div v-else-if="sku.stock <= 0" class="bg-red-500/20 px-1.5 py-0.5 rounded border border-red-500/50">
+                    <span class="text-[8px] font-black text-white uppercase tracking-widest">Agotado</span>
                 </div>
             </div>
 
-            <div class="aspect-square relative rounded-[1.5rem] overflow-hidden mb-4 sku-stage-bg p-5 flex items-center justify-center transition-colors duration-500">
-                
+            <div class="relative w-full h-[180px] mb-4 flex items-center justify-center p-2 rounded-lg">
                 <img :src="sku.image" 
-                    class="relative z-20 w-full h-full object-contain transition-transform duration-700 ease-out group-hover:scale-110 drop-shadow-[0_20px_25px_rgba(0,0,0,0.6)]"
+                    class="absolute inset-0 w-full h-full object-contain p-4 transition-transform duration-500 ease-f1 group-hover:scale-110 drop-shadow-hardware z-20"
                     :alt="sku.name">
                 
-                <div v-if="hasDiscount" class="absolute top-3 left-3 z-30">
-                    <span class="bg-primary text-primary-foreground text-[10px] font-black px-2.5 py-1 rounded-lg shadow-xl uppercase italic tracking-tighter">
+                <div v-if="hasDiscount" class="absolute top-2 left-2 z-30">
+                    <span class="bg-primary text-white text-[10px] font-black px-2 py-1 rounded shadow-sm uppercase tracking-tight border border-[#15151f]/20">
                         -{{ sku.discount_percentage || ((currentListPrice - currentPrice) / currentListPrice * 100).toFixed(0) }}%
                     </span>
                 </div>
 
-                <div v-if="sku.stock <= 0" class="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none"></div>
+                <div v-if="sku.stock <= 0" class="absolute inset-0 bg-black/60 z-40 flex items-center justify-center pointer-events-none rounded-lg"></div>
 
-                <div v-if="suggestedQuantity > 0" 
-                    class="absolute -top-1 -left-1 z-30 flex flex-col items-start gap-1">
-                    <span class="bg-accent text-accent-foreground text-[8px] font-black px-2 py-1 rounded-br-xl shadow-lg uppercase tracking-tighter border-b border-r border-white/20">
+                <div v-if="suggestedQuantity > 0" class="absolute -top-1 -left-1 z-30 flex flex-col items-start gap-1">
+                    <span class="bg-[#15151f] text-white text-[8px] font-black px-2 py-1 rounded-br-lg shadow-lg uppercase tracking-tighter border-b border-r border-[#32323b]">
                         Sugerido: {{ suggestedQuantity }}u
                     </span>
-                    <div v-if="isSuggestionMet" class="ml-1 bg-emerald-500 text-white p-0.5 rounded-full shadow-lg border-2 border-white dark:border-neutral-900 animate-in zoom-in">
-                        <CheckCircle2 :size="10" stroke-width="4" />
+                    <div v-if="isSuggestionMet" class="ml-1 bg-emerald-500 text-white p-0.5 rounded-full shadow-lg border border-[#15151f]">
+                        <CheckCircle2 :size="10" stroke-width="3" />
                     </div>
                 </div>
             </div>
 
-            <div class="flex-1 flex flex-col">
+            <div class="flex-1 flex flex-col justify-end">
                 <div v-if="currentUpsell && (currentUpsell.next_price || currentUpsell.potential_price)" class="mb-3">
-                    <div class="inline-flex items-center gap-1.5 bg-accent text-accent-foreground px-2.5 py-1 rounded-md shadow-sm border border-accent/20">
-                        <Zap :size="10" class="fill-current" />
-                        <span class="text-[8.5px] font-black uppercase tracking-widest">
+                    <div class="inline-flex items-center gap-1 bg-[#15151f] text-white px-2 py-1 rounded shadow-sm border border-[#32323b]">
+                        <Zap :size="10" class="fill-current text-primary" />
+                        <span class="text-[8px] font-black uppercase tracking-widest">
                             Bs {{ formatPrice(currentUpsell.potential_price || currentUpsell.next_price) }} DESDE {{ currentUpsell.needed_quantity || currentUpsell.next_qty }} UNID
                         </span>
                     </div>
                 </div>
 
-                <h3 class="text-xs font-black uppercase leading-snug tracking-tight text-foreground line-clamp-2 mb-4">
+                <h3 class="text-[11px] font-black uppercase leading-tight tracking-tight text-white line-clamp-2 mb-3">
                     {{ sku.name }}
                 </h3>
             </div>
         </div>
 
-        <div class="p-4 pt-0 mt-auto relative z-10 space-y-4">
-            
+        <div class="px-4 pb-3 relative z-10">
             <div class="flex flex-col">
-                <span v-if="hasDiscount" class="text-xs font-bold text-muted-foreground line-through leading-none font-mono mb-1">
+                <span v-if="hasDiscount" class="text-[10px] font-bold text-red-500 line-through leading-none font-mono mb-0.5">
                     {{ formatPrice(currentListPrice) }}
                 </span>
                 <div class="flex items-baseline gap-1">
-                    <span class="text-xs font-black text-foreground/50 uppercase">Bs</span>
-                    <span class="text-3xl font-black tracking-tighter text-foreground font-mono leading-none">
+                    <span class="text-[10px] font-black text-white/70 uppercase">Bs</span>
+                    <span class="text-2xl font-black tracking-tighter text-white font-mono leading-none">
                         {{ formatPrice(currentPrice) }}
                     </span>
                 </div>
             </div>
+        </div>
 
-            <div class="relative h-12 w-full">
-                <button v-if="quantity === 0" 
-                        @click.stop="handleAdd"
-                        :disabled="sku.stock <= 0 || isProcessing"
-                        class="btn-primary w-full h-12 flex items-center justify-center gap-2 !rounded-2xl">
-                    <Loader2 v-if="isProcessing" :size="16" class="animate-spin" />
-                    <Plus v-else :size="18" stroke-width="4" />
-                    <span class="text-xs font-black uppercase tracking-widest pt-0.5">Añadir</span>
+        <div class="w-full h-12 mt-auto border-t border-[#32323b] bg-[#15151f] relative z-20">
+            
+            <button v-if="quantity === 0" 
+                    @click.stop="handleAdd"
+                    :disabled="sku.stock <= 0 || isProcessing"
+                    class="w-full h-full flex items-center justify-center gap-2 bg-transparent text-white hover:bg-primary transition-colors disabled:opacity-50 disabled:hover:bg-transparent outline-none focus:outline-none group">
+                <Loader2 v-if="isProcessing" :size="16" class="animate-spin" />
+                <Plus v-else :size="18" :stroke-width="2" class="group-hover:scale-110 transition-transform" />
+                <span class="text-[11px] font-black uppercase tracking-[0.2em] pt-0.5">Añadir</span>
+            </button>
+
+            <div v-else @click.stop class="w-full h-full flex items-center justify-between px-2 bg-primary">
+                
+                <button @click.stop="updateQty(-1)" 
+                        :disabled="isProcessing" 
+                        class="w-10 h-8 flex items-center justify-center bg-black/20 hover:bg-black/40 rounded transition-colors active:scale-95 outline-none focus:outline-none">
+                    <Trash2 v-if="quantity === 1" :size="14" :stroke-width="2" class="text-white" />
+                    <Minus v-else :size="16" :stroke-width="2" class="text-white" />
                 </button>
 
-                <div v-else @click.stop 
-                     class="w-full h-full bg-foreground/5 backdrop-blur-md rounded-[1rem] border border-border/40 flex items-center justify-between px-1.5 shadow-inner">
-                    
-                    <button @click="updateQty(-1)" 
-                            :disabled="isProcessing" 
-                            class="w-10 h-9 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-colors group/btn">
-                        <Trash2 v-if="quantity === 1" :size="16" stroke-width="2.5" class="text-foreground group-hover/btn:text-destructive transition-colors" />
-                        <Minus v-else :size="16" stroke-width="4" class="text-foreground" />
-                    </button>
-
-                    <div class="flex flex-col items-center justify-center">
-                        <Loader2 v-if="isProcessing" :size="14" class="animate-spin text-foreground/50" />
-                        <span v-else class="font-mono font-black text-foreground text-base leading-none">{{ quantity }}</span>
-                    </div>
-
-                    <button @click="updateQty(1)" 
-                            :disabled="isProcessing || quantity >= sku.stock" 
-                            class="w-10 h-9 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-colors disabled:opacity-20">
-                        <Plus :size="16" stroke-width="4" class="text-foreground" />
-                    </button>
+                <div class="flex flex-col items-center justify-center">
+                    <Loader2 v-if="isProcessing" :size="14" class="animate-spin text-white" />
+                    <span v-else class="font-mono font-black text-white text-base leading-none">{{ quantity }}</span>
                 </div>
+
+                <button @click.stop="updateQty(1)" 
+                        :disabled="isProcessing || quantity >= sku.stock" 
+                        class="w-10 h-8 flex items-center justify-center bg-black/20 hover:bg-black/40 rounded transition-colors active:scale-95 disabled:opacity-40 outline-none focus:outline-none">
+                    <Plus :size="16" :stroke-width="2" class="text-white" />
+                </button>
             </div>
         </div>
     </div>
 
-    <div v-else class="aspect-[3/5] bg-secondary border border-border/50 rounded-[1.5rem] animate-pulse relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
-    </div>
+    <div v-else class="min-h-[400px] bg-[#15151f] border border-[#32323b] rounded-xl animate-pulse relative overflow-hidden"></div>
 </template>
 
 <style scoped>
-/* REEMPLAZAR: Chassis de Cristal */
-.glass-chassis {
-    @apply product-card flex flex-col justify-between h-full w-full;
-    background-color: hsl(var(--card) / 0.8);
-    backdrop-filter: blur(20px);
-}
 .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-
-.dark .glass-chassis {
-    background-color: hsl(var(--background) / 0.6);
-    border-color: hsl(var(--border) / 0.6);
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.4);
-}
-
-/* 2. PUNTO FOCAL INDEPENDIENTE */
-/* REEMPLAZAR EN <style scoped> */
-.sku-stage-bg {
-    background-color: var(--local-sku-color);
-    background-image: radial-gradient(
-        circle at 50% 50%, 
-        rgba(255, 255, 255, 0.15) 0%, 
-        transparent 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    /* Sombra suave Apple */
-    box-shadow: var(--shadow-apple-soft);
-}
-
-.dark .sku-stage-bg {
-    background-image: radial-gradient(
-        circle at 50% 50%, 
-        var(--local-sku-color) 0%, 
-        rgba(0, 0, 0, 0.4) 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-
+.ease-f1 { transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+.drop-shadow-hardware { filter: drop-shadow(0 15px 15px rgba(0,0,0,0.5)); }
 </style>

@@ -50,30 +50,33 @@ export default {
         ring: 'hsl(var(--ring) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+        /* Se reemplaza Plus Jakarta por Orbitron */
+        sans: ['"Orbitron"', 'sans-serif'],
       },
       fontWeight: {
         normal: '400',
+        medium: '500',
         bold: '700',
         black: '900',
       },
       borderRadius: {
-        'xl': '12px',    // Para interactivos menores
-        '3xl': '24px',   // Para estructuras mayores
+        /* Radios ajustados para ser sutiles */
+        'lg': '8px',     // Interacciones menores
+        'xl': '12px',    // Tarjetas principales
       },
       zIndex: {
         '0': '0',
-        '10': '10',     // Elevación Hover
-        '40': '40',     // Navegación sticky
-        '50': '50',     // Header global
-        '100': '100',   // Modales / Interrupciones
+        '10': '10',     
+        '40': '40',     
+        '50': '50',     
+        '100': '100',   
       },
       boxShadow: {
-        'apple-soft': '0 8px 30px rgba(0, 0, 0, 0.04)',
-        'f1-glow': '0 0 20px -5px hsl(var(--primary) / 0.4)',
+        'subtle': '0 4px 15px rgba(0, 0, 0, 0.05)',
+        'f1-glow': '0 0 15px -3px hsl(var(--primary) / 0.5)',
       },
       transitionTimingFunction: {
-        'ios': 'cubic-bezier(0.32, 0.72, 0, 1)',
+        'f1': 'cubic-bezier(0.16, 1, 0.3, 1)',
       }
     },
   },

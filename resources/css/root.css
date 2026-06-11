@@ -1,5 +1,5 @@
 :root {
-  /* ESCALA NEUTRAL PURA (Saturación 0%) */
+  /* ESCALA NEUTRAL (Gris asfalto/carbono) */
   --neutral-50: 0 0% 98%;
   --neutral-100: 0 0% 95%;
   --neutral-200: 0 0% 90%;
@@ -10,17 +10,17 @@
   --neutral-700: 0 0% 25%;
   --neutral-800: 0 0% 15%;
   --neutral-900: 0 0% 10%;
-  --neutral-950: 0 0% 4%;
+  --neutral-950: 240 5% 6%; /* Ligeramente más denso para contrastar el rojo */
 
-  /* ESCALA PRIMARIA (Naranja Terracota - Matiz 24) */
-  --primary-50: 24 95% 96%;
-  --primary-100: 24 95% 90%;
-  --primary-500: 24 95% 55%;
-  --primary-600: 24 95% 45%;
-  --primary-900: 24 95% 25%;
-  --primary-950: 24 95% 15%;
+  /* ESCALA PRIMARIA (Rojo absoluto F1 - Matiz 4, Sat 100) */
+  --primary-50: 4 100% 96%;
+  --primary-100: 4 100% 90%;
+  --primary-500: 4 100% 50%; /* #FF1801 */
+  --primary-600: 4 100% 40%;
+  --primary-900: 4 100% 20%;
+  --primary-950: 4 100% 12%;
 
-  /* ESCALA DESTRUCTIVA (Rojo Independiente - Matiz 0) */
+  /* ESCALA DESTRUCTIVA */
   --destructive-50: 0 100% 97%;
   --destructive-500: 0 100% 50%;
   --destructive-700: 0 100% 35%;
@@ -39,7 +39,7 @@
 
   --primary: var(--primary-500);
   --primary-foreground: 0 0% 100%;
-  --primary-text-aaa: 24 95% 32%;
+  --primary-text-aaa: 4 100% 35%;
   
   --secondary: var(--neutral-100);
   --secondary-foreground: var(--neutral-900);
@@ -78,7 +78,7 @@
 
   --primary: var(--primary-500);
   --primary-foreground: 0 0% 100%;
-  --primary-text-aaa: 24 100% 75%;
+  --primary-text-aaa: 4 100% 70%;
 
   --secondary: var(--neutral-800);
   --secondary-foreground: var(--neutral-50);

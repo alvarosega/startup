@@ -6,7 +6,6 @@ import {
     LayoutGrid, Zap, Bookmark, PackageSearch
 } from 'lucide-vue-next';
 
-// Layout y Componentes
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import CategoryCarousel from '@/Components/Customer/Category/CategoryCarousel.vue';
 import FeaturedProductCarousel from '@/Components/Customer/Featured/FeaturedProductCarousel.vue'; 
@@ -20,7 +19,7 @@ const props = defineProps({
     brandBanners: Object,
     bundleBanners: Object, 
     templateBundles: Object, 
-    atomicBundles: Object, // Modificado de 'bundlesData' para coincidir con tu ShopController
+    atomicBundles: Object,
     favorites: Array,
 });
 const page = usePage();
@@ -35,144 +34,131 @@ onMounted(() => {
 });
 const featuredList = computed(() => props.featuredProducts?.data || []); 
 const brandAds = computed(() => props.brandBanners?.data || []);
-const bundlesList = computed(() => props.atomicBundles?.data || []); // Cambio de nombre
+const bundlesList = computed(() => props.atomicBundles?.data || []);
 const editablePacks = computed(() => props.templateBundles?.data || []);
-// --- SISTEMA DE TELEMETRÍA Y DIAGNÓSTICO (HOME) ---
+
 watch(() => props.brandBanners, (newBanners) => {
     console.group('▼ DEFER: BANNERS DE MARCA RECIBIDOS');
-    console.log('Estado del prop:', newBanners === undefined ? 'PENDING (Skeleton activo)' : 'RESOLVED');
-    console.log('Arreglo crudo:', JSON.parse(JSON.stringify(newBanners)));
-    console.log('Longitud calculada:', newBanners?.data?.length || newBanners?.length || 0);
+    console.log('Estado:', newBanners === undefined ? 'PENDING' : 'RESOLVED');
     console.groupEnd();
 }, { deep: true, immediate: true });
 
 watch(() => props.featuredProducts, (newFeatured) => {
     console.group('▼ DEFER: PRODUCTOS DESTACADOS RECIBIDOS');
-    console.log('Cantidad en lista:', newFeatured?.data?.length || newFeatured?.length || 0);
+    console.log('Cantidad:', newFeatured?.data?.length || newFeatured?.length || 0);
     console.groupEnd();
 }, { deep: true, immediate: true });
-
-console.log('► PANTALLA DE INICIO (INDEX) CONFIGURADA. MONITOREANDO PROPS DEFER...');
 </script>
 
 <template>
     <ShopLayout>
-        <div class="w-full min-h-screen pb-24 transition-colors duration-500 overflow-x-hidden relative z-10">
+        <div class="w-full min-h-screen pb-20 relative z-10">
             
             <Head title="Digital Unit | Abastecimiento" />
 
-            <div class="relative space-y-8 pt-0"> 
+            <div class="relative space-y-10 pt-4"> 
                 
                 <section v-show="editablePacks.length > 0 || !isMounted" class="section-reveal">
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
+                    <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">
-                                <Sparkles :size="16" class="text-black dark:text-white/60" />
+                                <Sparkles :size="14" class="text-neutral-500" />
                                 <h2>Packs</h2>
                             </div>
-                            <Link :href="route('customer.index')" class="link-all">
-                                Todo <ChevronRight :size="12" />
+                            <Link :href="route('customer.index')" class="link-all group">
+                                Todo <ChevronRight :size="12" class="group-hover:translate-x-1 transition-transform duration-150 ease-f1" />
                             </Link>
                         </div>
-                    </div>
-                    <div class="w-full">
-                        <EditableBundleCarousel :bundles="editablePacks" :loading="props.templateBundles === undefined" />
+                        <div class="w-full">
+                            <EditableBundleCarousel :bundles="editablePacks" :loading="props.templateBundles === undefined" />
+                        </div>
                     </div>
                 </section>
 
-                <section v-show="categories.length > 0 || !isMounted" class="section-reveal">
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
+                <section v-show="categories.length > 0 || !isMounted" class="section-reveal" style="animation-delay: 50ms;">
+                    <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">
-                                <LayoutGrid :size="16" class="text-black dark:text-white/60" />
+                                <LayoutGrid :size="14" class="text-neutral-500" />
                                 <h2>Categorías</h2>
                             </div>
                         </div>
-                        <div class="content-shadow">
+                        <div class="w-full">
                             <CategoryCarousel :categories="categories" :loading="page.props.categories_menu === undefined" />
                         </div>
                     </div>
                 </section>
 
-                <section v-show="featuredList.length > 0 || !isMounted" class="section-reveal">
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
+                <section v-show="featuredList.length > 0 || !isMounted" class="section-reveal" style="animation-delay: 100ms;">
+                    <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">
-                                <Star :size="16" class="text-black dark:text-white/60" />
+                                <Star :size="14" class="text-neutral-500" />
                                 <h2>Destacados</h2>
                             </div>
                         </div>
-                        <div class="content-shadow">
+                        <div class="w-full">
                             <FeaturedProductCarousel :products="featuredList" :loading="props.featuredProducts === undefined" />
                         </div>
                     </div>
                 </section>
 
-                <section v-show="props.brandBanners === undefined || brandAds.length > 0" class="section-reveal">
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
+                <section v-show="props.brandBanners === undefined || brandAds.length > 0" class="section-reveal" style="animation-delay: 150ms;">
+                    <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">
-                                <Tag :size="16" class="text-black dark:text-white/60" />
+                                <Tag :size="14" class="text-neutral-500" />
                                 <h2>Marcas</h2>
                             </div>
                         </div>
-                        <div class="content-shadow">
+                        <div class="w-full">
                             <BrandHeroWidget :banners="brandAds" :loading="props.brandBanners === undefined" />
                         </div>
                     </div>
                 </section>
 
-                <section v-if="isMounted" class="section-reveal py-4">
-                    <div class="px-6 lg:px-8 max-w-7xl mx-auto">
+                <section v-if="isMounted" class="section-reveal py-4" style="animation-delay: 200ms;">
+                    <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <FavoritesSection :favorites="favorites" />
                     </div>
                 </section>
 
-                </div>
+            </div>
         </div>
     </ShopLayout>
 </template>
+
 <style scoped>
-/* 1. ENCABEZADO: Limpieza de colisiones */
 .header-standard {
     display: flex;
-    /* Cambiamos a baseline para que el texto de 'Todo' se alinee con la base del título */
     align-items: baseline; 
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
-/* 2. TÍTULO Y LÍNEA: Aseguramos que no empujen al link 'Todo' */
 .title-block-wrapper {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.85rem;
-    /* El título ocupa el espacio disponible pero respeta al vecino */
+    gap: 0.75rem;
     flex: 1; 
     min-width: 0; 
     padding-bottom: 8px;
-    border-bottom: 1px solid transparent;
 }
 
 .title-block-wrapper h2 {
-    /* REGLA MAESTRA: 12px mínimo */
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.4em;
-    color: theme('colors.black');
+    letter-spacing: 0.25em;
+    color: theme('colors.foreground');
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.dark .title-block-wrapper h2 {
-    color: theme('colors.white');
-}
-
-/* Línea arcoíris corregida para no pisar el layout */
+/* Subrayado técnico sólido (rojo F1 o neutral) sin neones */
 .title-block-wrapper::after {
     content: '';
     position: absolute;
@@ -180,36 +166,44 @@ console.log('► PANTALLA DE INICIO (INDEX) CONFIGURADA. MONITOREANDO PROPS DEFE
     left: 0;
     width: 100%;
     height: 1px;
-    background: linear-gradient(to right, #ff0000, #00ff00, #8b00ff);
-    opacity: 0.5;
+    background-color: theme('colors.border');
 }
 
-/* 3. ENLACE 'TODO': Hardware Premium */
+.title-block-wrapper::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 2px;
+    background-color: hsl(var(--primary));
+    z-index: 1;
+}
+
 .link-all {
-    flex-shrink: 0; /* Evita que el título lo aplaste */
-    font-size: 12px;
+    flex-shrink: 0; 
+    font-size: 10px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.2em;
     color: theme('colors.neutral.500');
     display: flex;
     align-items: center;
     gap: 4px;
-    transition: all 0.3s var(--ease-ios);
+    transition: color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .link-all:hover {
     color: hsl(var(--primary));
-    transform: translateX(4px);
 }
 
-/* 4. ANIMACIÓN DE REVELADO */
+/* Animación rápida y mecánica */
 .section-reveal {
-    animation: reveal 0.8s cubic-bezier(0.32, 0.72, 0, 1) both;
+    animation: reveal 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes reveal {
-    from { opacity: 0; transform: translateY(15px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
