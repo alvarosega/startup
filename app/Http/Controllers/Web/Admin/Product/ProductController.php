@@ -32,12 +32,15 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
         
         $products = $listAction->execute($request);
+        $formData = app(GetProductFormDataAction::class)->execute();
+
+        $formData['branches'] = \App\Models\Branch::getMinimalList();
     
         return Inertia::render('Admin/Products/Index', [
             'products'   => ProductResource::collection($products),
             'filters'    => $request->only(['search', 'category', 'brand', 'status']),
             'stats'      => $statsAction->execute(),
-            'options'    => app(GetProductFormDataAction::class)->execute(),
+            'options'    => $formData,
             'can_manage' => $request->user($this->guard)->can('create', Product::class),
         ]);
     }

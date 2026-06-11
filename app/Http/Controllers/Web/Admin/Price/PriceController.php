@@ -1,44 +1,48 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\Price;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Branch, Price};
-use App\Actions\Admin\Price\{GetPricingMatrixAction, UpsertPriceAction, DeletePriceAction};
+use App\Models\{Sku, Price};
+use App\Actions\Admin\Price\{GetPricesBySkuAction, UpsertPriceAction, DeletePriceAction};
 use App\DTOs\Admin\Price\PriceData;
 use App\Http\Requests\Admin\Price\StorePriceRequest;
-use App\Http\Resources\Admin\Price\PricingMatrixResource;
-use Illuminate\Http\{Request, RedirectResponse};
-use Inertia\{Inertia, Response as InertiaResponse};
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
 class PriceController extends Controller
 {
     private string $guard = 'super_admin';
 
-    public function index(Request $request, GetPricingMatrixAction $action): InertiaResponse
+    public function show(Sku $sku, GetPricesBySkuAction $action): JsonResponse
     {
-        return Inertia::render('Admin/Prices/Index', [
-            'products' => PricingMatrixResource::collection($action->execute($request)),
-            'branches' => Branch::active()->get(['id', 'name']),
-            'filters'  => $request->only(['search', 'branch_id'])
+        return response()->json([
+            'prices' => $action->execute($sku)
         ]);
     }
 
-    public function store(StorePriceRequest $request, UpsertPriceAction $action): RedirectResponse
+    public function store(StorePriceRequest $request, UpsertPriceAction $action): JsonResponse
     {
-        $adminId = Auth::guard($this->guard)->id();
+        $adminId = (string) Auth::guard($this->guard)->id();
         $dto = PriceData::fromRequest($request, $adminId);
 
-        $action->execute($dto);
+        $price = $action->execute($dto);
 
-        return back()->with('success', 'Estrategia de precio inyectada al motor.');
+        return response()->json([
+            'success' => true,
+            'price'   => $price
+        ]);
     }
 
-    public function destroy(Price $price, DeletePriceAction $action): RedirectResponse
+    public function destroy(Price $price, DeletePriceAction $action): JsonResponse
     {
-        $adminId = Auth::guard($this->guard)->id();
+        $adminId = (string) Auth::guard($this->guard)->id();
         $action->execute($price, $adminId);
         
-        return back()->with('success', 'Regla de precio anulada.');
+        return response()->json([
+            'success' => true
+        ]);
     }
 }

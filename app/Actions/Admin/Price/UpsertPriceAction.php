@@ -1,10 +1,12 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Price;
 
 use App\Models\Price;
 use App\DTOs\Admin\Price\PriceData;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache; // <--- LA LEY: IMPORTAR CACHE
 
 class UpsertPriceAction
 {
@@ -17,13 +19,15 @@ class UpsertPriceAction
         'staff'       => 6,
     ];
 
-    public function execute(PriceData $dto): void
+    public function execute(PriceData $dto): Price
     {
-        DB::transaction(function () use ($dto) {
+        return DB::transaction(function () use ($dto) {
             $existing = Price::where('sku_id', $dto->skuId)
                 ->where('branch_id', $dto->branchId)
                 ->where('type', $dto->type)
+                ->where('deleted_epoch', 0)
                 ->where(fn($q) => $q->whereNull('valid_to')->orWhere('valid_to', '>', now()))
+                ->lockForUpdate()
                 ->get();
 
             foreach ($existing as $price) {
@@ -31,23 +35,19 @@ class UpsertPriceAction
                 $price->delete();
             }
 
-            Price::create([
+            return Price::create([
                 'sku_id'        => $dto->skuId,
                 'branch_id'     => $dto->branchId,
                 'type'          => $dto->type,
                 'list_price'    => $dto->listPrice,
                 'final_price'   => $dto->finalPrice,
                 'min_quantity'  => $dto->minQuantity,
-                'priority'      => self::PRIORITY_MAP[$dto->type],
+                'priority'      => self::PRIORITY_MAP[$dto->type] ?? 1,
                 'valid_from'    => $dto->validFrom,
                 'valid_to'      => $dto->validTo,
                 'created_by_id' => $dto->adminId,
                 'updated_by_id' => $dto->adminId,
             ]);
         });
-
-        // LA LEY: Destruir la caché obsoleta del catálogo/matriz
-        Cache::forget('admin_products_list'); 
-        // Si en GetPricingMatrixAction usaste un nombre de caché distinto, agrégalo aquí.
     }
 }

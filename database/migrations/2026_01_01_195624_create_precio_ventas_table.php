@@ -19,6 +19,7 @@ return new class extends Migration {
             
             $table->integer('min_quantity')->default(1); 
             $table->integer('priority')->default(1); 
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             
             $table->timestamp('valid_from')->useCurrent();
             $table->timestamp('valid_to')->nullable(); 
@@ -29,7 +30,7 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
         
-            $table->index(['branch_id', 'sku_id', 'priority', 'valid_from', 'valid_to'], 'idx_price_winning_lookup');
+            $table->index(['branch_id', 'sku_id', 'priority', 'valid_from', 'valid_to', 'deleted_epoch'], 'idx_price_winning_lookup');
         });
     }
 

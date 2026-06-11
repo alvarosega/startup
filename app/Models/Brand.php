@@ -1,15 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, BelongsToMany};
-use Illuminate\Support\Facades\DB; 
 
 class Brand extends Model
 {
     use SoftDeletes, HasUv7;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'parent_id', 'provider_id', 'category_id', 'name', 'slug', 'bg_color',
@@ -25,34 +29,19 @@ class Brand extends Model
 
     protected $hidden = ['created_at', 'updated_at', 'deleted_at'];
 
-    public function products(): HasMany
-    {
-        return $this->hasMany(Product::class);
-    }
-
-    public function provider(): BelongsTo 
-    { 
-        return $this->belongsTo(Provider::class); 
-    }
+    public function products(): HasMany { return $this->hasMany(Product::class)->where('deleted_epoch', 0); }
+    public function provider(): BelongsTo { return $this->belongsTo(Provider::class); }
+    public function category(): BelongsTo { return $this->belongsTo(Category::class)->where('deleted_epoch', 0); }
+    public function subBrands(): HasMany { return $this->hasMany(self::class, 'parent_id')->where('deleted_epoch', 0); }
 
     public function marketZones(): BelongsToMany 
     { 
         return $this->belongsToMany(MarketZone::class, 'brand_market_zone'); 
     }
-    
-    public function category(): BelongsTo 
-    { 
-        return $this->belongsTo(Category::class); 
-    }
-    
-    public function subBrands(): HasMany 
-    { 
-        return $this->hasMany(self::class, 'parent_id'); 
-    }
 
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('deleted_epoch', 0);
     }
 
     protected static function booted(): void

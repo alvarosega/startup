@@ -67,9 +67,11 @@ Route::middleware(['auth:super_admin'])->group(function () {
         Route::resource('brands', BrandController::class);
         Route::resource('providers', ProviderController::class);
         
-        Route::get('prices', [PriceController::class, 'index'])->name('prices.index');
-        Route::post('prices', [PriceController::class, 'store'])->name('prices.store');
-
+        Route::prefix('prices')->name('prices.')->group(function () {
+            Route::get('{sku}', [PriceController::class, 'show'])->name('show');
+            Route::post('/', [PriceController::class, 'store'])->name('store');
+            Route::delete('{price}', [PriceController::class, 'destroy'])->name('destroy');
+        });
         Route::resource('inventory', InventoryController::class)->only(['index']);
         Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
         Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');

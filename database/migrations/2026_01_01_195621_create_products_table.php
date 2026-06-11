@@ -20,14 +20,13 @@ return new class extends Migration {
             $table->string('image_path')->nullable();
             
             $table->boolean('is_active')->default(true);
-            $table->boolean('is_featured')->default(true);
+            $table->boolean('is_featured')->default(false); // SOLUCIÓN: Columna inyectada
             $table->boolean('is_alcoholic')->default(false);
             $table->integer('sort_order')->default(0);
 
             $table->timestamps();
             $table->softDeletes();
 
-            // Índices de optimización y restricciones compuestas
             $table->index(['is_active', 'is_featured', 'sort_order'], 'idx_featured_lookup');
             $table->unique(['slug', 'deleted_epoch'], 'idx_products_slug_unique');
             $table->fullText('name', 'idx_product_name_fulltext');

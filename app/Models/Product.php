@@ -18,7 +18,7 @@ class Product extends Model
 
     protected $fillable = [
         'brand_id', 'category_id', 'name', 'slug', 'description', 
-        'image_path', 'sort_order', 'is_active', 'is_alcoholic', 'deleted_epoch'
+        'image_path', 'sort_order', 'is_active', 'is_featured', 'is_alcoholic', 'deleted_epoch'
     ];
 
     protected $casts = [
@@ -31,10 +31,8 @@ class Product extends Model
 
     protected static function booted(): void
     {
-        static::addGlobalScope('order', function ($builder) {
-            $builder->orderBy('sort_order', 'asc')->orderBy('name', 'asc');
-        });
-
+        // LEY: Se suprime el GlobalScope order para preservar rendimiento del FULLTEXT INDEX.
+        
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
             $model->save();
@@ -45,56 +43,18 @@ class Product extends Model
         });
     }
 
-    // --- RELACIONES JERÁRQUICAS ---
-
-    public function skus(): HasMany 
-    { 
-        return $this->hasMany(Sku::class); 
-    }
-
-    public function brand(): BelongsTo 
-    { 
-        return $this->belongsTo(Brand::class); 
-    }
-
-    public function category(): BelongsTo 
-    { 
-        return $this->belongsTo(Category::class); 
-    }
-
-    // --- ENLACES TRANSACCIONALES AVANZADOS ---
+    public function skus(): HasMany { return $this->hasMany(Sku::class)->where('deleted_epoch', 0); }
+    public function brand(): BelongsTo { return $this->belongsTo(Brand::class)->where('deleted_epoch', 0); }
+    public function category(): BelongsTo { return $this->belongsTo(Category::class)->where('deleted_epoch', 0); }
 
     public function prices(): HasManyThrough 
     {
-        return $this->hasManyThrough(Price::class, Sku::class, 'product_id', 'sku_id');
+        return $this->hasManyThrough(Price::class, Sku::class, 'product_id', 'sku_id')
+            ->where('prices.deleted_epoch', 0);
     }
-
-    public function reviews(): HasMany
-    {
-        return $this->hasMany(Review::class);
-    }
-
-    public function favoritedBy(): BelongsToMany
-    {
-        return $this->belongsToMany(Customer::class, 'favorites', 'product_id', 'customer_id');
-    }
-
-    public function inventoryBalances(): HasManyThrough
-    {
-        return $this->hasManyThrough(
-            InventoryBalance::class, 
-            Sku::class,
-            'product_id', 
-            'sku_id',     
-            'id',         
-            'id'          
-        );
-    }
-
-    // --- SCOPES DE FILTRADO ---
 
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('deleted_epoch', 0);
     }
 }

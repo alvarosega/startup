@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Traits\HasUv7;
@@ -9,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 class Category extends Model
 {
     use SoftDeletes, HasUv7;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'parent_id', 'name', 'slug', 'external_code', 'tax_classification',
@@ -26,14 +31,14 @@ class Category extends Model
 
     protected $hidden = ['created_at', 'updated_at', 'deleted_at'];
 
-    public function parent(): BelongsTo { return $this->belongsTo(self::class, 'parent_id')->withoutTrashed(); }
-    public function children(): HasMany { return $this->hasMany(self::class, 'parent_id')->orderBy('sort_order'); }
-    public function brands(): HasMany { return $this->hasMany(Brand::class); }
-    public function products(): HasMany { return $this->hasMany(Product::class); }
+    public function parent(): BelongsTo { return $this->belongsTo(self::class, 'parent_id')->where('deleted_epoch', 0); }
+    public function children(): HasMany { return $this->hasMany(self::class, 'parent_id')->where('deleted_epoch', 0)->orderBy('sort_order'); }
+    public function brands(): HasMany { return $this->hasMany(Brand::class)->where('deleted_epoch', 0); }
+    public function products(): HasMany { return $this->hasMany(Product::class)->where('deleted_epoch', 0); }
 
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('deleted_epoch', 0);
     }
 
     protected static function booted(): void
