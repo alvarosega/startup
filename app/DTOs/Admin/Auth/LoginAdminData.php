@@ -16,9 +16,12 @@ readonly class LoginAdminData
 
     public static function fromRequest(Request $request): self
     {
+        // Corrección: Acceso correcto al mapa de datos validados
+        $validated = $request->validated();
+
         return new self(
-            email: $request->validated('email'),
-            password: $request->validated('password'),
+            email: $validated['email'],
+            password: $validated['password'],
             remember: $request->boolean('remember'),
             ip: $request->ip(),
             userAgent: $request->userAgent() ?? 'Unknown'

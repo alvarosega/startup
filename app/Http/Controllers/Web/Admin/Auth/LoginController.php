@@ -11,8 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Http\Resources\Admin\Auth\AdminResource;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse; // <--- NECESARIO
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class LoginController extends Controller
 {
@@ -23,24 +22,27 @@ class LoginController extends Controller
 
     public function login(LoginAdminRequest $request, LoginAdminAction $action): SymfonyResponse
     {
-        // 1. Fase de Validación y Throttle
         $request->checkRateLimit(); 
     
-        // 2. Fase de Contrato
         $data = LoginAdminData::fromRequest($request);
     
         try {
-            // 3. Fase de Ejecución Atómica
             $action->execute($data);
             
+            // Corrección: Limpieza del limitador tras éxito
+            $request->clearRateLimiter();
+            
             $request->session()->regenerate();
-            return redirect()->route('admin.dashboard');
+            
+            // Corrección: Nombre de ruta coincidente con routes/admin.php
+            return redirect()->route('admin.dashboard.index');
     
         } catch (\Illuminate\Validation\ValidationException $e) {
             $request->hitRateLimiter();
             throw $e;
         }
     }
+
     public function logout(Request $request): RedirectResponse
     {
         Auth::guard('super_admin')->logout();

@@ -20,33 +20,36 @@ class LoginAdminRequest extends FormRequest
         ];
     }
 
-    // RENOMBRADO: De authenticate a checkRateLimit
     public function checkRateLimit(): void
     {
-        $this->ensureIsNotRateLimited();
-    }
+        $key = $this->getThrottleKey();
 
-    protected function ensureIsNotRateLimited(): void
-    {
-        $key = Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
+        // Corrección: check puro sin incremento automático
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
 
-        if (!RateLimiter::tooManyAttempts($key, 5)) {
-            return;
+            throw ValidationException::withMessages([
+                'email' => trans('auth.throttle', [
+                    'seconds' => $seconds,
+                    'minutes' => ceil($seconds / 60),
+                ]),
+            ]);
         }
-
-        $seconds = RateLimiter::availableIn($key);
-
-        throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
-        ]);
     }
 
     public function hitRateLimiter(): void
     {
-        $key = Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
-        RateLimiter::hit($key);
+        RateLimiter::hit($this->getThrottleKey(), 60);
+    }
+
+    public function clearRateLimiter(): void
+    {
+        // Obligatorio para limpiar el historial tras un login exitoso
+        RateLimiter::clear($this->getThrottleKey());
+    }
+
+    protected function getThrottleKey(): string
+    {
+        return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
     }
 }

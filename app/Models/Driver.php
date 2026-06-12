@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Spatie\Permission\Traits\HasRoles;
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,11 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Driver extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles, HasUuids, SoftDeletes;
+    use HasFactory, Notifiable, HasRoles, HasUv7, SoftDeletes;
 
     protected $guard_name = 'driver';
-    public $incrementing = false;
-    protected $keyType = 'string';
     
     protected $fillable = [
         'branch_id',
@@ -42,22 +40,19 @@ class Driver extends Authenticatable
         'last_login_at' => 'datetime',
         'last_seen_at' => 'datetime',
     ];
-    public function newUniqueId(): string
-    {
-        return (string) \Illuminate\Support\Str::orderedUuid(); // UUIDv7-like
-    }
     
     public function profile(): HasOne
     {
         return $this->hasOne(DriverProfile::class, 'driver_id', 'id');
     }
+
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class, 'branch_id', 'id');
     }
+
     public function locationLogs(): HasMany
     {
         return $this->hasMany(DriverLocationLog::class, 'driver_id', 'id');
     }
-
 }

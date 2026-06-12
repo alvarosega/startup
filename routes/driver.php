@@ -23,7 +23,7 @@ Route::middleware('guest:driver')->group(function () {
     Route::post('password/update', [ResetPasswordController::class, 'reset'])->name('password.update');
 });
 
-Route::middleware(['auth:driver'])->group(function () {
+Route::middleware(['auth.driver'])->group(function () {
     // 1. EL CEREBRO (SMART ROUTER)
     // Esta es la ruta que Ziggy no encontraba.
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

@@ -6,12 +6,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Support\Str;
+use App\Traits\HasUv7;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Admin extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles, HasUuids;
+    use HasFactory, Notifiable, HasRoles, HasUv7;
 
     protected $guard_name = 'super_admin';
 
@@ -33,17 +33,17 @@ class Admin extends Authenticatable
     protected $casts = [
         'password' => 'hashed',
         'is_active' => 'boolean',
+        'last_seen_at' => 'datetime',
+        'last_login_at' => 'datetime',
     ];
 
-    public function getFullNameAttribute() { 
+    public function getFullNameAttribute(): string 
+    { 
         return "{$this->first_name} {$this->last_name}"; 
     }
 
-    public function branch() { 
+    public function branch(): BelongsTo 
+    { 
         return $this->belongsTo(Branch::class); 
-    }
-    public function newUniqueId(): string
-    {
-        return (string) Str::orderedUuid(); // Genera UUIDv7-like (time-ordered)
     }
 }

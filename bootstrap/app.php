@@ -43,18 +43,28 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            // Middlewares de Spatie
             'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            
+            // Middlewares de Compartición de Estado de Inertia
             'inertia.customer'   => \App\Http\Middleware\HandleCustomerInertiaRequests::class,
             'inertia.admin'      => \App\Http\Middleware\HandleAdminInertiaRequests::class,
             'inertia.driver'     => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
+            
+            // CORRECCIÓN: Registro de los 3 Middlewares de Control de Acceso (Opción B)
+            'auth.admin'         => \App\Http\Middleware\Auth\AuthenticateAdmin::class,
+            'auth.driver'        => \App\Http\Middleware\Auth\AuthenticateDriver::class,
+            'auth.customer'      => \App\Http\Middleware\Auth\AuthenticateCustomer::class,
+
+            // Otros utilitarios
             'idempotency'        => \App\Http\Middleware\CheckIdempotency::class,
         ]);
 
         // --- REDIRECCIÓN DE USUARIOS LOGUEADOS (Preventivo) ---
         $middleware->redirectUsersTo(function (Request $request) {
-            $adminPath = env('ADMIN_PATH', 'adm'); // Unificamos fallback a 'adm'
+            $adminPath = env('ADMIN_PATH', 'adm');
         
             if (Auth::guard('super_admin')->check()) {
                 return "/{$adminPath}/dashboard"; 
@@ -64,24 +74,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 return '/driver/dashboard';
             }
         
-            return '/'; // Fallback para Customer
+            return '/';
         });
 
         // --- REDIRECCIÓN DE INVITADOS (NO LOGUEADOS) ---
         $middleware->redirectGuestsTo(function (Request $request) {
             $adminPath = env('ADMIN_PATH', 'adm');
 
-            // Detectar si el intento de acceso es al silo administrativo
             if ($request->is($adminPath . '/*') || $request->is($adminPath)) {
                 return route('admin.login'); 
             }
 
-            // Detectar si es al silo de conductores
             if ($request->is('driver/*') || $request->is('driver')) {
                 return route('driver.login');
             }
 
-            // Por defecto: login de cliente
             return route('login'); 
         });
     })

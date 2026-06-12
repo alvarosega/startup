@@ -15,10 +15,9 @@ return new class extends Migration
         $pivotPermission = $columnNames['permission_pivot_key'] ?? 'permission_id';
 
         if (empty($tableNames)) {
-            throw new \Exception('Error: config/permission.php not loaded.');
+            throw new \Exception('Error: config/permission.php no cargado correctamente.');
         }
 
-        // 1. TABLA PERMISSIONS
         Schema::create($tableNames['permissions'], function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('name');       
@@ -28,7 +27,6 @@ return new class extends Migration
             $table->unique(['name', 'guard_name']);
         });
 
-        // 2. TABLA ROLES
         Schema::create($tableNames['roles'], function (Blueprint $table) use ($teams, $columnNames) {
             $table->bigIncrements('id');
             if ($teams || config('permission.testing')) {
@@ -46,19 +44,13 @@ return new class extends Migration
             }
         });
 
-        // 3. TABLA MODEL_HAS_PERMISSIONS
         Schema::create($tableNames['model_has_permissions'], function (Blueprint $table) use ($tableNames, $columnNames, $pivotPermission, $teams) {
             $table->unsignedBigInteger($pivotPermission);
             $table->string('model_type');
-        
-            // --- CORRECCIÓN: BINARY 16 (Para coincidir con Admins, Drivers y Customers) ---
-            $table->uuid($columnNames['model_morph_key']);
-            // ---------------------------------------------------------------------------
+            $table->uuid($columnNames['model_morph_key']); // Tipo UUID consistente con los silos
         
             $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_permissions_model_id_model_type_index');
-        
-            $table->foreign($pivotPermission)
-                ->references('id')->on($tableNames['permissions'])->onDelete('cascade');
+            $table->foreign($pivotPermission)->references('id')->on($tableNames['permissions'])->onDelete('cascade');
 
             if ($teams) {
                 $table->unsignedBigInteger($columnNames['team_foreign_key']);
@@ -71,19 +63,13 @@ return new class extends Migration
             }
         });
 
-        // 4. TABLA MODEL_HAS_ROLES
         Schema::create($tableNames['model_has_roles'], function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
             $table->unsignedBigInteger($pivotRole);
             $table->string('model_type');
-        
-            // --- CORRECCIÓN: BINARY 16 ---
-            $table->uuid($columnNames['model_morph_key']);
-            // -----------------------------
+            $table->uuid($columnNames['model_morph_key']); // Tipo UUID consistente con los silos
         
             $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_roles_model_id_model_type_index');
-        
-            $table->foreign($pivotRole)
-                ->references('id')->on($tableNames['roles'])->onDelete('cascade');
+            $table->foreign($pivotRole)->references('id')->on($tableNames['roles'])->onDelete('cascade');
 
             if ($teams) {
                 $table->unsignedBigInteger($columnNames['team_foreign_key']);
@@ -96,14 +82,12 @@ return new class extends Migration
             }
         });
 
-        // 5. TABLA ROLE_HAS_PERMISSIONS
         Schema::create($tableNames['role_has_permissions'], function (Blueprint $table) use ($tableNames, $pivotRole, $pivotPermission) {
             $table->unsignedBigInteger($pivotPermission);
             $table->unsignedBigInteger($pivotRole);
 
             $table->foreign($pivotPermission)->references('id')->on($tableNames['permissions'])->onDelete('cascade');
             $table->foreign($pivotRole)->references('id')->on($tableNames['roles'])->onDelete('cascade');
-
             $table->primary([$pivotPermission, $pivotRole], 'role_has_permissions_permission_id_role_id_primary');
         });
 

@@ -6,14 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('personal_access_tokens', function (Blueprint $table) {
-            $table->id(); // El ID del token puede quedarse numérico, es interno de Sanctum.
-            $table->uuidMorphs('tokenable');
+            $table->id();
+            $table->uuidMorphs('tokenable'); // Resuelve de manera nativa la estructura UUID de los 3 silos
             $table->text('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();
@@ -22,9 +19,7 @@ return new class extends Migration
             $table->timestamps();
         });
     }
-    /**
-     * Reverse the migrations.
-     */
+
     public function down(): void
     {
         Schema::dropIfExists('personal_access_tokens');

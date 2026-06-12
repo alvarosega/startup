@@ -2,15 +2,35 @@
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Authentication Defaults
+    |--------------------------------------------------------------------------
+    |
+    | El guard predeterminado del sistema se establece en 'customer' para
+    | proteger la plataforma pública por defecto.
+    |
+    */
+
     'defaults' => [
-        'guard' => 'customer',           // Por defecto, somos 'web' (Customer)
-        'passwords' => 'customers', // La recuperación por defecto busca en customers
+        'guard' => 'customer',
+        'passwords' => 'customers',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authentication Guards
+    |--------------------------------------------------------------------------
+    |
+    | Definición de los 3 guards basados en sesiones tradicionales.
+    | Comparten el dominio físico pero actúan bajo identificadores lógicos independientes.
+    |
+    */
 
     'guards' => [
         'super_admin' => [
             'driver' => 'session',
-            'provider' => 'admins', // <--- Apunta al provider de abajo
+            'provider' => 'admins',
         ],
         'driver' => [
             'driver' => 'session',
@@ -18,47 +38,55 @@ return [
         ],
         'customer' => [
             'driver' => 'session',
-            'provider' => 'customers', // Este provider lo definimos abajo
+            'provider' => 'customers',
         ],
     ],
 
-    // 3. PROVIDERS (Cómo buscar en la DB)
-    'providers' => [
-        'customers' => [
-            'driver' => 'eloquent',
-            'model' => App\Models\Customer::class,
-        ],
+    /*
+    |--------------------------------------------------------------------------
+    | User Providers
+    |--------------------------------------------------------------------------
+    |
+    | Mapeo directo a los modelos Eloquent de los tres silos independientes.
+    | All models implement Authenticatable y usan identificadores UUID.
+    |
+    */
 
+    'providers' => [
         'admins' => [
             'driver' => 'eloquent',
             'model' => App\Models\Admin::class,
         ],
-
         'drivers' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Driver::class, // Asegúrate de tener este modelo o créalo
+            'model' => App\Models\Driver::class,
+        ],
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Customer::class,
         ],
     ],
 
-    // 4. PASSWORDS
+    /*
+    |--------------------------------------------------------------------------
+    | Resetting Passwords
+    |--------------------------------------------------------------------------
+    |
+    | REGLA DE NEGOCIO: Se elimina por completo el broker 'super_admin'.
+    | El silo administrativo no tiene permitido el restablecimiento de contraseñas.
+    |
+    */
+
     'passwords' => [
         'customers' => [
             'provider' => 'customers',
-            'table' => 'password_reset_codes_customers', // Tabla específica
+            'table' => 'password_reset_codes_customers',
             'expire' => 60,
             'throttle' => 60,
         ],
-
-        'super_admin' => [
-            'provider' => 'admins', // Sigue usando el provider 'admins' porque apunta al modelo Admin
-            'table' => 'password_reset_codes_admins',
-            'expire' => 60,
-            'throttle' => 60,
-        ],
-
         'drivers' => [
             'provider' => 'drivers',
-            'table' => 'password_reset_codes_drivers',   // Tabla específica
+            'table' => 'password_reset_codes_drivers',
             'expire' => 60,
             'throttle' => 60,
         ],

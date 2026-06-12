@@ -2,26 +2,22 @@
 
 namespace App\Models;
 
-use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Spatie\Permission\Traits\HasRoles;
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Customer extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles, HasUuids;
+    use HasFactory, Notifiable, HasRoles, HasUv7;
 
     protected $guard_name = 'customer';
-    public $incrementing = false;
-    protected $keyType = 'string';
 
-    /**
-     * @var array<int, string>
-     * EXCLUSIÓN: 'id' y 'trust_score' (Admin Only).
-     */
     protected $fillable = [
         'branch_id',
         'phone',
@@ -51,14 +47,6 @@ class Customer extends Authenticatable
     ];
 
     /**
-     * Fuerza el uso de UUIDv7 para ordenamiento por tiempo nativo.
-     */
-    public function newUniqueId(): string
-    {
-        return (string) Str::uuid7();
-    }
-
-    /**
      * Sanitización de Identidad: Normaliza el Country Code a Mayúsculas.
      */
     protected function countryCode(): Attribute
@@ -68,20 +56,18 @@ class Customer extends Authenticatable
         );
     }
 
-    // --- RELACIONES DE ALTA DENSIDAD ---
-
-    public function profile()
+    public function profile(): HasOne
     {
         return $this->hasOne(CustomerProfile::class, 'customer_id', 'id');
     }
 
-    public function addresses()
+    public function addresses(): HasMany
     {
         return $this->hasMany(CustomerAddress::class, 'customer_id', 'id');
     }
-    public function favorites(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+
+    public function favorites(): BelongsToMany
     {
-        // Relación directa a nivel Producto (Ley de Identidad)
         return $this->belongsToMany(Product::class, 'favorites', 'customer_id', 'product_id')
                     ->withTimestamps();
     }

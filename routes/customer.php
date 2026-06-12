@@ -74,7 +74,7 @@ Route::middleware('guest:customer')->group(function () {
 });
 
 // --- RUTAS PROTEGIDAS (Solo Clientes Autenticados) ---
-Route::middleware(['auth:customer'])->group(function () {
+Route::middleware(['auth.customer'])->group(function () {
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
     // Favoritos (Acciones)
