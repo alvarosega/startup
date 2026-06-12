@@ -33,8 +33,10 @@ class RegisterCustomerAction
                 if ($duplicate) return $duplicate;
             }
 
-            $assignedBranchId = $this->geoService->identifyBranch($data->latitude, $data->longitude) 
-                                ?? $this->shopContext->getDefaultBranchId();
+            // CORRECCIÓN: Prioriza la sucursal seleccionada manualmente si existe en el DTO
+            $assignedBranchId = $data->branchId 
+                ?? $this->geoService->identifyBranch($data->latitude, $data->longitude) 
+                ?? $this->shopContext->getDefaultBranchId();
 
             $customer = Customer::create([
                 'phone'           => $data->phone,
@@ -51,8 +53,9 @@ class RegisterCustomerAction
             $customer->profile()->create([
                 'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
                 'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
-                'avatar_type'   => 'icon', 
-                'avatar_source' => $data->avatarSource, // ej: "avatar_3.png"
+                // CORRECCIÓN: Respeta el tipo de avatar dinámico provisto por el contrato del DTO
+                'avatar_type'   => $data->avatarType, 
+                'avatar_source' => $data->avatarSource, 
             ]);
 
             $customer->addresses()->create([
@@ -79,16 +82,24 @@ class RegisterCustomerAction
         });
     }
 
+/**
+     * Valida de forma aislada e indexada para evitar Table Scans y Deadlocks estructurales.
+     */
     private function validateGlobalUniqueness(string $email, string $phone): void
     {
-        foreach (['admins', 'customers', 'drivers'] as $table) {
-            $exists = DB::table($table)
-                ->where('email', $email)
-                ->orWhere('phone', $phone)
-                ->lockForUpdate()
-                ->exists();
+        $tables = ['admins', 'customers', 'drivers'];
 
-            if ($exists) {
+        foreach ($tables as $table) {
+            $emailQuery = DB::table($table)->where('email', $email);
+            $phoneQuery = DB::table($table)->where('phone', $phone);
+
+            // CORRECCIÓN: Ajuste de consistencia. Solo 'drivers' requiere filtrado por deleted_at.
+            if ($table === 'drivers') {
+                $emailQuery->whereNull('deleted_at');
+                $phoneQuery->whereNull('deleted_at');
+            }
+
+            if ($emailQuery->lockForUpdate()->exists() || $phoneQuery->lockForUpdate()->exists()) {
                 throw new IdentityCollisionException("El correo o teléfono ya están registrados en la plataforma.");
             }
         }

@@ -44,6 +44,25 @@ class Brand extends Model
         return $query->where('is_active', true)->where('deleted_epoch', 0);
     }
 
+    /**
+     * Scope molecular para validar existencias físicas netas por sucursal.
+     */
+    public function scopeWhereHasStockInBranch($query, string $branchId)
+    {
+        return $query->whereHas('products', function ($q) use ($branchId) {
+            $q->where('deleted_epoch', 0)
+              ->where('is_active', true)
+              ->whereHas('skus', function ($q) use ($branchId) {
+                  $q->where('deleted_epoch', 0)
+                    ->where('is_active', true)
+                    ->whereHas('inventoryLots', function ($sub) use ($branchId) {
+                        $sub->where('branch_id', $branchId)
+                            ->whereRaw('(quantity - reserved_quantity) > 0');
+                    });
+              });
+        });
+    }
+
     protected static function booted(): void
     {
         static::deleting(function (self $model) {

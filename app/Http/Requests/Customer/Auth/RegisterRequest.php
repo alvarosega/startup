@@ -3,12 +3,11 @@
 namespace App\Http\Requests\Customer\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules;
-use App\Traits\ValidatesGlobalIdentity; // <--- AÑADIR
+use App\Traits\ValidatesGlobalIdentity;
 
 class RegisterRequest extends FormRequest
 {
-    use ValidatesGlobalIdentity; // <--- USAR
+    use ValidatesGlobalIdentity;
 
     public function authorize(): bool { return true; }
 
@@ -16,13 +15,13 @@ class RegisterRequest extends FormRequest
     {
         $this->normalizeIdentityData();
 
-        // INTEGRIDAD: Recuperar UUID de la sesión si el frontend no lo envió
         if (!$this->filled('guest_client_uuid')) {
             $this->merge([
                 'guest_client_uuid' => session('guest_client_uuid')
             ]);
         }
     }
+
     public function rules(): array
     {
         return [
@@ -32,6 +31,7 @@ class RegisterRequest extends FormRequest
             'first_name'        => ['required', 'string', 'max:100'],
             'last_name'         => ['required', 'string', 'max:100'],
             'address'           => ['required', 'string'],
+            // CORRECCIÓN: Consistencia de tamaño simétrica con el paso 1
             'country_code'      => ['required', 'string', 'max:3'],
             'latitude'          => ['required', 'numeric'],
             'longitude'         => ['required', 'numeric'],

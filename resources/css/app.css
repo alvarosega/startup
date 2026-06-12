@@ -151,10 +151,8 @@
 /* Modo Oscuro: Fondo asfalto exacto sin mallas ni rejillas */
 .dark .du-cyber-canvas {
   background-color: #15151e;
-  background-image: none;
 }
 
-/* Forzar la eliminación de cualquier residuo de malla antigua */
 .du-cyber-canvas::before,
 .du-cyber-canvas::after,
 .dark .du-cyber-canvas::before,

@@ -14,7 +14,7 @@ class LoginCustomerAction
     public function __construct(
         protected ShopContextService $contextService,
         protected CartService $cartService
-        ) {}
+    ) {}
 
     public function execute(LoginCustomerData $data): bool
     {
@@ -28,17 +28,27 @@ class LoginCustomerAction
             ]);
         }
 
+        // 2. CORRECCIÓN CRÍTICA: Regla Zero-Trust para cuentas desactivadas
+        $customer = Auth::guard('customer')->user();
+
+        if (!$customer->is_active) {
+            Auth::guard('customer')->logout(); // Expulsión de sesión inmediata
+            throw ValidationException::withMessages([
+                'phone' => 'Acceso denegado: Su cuenta de cliente se encuentra inactiva o suspendida.'
+            ]);
+        }
+
+        // 3. Fusión atómica del carrito de compras para usuarios invitados
         if ($data->guestUuid) {
             try {
-                \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($data, $customer) {
                     $this->cartService->fusionGuestCart(
-                        (string) Auth::guard('customer')->id(),
+                        (string) $customer->id,
                         $data->guestUuid
                     );
                 });
             } catch (\Exception $e) {
                 Log::error('Fallo crítico en fusión de carrito post-login', ['error' => $e->getMessage()]);
-                // No detenemos el login, pero registramos la falla de integridad.
             }
         }
 

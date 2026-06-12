@@ -17,9 +17,13 @@ class GlobalUniqueIdentity implements ValidationRule
         foreach ($tables as $table) {
             $query = DB::table($table)->where($attribute, $value);
             
+            // CORRECCIÓN: Solo 'drivers' maneja SoftDeletes nativo (deleted_at).
+            // 'customers' y 'admins' no tienen borrado lógico en sus estructuras.
+            if ($table === 'drivers') {
+                $query->whereNull('deleted_at');
+            }
+
             if ($this->ignoreId) {
-                // CORRECCIÓN CRÍTICA:
-                // Ya no somos binarios. Tratamos el ID como texto simple.
                 $query->where('id', '!=', (string) $this->ignoreId);
             }
 

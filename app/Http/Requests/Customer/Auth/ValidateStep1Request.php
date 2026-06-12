@@ -9,10 +9,6 @@ class ValidateStep1Request extends FormRequest
 {
     use ValidatesGlobalIdentity;
 
-    /**
-     * Dictamen: Si omites authorize(), Laravel puede bloquear la petición por defecto 
-     * en configuraciones estrictas.
-     */
     public function authorize(): bool
     {
         return true; 
@@ -28,10 +24,10 @@ class ValidateStep1Request extends FormRequest
         return [
             'first_name'   => ['required', 'string', 'max:100'],
             'last_name'    => ['required', 'string', 'max:100'],
-            'country_code' => ['required', 'string', 'size:2'],
+            // CORRECCIÓN: Unificado a max:3 para evitar asimetrías con el paso final
+            'country_code' => ['required', 'string', 'max:3'],
             'email'        => $this->globalEmailRules(),
             'phone'        => $this->globalPhoneRules(),
-            // RECTIFICACIÓN: Asegurar que la confirmación se valide aquí también
             'password'     => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }

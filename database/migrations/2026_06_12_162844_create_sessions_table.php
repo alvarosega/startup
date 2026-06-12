@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            
+            // CORRECCIÓN: Se cambia foreignId (BIGINT) por string(36) para admitir los UUIDv7 de los silos
+            $table->string('user_id', 36)->nullable()->index();
+            
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');

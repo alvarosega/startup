@@ -23,19 +23,27 @@ class LoginController extends Controller
 
     public function store(LoginRequest $request, LoginCustomerAction $action): RedirectResponse
     {
-        // El DTO ahora encapsula la lógica de extracción del Guest UUID
+        // 1. Fase Preventiva: Verificación de Fuerza Bruta antes de procesar el DTO
+        $request->checkRateLimit(); 
+
         $data = LoginCustomerData::fromRequest($request);
 
         try {
-            // Ejecución Atómica: Autenticación + Sincronización de Carrito (Interno)
+            // 2. Ejecución Atómica
             $action->execute($data); 
 
-            // Seguridad de Sesión
+            // 3. Fase de Éxito: Limpieza de contadores de bloqueo
+            $request->clearRateLimiter();
+
+            // 4. Regeneración del identificador de sesión por seguridad de cookies
             $request->session()->regenerate();
             
             return redirect()->intended(route('customer.index'));
             
         } catch (ValidationException $e) {
+            // 4. Fase de Fallo: Incremento en el limitador por intento fallido o cuenta inactiva
+            $request->hitRateLimiter();
+            
             return back()->withErrors($e->errors())->withInput();
         }
     }
@@ -43,6 +51,7 @@ class LoginController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('customer')->logout();
+        
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
