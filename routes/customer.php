@@ -7,19 +7,18 @@ use App\Http\Controllers\Web\Customer\Auth\RegisterController;
 use App\Http\Controllers\Web\Customer\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Customer\Auth\ResetPasswordController;
 use App\Http\Controllers\Web\Customer\Shop\ShopController;
+use App\Http\Controllers\Web\Customer\Shop\CatalogController; // LEY: Importación del controlador de catálogo comercial
 use App\Http\Controllers\Web\Customer\Category\CategoryController;
 use App\Http\Controllers\Web\Customer\Bundle\BundleController;
 use App\Http\Controllers\Web\Customer\Product\ProductShowController;
 use App\Http\Controllers\Web\Customer\Cart\CartController;
 use App\Http\Controllers\Web\Customer\Profiles\ProfileController;
 use App\Http\Controllers\Web\Customer\Profiles\AddressController;
-use App\Http\Controllers\Web\Customer\Order\CheckoutController;
 use App\Http\Controllers\Web\Customer\Order\OrderController;
 use App\Http\Controllers\Web\Customer\Favorites\FavoriteController;
 use App\Http\Controllers\Web\Customer\Brand\BrandController;
 use App\Http\Controllers\Web\Customer\Featured\FeaturedController;
 use App\Http\Controllers\Web\Customer\Sku\SkuController;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -30,7 +29,8 @@ use App\Http\Controllers\Web\Customer\Sku\SkuController;
 // --- RUTAS PÚBLICAS Y DE CATÁLOGO ---
 
 Route::get('/', ShopController::class)->name('index');
-Route::get('/search', ShopController::class)->name('search');
+// CORRECCIÓN: Se redirige la búsqueda al CatalogController para procesar los DTOs e inventarios por sucursal
+Route::get('/search', [CatalogController::class, 'index'])->name('search');
 Route::get('/zone/{zone:slug}', [ShopController::class, 'showZone'])->name('zone');
 Route::get('/marcas/{slug}', [BrandController::class, 'show'])->name('brand.show');
 
@@ -50,9 +50,7 @@ Route::prefix('featured')->name('featured.')->group(function () {
 Route::prefix('cart')->name('cart.')->group(function () {
     Route::get('/', [CartController::class, 'index'])->name('index');
     Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
-
     Route::post('/add-template', [CartController::class, 'addTemplate'])->name('add-template');
-
     Route::patch('/{id}', [CartController::class, 'update'])->name('update');
     Route::delete('/{id}', [CartController::class, 'remove'])->name('remove');
 });
@@ -90,8 +88,11 @@ Route::middleware(['auth.customer'])->group(function () {
         Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('update-avatar');
         Route::get('/security', [ProfileController::class, 'security'])->name('security');
         
+        // CORRECCIÓN: Se declara el índice de direcciones fuera del subgrupo con nombre para resolver como 'customer.profile.addresses'
+        Route::get('addresses', [AddressController::class, 'index'])->name('addresses');
+
+        // Subgrupo para las acciones operativas internas de las ubicaciones
         Route::prefix('addresses')->name('addresses.')->group(function () {
-            Route::get('/', [AddressController::class, 'index'])->name('index');
             Route::get('/create', [AddressController::class, 'create'])->name('create');
             Route::post('/', [AddressController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [AddressController::class, 'edit'])->name('edit');
@@ -101,24 +102,17 @@ Route::middleware(['auth.customer'])->group(function () {
         });
     });
 
-    Route::get('/checkout', [CheckoutOrchestratorController::class, 'index'])
-    ->name('checkout.index');
+    Route::get('/checkout', [CheckoutOrchestratorController::class, 'index'])->name('checkout.index');
+    Route::post('/checkout', [CheckoutOrchestratorController::class, 'store'])->name('checkout.store')->middleware('idempotency');
 
-    Route::post('/checkout', [CheckoutOrchestratorController::class, 'store'])
-        ->name('checkout.store')
-        ->middleware('idempotency');
     /*
     |--------------------------------------------------------------------------
     | Silo de Pedidos del Cliente (Unificado a 'order.' singular)
     |--------------------------------------------------------------------------
-    */
+    |*/
     Route::prefix('order')->name('order.')->group(function () {
         Route::get('/', [OrderController::class, 'index'])->name('index'); 
-        
-        // RECTIFICACIÓN: Cambiamos {id} por {order:code}
         Route::get('/{order:code}', [OrderController::class, 'show'])->name('show');
         Route::post('/{order:code}/proof', [OrderController::class, 'uploadProof'])->name('upload-proof');
     });
-
-    //Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 });

@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Branch;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 use Throwable;
 
@@ -69,6 +70,7 @@ class BranchSeeder extends Seeder
                     }
                 }
 
+                // LEY: No se envía ID. El sistema inyecta el UUID aleatorio/dinámico por fila.
                 Branch::create([
                     'name'                          => $cleanRow['name'],
                     'slug'                          => strtolower($cleanRow['slug']),
@@ -92,7 +94,12 @@ class BranchSeeder extends Seeder
 
             DB::commit();
             fclose($file);
-            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales procesadas.");
+
+            // AUTOMATIZACIÓN DE PURGA: Destruye los punteros obsoletos en memoria inmediatamente después del commit
+            Cache::forget('active_branch_polygons');
+            Cache::forget('shop_default_branch_id');
+
+            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales sembradas. Memoria caché invalidada correctamente.");
 
         } catch (Throwable $e) {
             DB::rollBack();

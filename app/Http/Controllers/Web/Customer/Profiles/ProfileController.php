@@ -36,20 +36,6 @@ class ProfileController extends Controller
     }
 
     /**
-     * VISTA: Mis Direcciones
-     * Página dedicada a la gestión logística del cliente.
-     */
-    public function addresses(): Response
-    {
-        $user = Auth::guard('customer')->user();
-        $user->load('addresses');
-
-        return Inertia::render('Customer/Profiles/AddressesPage', [
-            'addresses' => $user->addresses
-        ]);
-    }
-
-    /**
      * VISTA: Seguridad
      * Gestión de credenciales y acceso.
      */

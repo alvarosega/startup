@@ -16,10 +16,11 @@ const props = defineProps({
     activeBranches: Array
 });
 
-const MAX_ADDRESSES = 5;
+// CORRECCIÓN: Alineación de la regla de negocio del núcleo logístico (Límite 10)
+const MAX_ADDRESSES = 10;
 const canAddMore = computed(() => props.addresses.length < MAX_ADDRESSES);
 
-// Icono personalizado para el mapa (Misma estética que el registro)
+// Icono personalizado para el mapa
 const customIcon = L.divIcon({
     className: 'custom-pin',
     html: `<div class="w-8 h-8 bg-zinc-900 rounded-full border-[3px] border-white shadow-lg flex items-center justify-center text-white"><div class="w-2 h-2 bg-white rounded-full"></div></div>`,
@@ -27,12 +28,21 @@ const customIcon = L.divIcon({
     iconAnchor: [16, 32]
 });
 
-// Calcula el centro del mapa basado en la primera dirección (o La Paz por defecto)
+// Calcula el centro del mapa basado en la dirección predeterminada o la primera disponible
 const mapCenter = computed(() => {
+    const defaultAddr = props.addresses.find(a => a.is_default);
+    if (defaultAddr) {
+        return [parseFloat(defaultAddr.latitude), parseFloat(defaultAddr.longitude)];
+    }
     if (props.addresses.length > 0) {
         return [parseFloat(props.addresses[0].latitude), parseFloat(props.addresses[0].longitude)];
     }
     return [-16.5000, -68.1500];
+});
+
+// Generación de un identificador de estado compuesto para forzar el re-render del mapa
+const mapStateKey = computed(() => {
+    return props.addresses.map(a => `${a.id}_${a.is_default}`).join(',');
 });
 
 // Acciones de registro
@@ -67,7 +77,7 @@ const deleteAddr = (id) => {
             </div>
 
             <div class="mb-8 rounded-[2.5rem] overflow-hidden border border-zinc-200 shadow-sm h-72 relative bg-zinc-100 z-10">
-                <l-map :zoom="14" :center="mapCenter" class="h-full w-full grayscale-[0.2]">
+                <l-map :key="mapStateKey" :zoom="14" :center="mapCenter" class="h-full w-full grayscale-[0.2]">
                     <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
                     <l-marker v-for="addr in addresses" :key="addr.id" 
                               :lat-lng="[parseFloat(addr.latitude), parseFloat(addr.longitude)]" 

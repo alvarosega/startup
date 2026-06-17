@@ -1,136 +1,155 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Customer\Profiles;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Profiles\AddressRequest;
-use App\Http\Resources\Customer\Auth\CustomerResource;
+use App\DTOs\Customer\Profiles\AddressData;
 use App\Actions\Customer\Auth\GetActiveBranchesAction; 
+use App\Actions\Customer\Profiles\UpsertAddressAction;
+use App\Actions\Customer\Profiles\SetDefaultAddressAction;
 use App\Http\Resources\Customer\Branch\BranchResource; 
-use App\Services\Geo\BranchCoverageService;
-use App\Services\ShopContextService;
+use App\Models\Customer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Validation\ValidationException;
 
 class AddressController extends Controller
 {
     public function __construct(
-        protected BranchCoverageService $geoService,
-        protected ShopContextService $shopContext
+        protected readonly UpsertAddressAction $upsertAction,
+        protected readonly SetDefaultAddressAction $setDefaultAction
     ) {}
 
+    /**
+     * Lista de direcciones activas del cliente.
+     */
     public function index(GetActiveBranchesAction $branchAction): Response
     {
+        /** @var Customer $user */
         $user = Auth::guard('customer')->user();
         
         return Inertia::render('Customer/Profiles/AddressesPage', [
-            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
+            'addresses'      => $user->addresses()->orderBy('is_default', 'desc')->get(),
             'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
         ]);
     }
 
-    // CORRECCIÓN: Union Type (Response | RedirectResponse)
+    /**
+     * Renderiza el formulario de creación controlando el límite de la cuenta.
+     */
     public function create(GetActiveBranchesAction $branchAction): Response|RedirectResponse
     {
+        /** @var Customer $user */
         $user = Auth::guard('customer')->user();
         
-        if ($user->addresses()->count() >= 5) {
-            return redirect()->route('customer.profile.addresses')->withErrors(['limit' => 'Límite de 5 direcciones alcanzado.']);
+        if ($user->addresses()->count() >= 10) {
+            return redirect()->route('customer.profile.addresses')
+                ->withErrors(['limit' => 'Límite de 10 direcciones alcanzado. Elimine una ubicación para continuar.']);
         }
 
         return Inertia::render('Customer/Profiles/AddressFormPage', [
-            'address' => null, 
+            'address'        => null, 
             'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
         ]);
     }
 
-    public function edit($id, GetActiveBranchesAction $branchAction): Response
-    {
-        $user = Auth::guard('customer')->user();
-        $address = $user->addresses()->findOrFail($id);
-
-        return Inertia::render('Customer/Profiles/AddressFormPage', [
-            'address' => $address, 
-            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
-        ]);
-    }
-
+    /**
+     * Procesa e inserta una nueva ubicación a través del servicio transaccional.
+     */
     public function store(AddressRequest $request): RedirectResponse
     {
+        /** @var Customer $user */
         $user = Auth::guard('customer')->user();
-        
-        if ($user->addresses()->count() >= 5) {
-            return back()->withErrors(['limit' => 'Máximo 5 direcciones permitidas.']);
+
+        try {
+            $this->upsertAction->execute(
+                $user,
+                AddressData::fromRequest($request)
+            );
+
+            return redirect()->route('customer.profile.addresses')
+                ->with('success', 'Ubicación guardada de forma exitosa.');
+
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
         }
-
-        $assignedBranchId = $this->geoService->identifyBranch(
-            $request->latitude, 
-            $request->longitude
-        ) ?? $this->shopContext->getDefaultBranchId();
-
-        if (!$assignedBranchId) {
-            return back()->withErrors(['address' => 'No se pudo asignar una sucursal válida.']);
-        }
-
-        $user->addresses()->create([
-            'alias'      => $request->alias,
-            'address'    => $request->address,
-            'reference'  => $request->details,
-            'latitude'   => $request->latitude,
-            'longitude'  => $request->longitude,
-            'branch_id'  => $assignedBranchId,
-            'is_default' => $user->addresses()->count() === 0,
-        ]);
-
-        // CORRECCIÓN: Redirigir al índice, no volver atrás al formulario
-        return redirect()->route('customer.profile.addresses')->with('success', 'Dirección guardada exitosamente.');
     }
 
-    // CORRECCIÓN: Se añade el método update que faltaba
-    public function update($id, AddressRequest $request): RedirectResponse
+    /**
+     * Vista de edición de una dirección específica.
+     */
+    public function edit(string $id, GetActiveBranchesAction $branchAction): Response
     {
+        /** @var Customer $user */
         $user = Auth::guard('customer')->user();
         $address = $user->addresses()->findOrFail($id);
 
-        $assignedBranchId = $this->geoService->identifyBranch(
-            $request->latitude, 
-            $request->longitude
-        ) ?? $this->shopContext->getDefaultBranchId();
-
-        if (!$assignedBranchId) {
-            return back()->withErrors(['address' => 'No se pudo asignar una sucursal válida.']);
-        }
-
-        $address->update([
-            'alias'      => $request->alias,
-            'address'    => $request->address,
-            'reference'  => $request->details,
-            'latitude'   => $request->latitude,
-            'longitude'  => $request->longitude,
-            'branch_id'  => $assignedBranchId,
+        return Inertia::render('Customer/Profiles/AddressFormPage', [
+            'address'        => $address, 
+            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
         ]);
-
-        // CORRECCIÓN: Redirigir al índice
-        return redirect()->route('customer.profile.addresses')->with('success', 'Dirección actualizada exitosamente.');
     }
 
-    public function makeDefault($id): RedirectResponse
+    /**
+     * Actualiza una ubicación existente delegando el cómputo logístico al Action.
+     */
+    public function update(string $id, AddressRequest $request): RedirectResponse
     {
+        /** @var Customer $user */
         $user = Auth::guard('customer')->user();
-        $user->addresses()->update(['is_default' => false]);
-        $user->addresses()->where('id', $id)->update(['is_default' => true]);
-        return back();
+
+        try {
+            $this->upsertAction->execute(
+                $user,
+                AddressData::fromRequest($request),
+                $id
+            );
+
+            return redirect()->route('customer.profile.addresses')
+                ->with('success', 'Ubicación modificada de forma exitosa.');
+
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
     }
 
-    public function destroy($id): RedirectResponse
+    /**
+     * Intercambia el puntero de la dirección predeterminada por ID.
+     */
+    public function makeDefault(string $id): RedirectResponse
     {
-        $address = Auth::guard('customer')->user()->addresses()->findOrFail($id);
+        /** @var Customer $user */
+        $user = Auth::guard('customer')->user();
+
+        $this->setDefaultAction->execute($user, $id);
+
+        return redirect()->route('customer.profile.addresses')
+            ->with('success', 'Dirección preferida actualizada.');
+    }
+
+    /**
+     * Ejecuta el Soft Delete de una ubicación protegiendo la dirección por defecto.
+     */
+    public function destroy(string $id): RedirectResponse
+    {
+        /** @var Customer $user */
+        $user = Auth::guard('customer')->user();
+        
+        $address = $user->addresses()->findOrFail($id);
+
         if ($address->is_default) {
-            return back()->withErrors(['delete' => 'No puedes eliminar la dirección principal.']);
+            return back()->withErrors(['delete' => 'Restricción de Seguridad: No puede eliminar su ubicación predeterminada activa.']);
         }
+
+        // Ejecución de borrado lógico (Soft Delete nativo de Eloquent)
         $address->delete();
-        return back();
+
+        return redirect()->route('customer.profile.addresses')
+            ->with('success', 'Dirección removida de la libreta.');
     }
 }
