@@ -13,13 +13,18 @@ return new class extends Migration {
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('provider_id')->constrained('providers');
             $table->foreignUuid('admin_id')->constrained('admins');
-            $table->string('document_number', 32)->unique();
+            
+            $table->string('document_number', 32);
             $table->date('purchase_date')->index();
             $table->enum('payment_type', ['CASH', 'CREDIT'])->default('CASH');
-            $table->decimal('total_amount', 14, 2)->default(0); 
+            // LEY: Columna total_amount eliminada por definición de negocio (sin costos)
             $table->string('status')->default('COMPLETED');
+            
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
             $table->softDeletes();
+
+            $table->unique(['document_number', 'deleted_epoch'], 'idx_purchases_doc_unique');
         });
     }
 

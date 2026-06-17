@@ -1,37 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TransferItem extends Model
 {
     use HasFactory;
 
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
         'transfer_id', 
         'sku_id', 
         'qty_sent', 
-        'qty_received', 
-        'unit_cost'
+        'qty_received'
     ];
 
-    // IMPORTANTE: Para cálculos matemáticos
     protected $casts = [
-        'unit_cost' => 'decimal:2',
-        'qty_sent' => 'integer',
-        'qty_received' => 'integer',
+        'qty_sent' => 'float',
+        'qty_received' => 'float',
     ];
 
-    // Relación con el Producto
-    public function sku() 
+    public function sku(): BelongsTo 
     { 
         return $this->belongsTo(Sku::class); 
     }
 
-    // Relación Inversa (Buena práctica)
-    public function transfer()
+    public function transfer(): BelongsTo
     {
         return $this->belongsTo(Transfer::class);
     }

@@ -1,28 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
-use App\Models\User;
+use App\Models\Admin;
 use App\Models\Sku;
 
 class SkuPolicy
 {
-    // 1. LA LLAVE MAESTRA
-    public function before(User $user, $ability)
+    public function before(Admin $user, $ability)
     {
-        if ($user->hasRole('super_admin')) {
+        if ($user->hasRole('super_admin', 'super_admin')) {
             return true;
         }
     }
 
-    // 2. ESCRITURA: Solo Logística
-    public function create(User $user): bool
+    public function viewAny(Admin $user): bool
     {
-        return $user->hasRole('logistics_manager');
+        return true; // Permitido para cualquier administrador autenticado en el ERP
     }
 
-    public function delete(User $user, Sku $sku): bool
+    public function view(Admin $user, Sku $sku): bool
     {
-        return $user->hasRole('logistics_manager');
+        return true;
+    }
+
+    public function create(Admin $user): bool
+    {
+        return $user->hasRole('logistics_manager', 'super_admin');
+    }
+
+    public function delete(Admin $user, Sku $sku): bool
+    {
+        return $user->hasRole('logistics_manager', 'super_admin');
     }
 }

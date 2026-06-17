@@ -1,13 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory; // Recomendado añadir
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Transfer extends Model
 {
     use HasFactory;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'code', 
@@ -21,41 +28,33 @@ class Transfer extends Model
         'received_at'
     ];
 
-    // IMPORTANTE: Esto convierte las fechas y strings automáticamente
     protected $casts = [
         'shipped_at' => 'datetime',
         'received_at' => 'datetime',
     ];
 
-    // --- RELACIONES ---
-
-    // Detalles de la transferencia
-    public function items() 
+    public function items(): HasMany 
     { 
         return $this->hasMany(TransferItem::class); 
     }
 
-    // De dónde sale
-    public function origin() 
+    public function origin(): BelongsTo 
     { 
         return $this->belongsTo(Branch::class, 'origin_branch_id'); 
     }
 
-    // A dónde llega
-    public function destination() 
+    public function destination(): BelongsTo 
     { 
         return $this->belongsTo(Branch::class, 'destination_branch_id'); 
     }
 
-    // Quién la creó (Envió)
-    public function sender() 
+    public function sender(): BelongsTo 
     { 
-        return $this->belongsTo(User::class, 'created_by'); 
+        return $this->belongsTo(Admin::class, 'created_by'); 
     }
 
-    // Quién la recibió (Faltaba esta)
-    public function receiver() 
+    public function receiver(): BelongsTo 
     { 
-        return $this->belongsTo(User::class, 'received_by'); 
+        return $this->belongsTo(Admin::class, 'received_by'); 
     }
 }

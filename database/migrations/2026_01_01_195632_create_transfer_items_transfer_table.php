@@ -28,7 +28,7 @@ return new class extends Migration {
             $table->foreignUuid('sku_id')->constrained('skus');
             $table->decimal('qty_sent', 12, 3);
             $table->decimal('qty_received', 12, 3)->nullable();
-            $table->decimal('unit_cost', 12, 2); 
+            // LEY: Columna unit_cost eliminada por definición de negocio
             $table->timestamps();
         });
     }

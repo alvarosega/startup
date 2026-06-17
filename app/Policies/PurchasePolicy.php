@@ -1,35 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
-use App\Models\User;
+use App\Models\Admin;
 use App\Models\Purchase;
 
 class PurchasePolicy
 {
-    public function before(User $user, $ability)
+    public function before(Admin $user, $ability)
     {
-        if ($user->hasRole('super_admin')) {
+        if ($user->hasRole('super_admin', 'super_admin')) {
             return true;
         }
     }
 
-    public function viewAny(User $user): bool
+    public function viewAny(Admin $user): bool
     {
-        return $user->hasAnyRole(['logistics_manager', 'branch_admin', 'inventory_manager', 'finance_manager']);
+        return $user->hasAnyRole(['logistics_manager', 'branch_admin', 'inventory_manager', 'finance_manager'], 'super_admin');
     }
 
-    public function view(User $user, Purchase $purchase): bool
+    public function view(Admin $user, Purchase $purchase): bool
     {
-        // Branch Admin solo ve compras de su sucursal
-        if ($user->hasRole('branch_admin')) {
+        if ($user->hasRole('branch_admin', 'super_admin')) {
             return $purchase->branch_id === $user->branch_id;
         }
         return true;
     }
 
-    public function create(User $user): bool
+    public function create(Admin $user): bool
     {
-        return $user->hasAnyRole(['logistics_manager', 'branch_admin', 'inventory_manager']);
+        return $user->hasAnyRole(['logistics_manager', 'branch_admin', 'inventory_manager'], 'super_admin');
+    }
+
+    public function delete(Admin $user, Purchase $purchase): bool
+    {
+        return $user->hasAnyRole(['logistics_manager', 'branch_admin', 'inventory_manager'], 'super_admin');
     }
 }

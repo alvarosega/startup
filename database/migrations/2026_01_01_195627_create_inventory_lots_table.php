@@ -12,21 +12,28 @@ return new class extends Migration {
         Schema::create('inventory_lots', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('purchase_id')->nullable()->constrained('purchases');
-            $table->foreignUuid('transfer_id')->nullable()->constrained('transfers')->nullOnDelete();
+            $table->foreignUuid('transfer_id')->nullable(); 
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('sku_id')->constrained('skus');
             
-            $table->string('lot_code', 32)->unique();
+            // LEY: Se remueve la restricción única global para permitir transferencias de lotes
+            $table->string('lot_code', 32);
             $table->decimal('quantity', 12, 3);
             $table->decimal('initial_quantity', 12, 3);
             $table->decimal('reserved_quantity', 12, 3)->default(0);
             
-            $table->boolean('is_safety_stock')->default(false)->index();
-            $table->decimal('unit_cost', 12, 2);
-            $table->date('expiration_date')->nullable()->index();
+            $table->boolean('is_safety_stock')->default(false);
+            // LEY: Columna unit_cost eliminada por definición de negocio
+            $table->date('expiration_date')->nullable();
             $table->timestamps();
 
-            $table->index(['branch_id', 'sku_id', 'is_safety_stock'], 'idx_lots_lookup');
+            $table->index(
+                ['branch_id', 'sku_id', 'is_safety_stock', 'expiration_date'], 
+                'idx_lots_fefo_lookup'
+            );
+
+            // LEY: Unicidad compuesta para restringir el mismo lote solo dentro de la misma sucursal
+            $table->unique(['branch_id', 'lot_code'], 'idx_lots_branch_code_unique');
         });
 
         DB::statement('ALTER TABLE inventory_lots ADD SYSTEM VERSIONING');

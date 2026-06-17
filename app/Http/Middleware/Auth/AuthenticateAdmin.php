@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware\Auth;
 
 use Closure;
@@ -11,12 +13,15 @@ class AuthenticateAdmin
 {
     /**
      * Maneja la restricción del silo de administración.
-     * Aplica la Opción B de invalidación automática ante sesiones cruzadas.
+     * Almacena el guard en el contenedor y purga intrusiones cruzadas.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Si el usuario ya está autenticado como administrador, continúa sin obstrucciones
+        // Si el usuario está autenticado, forzamos el contexto del guard y continuamos
         if (Auth::guard('super_admin')->check()) {
+            // LEY MULTI-GUARD: Obliga a Laravel a usar este guard para Gates y Políticas en esta petición
+            Auth::shouldUse('super_admin');
+            
             return $next($request);
         }
 
@@ -24,20 +29,24 @@ class AuthenticateAdmin
         foreach (['driver', 'customer'] as $intrusiveGuard) {
             if (Auth::guard($intrusiveGuard)->check()) {
                 
-                // Cierre de sesión explícito del guard intruso
                 Auth::guard($intrusiveGuard)->logout();
-
-                // Destrucción total del payload de la sesión en el servidor
                 $request->session()->invalidate();
-
-                // Regeneración del token CSRF para mitigar ataques de fijación de sesión
                 $request->session()->regenerateToken();
 
-                return redirect('/admin/login')->with('error', 'Sesión previa invalidada automáticamente. Inicie sesión con credenciales administrativas.');
+                if ($request->expectsJson() || $request->header('X-Inertia')) {
+                    abort(403, 'Sesión cruzada detectada e invalidada.');
+                }
+
+                return redirect()->route('admin.login')->with('error', 'Sesión previa invalidada automáticamente. Inicie sesión con credenciales administrativas.');
             }
         }
 
-        // Si no hay sesión alguna, redirección limpia al login de admins
-        return redirect('/admin/login');
+        // Si no hay sesión alguna y es una petición asíncrona (Axios/Inertia), abortamos limpiamente
+        if ($request->expectsJson() || $request->header('X-Inertia')) {
+            abort(403, 'User is not logged in.');
+        }
+
+        // Redirección segura utilizando el mapa de nombres dinámico
+        return redirect()->route('admin.login');
     }
 }

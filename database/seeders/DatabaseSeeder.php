@@ -22,12 +22,12 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,    
             SkuSeeder::class,
             PriceSeeder::class,
-            InventorySeeder::class,
-            BundleSeeder::class,
+            //InventorySeeder::class,
+            //BundleSeeder::class,
             
             // --- SILO RETAIL MEDIA CONSOLIDADO ---
-            AdPlacementSeeder::class,   // Primero los espacios
-            AdCampaignSeeder::class,    // Segundo las campañas y banners
+            //AdPlacementSeeder::class,   // Primero los espacios
+            //AdCampaignSeeder::class,    // Segundo las campañas y banners
         ]);
     }
 }

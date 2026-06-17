@@ -1,77 +1,117 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\Inventory;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
+use App\Models\InventoryBalance;
+use App\Models\InventoryMovement;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use App\DTOs\Admin\Inventory\Stock\StockFilterDTO;
-use App\Actions\Admin\Inventory\Stock\GetConsolidatedStockAction;
-use App\Http\Resources\Admin\Inventory\Stock\InventoryResource;
-
-use App\Actions\Admin\Inventory\Purchase\GetPurchaseFormDataAction; // Reutilizamos para el selector de sucursales
-use App\DTOs\Admin\Inventory\Stock\KardexFilterDTO;
-use App\Actions\Admin\Inventory\Stock\GetStockFilterDataAction;
-use App\Actions\Admin\Inventory\Stock\GetKardexAction;
-use App\Http\Resources\Admin\Inventory\Stock\InventoryMovementResource;
-use App\Models\Sku;
+use Inertia\Response;
 
 class InventoryController extends Controller
 {
-    use AuthorizesRequests;
-
-    public function index(
-        Request $request, 
-        GetConsolidatedStockAction $action,
-        GetStockFilterDataAction $filterDataAction // Usamos el nuevo action
-    ) {
-        $user = auth('super_admin')->user();
-        $dto = StockFilterDTO::fromRequest($request);
-        
-        $stock = $action->execute($dto, $user->branch_id);
-        $filterOptions = $filterDataAction->execute($user->branch_id);
-
-        return Inertia::render('Admin/Inventory/Stock/Index', array_merge([
-            'stock'   => InventoryResource::collection($stock),
-            'filters' => [
-                'search'      => $dto->search,
-                'branch_id'   => $dto->branch_id,
-                'provider_id' => $dto->provider_id,
-                'brand_id'    => $dto->brand_id,
-                'category_id' => $dto->category_id,
-                'status'      => $dto->status,
-            ],
-        ], $filterOptions)); // Merge inyecta branches, providers, brands, categories
-    }
-    public function kardex(
-        Request $request, 
-        string $skuId, 
-        GetKardexAction $action,
-        GetPurchaseFormDataAction $formDataAction
-    ) {
-        $user = auth('super_admin')->user();
-        
-        // Verificación plana de existencia
-        $sku = Sku::with('product:id,name')->findOrFail($skuId);
-
-        $dto = KardexFilterDTO::fromRequest($request, $skuId);
-        $movements = $action->execute($dto, $user->branch_id);
-
-        return Inertia::render('Admin/Inventory/Stock/Kardex', [
-            'sku'       => [
-                'id'        => $sku->id,
-                'name'      => $sku->name,
-                'code'      => $sku->code,
-                'product'   => $sku->product->name ?? 'N/A'
-            ],
-            'movements' => InventoryMovementResource::collection($movements),
-            'filters'   => [
-                'branch_id'  => $dto->branch_id,
-                'start_date' => $dto->start_date,
-                'end_date'   => $dto->end_date,
-            ],
-            'branches'  => $user->branch_id ? [] : $formDataAction->getBranchesForFilter()
+    /**
+     * Renderiza la vista principal del tablero de inventario.
+     */
+    public function index(): Response
+    {
+        return Inertia::render('Admin/Inventory/Index', [
+            'branches' => Branch::select('id', 'name')->get()
         ]);
+    }
+
+    /**
+     * Retorna el listado completo de saldos con stock disponible calculado en tiempo real.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $request->validate([
+            'branch_id' => ['required', 'uuid', 'exists:branches,id']
+        ]);
+
+        $balances = InventoryBalance::with(['sku:id,name,code'])
+            ->where('branch_id', $request->input('branch_id'))
+            ->get()
+            ->map(function ($balance) {
+                return [
+                    'sku_id' => $balance->sku_id,
+                    'sku_name' => $balance->sku?->name,
+                    'sku_code' => $balance->sku?->code,
+                    'total_physical' => (float) $balance->total_physical,
+                    'total_reserved' => (float) $balance->total_reserved,
+                    'total_quarantine' => (float) $balance->total_quarantine,
+                    'total_safety' => (float) $balance->total_safety,
+                    // LEY: Ecuación matemática inmutable para stock disponible comercializable
+                    'available' => (float) ($balance->total_physical - $balance->total_reserved - $balance->total_quarantine)
+                ];
+            });
+
+        return response()->json($balances, 200);
+    }
+
+    /**
+     * Reconstruye la línea de tiempo histórica (Kárdex) de un producto en una sucursal.
+     */
+    public function kardex(string $skuId, Request $request): JsonResponse
+    {
+        $request->validate([
+            'branch_id' => ['required', 'uuid', 'exists:branches,id']
+        ]);
+
+        $movements = InventoryMovement::with([
+                'admin:id,name',
+                'lot:id,lot_code'
+            ])
+            ->where('branch_id', $request->input('branch_id'))
+            ->where('sku_id', $skuId)
+            ->orderBy('created_at', 'desc') // Orden cronológico inverso estricto
+            ->get()
+            ->map(function ($movement) {
+                return [
+                    'id' => $movement->id,
+                    'type' => $movement->type,
+                    'quantity' => (float) $movement->quantity,
+                    'reference' => $movement->reference,
+                    'reason' => $movement->reason, // Expone el motivo de cuarentena/bajas si existe
+                    'created_at' => $movement->created_at?->toIso8601String(),
+                    'admin_name' => $movement->admin?->name,
+                    'lot_code' => $movement->lot?->lot_code
+                ];
+            });
+
+        return response()->json($movements, 200);
+    }
+    /**
+     * Retorna los lotes activos de un SKU en una sucursal específica.
+     */
+    public function lots(string $skuId, Request $request): JsonResponse
+    {
+        $request->validate([
+            'branch_id' => ['required', 'uuid', 'exists:branches,id']
+        ]);
+
+        $lots = \App\Models\InventoryLot::where('branch_id', $request->input('branch_id'))
+            ->where('sku_id', $skuId)
+            ->where('quantity', '>', 0)
+            ->get()
+            ->map(function ($lot) {
+                return [
+                    'id' => $lot->id,
+                    'lot_code' => $lot->lot_code,
+                    'quantity' => (float) $lot->quantity,
+                    'initial_quantity' => (float) $lot->initial_quantity,
+                    'reserved_quantity' => (float) $lot->reserved_quantity,
+                    'expiration_date' => $lot->expiration_date?->format('Y-m-d'),
+                    // Evalúa si el lote está vencido usando la fecha actual del sistema (2026)
+                    'is_expired' => $lot->expiration_date ? $lot->expiration_date->isPast() : false
+                ];
+            });
+
+        return response()->json($lots, 200);
     }
 }

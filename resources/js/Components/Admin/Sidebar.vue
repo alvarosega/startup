@@ -4,9 +4,9 @@ import { usePage, Link } from '@inertiajs/vue3';
 import { 
     LayoutDashboard, ShoppingCart, Package, Truck, AlertTriangle, 
     RefreshCw, Tag, Layers, Factory, LogOut,
-    Banknote, Gift, ClipboardList, Settings, X, 
+    Gift, ClipboardList, Settings, X, 
     Building2, FolderTree, UserCog, Map, 
-    Store, Home, Megaphone, Radar
+    Store, Home, Megaphone, Radar, ArrowLeftRight // CORREGIDO: Importación de icono móvil inyectada
 } from 'lucide-vue-next';
 
 const activeMobileMenu = ref(null);
@@ -16,12 +16,10 @@ const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
 
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
-const isAdmin = isSuperAdmin;
+const canManageStock = isSuperAdmin;
+const canManageCatalog = isSuperAdmin;
 const canManageAds = isSuperAdmin;
 const canManageUsers = isSuperAdmin;
-const canManageDrivers = isSuperAdmin;
-const canManageCatalog = isSuperAdmin;
-const canManageStock = isSuperAdmin;
 
 const toggleMobileMenu = (menu) => {
     activeMobileMenu.value = activeMobileMenu.value === menu ? null : menu;
@@ -31,7 +29,7 @@ const closeMobileMenu = () => {
     activeMobileMenu.value = null;
 };
 
-// Función de Evaluación de Estado Activo para Iluminación de Enlaces
+// LEY: Evaluación limpia contra el árbol de nombres transaccionales
 const isActiveRoute = (pattern) => {
     return route().current(pattern);
 };
@@ -133,7 +131,6 @@ const isActiveRoute = (pattern) => {
                         <Gift :size="20" class="transition-colors duration-150" />
                         <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Packs</span>
                     </Link>
-
 
                     <Link :href="route('admin.brands.index')" 
                         :class="[isActiveRoute('admin.brands.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
@@ -273,7 +270,6 @@ const isActiveRoute = (pattern) => {
                         <Gift size="20" class="text-muted-foreground" />
                         <span class="text-xs font-medium text-center">Packs</span>
                     </Link>
-
                     <Link @click="closeMobileMenu" :href="route('admin.brands.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
                         <Layers size="20" class="text-muted-foreground" />
                         <span class="text-xs font-medium text-center">Marcas</span>
@@ -337,8 +333,7 @@ const isActiveRoute = (pattern) => {
         </div>
 
         <button tabindex="0" @click="toggleMobileMenu('mov')" class="flex flex-col items-center justify-center h-full transition-colors duration-150" :class="[activeMobileMenu === 'mov' || isActiveRoute('admin.transfers.*') || isActiveRoute('admin.removals.*') || isActiveRoute('admin.orders.*') ? 'text-primary' : 'text-muted-foreground']">
-            <ArrowLeftRight size="20" />
-            <span class="text-[10px] font-medium mt-1">Flujos</span>
+            <ArrowLeftRight size="20" /> <span class="text-[10px] font-medium mt-1">Flujos</span>
         </button>
         
         <button tabindex="0" @click="toggleMobileMenu('com')" class="flex flex-col items-center justify-center h-full transition-colors duration-150" :class="[activeMobileMenu === 'com' || isActiveRoute('admin.products.*') || isActiveRoute('admin.categories.*') || isActiveRoute('admin.brands.*') || isActiveRoute('admin.providers.*') || isActiveRoute('admin.market-zones.*') || isActiveRoute('admin.bundles.*') || isActiveRoute('admin.prices.*') ? 'text-primary' : 'text-muted-foreground']">

@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\HasUv7; // Estandarización a UUIDv7
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryLot extends Model
 {
@@ -15,7 +18,7 @@ class InventoryLot extends Model
 
     protected $fillable = [
         'purchase_id',
-        'transfer_id', // Añadido para trazabilidad de transferencias
+        'transfer_id', 
         'branch_id',
         'sku_id',
         'lot_code',
@@ -23,19 +26,23 @@ class InventoryLot extends Model
         'initial_quantity',
         'reserved_quantity', 
         'is_safety_stock',  
-        'unit_cost', 
         'expiration_date'
     ];
 
     protected $casts = [
-        'is_safety_stock' => 'boolean',
-        'expiration_date' => 'date',
-        'unit_cost' => 'decimal:2',
-        'quantity' => 'integer',
-        'reserved_quantity' => 'integer'
+        'is_safety_stock'   => 'boolean',
+        'expiration_date'   => 'date',
+        'quantity'          => 'float', 
+        'initial_quantity'  => 'float',
+        'reserved_quantity' => 'float'
     ];
 
     public function purchase(): BelongsTo { return $this->belongsTo(Purchase::class); }
     public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
     public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
+    
+    public function movements(): HasMany 
+    { 
+        return $this->hasMany(InventoryMovement::class, 'inventory_lot_id'); 
+    }
 }

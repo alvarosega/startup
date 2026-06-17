@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\Admin\Auth\LoginController;
 use App\Http\Controllers\Web\Admin\User\CustomerController;
@@ -14,7 +16,10 @@ use App\Http\Controllers\Web\Admin\Brand\BrandController;
 use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Price\PriceController;
 use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
-use App\Http\Controllers\Web\Admin\Inventory\PurchaseController;
+use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeController;
+use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeViewController;
+use App\Http\Controllers\Web\Admin\Inventory\TransferReceptionController;
+use App\Http\Controllers\Web\Admin\Inventory\TransferReceptionViewController;
 use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
@@ -30,7 +35,7 @@ Route::middleware(['auth.admin'])->group(function () {
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
-    Route::middleware('role:super_admin')->group(function () {
+    Route::middleware('role:super_admin,super_admin')->group(function () {
         Route::post('users/validate-step-1', [CustomerController::class, 'validateStep1'])->name('users.validate-step-1');
         Route::resource('users', CustomerController::class);
         Route::post('users/identify-branch', [CustomerController::class, 'identifyBranch'])->name('users.identify-branch');
@@ -41,6 +46,7 @@ Route::middleware(['auth.admin'])->group(function () {
 
         Route::resource('drivers', DriverController::class);
         Route::resource('branches', BranchController::class);
+        
         Route::prefix('products')->name('products.')->group(function () {
             Route::get('reorder', [ProductController::class, 'reorder'])->name('reorder');
             Route::patch('reorder', [ProductController::class, 'updateOrder'])->name('reorder.update');
@@ -55,10 +61,7 @@ Route::middleware(['auth.admin'])->group(function () {
         Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);
         
         Route::prefix('categories')->name('categories.')->group(function () {
-            // Opción A: Endpoint atómico para alimentar el SkuOrderModal vía JSON
             Route::get('{category}/skus', [CategoryController::class, 'skus'])->name('skus');
-            
-            // Persistencia masiva de posiciones (Alineado con el verbo PUT del frontend)
             Route::put('{category}/sku-order', [CategoryController::class, 'updateSkuOrder'])->name('update-sku-order');
         });
         Route::resource('categories', CategoryController::class)->except(['show']);
@@ -68,18 +71,30 @@ Route::middleware(['auth.admin'])->group(function () {
         Route::resource('providers', ProviderController::class);
         
         Route::prefix('prices')->name('prices.')->group(function () {
+            Route::get('/', [PriceController::class, 'index'])->name('index'); // <--- INYECTAR ESTA LÍNEA
             Route::get('{sku}', [PriceController::class, 'show'])->name('show');
             Route::post('/', [PriceController::class, 'store'])->name('store');
             Route::delete('{price}', [PriceController::class, 'destroy'])->name('destroy');
         });
-        Route::resource('inventory', InventoryController::class)->only(['index']);
-        Route::get('/inventory/stock/{branch}', [InventoryController::class, 'getStockByBranch'])->name('inventory.stock-by-branch');
+        
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
         Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
-        Route::get('inventory/{sku}/kardex', [InventoryController::class, 'kardex'])->name('inventory.kardex');
-        
-        Route::get('purchases/{purchase}/items', [PurchaseController::class, 'items'])->name('purchases.items'); 
-        Route::resource('purchases', PurchaseController::class);
-        
+
+        // CORRECCIÓN: Cambiar {sku} por {skuId}
+        Route::get('inventory/{skuId}/kardex', [InventoryController::class, 'kardex'])->name('inventory.kardex');
+        Route::get('inventory/{skuId}/lots', [InventoryController::class, 'lots'])->name('inventory.lots');
+        // --- NÚCLEO DE ABASTECIMIENTO (Ingreso por Compras) ---
+        Route::get('purchases', [PurchaseIntakeViewController::class, 'index'])->name('purchases.index');
+        Route::post('purchases/process', PurchaseIntakeController::class)->name('purchases.process');
+
+        Route::get('transfers', fn() => 'Lista de transferencias en desarrollo')->name('transfers.index');
+        Route::get('transfers/{id}/receive', [TransferReceptionViewController::class, 'index'])->name('transfers.receive');
+        Route::post('transfers/{id}/reception', TransferReceptionController::class)->name('transfers.reception');
+
+        // LEY: Agregar de nuevo estas dos líneas que se borraron en la reestructuración previa
+        Route::get('removals', fn() => 'En desarrollo')->name('removals.index');
+        Route::get('transformations', fn() => 'En desarrollo')->name('transformations.index');
+
         Route::get('/logistics/monitor', [MonitorController::class, 'index'])->name('logistics.monitor');
         Route::prefix('orders')->name('orders.')->group(function () {
             Route::get('/', [OrderController::class, 'index'])->name('index'); 
@@ -91,8 +106,8 @@ Route::middleware(['auth.admin'])->group(function () {
             Route::post('/{order:code}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
             Route::post('/{order:code}/unassign', [OrderController::class, 'unassignDriver'])->name('unassign-driver');
         });
+        
         Route::prefix('retail-media')->name('retail-media.')->group(function () {
-            // Endpoints de búsqueda para el Formulario (Targeting)
             Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])->name('ad-creatives.search-skus');
             Route::get('ad-creatives/search-bundles', [AdCreativeController::class, 'searchBundles'])->name('ad-creatives.search-bundles');
             Route::get('ad-creatives/search-brands', [AdCreativeController::class, 'searchBrands'])->name('ad-creatives.search-brands');
@@ -100,8 +115,5 @@ Route::middleware(['auth.admin'])->group(function () {
             Route::resource('ad-creatives', AdCreativeController::class)->parameters(['ad-creatives' => 'ad_creative']);
             Route::resource('ad-campaigns', AdCampaignController::class);
         });
-        Route::get('transfers', fn() => 'En desarrollo')->name('transfers.index');
-        Route::get('removals', fn() => 'En desarrollo')->name('removals.index');
-        Route::get('transformations', fn() => 'En desarrollo')->name('transformations.index');
     });
 });
