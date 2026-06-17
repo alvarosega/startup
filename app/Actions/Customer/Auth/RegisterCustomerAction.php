@@ -33,17 +33,16 @@ class RegisterCustomerAction
                 if ($duplicate) return $duplicate;
             }
 
-            // CORRECCIÓN: Prioriza la sucursal seleccionada manualmente si existe en el DTO
+            // APLICACIÓN DE LA REGLA: Se remueve el fallback global. Si está fuera de rango, es NULL.
             $assignedBranchId = $data->branchId 
-                ?? $this->geoService->identifyBranch($data->latitude, $data->longitude) 
-                ?? $this->shopContext->getDefaultBranchId();
+                ?? $this->geoService->identifyBranch($data->latitude, $data->longitude);
 
             $customer = Customer::create([
                 'phone'           => $data->phone,
                 'email'           => $data->email,
                 'password'        => Hash::make($data->password),
                 'country_code'    => $data->countryCode,
-                'branch_id'       => $assignedBranchId,
+                'branch_id'       => $assignedBranchId, // Almacena UUID o null de forma limpia
                 'latitude'        => $data->latitude,
                 'longitude'       => $data->longitude,
                 'is_active'       => true,
@@ -53,7 +52,6 @@ class RegisterCustomerAction
             $customer->profile()->create([
                 'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
                 'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
-                // CORRECCIÓN: Respeta el tipo de avatar dinámico provisto por el contrato del DTO
                 'avatar_type'   => $data->avatarType, 
                 'avatar_source' => $data->avatarSource, 
             ]);
@@ -64,7 +62,7 @@ class RegisterCustomerAction
                 'reference'  => $data->details,
                 'latitude'   => $data->latitude,
                 'longitude'  => $data->longitude,
-                'branch_id'  => $assignedBranchId,
+                'branch_id'  => $assignedBranchId, // Sincronizado con el estado nulo del cliente
                 'is_default' => true,
             ]);
 
@@ -82,7 +80,7 @@ class RegisterCustomerAction
         });
     }
 
-/**
+    /**
      * Valida de forma aislada e indexada para evitar Table Scans y Deadlocks estructurales.
      */
     private function validateGlobalUniqueness(string $email, string $phone): void
@@ -93,7 +91,6 @@ class RegisterCustomerAction
             $emailQuery = DB::table($table)->where('email', $email);
             $phoneQuery = DB::table($table)->where('phone', $phone);
 
-            // CORRECCIÓN: Ajuste de consistencia. Solo 'drivers' requiere filtrado por deleted_at.
             if ($table === 'drivers') {
                 $emailQuery->whereNull('deleted_at');
                 $phoneQuery->whereNull('deleted_at');

@@ -102,12 +102,16 @@ class HandleCustomerInertiaRequests extends Middleware
     
     private function resolveShopContext(string $activeId): array
     {
-        return cache()->remember("shop_context_{$activeId}", 3600, function() use ($activeId) {
+        $shopService = app(ShopContextService::class);
+        $isOutOfCoverage = $shopService->isUserOutOfCoverage();
+
+        return cache()->remember("shop_context_res_{$activeId}_out_{$isOutOfCoverage}", 3600, function() use ($activeId, $isOutOfCoverage) {
             $branch = Branch::select('id', 'name', 'is_default')->find($activeId);
             return [
-                'branch_id'   => $branch?->id ?? $activeId,
-                'branch_name' => $branch?->name ?? 'Sucursal Central',
-                'is_fallback' => $branch ? (bool)$branch->is_default : true,
+                'branch_id'          => $branch?->id ?? $activeId,
+                'branch_name'        => $branch?->name ?? 'Sucursal Central',
+                'is_fallback'        => $branch ? (bool)$branch->is_default : true,
+                'is_out_of_coverage' => $isOutOfCoverage, // Contrato soberano de bloqueo para el carrito en Vue
             ];
         });
     }

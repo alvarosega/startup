@@ -90,7 +90,7 @@ return new class extends Migration
         // =================================================================================
         Schema::create('customers', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
-            $table->uuid('branch_id')->index();
+            $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('country_code', 3)->default('BO');
             $table->string('email')->unique();
@@ -125,7 +125,7 @@ return new class extends Migration
         Schema::create('customer_addresses', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->uuid('customer_id');
-            $table->uuid('branch_id')->index();
+            $table->uuid('branch_id')->nullable()->index();
             $table->string('alias')->nullable(); 
             $table->string('address');
             $table->decimal('latitude', 10, 8);

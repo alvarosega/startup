@@ -3,10 +3,9 @@
 namespace App\Actions\Customer\Shop;
 
 use App\Models\Sku;
-use App\Models\InventoryLot;
+use App\Models\InventoryBalance;
 use App\DTOs\Customer\Shop\CatalogQueryDTO;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 
 final class GetShopCatalogAction
 {
@@ -14,12 +13,11 @@ final class GetShopCatalogAction
     {
         return Sku::query()
             ->select('skus.*')
-            // Pilar 3.A: Stock calculado en SQL (Zero-Latency)
+            // LEY: Consistencia absoluta de inventario disponible comercializable
             ->addSelect([
-                'available_stock' => InventoryLot::selectRaw('COALESCE(SUM(quantity - reserved_quantity), 0)')
+                'available_stock' => InventoryBalance::selectRaw('COALESCE(total_physical - total_reserved - total_quarantine, 0)')
                     ->whereColumn('sku_id', 'skus.id')
                     ->where('branch_id', $dto->branchId)
-                    ->where('is_safety_stock', false)
             ])
             ->with(['product.brand', 'prices' => function($q) use ($dto) {
                 $q->where('branch_id', $dto->branchId)
