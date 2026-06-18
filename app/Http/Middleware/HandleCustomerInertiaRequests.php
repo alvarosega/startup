@@ -6,17 +6,15 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Inertia\Inertia;
 use App\Models\Branch;
-// REQUISITO: Este Resource debe existir en tu arquitectura
 use App\Http\Resources\Customer\Auth\CustomerResource; 
+use App\Http\Resources\Customer\Cart\CartResource; // LEY: Importación del recurso faltante
 use App\Actions\Customer\Cart\GetCustomerCartAction;
-use App\Actions\Customer\Shop\GetGlobalMenuAction;
 use App\Services\ShopContextService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Tighten\Ziggy\Ziggy;
 use App\Http\Resources\Customer\Category\CategoryResource;
 use App\Actions\Customer\Category\GetCategoryDetailsAction; 
-
 
 class HandleCustomerInertiaRequests extends Middleware
 {
@@ -46,14 +44,12 @@ class HandleCustomerInertiaRequests extends Middleware
                 ]);
             },
             
-            'cart' => Inertia::defer(fn () => app(GetCustomerCartAction::class)->execute(
-                $guestUuid, 
-                $user?->id, 
-                $branchId
-            )->resolve()),
+            // RECTIFICACIÓN: Se envuelve el modelo Cart en el CartResource antes de ejecutar ->resolve()
+            'cart' => Inertia::defer(fn () => (new CartResource(
+                app(GetCustomerCartAction::class)->execute($guestUuid, $user?->id, $branchId)
+            ))->resolve()),
             
             // 3. MENÚ REACTIVO AL CONTEXTO: Filtrado por branchId
-            // MODIFICAR el cierre de 'categories_menu'
             'categories_menu' => Inertia::defer(function() use ($branchId) {
                 $version = cache()->get('admin_categories_version', 1);
                 $data = cache()->remember("global_menu_br_{$branchId}_v{$version}", 86400, function() use ($branchId) {
@@ -69,7 +65,7 @@ class HandleCustomerInertiaRequests extends Middleware
             'location_context' => $this->resolveLocationContext($user, $branchId),
         
             'active_order' => Inertia::defer(fn () => $user ? $this->resolveActiveOrder((string) $user->id) : null),
-            // ESTANDARIZACIÓN DE CONTRATO FLASH
+            
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
@@ -111,15 +107,13 @@ class HandleCustomerInertiaRequests extends Middleware
                 'branch_id'          => $branch?->id ?? $activeId,
                 'branch_name'        => $branch?->name ?? 'Sucursal Central',
                 'is_fallback'        => $branch ? (bool)$branch->is_default : true,
-                'is_out_of_coverage' => $isOutOfCoverage, // Contrato soberano de bloqueo para el carrito en Vue
+                'is_out_of_coverage' => $isOutOfCoverage,
             ];
         });
     }
 
     private function resolveActiveOrder(string $customerId): ?array
     {
-        // PARCHE DE INTEGRIDAD: Previene el Error 500. 
-        // Esta lógica debe ser extraída posteriormente a un Action (ej: GetCustomerActiveOrderAction).
         return null; 
     }
 }

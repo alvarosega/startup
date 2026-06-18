@@ -15,54 +15,49 @@ use App\Actions\Customer\Auth\RegisterCustomerAction;
 use App\Actions\Customer\Auth\GetActiveBranchesAction; 
 use App\Http\Resources\Customer\Branch\BranchResource; 
 use App\Exceptions\IdentityCollisionException;
+use App\Actions\Customer\Cart\SyncGuestCartAction; // INYECCIÓN
 
 class RegisterController extends Controller
 {
     public function create(GetActiveBranchesAction $branchAction): Response
     {
-        // AQUÍ SE DEFINE LA CANTIDAD (range 1 a 8) Y LA EXTENSIÓN (.png)
         $avatars = collect(range(1, 8))->map(function ($i) {
             return [
-                'id' => "avatar_{$i}.png", // <--- Definición del identificador
-                'url' => asset("assets/avatars/avatar_{$i}.png") // <--- Definición de la ruta pública
+                'id' => "avatar_{$i}.png",
+                'url' => asset("assets/avatars/avatar_{$i}.png")
             ];
         })->toArray();
 
         return Inertia::render('Customer/Auth/Register', [
             'activeBranches' => BranchResource::collection($branchAction->execute())->resolve(),
-            'availableAvatars' => $avatars // Se inyecta al frontend
+            'availableAvatars' => $avatars
         ]);
     }
 
     public function validateStep1(ValidateStep1Request $request)
     {
-        // Si el request llega aquí, significa que pasó TODAS las validaciones de ValidateStep1Request
-        // (incluyendo el Trait ValidatesGlobalIdentity).
-        
-        // CORRECCIÓN: Devolver un código 200 OK vacío. 
-        // Inertia interpretará esto como un éxito y disparará el onSuccess() en Vue.
         return response()->json(['valid' => true], 200);
     }
 
-    public function store(RegisterRequest $request, RegisterCustomerAction $action): RedirectResponse
+    public function store(RegisterRequest $request, RegisterCustomerAction $action, SyncGuestCartAction $syncCartAction): RedirectResponse
     {
+        // Captura preventiva del UUID de invitado antes de desmantelar la sesión vieja
+        $guestUuid = $request->session()->get('guest_client_uuid');
+
         try {
             $data = RegisterCustomerData::fromRequest($request);
             
-            // 1. Ejecución Atómica de Persistencia
             $customer = $action->execute(
                 $data, 
                 $request->header('X-Idempotency-Key')
             ); 
 
-            // 2. Protocolo de Autoridad: Login bajo Guard específico
             Auth::guard('customer')->login($customer);
 
-            // 3. Higiene de Sesión: Previene Session Fixation Attacks
             $request->session()->regenerate();
             
-            // 4. Limpieza de rastros de invitado
-            $request->session()->forget('guest_client_uuid');
+            // Invocación explícita delegando la limpieza del guest_client_uuid al Action
+            $syncCartAction->execute((string) $customer->id, $guestUuid);
 
             return redirect()->route('customer.index')
                 ->with('status', 'Registro completado con éxito.');

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -10,23 +12,37 @@ class CartItem extends Model
 {
     use HasUuids;
 
+    protected $table = 'cart_items';
+
+    // RECTIFICACIÓN: Remoción absoluta de bundle_id para consolidar la entrada única vía sku_id
     protected $fillable = [
-        'cart_id', 'sku_id', 'bundle_id', 
-        'quantity', 'price_at_addition', 'is_bundle'
+        'cart_id', 
+        'sku_id', 
+        'quantity', 
+        'price_at_addition', 
+        'is_bundle'
     ];
 
     protected $casts = [
-        'is_bundle' => 'boolean',
-        'quantity'  => 'integer',
+        'is_bundle'         => 'boolean',
+        'quantity'          => 'integer',
         'price_at_addition' => 'decimal:2',
     ];
 
-    // PROTOCOLO DE ENLACE: Conecta con el Carrito padre
-    public function cart(): BelongsTo { return $this->belongsTo(Cart::class); }
+    /**
+     * Enlace inverso hacia el contenedor principal.
+     */
+    public function cart(): BelongsTo
+    {
+        return $this->belongsTo(Cart::class);
+    }
 
-    // PROTOCOLO DE ENLACE: Conecta con el SKU (si no es bundle)
-    public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
-
-    // PROTOCOLO DE ENLACE: Conecta con el Bundle (si es bundle)
-    public function bundle(): BelongsTo { return $this->belongsTo(Bundle::class); }
+    /**
+     * Punto de entrada único para la resolución comercial de datos, imágenes y stock.
+     * Si 'is_bundle' es verdadero, este SKU apunta directamente a la oferta unificada.
+     */
+    public function sku(): BelongsTo
+    {
+        return $this->belongsTo(Sku::class);
+    }
 }

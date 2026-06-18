@@ -1,35 +1,36 @@
 <?php
-//OK
+
 declare(strict_types=1);
 
 namespace App\Actions\Customer\Cart;
 
+use App\DTOs\Customer\Cart\UpsertCartItemData;
 use App\Services\Cart\CartService;
-use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CartUpsertAction
 {
-    public function __construct(protected CartService $cartService) {}
+    public function __construct(
+        protected CartService $cartService
+    ) {}
 
     /**
-     * Ejecuta la lógica de persistencia y retorna el objeto de estado del Service.
+     * Procesa la agregación controlada. Lanza excepción de validación ante quiebres de regla de negocio.
      */
-    public function execute(Request $request): object
+    public function execute(UpsertCartItemData $data, ?string $guestUuid): void
     {
-        $targetId = $request->input('target_id');
-        $type     = $request->input('target_type'); 
-        $quantity = (int) $request->input('quantity', 1);
-        $mode     = $request->input('mode', 'add');
-        $isAbsolute = ($mode === 'set');
+        // En base a la definición de diseño de SKU únicos para ofertas, targetId opera directamente como skuId
+        $result = $this->cartService->addSku(
+            skuId: $data->targetId,
+            quantity: $data->quantity,
+            guestUuid: $guestUuid,
+            isAbsolute: false // Mutación Relativa (Suma)
+        );
 
-        $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
-
-        if ($type === 'sku') {
-            // Retornamos el objeto {success, code, message, meta}
-            return $this->cartService->addSku($targetId, $quantity, $guestUuid, $isAbsolute);
+        if (!$result->success) {
+            throw ValidationException::withMessages([
+                'cart' => [$result->message]
+            ]);
         }
-
-        // Lógica de Bundles (Pendiente según tu instrucción II.2)
-        return (object) ['success' => false, 'message' => 'Tipo de producto no soportado.'];
     }
 }

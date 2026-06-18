@@ -48,11 +48,16 @@ Route::prefix('featured')->name('featured.')->group(function () {
 
 // --- GESTIÓN DE CARRITO (Público/Híbrido) ---
 Route::prefix('cart')->name('cart.')->group(function () {
+    // La consulta del carrito (GET) permanece accesible para renderizar el estado vacío o previo
     Route::get('/', [CartController::class, 'index'])->name('index');
-    Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
-    Route::post('/add-template', [CartController::class, 'addTemplate'])->name('add-template');
-    Route::patch('/{id}', [CartController::class, 'update'])->name('update');
     Route::delete('/{id}', [CartController::class, 'remove'])->name('remove');
+
+    // Subgrupo de Protección Pesimista en Backend contra Escritura sin Cobertura
+    Route::middleware([\App\Http\Middleware\EnsureCustomerHasCoverage::class])->group(function () {
+        Route::post('/add', [CartController::class, 'upsert'])->name('upsert');
+        Route::patch('/{id}', [CartController::class, 'update'])->name('update');
+        Route::post('/add-template', [CartController::class, 'addTemplate'])->name('add-template');
+    });
 });
 
 // --- AUTENTICACIÓN (Solo Invitados) ---

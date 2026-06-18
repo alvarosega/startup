@@ -13,9 +13,10 @@ const props = defineProps({
 const formatPrice = (value) => parseFloat(value || 0).toFixed(2);
 const page = usePage();
 
-// --- LÓGICA DE IDENTIDAD Y AUTH ---
+// --- LÓGICA DE IDENTIDAD, AUTH Y COBERTURA ---
 const user = computed(() => page.props.auth?.customer);
 const isAuth = computed(() => !!user.value);
+const isOutOfCoverage = computed(() => page.props.shop_context?.is_out_of_coverage ?? false);
 
 // --- ESTADO DE FAVORITOS ---
 const localFavorites = ref(JSON.parse(localStorage.getItem('guest_favorites') || '[]'));
@@ -64,6 +65,7 @@ const toggleFavorite = (e) => {
     }
 };
 
+// --- RESOLUCIÓN DE CANTIDADES E INVENTARIO DEL CARRITO ---
 const cartItem = computed(() => {
     if (!props.sku || !page.props.cart) return null;
     const source = page.props.cart.items;
@@ -73,6 +75,7 @@ const cartItem = computed(() => {
 
 const quantity = computed(() => cartItem.value ? cartItem.value.quantity : 0);
 
+// RECTIFICACIÓN: Enlace directo al contrato unificado del CartItemResource
 const currentPrice = computed(() => {
     return cartItem.value ? Number(cartItem.value.unit_price) : Number(props.sku.final_price);
 });
@@ -89,7 +92,8 @@ const hasDiscount = computed(() => currentListPrice.value > currentPrice.value);
 const isProcessing = ref(false); 
 
 const handleAdd = () => {
-    if (props.loading || isProcessing.value || props.sku.stock <= 0) return;
+    // PROTECCIÓN: Bloqueo de ejecución si se encuentra fuera de cobertura logística
+    if (props.loading || isProcessing.value || props.sku.stock <= 0 || (isOutOfCoverage.value && isAuth.value)) return;
     
     isProcessing.value = true;
     router.post(route('customer.cart.upsert'), {
@@ -106,7 +110,7 @@ const handleAdd = () => {
 };
 
 const updateQty = (delta) => {
-    if (isProcessing.value) return;
+    if (isProcessing.value || (isOutOfCoverage.value && isAuth.value)) return;
 
     const newQty = quantity.value + delta;
     if (delta > 0 && newQty > props.sku.stock) return;
@@ -135,33 +139,20 @@ const isSuggestionMet = computed(() => {
 
 const goToProduct = () => {
     if (props.loading || !props.sku) return;
-    // CORRECCIÓN: Cambiar props.sku.id por props.sku.product_id
     router.visit(route('customer.product.show', { id: props.sku.product_id }));
 };
 
-// --- ALGORITMO DE DEGRADADO LINEAL AL 15% ---
 const getSkuStyle = computed(() => {
     if (!props.sku) return {};
-    
     let cleanHex = props.sku.bg_color ? props.sku.bg_color.replace('#', '') : '32323b';
-    
     if (cleanHex.length === 3) {
         cleanHex = cleanHex.split('').map(c => c + c).join('');
     }
-
     const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
     const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
     const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
-
-    const dr = Math.floor(r * 0.15);
-    const dg = Math.floor(g * 0.15);
-    const db = Math.floor(b * 0.15);
-
-    const darkHex = [dr, dg, db].map(x => x.toString(16).padStart(2, '0')).join('');
-
-    return {
-        background: `linear-gradient(to bottom, #${cleanHex} 0%, #${darkHex} 100%)`
-    };
+    const darkHex = [Math.floor(r * 0.15), Math.floor(g * 0.15), Math.floor(b * 0.15)].map(x => x.toString(16).padStart(2, '0')).join('');
+    return { background: `linear-gradient(to bottom, #${cleanHex} 0%, #${darkHex} 100%)` };
 });
 </script>
 
@@ -251,14 +242,17 @@ const getSkuStyle = computed(() => {
             
             <button v-if="quantity === 0" 
                     @click.stop="handleAdd"
-                    :disabled="sku.stock <= 0 || isProcessing"
-                    class="w-full h-full flex items-center justify-center gap-2 bg-transparent text-white hover:bg-primary transition-colors disabled:opacity-50 disabled:hover:bg-transparent outline-none focus:outline-none group">
+                    :disabled="sku.stock <= 0 || isProcessing || (isOutOfCoverage && isAuth)"
+                    class="w-full h-full flex items-center justify-center gap-2 bg-transparent text-white hover:bg-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent outline-none focus:outline-none group">
                 <Loader2 v-if="isProcessing" :size="16" class="animate-spin" />
                 <Plus v-else :size="18" :stroke-width="2" class="group-hover:scale-110 transition-transform" />
-                <span class="text-[11px] font-black uppercase tracking-[0.2em] pt-0.5">Añadir</span>
+                <span class="text-[11px] font-black uppercase tracking-[0.2em] pt-0.5">
+                    {{ isOutOfCoverage && isAuth ? 'Sin Cobertura' : 'Añadir' }}
+                </span>
             </button>
 
-            <div v-else @click.stop class="w-full h-full flex items-center justify-between px-2 bg-primary">
+            <div v-else @click.stop class="w-full h-full flex items-center justify-between px-2 transition-opacity"
+                 :class="isOutOfCoverage && isAuth ? 'bg-neutral-800 opacity-40 pointer-events-none' : 'bg-primary'">
                 
                 <button @click.stop="updateQty(-1)" 
                         :disabled="isProcessing" 

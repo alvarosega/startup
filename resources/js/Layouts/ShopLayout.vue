@@ -9,7 +9,8 @@ import {
     Fingerprint,
     Menu, X, LogOut, Bell, Tag, ChevronRight, Loader2, MessageCircle, 
     Instagram, Facebook, Youtube, Twitter, Linkedin, Send, Disc, Tv, 
-    AtSign, Ghost, Music2, MapPin, Receipt, ShieldCheck
+    AtSign, Ghost, Music2, MapPin, Receipt, ShieldCheck,
+    Search, ShoppingCart, AlertTriangle // CORRECCIÓN: Importación de iconos faltantes para la barra superior
 } from 'lucide-vue-next';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
@@ -38,17 +39,34 @@ const user = computed(() => page.props.auth?.customer);
 const location = computed(() => page.props.location_context || { label: 'LOCALIZANDO...', type: 'branch' });
 const cartCount = computed(() => page.props.cart?.total_items || 0);
 
+// RESOLUCIÓN DE COBERTURA DESDE BACKEND
+const isOutOfCoverage = computed(() => page.props.shop_context?.is_out_of_coverage ?? false);
+
+// REGLA DE NEGOCIO: Mapeo de Etiquetas del Header por Escenarios
+const locationText = computed(() => {
+    if (!user.value) return 'INVITADO'; // Escenario 1
+    if (isOutOfCoverage.value) return 'FUERA DE COBERTURA'; // Escenario 2
+    return location.value.label; // Escenario 3
+});
+
+const locationSubtext = computed(() => {
+    if (!user.value) return 'Catálogo Base';
+    if (isOutOfCoverage.value) return 'Cambiar Ubicación';
+    return 'Entregar en';
+});
+
 const userInitials = computed(() => {
     const name = user.value?.name;
     if (!name) return '??';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 });
+
 const navigation = [
-    { name: 'Inicio',      icon: Gauge,           route: 'customer.index' },
-    { name: 'Promociones',  icon: Tag,             route: 'customer.index' },
-    { name: 'Pedidos',      icon: Receipt,         route: 'customer.order.index' },
-    { name: 'Direcciones',  icon: MapPin,          route: 'customer.profile.addresses.index' }, 
-    { name: 'Seguridad',    icon: ShieldCheck,     route: 'customer.profile.security' },
+    { name: 'Inicio',       icon: Gauge,       route: 'customer.index' },
+    { name: 'Promociones',  icon: Tag,         route: 'customer.index' },
+    { name: 'Pedidos',      icon: Receipt,     route: 'customer.order.index' },
+    { name: 'Direcciones',  icon: MapPin,      route: 'customer.profile.addresses' }, 
+    { name: 'Seguridad',    icon: ShieldCheck, route: 'customer.profile.security' },
 ];
 
 const filteredNavigation = computed(() => {
@@ -138,63 +156,69 @@ const toggleSearch = () => {
         <main class="flex-1 flex flex-col w-full pt-16 lg:pt-20 transition-all duration-150 ease-f1 relative z-10" 
               :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'">
             
-              <header class="fixed top-0 left-0 lg:left-[76px] right-0 z-[60] w-full lg:w-auto transition-all duration-150 ease-f1">
-                <div class="h-16 flex items-center jusimport {tify-between px-4 lg:px-8 max-w-7xl mx-auto w-full bg-background bg-f1-lines-random border-b border-[#32323b]">
+            <header class="fixed top-0 left-0 lg:left-[76px] right-0 z-[60] w-full lg:w-auto transition-all duration-150 ease-f1">
+                <div class="h-16 flex items-center justify-between px-4 lg:px-8 max-w-7xl mx-auto w-full bg-background bg-f1-lines-random border-b transition-colors duration-200"
+                     :class="isOutOfCoverage && user ? 'border-red-500/50 bg-red-500/[0.03] dark:bg-red-950/20' : 'border-[#32323b]'">
                 
-                        
-                        <div v-if="!isSearchActive" class="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-150">
-                            <button @click="isMobileMenuOpen = true" class="lg:hidden p-2 bg-transparent text-foreground active:scale-95 transition-transform duration-75">
-                                <Menu :size="22" :stroke-width="1.5" />
-                            </button>
+                    <div v-if="!isSearchActive" class="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-150">
+                        <button @click="isMobileMenuOpen = true" class="lg:hidden p-2 bg-transparent text-foreground active:scale-95 transition-transform duration-75">
+                            <Menu :size="22" :stroke-width="1.5" />
+                        </button>
 
-                            <button @click="router.visit(route('customer.profile.addresses.index'))" class="flex items-center gap-3 px-2 py-1.5 bg-transparent transition-colors duration-150 group focus:outline-none">
-                                <div class="w-8 h-8 bg-transparent flex items-center justify-center">
-                                    <MapPin :size="16" :stroke-width="1.5" class="text-primary" />
-                                </div>
-                                <div class="flex flex-col items-start leading-none">
-                                    <span class="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Entregar en</span>
-                                    <span class="text-xs font-bold text-foreground truncate max-w-[150px] uppercase tracking-wider">{{ location.label }}</span>
-                                </div>
-                            </button>
+                        <button @click="router.visit(route('customer.profile.addresses'))" class="flex items-center gap-3 px-2 py-1.5 bg-transparent transition-colors duration-150 group focus:outline-none">
+                            <div class="w-8 h-8 bg-transparent flex items-center justify-center">
+                                <AlertTriangle v-if="isOutOfCoverage && user" :size="16" :stroke-width="1.5" class="text-red-500 animate-pulse" />
+                                <MapPin v-else :size="16" :stroke-width="1.5" class="text-primary" />
+                            </div>
+                            <div class="flex flex-col items-start leading-none">
+                                <span class="text-[9px] font-black uppercase tracking-widest" :class="isOutOfCoverage && user ? 'text-red-400' : 'text-neutral-500'">{{ locationSubtext }}</span>
+                                <span class="text-xs font-bold text-foreground truncate max-w-[150px] uppercase tracking-wider transition-colors"
+                                      :class="isOutOfCoverage && user ? 'text-red-500 font-black' : ''">
+                                    {{ locationText }}
+                                </span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 flex justify-end items-center gap-2">
+                        <div v-if="isSearchActive" class="w-full flex items-center gap-2 animate-in slide-in-from-right-2 duration-150">
+                            <div class="flex-1 relative">
+                                <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-primary" :size="16" :stroke-width="1.5" />
+                                <input 
+                                    id="global-search" 
+                                    v-model="searchQuery" 
+                                    type="text" 
+                                    placeholder="¿QUÉ BUSCAS HOY?"
+                                    class="w-full h-10 bg-transparent border-b border-[#32323b] border-t-0 border-x-0 pl-11 pr-4 text-xs font-bold tracking-widest focus:ring-0 focus:border-primary text-foreground placeholder:text-neutral-500 uppercase transition-colors duration-150"
+                                />
+                            </div>
+                            <button @click="toggleSearch" class="p-2.5 bg-transparent text-foreground active:scale-95 transition-transform duration-75"><X :size="18" :stroke-width="1.5" /></button>
                         </div>
 
-                        <div class="flex-1 flex justify-end items-center gap-2">
-                            <div v-if="isSearchActive" class="w-full flex items-center gap-2 animate-in slide-in-from-right-2 duration-150">
-                                <div class="flex-1 relative">
-                                    <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-primary" :size="16" :stroke-width="1.5" />
-                                    <input 
-                                        id="global-search" 
-                                        v-model="searchQuery" 
-                                        type="text" 
-                                        placeholder="¿QUÉ BUSCAS HOY?"
-                                        class="w-full h-10 bg-transparent border-b border-[#32323b] border-t-0 border-x-0 pl-11 pr-4 text-xs font-bold tracking-widest focus:ring-0 focus:border-primary text-foreground placeholder:text-neutral-500 uppercase transition-colors duration-150"
-                                    />
-                                </div>
-                                <button @click="toggleSearch" class="p-2.5 bg-transparent text-foreground active:scale-95 transition-transform duration-75"><X :size="18" :stroke-width="1.5" /></button>
+                        <div v-else class="flex items-center gap-2">
+                            <button @click="toggleSearch" class="p-2.5 bg-transparent text-foreground active:scale-95 transition-all duration-75">
+                                <Search :size="20" :stroke-width="1.5" />
+                            </button>
+                            
+                            <div class="hidden sm:flex items-center gap-2 px-2 bg-transparent">
+                                <ThemeToggler />
+                                <FullScreenToggler />
                             </div>
-
-                            <div v-else class="flex items-center gap-2">
-                                <button @click="toggleSearch" class="p-2.5 bg-transparent text-foreground active:scale-95 transition-all duration-75">
-                                    <Search :size="20" :stroke-width="1.5" />
-                                </button>
-                                
-                                <div class="hidden sm:flex items-center gap-2 px-2 bg-transparent">
-                                    <ThemeToggler />
-                                    <FullScreenToggler />
-                                </div>
-                                
-                                <Link :href="route('customer.cart.index')" 
-                                        class="relative flex items-center justify-center p-2 bg-transparent transition-colors duration-150 group focus:outline-none active:scale-95">
-                                    <ShoppingCart :size="20" :stroke-width="1.5" class="text-foreground group-hover:text-primary transition-colors" />
-                                    <span v-if="cartCount > 0" 
-                                            class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-none animate-in zoom-in duration-150">
-                                        {{ cartCount }}
-                                    </span>
-                                </Link>
-                            </div>
+                            
+                            <Link :href="route('customer.cart.index')" 
+                                  :disabled="isOutOfCoverage && !!user"
+                                  class="relative flex items-center justify-center p-2 bg-transparent transition-all duration-150 group focus:outline-none active:scale-95"
+                                  :class="isOutOfCoverage && user ? 'opacity-10 pointer-events-none select-none' : ''">
+                                <ShoppingCart :size="20" :stroke-width="1.5" class="text-foreground group-hover:text-primary transition-colors" />
+                                <span v-if="cartCount > 0 && !(isOutOfCoverage && user)" 
+                                        class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-none animate-in zoom-in duration-150">
+                                    {{ cartCount }}
+                                </span>
+                            </Link>
                         </div>
                     </div>
-                </header>
+                </div>
+            </header>
 
             <section class="flex-1 w-full mx-auto pb-8 pt-4" :class="route().current('customer.index') ? 'max-w-full' : 'max-w-7xl px-4 lg:px-8'">
                 <slot />
@@ -234,7 +258,6 @@ const toggleSearch = () => {
         </main>
 
         <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#ffffff] dark:bg-[#15151f] border-t border-[#32323b] z-[100] flex justify-around items-center px-1 pb-safe select-none">
-    
             <Link :href="route('customer.order.index')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.order.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
                 <LayoutDashboard :size="20" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Pedidos</span>
@@ -250,10 +273,13 @@ const toggleSearch = () => {
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Inicio</span>
             </Link>
 
-            <Link :href="route('customer.cart.index')" class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white relative transition-colors duration-75" :class="route().current('customer.cart.*') ? 'text-primary' : ''">
+            <Link :href="route('customer.cart.index')" 
+                  :disabled="isOutOfCoverage && !!user"
+                  class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white relative transition-all duration-75" 
+                  :class="[route().current('customer.cart.*') ? 'text-primary' : '', isOutOfCoverage && user ? 'opacity-10 pointer-events-none select-none' : '']">
                 <div class="relative">
                     <ShoppingBag :size="20" :stroke-width="2.5" />
-                    <span v-if="cartCount > 0" class="absolute -top-1.5 -right-2 bg-primary text-primary-foreground text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#15151f] dark:border-white">
+                    <span v-if="cartCount > 0 && !(isOutOfCoverage && user)" class="absolute -top-1.5 -right-2 bg-primary text-primary-foreground text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#15151f] dark:border-white">
                         {{ cartCount }}
                     </span>
                 </div>
@@ -328,7 +354,6 @@ const toggleSearch = () => {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Transición ultrarrápida del cajón móvil */
 .drawer-enter-active, .drawer-leave-active {
     transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
 }
@@ -339,7 +364,6 @@ const toggleSearch = () => {
     opacity: 0;
 }
 
-/* Fondo técnico de la F1 (Asfalto/Carbono con malla paramétrica oscura) */
 .du-cyber-canvas {
     position: relative;
     background-color: hsl(var(--background));

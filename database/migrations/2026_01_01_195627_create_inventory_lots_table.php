@@ -16,23 +16,22 @@ return new class extends Migration {
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('sku_id')->constrained('skus');
             
-            // LEY: Se remueve la restricción única global para permitir transferencias de lotes
             $table->string('lot_code', 32);
             $table->decimal('quantity', 12, 3);
             $table->decimal('initial_quantity', 12, 3);
             $table->decimal('reserved_quantity', 12, 3)->default(0);
             
             $table->boolean('is_safety_stock')->default(false);
-            // LEY: Columna unit_cost eliminada por definición de negocio
+            $table->boolean('is_quarantine')->default(false)->index(); // RECTIFICACIÓN: Flag de origen para stock retenido
             $table->date('expiration_date')->nullable();
             $table->timestamps();
 
+            // Índice FEFO optimizado incluyendo el nuevo flag de cuarentena
             $table->index(
-                ['branch_id', 'sku_id', 'is_safety_stock', 'expiration_date'], 
+                ['branch_id', 'sku_id', 'is_safety_stock', 'is_quarantine', 'expiration_date'], 
                 'idx_lots_fefo_lookup'
             );
 
-            // LEY: Unicidad compuesta para restringir el mismo lote solo dentro de la misma sucursal
             $table->unique(['branch_id', 'lot_code'], 'idx_lots_branch_code_unique');
         });
 

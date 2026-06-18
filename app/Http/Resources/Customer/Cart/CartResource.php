@@ -11,13 +11,17 @@ class CartResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // El backend centraliza los agregados financieros para evitar discrepancias en el cliente
+        $subtotal = $this->relationLoaded('items') 
+            ? $this->items->sum(fn($item) => $item->quantity * $item->price_at_addition)
+            : 0.00;
+
         return [
-            'id'            => (string) $this->id,
-            // RECTIFICACIÓN: .resolve() elimina la llave 'data' anidada
-            'items'         => CartItemResource::collection($this->items)->resolve(),
-            'total_items'   => (int) ($this->calculated_total_items ?? 0),
-            'total_price'   => (float) ($this->calculated_total_price ?? 0),
-            'total_savings' => (float) ($this->calculated_total_savings ?? 0),
+            'id'          => $this->id,
+            'branch_id'   => $this->branch_id,
+            'total_items' => $this->relationLoaded('items') ? $this->items->sum('quantity') : 0,
+            'subtotal'    => (float) $subtotal,
+            'items'       => CartItemResource::collection($this->whenLoaded('items')),
         ];
     }
 }

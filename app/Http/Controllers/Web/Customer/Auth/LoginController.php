@@ -11,6 +11,7 @@ use Inertia\Response;
 use App\Http\Requests\Customer\Auth\LoginRequest; 
 use App\Actions\Customer\Auth\LoginCustomerAction;
 use App\DTOs\Customer\Auth\LoginCustomerData;
+use App\Actions\Customer\Cart\SyncGuestCartAction; // INYECCIÓN
 
 class LoginController extends Controller
 {
@@ -21,29 +22,30 @@ class LoginController extends Controller
         ]);
     }
 
-    public function store(LoginRequest $request, LoginCustomerAction $action): RedirectResponse
+    public function store(LoginRequest $request, LoginCustomerAction $action, SyncGuestCartAction $syncCartAction): RedirectResponse
     {
-        // 1. Fase Preventiva: Verificación de Fuerza Bruta antes de procesar el DTO
         $request->checkRateLimit(); 
+
+        // Captura preventiva del UUID de invitado antes de la mutación de la sesión
+        $guestUuid = $request->session()->get('guest_client_uuid');
 
         $data = LoginCustomerData::fromRequest($request);
 
         try {
-            // 2. Ejecución Atómica
             $action->execute($data); 
 
-            // 3. Fase de Éxito: Limpieza de contadores de bloqueo
             $request->clearRateLimiter();
 
-            // 4. Regeneración del identificador de sesión por seguridad de cookies
+            // Regeneración de seguridad obligatoria
             $request->session()->regenerate();
             
+            // Invocación explícita de unificación pos-login
+            $syncCartAction->execute((string) Auth::guard('customer')->id(), $guestUuid);
+
             return redirect()->intended(route('customer.index'));
             
         } catch (ValidationException $e) {
-            // 4. Fase de Fallo: Incremento en el limitador por intento fallido o cuenta inactiva
             $request->hitRateLimiter();
-            
             return back()->withErrors($e->errors())->withInput();
         }
     }
