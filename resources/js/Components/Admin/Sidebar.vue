@@ -128,8 +128,8 @@ const isActiveRoute = (pattern) => {
                     <Link :href="route('admin.bundles.index')" 
                         :class="[isActiveRoute('admin.bundles.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
                         class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Gift :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Packs</span>
+                        <Layers :size="20" class="transition-colors duration-150" />
+                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Combos</span>
                     </Link>
 
                     <Link :href="route('admin.brands.index')" 
@@ -267,8 +267,8 @@ const isActiveRoute = (pattern) => {
                         <span class="text-xs font-medium text-center">Zonas</span>
                     </Link>
                     <Link @click="closeMobileMenu" :href="route('admin.bundles.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Gift size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Packs</span>
+                        <Layers size="20" class="text-muted-foreground" />
+                        <span class="text-xs font-medium text-center">Combos</span>
                     </Link>
                     <Link @click="closeMobileMenu" :href="route('admin.brands.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
                         <Layers size="20" class="text-muted-foreground" />

@@ -11,17 +11,24 @@ class CartResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // El backend centraliza los agregados financieros para evitar discrepancias en el cliente
-        $subtotal = $this->relationLoaded('items') 
-            ? $this->items->sum(fn($item) => $item->quantity * $item->price_at_addition)
-            : 0.00;
+        $hasItems = $this->relationLoaded('items');
+        
+        // Forzar la resolución de los ítems hijos para calcular los totales sobre el mismo set mapeado
+        $resolvedItems = $hasItems 
+            ? CartItemResource::collection($this->items)->resolve() 
+            : [];
+
+        $totalPrice = collect($resolvedItems)->sum('subtotal');
+        $totalSavings = collect($resolvedItems)->sum('line_savings');
+        $totalItems = collect($resolvedItems)->sum('quantity');
 
         return [
-            'id'          => $this->id,
-            'branch_id'   => $this->branch_id,
-            'total_items' => $this->relationLoaded('items') ? $this->items->sum('quantity') : 0,
-            'subtotal'    => (float) $subtotal,
-            'items'       => CartItemResource::collection($this->whenLoaded('items')),
+            'id'            => $this->id,
+            'branch_id'     => $this->branch_id,
+            'total_items'   => (int) $totalItems,
+            'total_price'   => (float) $totalPrice,   // Mapeo exacto para Vue
+            'total_savings' => (float) $totalSavings, // Mapeo exacto para Vue
+            'items'         => $resolvedItems,        // Array plano garantizado sin mutación .data
         ];
     }
 }

@@ -66,7 +66,7 @@ Route::middleware(['auth.admin'])->group(function () {
         });
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::resource('market-zones', MarketZoneController::class)->parameters(['market-zones' => 'market_zone']);
-        Route::resource('bundles', BundleController::class);
+        Route::resource('bundles', BundleController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::resource('brands', BrandController::class);
         Route::resource('providers', ProviderController::class);
         

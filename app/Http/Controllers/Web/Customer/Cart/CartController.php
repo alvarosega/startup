@@ -33,8 +33,9 @@ class CartController extends Controller
         $userId    = auth()->guard('customer')->id();
 
         return Inertia::render('Customer/Cart/Index', [
+            // RECTIFICACIÓN: Se invoca ->resolve() dentro del callback diferido para aplanar la respuesta y destruir el wrapper 'data'
             'cart' => Inertia::defer(fn() => 
-                new CartResource($action->execute($guestUuid, $userId, $branchId))
+                (new CartResource($action->execute($guestUuid, $userId, $branchId)))->resolve()
             ),
             'shopContext' => ['branch_id' => $branchId]
         ]);
@@ -44,7 +45,6 @@ class CartController extends Controller
     {
         $guestUuid = $request->header('X-Guest-UUID') ?? session('guest_client_uuid');
         
-        // Ejecución encapsulada mediante DTO inmutable
         $action->execute(UpsertCartItemData::fromRequest($request), $guestUuid);
 
         return back()->with('toast', [

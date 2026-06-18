@@ -1,81 +1,70 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\Bundle;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Bundle, Sku, Branch};
-use App\Http\Requests\Admin\Bundle\BundleRequest;
-use App\DTOs\Admin\Bundle\BundleDTO;
-use App\Actions\Admin\Bundle\{UpsertBundleAction, DeleteBundleAction};
+use App\Http\Requests\Admin\Bundle\StoreBundleRequest;
+use App\DTOs\Admin\Bundle\BundleData;
 use App\Http\Resources\Admin\Bundle\BundleResource;
-use App\Http\Resources\Admin\Sku\SkuSelectResource; // Namespace corregido
+use App\Actions\Admin\Bundle\{StoreBundleAction, UpdateBundleAction, DestroyBundleAction};
+use App\Models\Bundle;
+use App\Models\Sku;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
-use Illuminate\Http\Request;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-
+use Inertia\Response;
 
 class BundleController extends Controller
 {
-    use AuthorizesRequests;
-
-    public function index(Request $request)
+    public function index(): Response
     {
-        $this->authorize('viewAny', Bundle::class);
+        $bundles = Bundle::with(['skus:id,name,code'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        // La lógica de filtrado se movió al Modelo (Encapsulación)
-        $bundles = Bundle::getPaginatedForAdmin($request->only(['search', 'branch_id']));
+        $availableSkus = Sku::select('id', 'name', 'code')
+            ->where('is_active', true)
+            ->orderBy('name', 'asc')
+            ->get();
 
-        return Inertia::render('Admin/Bundles/Index', [
-            'bundles' => BundleResource::collection($bundles),
-            'branches' => Branch::getMinimalList() // Método estático selectivo
+        return Inertia::render('Admin/Bundle/Index', [
+            'bundles'       => BundleResource::collection($bundles)->resolve(),
+            'availableSkus' => $availableSkus
         ]);
     }
 
-    public function create()
+    public function store(StoreBundleRequest $request, StoreBundleAction $action): RedirectResponse
     {
-        $this->authorize('create', Bundle::class);
+        $dto = BundleData::fromRequest($request->validated());
+        $action->execute($dto);
 
-        return Inertia::render('Admin/Bundles/Create', [
-            'skus' => SkuSelectResource::collection(Sku::getAvailableForBundles()),
-            'branches' => Branch::getMinimalList()
+        return redirect()->route('bundles.index')->with('toast', [
+            'type'    => 'success',
+            'message' => 'Grupo comercial / plantilla estructurada con éxito.'
         ]);
     }
 
-    public function store(BundleRequest $request, UpsertBundleAction $action)
+    public function update(StoreBundleRequest $request, string $id, UpdateBundleAction $action): RedirectResponse
     {
-        $this->authorize('create', Bundle::class);
-        
-        $action->execute(BundleDTO::fromRequest($request));
+        $bundle = Bundle::findOrFail($id);
+        $dto = BundleData::fromRequest($request->validated());
+        $action->execute($bundle, $dto);
 
-        return redirect()->route('admin.bundles.index')->with('success', 'Pack operativo.');
-    }
-
-    public function edit(Bundle $bundle)
-    {
-        $this->authorize('update', $bundle);
-
-        return Inertia::render('Admin/Bundles/Edit', [
-            'bundle' => new BundleResource($bundle->load('skus')),
-            'skus' => SkuSelectResource::collection(Sku::getAvailableForBundles()),
-            'branches' => Branch::getMinimalList()
+        return redirect()->route('bundles.index')->with('toast', [
+            'type'    => 'success',
+            'message' => 'Estructura de campaña actualizada correctamente.'
         ]);
     }
 
-    public function update(BundleRequest $request, Bundle $bundle, UpsertBundleAction $action)
+    public function destroy(string $id, DestroyBundleAction $action): RedirectResponse
     {
-        $this->authorize('update', $bundle);
-
-        $action->execute(BundleDTO::fromRequest($request), $bundle);
-
-        return redirect()->route('admin.bundles.index')->with('success', 'Pack actualizado.');
-    }
-
-    public function destroy(Bundle $bundle, DeleteBundleAction $action)
-    {
-        $this->authorize('delete', $bundle);
-
+        $bundle = Bundle::findOrFail($id);
         $action->execute($bundle);
 
-        return redirect()->route('admin.bundles.index')->with('success', 'Pack eliminado.');
+        return redirect()->route('bundles.index')->with('toast', [
+            'type'    => 'info',
+            'message' => 'Grupo comercial eliminado de los registros.'
+        ]);
     }
 }

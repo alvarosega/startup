@@ -9,35 +9,26 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('bundles', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
-            $table->foreignUuid('branch_id')->constrained()->onDelete('cascade');
-            
-            $table->string('name');
-            $table->string('slug');
-            // Discriminador de Comportamiento
-            $table->enum('type', ['atomic', 'template'])->default('atomic')->index();
-            
-            $table->text('description')->nullable();
+            $table->uuid('id')->primary();
+            $table->string('name', 128);
             $table->string('image_path')->nullable();
-            
-            // Si es 'atomic', este precio es el final. Si es 'template', es null.
-            $table->decimal('fixed_price', 10, 2)->nullable();
-            
+            $table->enum('type', ['OFFER', 'TEMPLATE'])->index();
             $table->boolean('is_active')->default(true)->index();
-            $table->integer('max_quantity_per_order')->default(5);
-            
-            // Vigencia
-            $table->timestamp('starts_at')->nullable()->index();
-            $table->timestamp('ends_at')->nullable()->index();
-            
             $table->timestamps();
-            $table->softDeletes();
+        });
 
-            $table->unique(['branch_id', 'slug']);
+        Schema::create('bundle_items', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('bundle_id')->constrained('bundles')->cascadeOnDelete();
+            $table->foreignUuid('sku_id')->constrained('skus')->cascadeOnDelete();
+            $table->timestamps();
+
+            $table->unique(['bundle_id', 'sku_id'], 'idx_bundle_sku_unique');
         });
     }
 
     public function down(): void {
+        Schema::dropIfExists('bundle_items');
         Schema::dropIfExists('bundles');
     }
 };

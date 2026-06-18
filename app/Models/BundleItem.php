@@ -4,25 +4,28 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BundleItem extends Pivot
+class BundleItem extends Model
 {
-    /**
-     * Al ser una tabla con llave primaria compuesta (bundle_id, sku_id),
-     * desactivamos el incremento y el manejo de ID único estándar.
-     */
+    use HasUuids;
+
     protected $table = 'bundle_items';
-    
-    public $incrementing = false;
-    
+
     protected $fillable = [
         'bundle_id',
         'sku_id',
-        'quantity'
     ];
 
-    protected $casts = [
-        'quantity' => 'integer'
-    ];
+    public function bundle(): BelongsTo
+    {
+        return $this->belongsTo(Bundle::class, 'bundle_id');
+    }
+
+    public function sku(): BelongsTo
+    {
+        return $this->belongsTo(Sku::class, 'sku_id');
+    }
 }
