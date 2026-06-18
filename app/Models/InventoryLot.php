@@ -4,45 +4,46 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryLot extends Model
 {
-    use HasUv7;
+    use HasUuids;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
+    protected $table = 'inventory_lots';
 
     protected $fillable = [
         'purchase_id',
-        'transfer_id', 
+        'transfer_id',
         'branch_id',
         'sku_id',
         'lot_code',
         'quantity',
         'initial_quantity',
-        'reserved_quantity', 
-        'is_safety_stock',  
-        'expiration_date'
+        'reserved_quantity',
+        'is_safety_stock',
+        'is_quarantine',
+        'expiration_date',
     ];
 
     protected $casts = [
+        'quantity'          => 'decimal:3',
+        'initial_quantity'  => 'decimal:3',
+        'reserved_quantity' => 'decimal:3',
         'is_safety_stock'   => 'boolean',
-        'expiration_date'   => 'date',
-        'quantity'          => 'float', 
-        'initial_quantity'  => 'float',
-        'reserved_quantity' => 'float'
+        'is_quarantine'     => 'boolean',
+        'expiration_date'   => 'date', // LEY: Mutación mandatoria para soporte de métodos Carbon en controlador
     ];
 
-    public function purchase(): BelongsTo { return $this->belongsTo(Purchase::class); }
-    public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
-    public function sku(): BelongsTo { return $this->belongsTo(Sku::class); }
-    
-    public function movements(): HasMany 
-    { 
-        return $this->hasMany(InventoryMovement::class, 'inventory_lot_id'); 
+    public function sku(): BelongsTo
+    {
+        return $this->belongsTo(Sku::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

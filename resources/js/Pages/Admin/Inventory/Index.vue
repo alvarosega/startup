@@ -1,28 +1,22 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
 import axios from 'axios';
-import AdminLayout from '@/Layouts/AdminLayout.vue'; // Ajusta la ruta según tu estructura de carpetas
+import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps({
   branches: { type: Array, required: true }
 });
 
-// Estados de control de la interfaz
 const selectedBranchId = ref('');
 const searchQuery = ref('');
 const balances = ref([]);
 const expandedSkuId = ref(null);
 
-// Estados de carga
 const loadingBalances = ref(false);
 const loadingDetails = ref(false);
 
-// Estructura de caché reactiva
 const detailsCache = reactive({});
 
-/**
- * Carga los saldos consolidados al cambiar la sucursal
- */
 const handleBranchChange = async () => {
   expandedSkuId.value = null;
   balances.value = [];
@@ -43,9 +37,6 @@ const handleBranchChange = async () => {
   }
 };
 
-/**
- * Buscador predictivo en el cliente
- */
 const filteredBalances = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return balances.value;
@@ -56,9 +47,6 @@ const filteredBalances = computed(() => {
   );
 });
 
-/**
- * Control del Acordeón con Lazy Loading y corrección de llaves de parámetros
- */
 const toggleAccordion = async (skuId) => {
   if (expandedSkuId.value === skuId) {
     expandedSkuId.value = null;
@@ -71,7 +59,6 @@ const toggleAccordion = async (skuId) => {
 
   loadingDetails.value = true;
   try {
-    // CORRECCIÓN: Se envía el parámetro mapeado como 'skuId' para coincidir con la ruta modificada
     const [lotsResponse, kardexResponse] = await Promise.all([
       axios.get(route('admin.inventory.lots', { skuId: skuId }), { params: { branch_id: selectedBranchId.value } }),
       axios.get(route('admin.inventory.kardex', { skuId: skuId }), { params: { branch_id: selectedBranchId.value } })
@@ -133,7 +120,7 @@ const toggleAccordion = async (skuId) => {
               <th class="p-3">Reservado</th>
               <th class="p-3">En Cuarentena</th>
               <th class="p-3">Disponible</th>
-              <th class="p-3 text-right">Acciones</th>
+              <th class="p-3 " text-right>Acciones</th>
             </tr>
           </thead>
           <tbody class="text-sm">
@@ -183,14 +170,20 @@ const toggleAccordion = async (skuId) => {
                             v-for="lot in detailsCache[balance.sku_id].lots" 
                             :key="lot.id" 
                             class="border-b last:border-0"
-                            :class="{ 'text-destructive bg-destructive/5': lot.is_expired }"
+                            :class="{ 
+                              'bg-red-500/5 text-red-600': lot.is_expired,
+                              'bg-amber-500/5 text-amber-700': lot.is_quarantine && !lot.is_expired,
+                              'bg-blue-500/5 text-blue-600': lot.is_safety_stock && !lot.is_expired && !lot.is_quarantine
+                            }"
                           >
                             <td class="py-2 font-mono">{{ lot.lot_code }}</td>
                             <td class="py-2 font-semibold">{{ lot.quantity.toFixed(3) }}</td>
                             <td class="py-2">{{ lot.expiration_date || 'Sin vencimiento' }}</td>
-                            <td class="py-2 text-right font-medium">
-                              <span v-if="lot.is_expired" class="text-red-600 font-bold">CADUCADO</span>
-                              <span v-else class="text-green-600">Disponible</span>
+                            <td class="py-2 text-right font-bold uppercase tracking-wider text-[10px]">
+                              <span v-if="lot.is_expired" class="text-red-600">CADUCADO</span>
+                              <span v-else-if="lot.is_quarantine" class="text-amber-600">CUARENTENA</span>
+                              <span v-else-if="lot.is_safety_stock" class="text-blue-600">STOCK SEG.</span>
+                              <span v-else class="text-green-600 font-medium">Disponible</span>
                             </td>
                           </tr>
                         </tbody>
