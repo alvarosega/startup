@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             BundleTestSeeder::class,
             AdPlacementSeeder::class,  
             AdCampaignSeeder::class,
+            RetailMediaTestSeeder::class,
         ]);
     }
 }

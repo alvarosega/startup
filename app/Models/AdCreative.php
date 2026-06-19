@@ -7,46 +7,86 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\{MorphTo, BelongsTo};
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AdCreative extends Model
 {
     use HasUuids, SoftDeletes;
 
+    protected $table = 'ad_creatives';
+
     protected $fillable = [
-        'branch_id', 'campaign_id', 'placement_id', 'brand_id', 'category_id', 'bundle_id',
-        'target_type', 'target_id', 'name', 
-        'image_mobile_path', 'image_desktop_path',
-        'action_type', 'sort_order', 'is_active'
+        'campaign_id',
+        'placement_id',
+        'branch_id',
+        'sku_id',
+        'category_id',
+        'bundle_id',
+        'brand_id',
+        'version',
+        'target_id',
+        'target_type',
+        'name',
+        'image_mobile_path',
+        'image_desktop_path',
+        'action_type',
+        'sort_order',
+        'is_active',
     ];
 
-    public function scopeActive($query) { return $query->where('is_active', true); }
+    protected $casts = [
+        'version'    => 'integer',
+        'sort_order' => 'integer',
+        'is_active'  => 'boolean',
+    ];
 
-    // --- ANCLAJES (Contexto) ---
-    public function category(): BelongsTo { return $this->belongsTo(Category::class); }
-    public function campaign(): BelongsTo { return $this->belongsTo(AdCampaign::class); }
-    public function placement(): BelongsTo { return $this->belongsTo(AdPlacement::class); }
-    public function branch(): BelongsTo { return $this->belongsTo(Branch::class); }
-    public function brand(): BelongsTo { return $this->belongsTo(Brand::class); } // Adición obligatoria
-    public function bundle(): BelongsTo { return $this->belongsTo(Bundle::class); }
+    // --- RELACIONES DE INFRAESTRUCTURA PUBLICITARIA ---
 
-    /**
-     * CORRECCIÓN: El nivel de acceso DEBE ser public.
-     * Generación de UUIDv7 para MariaDB 11.8.
-     */
-    public function newUniqueId(): string
+    public function campaign(): BelongsTo
     {
-        return (string) Str::uuid7();
+        return $this->belongsTo(AdCampaign::class, 'campaign_id');
     }
 
-    // --- TARGET (Destino) ---
-    public function target(): MorphTo { return $this->morphTo(); }
+    public function placement(): BelongsTo
+    {
+        return $this->belongsTo(AdPlacement::class, 'placement_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
+
+    // --- RELACIONES DE ANCLAJE CONTEXTUAL (NULLABLE) ---
+
+    public function sku(): BelongsTo
+    {
+        return $this->belongsTo(Sku::class, 'sku_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    public function bundle(): BelongsTo
+    {
+        return $this->belongsTo(Bundle::class, 'bundle_id');
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class, 'brand_id');
+    }
+
+    // --- RELACIÓN POLIMÓRFICA DE DESTINO (TARGET) ---
 
     /**
-     * RELACIONES EXPLÍCITAS: Optimizadas para Eager Loading sin filtros ambiguos.
+     * Resuelve dinámicamente la entidad interna de destino (Sku, Category, Bundle).
      */
-    public function sku(): BelongsTo {
-        return $this->belongsTo(Sku::class, 'target_id');
+    public function target(): MorphTo
+    {
+        return $this->morphTo(__FUNCTION__, 'target_type', 'target_id');
     }
 }

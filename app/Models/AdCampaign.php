@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -7,37 +9,47 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
-class AdCampaign extends Model {
+class AdCampaign extends Model
+{
     use HasUuids, SoftDeletes;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
+    protected $table = 'ad_campaigns';
 
-    protected $fillable = ['provider_id', 'market_zone_id', 'name', 'type', 'starts_at', 'ends_at', 'is_active'];
-
-    protected $casts = [
-        'is_active' => 'boolean',
-        'starts_at' => 'datetime',
-        'ends_at' => 'datetime',
+    protected $fillable = [
+        'provider_id',
+        'name',
+        'type',
+        'starts_at',
+        'ends_at',
+        'is_active',
     ];
 
-    public function provider(): BelongsTo 
+    protected $casts = [
+        'starts_at' => 'datetime',
+        'ends_at'   => 'datetime',
+        'is_active' => 'boolean',
+    ];
+
+    public function provider(): BelongsTo
     {
-        return $this->belongsTo(Provider::class);
+        return $this->belongsTo(Provider::class, 'provider_id');
     }
 
-    public function creatives(): HasMany 
-    { 
-        return $this->hasMany(AdCreative::class, 'campaign_id'); 
+    public function creatives(): HasMany
+    {
+        return $this->hasMany(AdCreative::class, 'campaign_id');
     }
 
-    public function marketZone(): BelongsTo 
-    { 
-        return $this->belongsTo(MarketZone::class); 
-    }
-    public function scopeActive($query)
+    /**
+     * Scope para restringir la consulta a campañas vigentes temporalmente.
+     */
+    public function scopeScopeVigente(Builder $query): void
     {
-        return $query->where('is_active', true);
+        $now = now();
+        $query->where('is_active', true)
+              ->where(fn(Builder $q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
+              ->where(fn(Builder $q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now));
     }
 }

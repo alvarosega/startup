@@ -24,7 +24,7 @@ use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
-use App\Http\Controllers\Web\Admin\RetailMedia\AdCampaignController;
+use App\Http\Controllers\Web\Admin\RetailMedia\AdPlacementController;
 
 Route::middleware(['guest:super_admin'])->group(function () {
     Route::get('login', [LoginController::class, 'showLogin'])->name('login');
@@ -112,7 +112,9 @@ Route::middleware(['auth.admin'])->group(function () {
             Route::get('ad-creatives/search-bundles', [AdCreativeController::class, 'searchBundles'])->name('ad-creatives.search-bundles');
             Route::get('ad-creatives/search-brands', [AdCreativeController::class, 'searchBrands'])->name('ad-creatives.search-brands');
             
-            Route::resource('ad-creatives', AdCreativeController::class)->parameters(['ad-creatives' => 'ad_creative']);
+            // RECTIFICACIÓN: Solo rutas operativas y control de bindings en plurales
+            Route::resource('ad-creatives', AdCreativeController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-creatives' => 'ad_creative']);
+            Route::resource('ad-placements', AdPlacementController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-placements' => 'ad_placement']);
             Route::resource('ad-campaigns', AdCampaignController::class);
         });
     });

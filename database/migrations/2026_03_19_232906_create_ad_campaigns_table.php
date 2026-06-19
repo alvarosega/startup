@@ -5,14 +5,15 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     public function up(): void {
         Schema::create('ad_campaigns', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('id')->primary();
             $table->foreignUuid('provider_id')->constrained('providers'); 
             
-            $table->string('name');
+            $table->string('name', 128);
             $table->enum('type', ['PAID', 'INTERNAL'])->default('PAID');
             
             $table->timestamp('starts_at')->nullable()->index();
@@ -24,5 +25,7 @@ return new class extends Migration {
         });
     }
 
-    public function down(): void { Schema::dropIfExists('ad_campaigns'); }
+    public function down(): void { 
+        Schema::dropIfExists('ad_campaigns'); 
+    }
 };

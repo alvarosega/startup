@@ -5,107 +5,53 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Admin\RetailMedia;
 
 use App\Http\Controllers\Controller;
-use App\Models\{AdCreative, AdCampaign, AdPlacement, Branch, Brand, Category};
-use App\DTOs\Admin\RetailMedia\{AdCreativeFilterDTO, UpsertAdCreativeDTO};
-use App\Http\Requests\Admin\RetailMedia\UpsertAdCreativeRequest;
-use App\Actions\Admin\RetailMedia\{
-    ListAdCreativesAction, 
-    UpsertAdCreativeAction, 
-    SearchSkusAction, 
-    DeleteAdCreativeAction
-};
-use App\Http\Resources\Admin\RetailMedia\AdCreativeResource;
-use Illuminate\Http\{Request, RedirectResponse, JsonResponse};
-use Inertia\{Inertia, Response};
+use App\Http\Requests\Admin\RetailMedia\StoreCreativeRequest;
+use App\DTOs\Admin\RetailMedia\CreativeData;
+use App\Http\Resources\Admin\RetailMedia\CreativeResource;
+use App\Actions\Admin\RetailMedia\{StoreCreativeAction, UpdateCreativeAction};
+use App\Models\{AdCreative, AdCampaign, AdPlacement, Branch, Sku, Category, Bundle, Brand};
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AdCreativeController extends Controller
 {
-    public function index(Request $request, ListAdCreativesAction $action): Response 
+    public function index(): Response
     {
-        $dto = AdCreativeFilterDTO::fromRequest($request);
-        $results = $action->execute($dto);
+        $creatives = AdCreative::with(['campaign', 'placement', 'branch', 'target', 'sku', 'category', 'bundle', 'brand'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        return Inertia::render('Admin/RetailMedia/AdCreatives/Index', [
-            'items' => AdCreativeResource::collection($results),
-            'filters' => $request->only(['placement_code', 'branch_id', 'is_active']),
-            'placements' => AdPlacement::where('is_active', true)->get(['code', 'name']),
-            'branches' => Branch::active()->get(['id', 'name']),
+        return Inertia::render('Admin/RetailMedia/Creatives/Index', [
+            'creatives'  => CreativeResource::collection($creatives)->resolve(),
+            'campaigns'  => AdCampaign::select('id', 'name')->where('is_active', true)->get(),
+            'placements' => AdPlacement::select('id', 'name', 'code')->where('is_active', true)->get(),
+            'branches'   => Branch::select('id', 'name')->get(),
+            'categories' => Category::select('id', 'name')->get(),
+            'bundles'    => Bundle::select('id', 'name')->where('is_active', true)->get(),
+            'brands'     => Brand::select('id', 'name')->get(),
         ]);
     }
 
-    public function create(): Response
+    public function store(StoreCreativeRequest $request, StoreCreativeAction $action): RedirectResponse
     {
-        return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
-            'campaigns'  => AdCampaign::where('is_active', true)->get(['id', 'name']),
-            'placements' => AdPlacement::where('is_active', true)->get(['id', 'code', 'name']),
-            'branches'   => Branch::active()->get(['id', 'name']),
-            'categories' => Category::active()->get(['id', 'name']),
-        ]);
+        $action->execute(CreativeData::fromRequest($request->validated()));
+        return back()->with('toast', ['type' => 'success', 'message' => 'Pieza publicitaria inyectada de forma correcta.']);
     }
 
-    public function store(UpsertAdCreativeRequest $request, UpsertAdCreativeAction $action): RedirectResponse 
+    public function update(StoreCreativeRequest $request, string $id, UpdateCreativeAction $action): RedirectResponse
     {
-        $action->execute(UpsertAdCreativeDTO::fromRequest($request));
-        return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Activo publicitario desplegado.');
+        $creative = AdCreative::findOrFail($id);
+        $action->execute($creative, CreativeData::fromRequest($request->validated()));
+        return back()->with('toast', ['type' => 'success', 'message' => 'Contenido y mapeo de la pieza actualizados.']);
     }
 
-    public function edit(string $id): Response
+    public function destroy(string $id): RedirectResponse
     {
-        $creative = AdCreative::with([
-            'campaign', 'placement', 'branch', 'category', 'brand', 'sku.product', 'bundle'
-        ])->findOrFail($id);
-
-        return Inertia::render('Admin/RetailMedia/AdCreatives/Form', [
-            'creative'   => new AdCreativeResource($creative),
-            'campaigns'  => AdCampaign::where('is_active', true)->get(['id', 'name']),
-            'placements' => AdPlacement::where('is_active', true)->get(['id', 'name', 'code']),
-            'branches'   => Branch::active()->get(['id', 'name']),
-            'categories' => Category::active()->get(['id', 'name']),
-        ]);
-    }
-
-    public function update(UpsertAdCreativeRequest $request, UpsertAdCreativeAction $action, string $id): RedirectResponse 
-    {
-        $action->execute(UpsertAdCreativeDTO::fromRequest($request));
-        return redirect()->route('admin.retail-media.ad-creatives.index')
-            ->with('success', 'Sincronización de activo completada.');
-    }
-
-    public function destroy(string $id, DeleteAdCreativeAction $action): RedirectResponse
-    {
-        $action->execute($id);
-        return redirect()->route('admin.retail-media.ad-creatives.index');
-    }
-
-    // --- MOTORES DE BÚSQUEDA AJAX ---
-
-    public function searchSkus(Request $request, SearchSkusAction $action): JsonResponse
-    {
-        return response()->json($action->execute($request->query('q', '')));
-    }
-
-    public function searchBundles(Request $request): JsonResponse
-    {
-        $q = $request->query('q', '');
-        if (strlen($q) < 2) return response()->json([]);
-
-        $results = \App\Models\Bundle::where('name', 'like', "%{$q}%")
-            ->active()->limit(10)->get()
-            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name, 'code' => strtoupper($b->type)]);
-            
-        return response()->json($results);
-    }
-
-    public function searchBrands(Request $request): JsonResponse
-    {
-        $q = $request->query('q', '');
-        if (strlen($q) < 2) return response()->json([]);
-
-        $results = Brand::where('name', 'like', "%{$q}%")
-            ->active()->limit(10)->get()
-            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name, 'code' => $b->slug]);
-
-        return response()->json($results);
+        $creative = AdCreative::findOrFail($id);
+        if ($creative->image_mobile_path) { \Illuminate\Support\Facades\Storage::disk('public')->delete($creative->image_mobile_path); }
+        if ($creative->image_desktop_path) { \Illuminate\Support\Facades\Storage::disk('public')->delete($creative->image_desktop_path); }
+        $creative->delete();
+        return back()->with('toast', ['type' => 'info', 'message' => 'Pieza publicitaria eliminada físicamente.']);
     }
 }
