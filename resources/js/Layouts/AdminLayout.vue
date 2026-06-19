@@ -23,54 +23,58 @@ onMounted(() => {
         
         <Sidebar />
 
-        <main class="relative min-h-screen transition-all duration-300 md:ml-[72px] pb-40 md:pb-12 flex flex-col">
+        <main class="relative min-h-screen md:ml-[72px] pb-40 md:pb-12 flex flex-col data-layout-fluid">
             
-            <header class="w-full px-4 py-4 md:px-8 flex justify-end items-center sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border transition-all duration-200">
-                <div class="flex items-center gap-4">
+            <header class="w-full px-4 py-2.5 md:px-6 flex justify-between items-center sticky top-0 z-40 bg-background border-b border-border">
+                
+                <div class="flex items-center text-xs text-muted-foreground font-medium">
+                    <span>Panel de Control</span>
+                </div>
+
+                <div class="flex items-center gap-3">
                     
-                    <div v-if="user" class="hidden md:flex items-center border border-border bg-card p-1 pr-4 cursor-default rounded-lg transition-all duration-200 hover:border-primary/30 hover:shadow-sm group">
-                        <div class="w-10 h-10 bg-primary/10 text-primary flex items-center justify-center font-sans font-bold text-xl rounded-lg border border-primary/20 group-hover:bg-primary/20 transition-all duration-200">
-                            <span class="transition-transform duration-200 group-hover:scale-105">
+                    <div v-if="user" class="hidden md:flex items-center border border-border bg-card p-1 pr-3 cursor-default rounded-md transition-colors duration-100 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                        <div class="w-8 h-8 bg-primary/10 text-primary flex items-center justify-center font-bold text-base rounded-md border border-primary/20">
+                            <span>
                                 {{ user?.first_name?.[0]?.toUpperCase() || 'U' }}
                             </span>
                         </div>
                         
-                        <div class="flex flex-col border-l border-border pl-3 ml-1">
-                            <span class="font-sans text-sm font-semibold leading-none text-foreground transition-colors duration-200 group-hover:text-primary">
+                        <div class="flex flex-col border-l border-border pl-2.5 ml-1.5 intense-text-container">
+                            <span class="text-xs font-semibold leading-none text-foreground">
                                 {{ user?.first_name }}
                             </span>
-                            <span class="text-[10px] font-medium uppercase tracking-wider text-primary mt-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
                                 {{ user?.roles?.[0]?.replace('_', ' ') || 'Staff' }}
                             </span>
                         </div>
                     </div>
 
-                    <div class="border border-border bg-card rounded-lg transition-all duration-200 hover:border-primary/30 hover:shadow-sm">
-                        <ThemeToggler class="p-2 transition-all duration-200 hover:text-primary" />
+                    <div class="border border-border bg-card rounded-md transition-colors duration-100 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                        <ThemeToggler class="p-1.5 text-foreground/80 hover:text-primary transition-colors duration-100" />
                     </div>
                 </div>
             </header>
 
-            <div class="flex-1 p-4 md:p-6 lg:p-8 max-w-[1920px] w-full mx-auto mt-2 md:mt-0">
+            <div class="flex-1 p-4 md:p-6 w-full mx-auto mt-2 md:mt-0">
                 
-                <div v-if="$slots.header" class="mb-6 md:mb-8 relative">
-                    <h1 class="font-sans font-bold text-3xl md:text-4xl text-foreground">
+                <div v-if="$slots.header" class="mb-5 relative border-b border-border/40 pb-3">
+                    <h1 class="text-xl md:text-2xl font-bold tracking-tight text-foreground">
                         <slot name="header" />
                     </h1>
-                    <div class="absolute -bottom-2 left-0 w-12 h-1 bg-primary rounded-full"></div>
                 </div>
 
                 <slot />
             </div>
 
-            <div v-if="$slots.footer" class="mt-12 border-t border-border py-4 px-8 text-left text-xs font-medium text-muted-foreground bg-background">
+            <div v-if="$slots.footer" class="mt-auto border-t border-border py-3 px-6 text-left text-xs font-medium text-muted-foreground bg-card">
                 <slot name="footer" />
             </div>
         </main>
 
-        <div v-if="isDevelopment" class="fixed bottom-32 md:bottom-6 left-4 z-50">
-            <span class="inline-block bg-primary/10 text-primary text-xs px-3 py-1 font-medium rounded-md border border-primary/20">
-                DEV MODE
+        <div v-if="isDevelopment" class="fixed bottom-36 md:bottom-4 left-4 z-50">
+            <span class="inline-block bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900 text-[10px] px-2 py-0.5 font-bold tracking-wider rounded border border-border">
+                DEV
             </span>
         </div>
     </div>

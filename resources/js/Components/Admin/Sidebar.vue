@@ -1,205 +1,103 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
-import { 
-    LayoutDashboard, ShoppingCart, Package, Truck, AlertTriangle, 
-    RefreshCw, Tag, Layers, Factory, LogOut,
-    Gift, ClipboardList, Settings, X, 
-    Building2, FolderTree, UserCog, Map, 
-    Store, Home, Megaphone, Radar, ArrowLeftRight // CORREGIDO: Importación de icono móvil inyectada
-} from 'lucide-vue-next';
+import SidebarLink from '@/Components/Admin/SidebarLink.vue';
 
 const activeMobileMenu = ref(null);
-
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
-
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
-const canManageStock = isSuperAdmin;
-const canManageCatalog = isSuperAdmin;
-const canManageAds = isSuperAdmin;
-const canManageUsers = isSuperAdmin;
 
-const toggleMobileMenu = (menu) => {
-    activeMobileMenu.value = activeMobileMenu.value === menu ? null : menu;
+// Matriz de Configuración Estática
+const navigationMenu = [
+    { name: 'Dashboard', route: 'admin.dashboard.index', pattern: 'admin.dashboard.*', icon: 'dashboard', group: 'root', permission: true },
+    
+    // Grupo: Stock
+    { name: 'Ingresos', route: 'admin.purchases.index', pattern: 'admin.purchases.*', icon: 'move_to_inbox', group: 'inv', permission: isSuperAdmin },
+    { name: 'Stock Base', route: 'admin.inventory.index', pattern: 'admin.inventory.*', icon: 'warehouse', group: 'inv', permission: isSuperAdmin },
+    { name: 'Transformaciones', route: 'admin.transformations.index', pattern: 'admin.transformations.*', icon: 'precision_manufacturing', group: 'inv', permission: isSuperAdmin },
+    
+    // Grupo: Flujos
+    { name: 'Transferencias', route: 'admin.transfers.index', pattern: 'admin.transfers.*', icon: 'local_shipping', group: 'mov', permission: isSuperAdmin },
+    { name: 'Bajas', route: 'admin.removals.index', pattern: 'admin.removals.*', icon: 'delete_forever', group: 'mov', permission: isSuperAdmin },
+    { name: 'Órdenes', route: 'admin.orders.index', pattern: 'admin.orders.*', icon: 'receipt_long', group: 'mov', permission: isSuperAdmin },
+    { name: 'Radar (Vivo)', route: 'admin.logistics.monitor', pattern: 'admin.logistics.*', icon: 'radar', group: 'mov', permission: isSuperAdmin },
+    
+    // Grupo: Catálogo
+    { name: 'Productos', route: 'admin.products.index', pattern: 'admin.products.*', icon: 'label', group: 'com', permission: isSuperAdmin },
+    { name: 'Zonas', route: 'admin.market-zones.index', pattern: 'admin.market-zones.*', icon: 'map', group: 'com', permission: isSuperAdmin },
+    { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'com', permission: isSuperAdmin },
+    { name: 'Marcas', route: 'admin.brands.index', pattern: 'admin.brands.*', icon: 'branding_watermark', group: 'com', permission: isSuperAdmin },
+    { name: 'Categorías', route: 'admin.categories.index', pattern: 'admin.categories.*', icon: 'account_tree', group: 'com', permission: isSuperAdmin },
+    { name: 'Proveedores', route: 'admin.providers.index', pattern: 'admin.providers.*', icon: 'factory', group: 'com', permission: isSuperAdmin },
+    { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'com', permission: isSuperAdmin },
+    
+    // Grupo: Gestión
+    { name: 'Sucursales', route: 'admin.branches.index', pattern: 'admin.branches.*', icon: 'store', group: 'ges', permission: isSuperAdmin },
+    { name: 'Conductores', route: 'admin.drivers.index', pattern: 'admin.drivers.*', icon: 'badge', group: 'ges', permission: isSuperAdmin },
+    { name: 'Equipo', route: 'admin.users.index', pattern: 'admin.users.*', icon: 'group', group: 'ges', permission: isSuperAdmin }
+];
+
+// Evaluación Limpia de Permisos
+const filteredMenu = computed(() => {
+    return navigationMenu.filter(item => {
+        if (typeof item.permission === 'boolean') return item.permission;
+        return item.permission.value;
+    });
+});
+
+// Corrección: Bloque Computed Unificado para evitar fallas de reactividad en móvil
+const mobileGroups = computed(() => ({
+    ges: { label: 'Gestión', items: filteredMenu.value.filter(i => i.group === 'ges') },
+    inv: { label: 'Stock', items: filteredMenu.value.filter(i => i.group === 'inv') },
+    mov: { label: 'Flujos', items: filteredMenu.value.filter(i => i.group === 'mov') },
+    com: { label: 'Catálogo', items: filteredMenu.value.filter(i => i.group === 'com') }
+}));
+
+const toggleMobileMenu = (groupKey) => {
+    activeMobileMenu.value = activeMobileMenu.value === groupKey ? null : groupKey;
 };
 
 const closeMobileMenu = () => {
     activeMobileMenu.value = null;
 };
 
-// LEY: Evaluación limpia contra el árbol de nombres transaccionales
-const isActiveRoute = (pattern) => {
-    return route().current(pattern);
+const isActiveRoute = (pattern) => route().current(pattern);
+
+const isGroupActive = (groupKey) => {
+    return filteredMenu.value.some(item => item.group === groupKey && isActiveRoute(item.pattern));
 };
 </script>
 
 <template>
-    <aside class="hidden md:block fixed top-0 left-0 h-full z-50 w-[250px] pointer-events-none">
-        <div class="absolute inset-y-0 left-0 w-[72px] bg-card border-r border-border pointer-events-auto shadow-sm"></div>
+    <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[72px] bg-card border-r border-border z-50 overflow-visible justify-between select-none">
+        <div class="flex flex-col w-full h-[calc(100vh-56px)] overflow-visible">
+            <div class="w-full h-14 flex items-center justify-center border-b border-border/60 shrink-0">
+                <span class="text-base font-bold tracking-wider text-primary">DU</span>
+            </div>
 
-        <div class="absolute top-0 left-0 w-[72px] h-16 flex items-center justify-center z-50 pointer-events-auto">
-            <span class="font-sans font-bold text-2xl text-primary">DU</span>
-        </div>
-
-        <div class="absolute top-16 bottom-0 left-0 w-[250px] overflow-y-auto overflow-x-hidden pointer-events-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <nav class="flex flex-col py-6 gap-2 w-[72px] pointer-events-auto">
-                
-                <Link :href="route('admin.dashboard.index')" 
-                    :class="[isActiveRoute('admin.dashboard.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                    class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                    <LayoutDashboard :size="20" class="transition-colors duration-150" />
-                    <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
-                        Dashboard
-                    </span>
-                </Link>
-
-                <template v-if="canManageStock">
-                    <div class="w-6 h-px bg-border/50 mx-auto my-2"></div>
-                    
-                    <Link :href="route('admin.purchases.index')" 
-                        :class="[isActiveRoute('admin.purchases.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <ShoppingCart :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Ingresos</span>
-                    </Link>
-                    
-                    <Link :href="route('admin.inventory.index')" 
-                        :class="[isActiveRoute('admin.inventory.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Package :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Stock Base</span>
-                    </Link>
-
-                    <Link :href="route('admin.transfers.index')" 
-                        :class="[isActiveRoute('admin.transfers.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Truck :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Transferencias</span>
-                    </Link>
-
-                    <Link :href="route('admin.removals.index')" 
-                        :class="[isActiveRoute('admin.removals.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <AlertTriangle :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Bajas</span>
-                    </Link>
-
-                    <Link :href="route('admin.transformations.index')" 
-                        :class="[isActiveRoute('admin.transformations.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <RefreshCw :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Transformaciones</span>
-                    </Link>
-
-                    <Link :href="route('admin.orders.index')" 
-                        :class="[isActiveRoute('admin.orders.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <ClipboardList :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Órdenes</span>
-                    </Link>
-
-                    <Link :href="route('admin.logistics.monitor')" 
-                        :class="[isActiveRoute('admin.logistics.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Radar :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Radar (Vivo)</span>
-                    </Link>
-                </template>
-
-                <template v-if="canManageCatalog">
-                    <div class="w-6 h-px bg-border/50 mx-auto my-2"></div>
-                    
-                    <Link :href="route('admin.products.index')" 
-                        :class="[isActiveRoute('admin.products.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Tag :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Productos</span>
-                    </Link>
-                    
-                    <Link :href="route('admin.market-zones.index')" 
-                        :class="[isActiveRoute('admin.market-zones.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Map :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Zonas</span>
-                    </Link>
-
-                    <Link :href="route('admin.bundles.index')" 
-                        :class="[isActiveRoute('admin.bundles.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Layers :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Combos</span>
-                    </Link>
-
-                    <Link :href="route('admin.brands.index')" 
-                        :class="[isActiveRoute('admin.brands.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Layers :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Marcas</span>
-                    </Link>
-
-                    <Link :href="route('admin.categories.index')" 
-                        :class="[isActiveRoute('admin.categories.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <FolderTree :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Categorías</span>
-                    </Link>
-
-                    <Link :href="route('admin.providers.index')" 
-                        :class="[isActiveRoute('admin.providers.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Factory :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Proveedores</span>
-                    </Link>
-                </template>
-
-                <template v-if="canManageAds">
-                    <div class="w-6 h-px bg-border/50 mx-auto my-2"></div>
-                    
-                    <Link :href="route('admin.retail-media.ad-creatives.index')" 
-                        :class="[isActiveRoute('admin.retail-media.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Megaphone :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
-                            Retail Media
-                        </span>
-                    </Link>
-                </template>
-
-                <template v-if="canManageUsers">
-                    <div class="w-6 h-px bg-border/50 mx-auto my-2"></div>
-                    
-                    <Link :href="route('admin.branches.index')" 
-                        :class="[isActiveRoute('admin.branches.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Building2 :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Sucursales</span>
-                    </Link>
-                    
-                    <Link :href="route('admin.drivers.index')" 
-                        :class="[isActiveRoute('admin.drivers.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <Truck :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Conductores</span>
-                    </Link>
-
-                    <Link :href="route('admin.users.index')" 
-                        :class="[isActiveRoute('admin.users.*') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary']"
-                        class="group relative flex items-center justify-center w-full px-3 py-2 rounded-lg transition-all duration-150">
-                        <UserCog :size="20" class="transition-colors duration-150" />
-                        <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">Equipo</span>
-                    </Link>
-                </template>
-                
-                <div class="pb-12"></div>
+            <nav class="flex-1 w-full overflow-y-auto overflow-x-visible no-scrollbar py-2">
+                <SidebarLink 
+                    v-for="item in filteredMenu" 
+                    :key="item.route"
+                    :href="route(item.route)"
+                    :active="isActiveRoute(item.pattern)"
+                    :title="item.name"
+                    :icon="item.icon"
+                />
             </nav>
         </div>
 
-        <div class="absolute bottom-0 left-0 w-[72px] h-16 border-t border-border bg-card z-50 pointer-events-auto">
-            <Link :href="route('admin.logout')" method="post" as="button" class="flex items-center justify-center h-full w-full transition-colors duration-150 hover:bg-destructive/10 group">
-                <LogOut :size="20" class="text-destructive transition-transform duration-150 group-hover:scale-105" />
-                <span class="absolute left-[80px] px-3 py-1.5 bg-card border border-destructive/30 rounded-md text-xs font-medium text-destructive shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
+        <div class="w-full h-14 border-t border-border shrink-0 overflow-visible">
+            <Link 
+                :href="route('admin.logout')" 
+                method="post" 
+                as="button" 
+                class="group relative flex items-center justify-center h-full w-full text-destructive hover:bg-destructive/10 transition-colors duration-75"
+            >
+                <span class="material-symbols-rounded text-[20px]">logout</span>
+                <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-destructive/30 rounded-md text-xs font-medium text-destructive shadow-flat whitespace-nowrap z-50 pointer-events-none">
                     Cerrar Sesión
                 </span>
             </Link>
@@ -207,138 +105,82 @@ const isActiveRoute = (pattern) => {
     </aside>
 
     <div class="md:hidden">
-        <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-background/80 z-40 cursor-pointer backdrop-blur-sm transition-opacity duration-200"></div>
+        <div 
+            v-if="activeMobileMenu" 
+            @click="closeMobileMenu" 
+            class="fixed inset-0 bg-neutral-950/40 z-40 cursor-pointer transition-opacity duration-75"
+        ></div>
 
-        <div v-if="activeMobileMenu" class="fixed bottom-[90px] left-4 right-4 bg-card z-50 p-6 flex flex-col max-h-[70vh] rounded-xl border border-border shadow-lg">
-            <div class="flex justify-between items-center mb-4 pb-4 border-b border-border">
-                <h3 class="font-sans font-bold text-lg text-foreground">
-                    <span v-if="activeMobileMenu === 'inv'">Stock</span>
-                    <span v-else-if="activeMobileMenu === 'mov'">Flujos</span>
-                    <span v-else-if="activeMobileMenu === 'com'">Catálogo</span>
-                    <span v-else>Gestión</span>
+        <div 
+            v-if="activeMobileMenu" 
+            class="fixed bottom-[82px] left-3 right-3 bg-card z-50 p-4 flex flex-col max-h-[60vh] rounded-md border border-border shadow-flat"
+        >
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-border">
+                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">
+                    {{ mobileGroups[activeMobileMenu]?.label }}
                 </h3>
-                <button @click="closeMobileMenu" class="p-1 rounded-lg hover:bg-muted/10 transition-colors">
-                    <X :size="18" class="text-muted-foreground" />
+                <button @click="closeMobileMenu" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-75">
+                    <span class="material-symbols-rounded text-[18px] text-muted-foreground block">close</span>
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto pr-2">
-                 <div v-if="activeMobileMenu === 'inv'" class="grid grid-cols-2 gap-3">
-                    <Link @click="closeMobileMenu" :href="route('admin.purchases.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <ShoppingCart size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Ingresos</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.inventory.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Package size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Stock Base</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.transformations.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <RefreshCw size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Transform.</span>
-                    </Link>
-                </div>
+            <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2 no-scrollbar">
+                <Link 
+                    v-for="subItem in mobileGroups[activeMobileMenu]?.items"
+                    :key="subItem.route"
+                    @click="closeMobileMenu" 
+                    :href="route(subItem.route)" 
+                    :class="[isActiveRoute(subItem.pattern) ? 'border-primary bg-primary/5 text-foreground' : 'border-border bg-background text-muted-foreground']"
+                    class="border p-3 rounded-md flex flex-col items-center justify-center gap-1.5 transition-colors duration-75"
+                >
+                    <span 
+                        class="material-symbols-rounded text-[20px]"
+                        :style="{ fontVariationSettings: isActiveRoute(subItem.pattern) ? `'FILL' 1` : `'FILL' 0` }"
+                    >
+                        {{ subItem.icon }}
+                    </span>
+                    <span class="text-xs font-medium text-center leading-none">{{ subItem.name }}</span>
+                </Link>
 
-                <div v-if="activeMobileMenu === 'mov'" class="grid grid-cols-2 gap-3">
-                    <Link @click="closeMobileMenu" :href="route('admin.transfers.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Truck size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Transf.</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.removals.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <AlertTriangle size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Bajas</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.orders.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <ClipboardList size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Ordenes</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.logistics.monitor')" class="bg-background border border-primary/30 p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:bg-primary/5">
-                        <Radar size="20" class="text-primary" />
-                        <span class="text-xs font-medium text-center text-primary">Radar</span>
-                    </Link>
-                </div>
-
-                <div v-if="activeMobileMenu === 'com'" class="grid grid-cols-2 gap-3">
-                    <Link @click="closeMobileMenu" :href="route('admin.products.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Tag size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Prod.</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.market-zones.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Map size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Zonas</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.bundles.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Layers size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Combos</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.brands.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Layers size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Marcas</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.categories.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <FolderTree size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Categ.</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.providers.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                        <Factory size="20" class="text-muted-foreground" />
-                        <span class="text-xs font-medium text-center">Prov.</span>
-                    </Link>
-                    <Link @click="closeMobileMenu" :href="route('admin.retail-media.ad-creatives.index')" class="bg-background border border-primary/30 p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:bg-primary/5 col-span-2">
-                        <Megaphone size="20" class="text-primary" />
-                        <span class="text-xs font-medium text-center text-primary">Retail Media (Ads)</span>
-                    </Link>
-                </div>
-
-                <div v-if="activeMobileMenu === 'ges'" class="flex flex-col gap-3">
-                    <div class="grid grid-cols-2 gap-3">
-                        <Link @click="closeMobileMenu" :href="route('admin.users.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                            <UserCog size="20" class="text-muted-foreground" />
-                            <span class="text-xs font-medium text-center">Equipo</span>
-                        </Link>
-                        <Link @click="closeMobileMenu" :href="route('admin.branches.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                            <Building2 size="20" class="text-muted-foreground" />
-                            <span class="text-xs font-medium text-center">Sucursales</span>
-                        </Link>
-                        <Link @click="closeMobileMenu" :href="route('admin.drivers.index')" class="bg-background border border-border p-3 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-150 hover:border-primary/30 hover:bg-primary/5">
-                            <Truck size="20" class="text-muted-foreground" />
-                            <span class="text-xs font-medium text-center">Drivers</span>
-                        </Link>
-                    </div>
-                    
-                    <div class="mt-4 pt-4 border-t border-border">
-                        <Link :href="route('admin.logout')" method="post" as="button" class="w-full bg-destructive/10 border border-destructive/30 p-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-150 hover:bg-destructive/20">
-                            <LogOut :size="16" class="text-destructive" />
-                            <span class="font-medium text-sm text-destructive">Cerrar Sesión</span>
-                        </Link>
-                    </div>
-                </div>
+                <Link 
+                    v-if="activeMobileMenu === 'ges'"
+                    :href="route('admin.logout')" 
+                    method="post" 
+                    as="button" 
+                    class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75"
+                >
+                    <span class="material-symbols-rounded text-[20px]">logout</span>
+                    <span class="text-xs font-medium text-center leading-none">Cerrar Sesión</span>
+                </Link>
             </div>
         </div>
     </div>
 
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card/95 backdrop-blur-sm border-t border-border z-40 grid grid-cols-5 px-2 items-center shadow-md">
-        <button tabindex="0" @click="toggleMobileMenu('ges')" class="flex flex-col items-center justify-center h-full transition-colors duration-150" :class="[activeMobileMenu === 'ges' ? 'text-primary' : 'text-muted-foreground']">
-            <Settings size="20" />
-            <span class="text-[10px] font-medium mt-1">Gestión</span>
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card border-t border-border z-40 grid grid-cols-5 px-1 items-center shadow-flat select-none">
+        <button @click="toggleMobileMenu('ges')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'ges' || isGroupActive('ges') ? 'text-primary' : 'text-muted-foreground']">
+            <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'ges' || isGroupActive('ges')) ? { fontVariationSettings: `'FILL' 1` } : {}">settings</span>
+            <span class="text-[9px] font-medium mt-1">Gestión</span>
         </button>
         
-        <button tabindex="0" @click="toggleMobileMenu('inv')" class="flex flex-col items-center justify-center h-full transition-colors duration-150" :class="[activeMobileMenu === 'inv' || isActiveRoute('admin.inventory.*') || isActiveRoute('admin.purchases.*') || isActiveRoute('admin.transformations.*') ? 'text-primary' : 'text-muted-foreground']">
-            <Package size="20" />
-            <span class="text-[10px] font-medium mt-1">Stock</span>
+        <button @click="toggleMobileMenu('inv')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'inv' || isGroupActive('inv') ? 'text-primary' : 'text-muted-foreground']">
+            <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'inv' || isGroupActive('inv')) ? { fontVariationSettings: `'FILL' 1` } : {}">inventory</span>
+            <span class="text-[9px] font-medium mt-1">Stock</span>
         </button>
         
-        <div class="flex items-center justify-center -mt-4">
-            <Link :href="route('admin.dashboard.index')" @click="closeMobileMenu" class="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-md transition-transform duration-150 hover:scale-105 active:scale-95">
-                <Home size="22" />
+        <div class="flex items-center justify-center -mt-3">
+            <Link :href="route('admin.dashboard.index')" @click="closeMobileMenu" :class="[isActiveRoute('admin.dashboard.*') ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300']" class="w-11 h-11 rounded-md flex items-center justify-center shadow-flat transition-transform duration-75 active:scale-95">
+                <span class="material-symbols-rounded text-[20px]" :style="isActiveRoute('admin.dashboard.*') ? { fontVariationSettings: `'FILL' 1` } : {}">home</span>
             </Link>
         </div>
 
-        <button tabindex="0" @click="toggleMobileMenu('mov')" class="flex flex-col items-center justify-center h-full transition-colors duration-150" :class="[activeMobileMenu === 'mov' || isActiveRoute('admin.transfers.*') || isActiveRoute('admin.removals.*') || isActiveRoute('admin.orders.*') ? 'text-primary' : 'text-muted-foreground']">
-            <ArrowLeftRight size="20" /> <span class="text-[10px] font-medium mt-1">Flujos</span>
+        <button @click="toggleMobileMenu('mov')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'mov' || isGroupActive('mov') ? 'text-primary' : 'text-muted-foreground']">
+            <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'mov' || isGroupActive('mov')) ? { fontVariationSettings: `'FILL' 1` } : {}">swap_horiz</span>
+            <span class="text-[9px] font-medium mt-1">Flujos</span>
         </button>
         
-        <button tabindex="0" @click="toggleMobileMenu('com')" class="flex flex-col items-center justify-center h-full transition-colors duration-150" :class="[activeMobileMenu === 'com' || isActiveRoute('admin.products.*') || isActiveRoute('admin.categories.*') || isActiveRoute('admin.brands.*') || isActiveRoute('admin.providers.*') || isActiveRoute('admin.market-zones.*') || isActiveRoute('admin.bundles.*') || isActiveRoute('admin.prices.*') ? 'text-primary' : 'text-muted-foreground']">
-            <Store size="20" />
-            <span class="text-[10px] font-medium mt-1">Catálogo</span>
+        <button @click="toggleMobileMenu('com')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'com' || isGroupActive('com') ? 'text-primary' : 'text-muted-foreground']">
+            <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'com' || isGroupActive('com')) ? { fontVariationSettings: `'FILL' 1` } : {}">storefront</span>
+            <span class="text-[9px] font-medium mt-1">Catálogo</span>
         </button>
     </nav>
 </template>

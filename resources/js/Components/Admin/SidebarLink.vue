@@ -5,48 +5,36 @@ import { Link } from '@inertiajs/vue3';
 const props = defineProps({
     href: { type: String, required: true },
     active: { type: Boolean, default: false },
-    collapsed: { type: Boolean, default: false },
-    title: { type: String, default: '' } // Nueva prop para accesibilidad
+    title: { type: String, default: '' },
+    icon: { type: String, required: true }
 });
 
 const classes = computed(() => {
-    // Clases base: Flexbox, bordes redondeados suaves, transición de colores
-    const base = 'group relative flex items-center my-1 text-sm font-medium rounded-xl transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] overflow-hidden border border-transparent';
-    
-    // Layout: Si está colapsado es un cuadrado centrado, si no, tiene padding lateral
-    const layout = props.collapsed 
-        ? 'justify-center w-10 h-10 mx-auto px-0' 
-        : 'gap-3 px-3.5 py-2.5 mx-2';
-    
-    // Estados Visuales (Semánticos)
+    const base = 'group relative flex items-center justify-center w-full h-12 transition-colors duration-75 ease-linear select-none';
     const state = props.active
-        // Activo: Color primario, texto contraste, sombra suave
-        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25 font-bold' 
-        // Inactivo: Texto mutado, hover sutil
-        : 'text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 hover:border-border/50';
+        ? 'bg-neutral-200 text-foreground dark:bg-neutral-800'
+        : 'text-muted-foreground hover:bg-neutral-100 hover:text-foreground dark:hover:bg-neutral-900';
 
-    return `${base} ${layout} ${state}`;
+    return `${base} ${state}`;
 });
 </script>
 
 <template>
-    <Link :href="href" :class="classes" :title="collapsed ? title : ''">
+    <Link :href="href" :class="classes">
+        <div 
+            v-if="active" 
+            class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"
+        ></div>
         
-        <span class="shrink-0 transition-transform duration-300" 
-              :class="[
-                  collapsed ? 'scale-110' : 'scale-100',
-                  active && !collapsed ? 'translate-x-0.5' : '' 
-              ]">
-            <slot name="icon" />
+        <span 
+            class="material-symbols-rounded text-[20px] shrink-0 pointer-events-none"
+            :style="{ fontVariationSettings: active ? `'FILL' 1` : `'FILL' 0` }"
+        >
+            {{ icon }}
         </span>
         
-        <span v-if="!collapsed" 
-              class="whitespace-nowrap overflow-hidden transition-all duration-300 origin-left animate-in fade-in slide-in-from-left-2">
-            <slot />
+        <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none">
+            {{ title }}
         </span>
-
-        <div v-if="collapsed && active" 
-             class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary-foreground/30 rounded-r-full">
-        </div>
     </Link>
 </template>
