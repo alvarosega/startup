@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   CONTEXTO CLIENTE (data-context="customer")
+   ========================================================================== */
+[data-context="customer"] {
+  --font-sans: "Orbitron", sans-serif;
+  --neutral-50: 0 0% 98%;
+  --neutral-100: 0 0% 95%;
+  --neutral-200: 0 0% 90%;
+  --neutral-300: 0 0% 80%;
+  --neutral-400: 0 0% 65%;
+  --neutral-500: 0 0% 50%;
+  --neutral-600: 0 0% 35%;
+  --neutral-700: 0 0% 25%;
+  --neutral-800: 0 0% 15%;
+  --neutral-900: 0 0% 10%;
+  --neutral-950: 240 5% 6%;
+  
+  --primary-50: 4 100% 96%;
+  --primary-100: 4 100% 90%;
+  --primary-500: 4 100% 50%; /* Rojo Absoluto F1 */
+  --primary-600: 4 100% 40%;
+  --primary-900: 4 100% 20%;
+
+  --background: var(--neutral-50);
+  --foreground: var(--neutral-900);
+  --card: 0 0% 100%;
+  --card-foreground: var(--neutral-900);
+  --card-border: var(--neutral-200);
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --ring: var(--neutral-950);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-subtle: 0 4px 15px rgba(0, 0, 0, 0.05);
+  --shadow-f1-glow: 0 0 15px -3px hsl(var(--primary) / 0.5);
+  --shadow-flat: none;
+}
+
+.dark[data-context="customer"] {
+  --background: var(--neutral-950);
+  --foreground: var(--neutral-50);
+  --card: var(--neutral-900);
+  --card-foreground: var(--neutral-50);
+  --card-border: var(--neutral-800);
+  --border: var(--neutral-800);
+  --input: var(--neutral-800);
+  --ring: var(--neutral-50);
+}
+
+/* ==========================================================================
+   CONTEXTO ADMINISTRADOR (data-context="admin")
+   ========================================================================== */
+[data-context="admin"] {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --neutral-50: 240 5% 98%;
+  --neutral-100: 240 5% 96%;
+  --neutral-200: 240 6% 90%;
+  --neutral-300: 240 5% 84%;
+  --neutral-400: 240 5% 65%;
+  --neutral-500: 240 4% 46%;
+  --neutral-600: 240 5% 34%;
+  --neutral-700: 240 5% 26%;
+  --neutral-800: 240 4% 16%;
+  --neutral-900: 240 6% 10%;
+  --neutral-950: 240 10% 4%;
+
+  --primary-50: 4 62% 95%;
+  --primary-100: 4 62% 90%;
+  --primary-500: 4 62% 40%; /* Rojo Técnico Desaturado B2B */
+  --primary-600: 4 62% 32%;
+  --primary-900: 4 62% 16%;
+
+  --destructive-50: 0 100% 97%;
+  --destructive-500: 0 100% 45%;
+  --destructive-700: 0 100% 30%;
+
+  --background: var(--neutral-50);
+  --foreground: var(--neutral-900);
+  --card: 0 0% 100%;
+  --card-foreground: var(--neutral-900);
+  --card-border: var(--neutral-200);
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --primary-text-aaa: 4 62% 30%;
+  --secondary: var(--neutral-100);
+  --secondary-foreground: var(--neutral-900);
+  --muted: var(--neutral-100);
+  --muted-foreground: var(--neutral-500);
+  --destructive: var(--destructive-500);
+  --destructive-foreground: 0 0% 100%;
+  --destructive-text-aaa: 0 100% 30%;
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --ring: var(--neutral-900);
+
+  --success: 142 76% 36%;
+  --info: 211 100% 40%;
+  --warning: 38 92% 40%;
+  --error: 358 100% 40%;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --shadow-flat: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-subtle: none;
+  --shadow-f1-glow: none;
+}
+
+.dark[data-context="admin"] {
+  --background: var(--neutral-950);
+  --foreground: var(--neutral-50);
+  --card: var(--neutral-900);
+  --card-foreground: var(--neutral-50);
+  --card-border: var(--neutral-800);
+  --primary-text-aaa: 4 62% 65%;
+  --secondary: var(--neutral-800);
+  --secondary-foreground: var(--neutral-50);
+  --muted: var(--neutral-800);
+  --muted-foreground: var(--neutral-400);
+  --destructive-text-aaa: 0 100% 75%;
+  --border: var(--neutral-800);
+  --input: var(--neutral-800);
+  --ring: var(--neutral-100);
+  --success: 142 60% 45%;
+  --info: 211 75% 50%;
+  --warning: 38 85% 50%;
+  --error: 358 85% 55%;
+}
+
+/* ==========================================================================
+   CONFIGURACIONES BASE COMPACTAS
+   ========================================================================== */
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased overscroll-none;
+  }
+  html[data-context="customer"] {
+    font-size: 16px;
+  }
+  html[data-context="admin"] {
+    font-size: 14px; /* Densidad operacional aumentada */
+  }
+}
+
+/* ==========================================================================
+   ENCAPSULAMIENTO DE COMPONENTES POR ENTORNO
+   ========================================================================== */
+@layer components {
+  /* --- ÁREA CLIENTE B2C --- */
+  [data-context="customer"] .glass-carbon {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    backdrop-filter: blur(16px) saturate(120%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .dark[data-context="customer"] .glass-carbon {
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.8) 0%, rgba(0, 0, 0, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  [data-context="customer"] .product-card {
+    @apply relative overflow-hidden bg-card border border-card-border shadow-subtle dark:shadow-none;
+  }
+  [data-context="customer"] .btn-primary {
+    @apply px-4 py-3 bg-primary text-primary-foreground font-bold rounded-lg text-sm uppercase tracking-wider transition-all duration-200 active:scale-[0.98];
+  }
+
+  /* --- ÁREA ADMINISTRADOR B2B --- */
+  [data-context="admin"] .admin-table-th {
+    @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary border-b border-border;
+  }
+  [data-context="admin"] .admin-table-td {
+    @apply px-3 py-1.5 text-sm border-b border-border transition-colors duration-75;
+  }
+  [data-context="admin"] .admin-input {
+    @apply w-full px-3 py-1.5 bg-card border border-input rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring transition-shadow;
+  }
+  [data-context="admin"] .admin-btn-primary {
+    @apply px-3 py-1.5 bg-primary text-primary-foreground font-medium rounded-md text-sm transition-colors duration-100 hover:bg-primary/90 active:bg-primary/95 disabled:opacity-50;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Inyección de Render para Material Symbols */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded' !important;
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  font-feature-settings: 'liga';
+}

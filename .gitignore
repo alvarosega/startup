@@ -1,0 +1,41 @@
+# --- LARAVEL & PHP ---
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/node_modules
+/vendor
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# --- BASE DE DATOS Y DATOS SENSIBLES ---
+.db/
+*.sqlite*
+database/data/*.csv
+/storage/*.key
+
+# --- PROJECT IDX (GOOGLE) ---
+.idx/.data/
+.idx/dev.nix.lock
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+
+# --- FIREBASE ---
+.firebase/
+*-debug.log
+serviceAccountKey.json
+google-services.json
+GoogleService-Info.plist

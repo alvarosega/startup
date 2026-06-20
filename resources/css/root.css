@@ -1,0 +1,104 @@
+:root {
+  /* ESCALA NEUTRAL (Gris asfalto/carbono) */
+  --neutral-50: 0 0% 98%;
+  --neutral-100: 0 0% 95%;
+  --neutral-200: 0 0% 90%;
+  --neutral-300: 0 0% 80%;
+  --neutral-400: 0 0% 65%;
+  --neutral-500: 0 0% 50%;
+  --neutral-600: 0 0% 35%;
+  --neutral-700: 0 0% 25%;
+  --neutral-800: 0 0% 15%;
+  --neutral-900: 0 0% 10%;
+  --neutral-950: 240 5% 6%; /* Ligeramente más denso para contrastar el rojo */
+
+  /* ESCALA PRIMARIA (Rojo absoluto F1 - Matiz 4, Sat 100) */
+  --primary-50: 4 100% 96%;
+  --primary-100: 4 100% 90%;
+  --primary-500: 4 100% 50%; /* #FF1801 */
+  --primary-600: 4 100% 40%;
+  --primary-900: 4 100% 20%;
+  --primary-950: 4 100% 12%;
+
+  /* ESCALA DESTRUCTIVA */
+  --destructive-50: 0 100% 97%;
+  --destructive-500: 0 100% 50%;
+  --destructive-700: 0 100% 35%;
+  --destructive-950: 0 100% 10%;
+
+  /* VARIABLES SEMÁNTICAS - MODO CLARO */
+  --background: var(--neutral-50);
+  --foreground: var(--neutral-900);
+
+  --card: 0 0% 100%;
+  --card-foreground: var(--neutral-900);
+  --card-border: var(--neutral-200);
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: var(--neutral-900);
+
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --primary-text-aaa: 4 100% 35%;
+  
+  --secondary: var(--neutral-100);
+  --secondary-foreground: var(--neutral-900);
+
+  --muted: var(--neutral-100);
+  --muted-foreground: var(--neutral-600);
+
+  --accent: 48 100% 55%;
+  --accent-foreground: var(--neutral-950);
+
+  --destructive: var(--destructive-500);
+  --destructive-foreground: 0 0% 100%;
+  --destructive-text-aaa: 0 100% 32%;
+
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --ring: var(--neutral-950);
+
+  --success: 142 76% 30%;
+  --info: 210 100% 35%;
+  --warning: 38 92% 35%;
+  --error: 358 100% 35%;
+}
+
+.dark {
+  /* VARIABLES SEMÁNTICAS - MODO OSCURO */
+  --background: var(--neutral-950);
+  --foreground: var(--neutral-50);
+
+  --card: var(--neutral-900);
+  --card-foreground: var(--neutral-50);
+  --card-border: var(--neutral-800);
+  
+  --popover: var(--neutral-900);
+  --popover-foreground: var(--neutral-50);
+
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --primary-text-aaa: 4 100% 70%;
+
+  --secondary: var(--neutral-800);
+  --secondary-foreground: var(--neutral-50);
+
+  --muted: var(--neutral-800);
+  --muted-foreground: var(--neutral-400);
+
+  --accent: 30 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: var(--destructive-500);
+  --destructive-foreground: 0 0% 100%;
+  --destructive-text-aaa: 0 100% 80%;
+
+  --border: var(--neutral-800);
+  --input: var(--neutral-800);
+  --ring: var(--neutral-50);
+
+  --success: 142 70% 55%;
+  --info: 210 80% 60%;
+  --warning: 38 92% 60%;
+  --error: 358 100% 65%;
+}

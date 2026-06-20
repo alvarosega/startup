@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Illuminate\Http\Request;
+use Inertia\Middleware;
+use Inertia\Inertia;
+use App\Models\Branch;
+use App\Http\Resources\Customer\Auth\CustomerResource; 
+use App\Http\Resources\Customer\Cart\CartResource; 
+use App\Actions\Customer\Cart\GetCustomerCartAction;
+use App\Services\ShopContextService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Tighten\Ziggy\Ziggy;
+use App\Http\Resources\Customer\Category\CategoryResource;
+use App\Actions\Customer\Category\GetCategoryDetailsAction; 
+
+class HandleCustomerInertiaRequests extends Middleware
+{
+    /**
+     * Se direcciona estrictamente a resources/views/customer.blade.php
+     * @var string
+     */
+    protected $rootView = 'customer';
+
+    public function share(Request $request): array
+    {
+        $user = Auth::guard('customer')->user();
+        
+        $guestUuid = $request->header('X-Guest-UUID') 
+                   ?? $request->session()->get('guest_client_uuid') 
+                   ?? (string) Str::uuid();
+
+        if ($request->session()->get('guest_client_uuid') !== $guestUuid) {
+            $request->session()->put('guest_client_uuid', $guestUuid);
+        }
+
+        $shopService = app(ShopContextService::class);
+        $branchId = $shopService->getActiveBranchId();
+
+        return array_merge(parent::share($request), [
+            'ziggy' => function () use ($request) {
+                return array_merge((new Ziggy)->toArray(), [
+                    'location' => $request->url(),
+                ]);
+            },
+            
+            'cart' => Inertia::defer(fn () => (new CartResource(
+                app(GetCustomerCartAction::class)->execute($guestUuid, $user?->id, $branchId)
+            ))->resolve()),
+            
+            'categories_menu' => Inertia::defer(function() use ($branchId) {
+                $version = cache()->get('admin_categories_version', 1);
+                $data = cache()->remember("global_menu_br_{$branchId}_v{$version}", 86400, function() use ($branchId) {
+                    return app(GetCategoryDetailsAction::class)->getGlobalMenu($branchId);
+                });
+                return CategoryResource::collection($data)->resolve();
+            }),
+            
+            'auth' => [
+                'customer' => $user ? (new CustomerResource($user))->resolve() : null,
+            ],
+            'shop_context'     => $this->resolveShopContext($branchId),
+            'location_context' => $this->resolveLocationContext($user, $branchId),
+        
+            'active_order' => Inertia::defer(fn () => $user ? $this->resolveActiveOrder((string) $user->id) : null),
+            
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info'    => fn () => $request->session()->get('info'),
+            ],
+            'errors' => fn () => $request->session()->get('errors')
+                ? $request->session()->get('errors')->getBag('default')->getMessages()
+                : (object) [],
+        ]);
+    }
+
+    private function resolveLocationContext($user, string $branchId): array
+    {
+        if (!$user) {
+            $branchName = cache()->remember("branch_name_{$branchId}", 86400, function() use ($branchId) {
+                return Branch::where('id', $branchId)->value('name') ?? 'Sucursal';
+            });
+            return ['label' => $branchName, 'type' => 'branch'];
+        }
+    
+        $alias = session('user_addr_alias');
+        if (!$alias) {
+            $alias = $user->addresses()->where('is_default', true)->value('alias') ?? 'Mi Ubicación';
+            session(['user_addr_alias' => $alias]);
+        }
+    
+        return ['label' => $alias, 'type' => 'address'];
+    }
+    
+    private function resolveShopContext(string $activeId): array
+    {
+        $shopService = app(ShopContextService::class);
+        $isOutOfCoverage = $shopService->isUserOutOfCoverage();
+
+        return cache()->remember("shop_context_res_{$activeId}_out_{$isOutOfCoverage}", 3600, function() use ($activeId, $isOutOfCoverage) {
+            $branch = Branch::select('id', 'name', 'is_default')->find($activeId);
+            return [
+                'branch_id'          => $branch?->id ?? $activeId,
+                'branch_name'        => $branch?->name ?? 'Sucursal Central',
+                'is_fallback'        => $branch ? (bool)$branch->is_default : true,
+                'is_out_of_coverage' => $isOutOfCoverage,
+            ];
+        });
+    }
+
+    private function resolveActiveOrder(string $customerId): ?array
+    {
+        return null; 
+    }
+}
