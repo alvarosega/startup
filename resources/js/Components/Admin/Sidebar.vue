@@ -1,13 +1,21 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
 import SidebarLink from '@/Components/Admin/SidebarLink.vue';
+import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 
 const activeMobileMenu = ref(null);
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
+
+const isDevelopment = ref(false);
+onMounted(() => {
+    isDevelopment.value = ['localhost', '127.0.0.1', 'test', 'dev'].some(host => 
+        window.location.hostname.includes(host)
+    );
+});
 
 const navigationMenu = [
     { name: 'Dashboard', route: 'admin.dashboard.index', pattern: 'admin.dashboard.*', icon: 'dashboard', group: 'root', permission: true },
@@ -69,12 +77,28 @@ const isGroupActive = (groupKey) => {
 
 <template>
     <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[72px] bg-card border-r border-border z-50 overflow-visible justify-between select-none">
-        <div class="flex flex-col w-full h-[calc(100vh-56px)] overflow-visible">
-            <div class="w-full h-14 flex items-center justify-center border-b border-border/60 shrink-0">
-                <span class="text-base font-bold tracking-wider text-primary">DU</span>
+        
+    <div class="flex flex-col w-full items-center overflow-visible">
+        <div class="w-full h-14 flex items-center justify-center border-b border-border/60 shrink-0 mb-3">
+            <span class="text-base font-black italic tracking-wider text-primary">DU</span>
+        </div>
+
+            <div v-if="user" class="relative group flex items-center justify-center w-full h-12 mb-2">
+                <div class="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-sm transition-colors duration-100 hover:bg-primary/20 cursor-default">
+                    <span>{{ user?.first_name?.[0]?.toUpperCase() || 'U' }}</span>
+                </div>
+                
+                <div class="fixed left-[76px] hidden group-hover:flex flex-col p-2.5 bg-card border border-border rounded-md shadow-flat z-50 pointer-events-none min-w-[140px]">
+                    <span class="text-xs font-semibold text-foreground leading-tight">
+                        {{ user?.first_name }} {{ user?.last_name || '' }}
+                    </span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
+                        {{ user?.roles?.[0]?.replace('_', ' ') || 'Staff' }}
+                    </span>
+                </div>
             </div>
 
-            <nav class="flex-1 w-full overflow-y-auto overflow-x-visible no-scrollbar py-2">
+            <nav class="w-full h-[calc(100vh-190px)] overflow-y-auto overflow-x-visible no-scrollbar py-1 border-t border-border/40">
                 <SidebarLink 
                     v-for="item in filteredMenu" 
                     :key="item.route"
@@ -86,18 +110,26 @@ const isGroupActive = (groupKey) => {
             </nav>
         </div>
 
-        <div class="w-full h-14 border-t border-border shrink-0 overflow-visible">
+        <div class="flex flex-col w-full items-center border-t border-border shrink-0 bg-card z-10 pb-2">
+            <div class="w-full h-12 flex items-center justify-center text-foreground/80 hover:text-primary transition-colors duration-100">
+                <ThemeToggler class="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" />
+            </div>
+
             <Link 
                 :href="route('admin.logout')" 
                 method="post" 
                 as="button" 
-                class="group relative flex items-center justify-center h-full w-full text-destructive hover:bg-destructive/10 transition-colors duration-75"
+                class="group relative flex items-center justify-center h-12 w-full text-destructive hover:bg-destructive/10 transition-colors duration-75"
             >
                 <span class="material-symbols-rounded text-[20px]">logout</span>
                 <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-destructive/30 rounded-md text-xs font-medium text-destructive shadow-flat whitespace-nowrap z-50 pointer-events-none">
                     Cerrar Sesión
                 </span>
             </Link>
+
+            <div v-if="isDevelopment" class="text-[8px] font-bold tracking-widest text-neutral-400 bg-neutral-100 dark:bg-neutral-800/60 border border-border px-1 rounded-sm mt-1 select-none">
+                DEV
+            </div>
         </div>
     </aside>
 
@@ -119,6 +151,23 @@ const isGroupActive = (groupKey) => {
                 <button @click="closeMobileMenu" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-75">
                     <span class="material-symbols-rounded text-[18px] text-muted-foreground block">close</span>
                 </button>
+            </div>
+
+            <div v-if="activeMobileMenu === 'ges' && user" class="flex items-center justify-between p-2 mb-3 bg-neutral-100/60 dark:bg-neutral-800/40 border border-border/60 rounded-md">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-xs">
+                        {{ user?.first_name?.[0]?.toUpperCase() || 'U' }}
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-semibold text-foreground leading-none">
+                            {{ user?.first_name }}
+                        </span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
+                            {{ user?.roles?.[0]?.replace('_', ' ') || 'Staff' }}
+                        </span>
+                    </div>
+                </div>
+                <ThemeToggler class="p-1.5 text-foreground border border-border bg-card rounded-md shadow-sm" />
             </div>
 
             <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2 no-scrollbar">

@@ -3,41 +3,38 @@ import { ref, watch, nextTick } from 'vue';
 import AdminLocationPicker from './AdminLocationPicker.vue';
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import L from 'leaflet';
-import { Home, Briefcase, Users, MoreHorizontal, Navigation2, MapPin, ArrowRight, ArrowLeft } from 'lucide-vue-next';
 
 const props = defineProps({
     form: Object, 
-    activeBranches: Array,
-    step: { type: Number, required: true } // 1 = Mapa, 2 = Detalles
+    activeBranches: Array
 });
 
-const emit = defineEmits(['next', 'back']);
+const step = ref(1); // 1 = Captura en Mapa, 2 = Metadatos de Acceso
 const mapComponentRef = ref(null);
 const previewMapRef = ref(null);
 
 const presets = [
-    { id: 'casa', label: 'CASA', icon: Home },
-    { id: 'trabajo', label: 'TRABAJO', icon: Briefcase },
-    { id: 'amigos', label: 'AMIGOS', icon: Users },
-    { id: 'otro', label: 'OTRO', icon: MoreHorizontal },
+    { id: 'casa', label: 'CASA', icon: 'home' },
+    { id: 'trabajo', label: 'TRABAJO', icon: 'work' },
+    { id: 'amigos', label: 'AMIGOS', icon: 'group' },
+    { id: 'otro', label: 'OTRO', icon: 'more_horiz' },
 ];
 
 const previewIcon = L.divIcon({
     className: 'preview-pin',
-    html: `<div class="w-8 h-8 bg-primary rounded-full border-[3px] border-white shadow-2xl flex items-center justify-center text-white"><div class="w-2 h-2 bg-white rounded-full animate-ping"></div></div>`,
-    iconSize: [32, 32], iconAnchor: [16, 16]
+    html: `<div class="w-6 h-6 bg-primary rounded-full border-2 border-white shadow-md flex items-center justify-center"></div>`,
+    iconSize: [24, 24], iconAnchor: [12, 12]
 });
 
-// Observamos el paso para renderizar el minimapa correctamente
-watch(() => props.step, (newVal) => {
+watch(step, (newVal) => {
     if (newVal === 2) {
         nextTick(() => {
             setTimeout(() => {
                 if (previewMapRef.value?.leafletObject) {
                     previewMapRef.value.leafletObject.invalidateSize();
-                    previewMapRef.value.leafletObject.setView([props.form.latitude, props.form.longitude], 17);
+                    previewMapRef.value.leafletObject.setView([props.form.latitude, props.form.longitude], 16);
                 }
-            }, 300);
+            }, 250);
         });
     }
 });
@@ -45,15 +42,15 @@ watch(() => props.step, (newVal) => {
 const handleConfirmSector = () => {
     props.form.latitude = parseFloat(props.form.latitude);
     props.form.longitude = parseFloat(props.form.longitude);
-    emit('next');
+    step.value = 2;
 };
 </script>
 
 <template>
-    <div class="flex-1 flex flex-col h-full w-full relative overflow-hidden bg-zinc-950">
+    <div class="w-full border border-border rounded-md bg-card overflow-hidden min-h-[440px] flex flex-col relative">
         
-        <div v-show="step === 1" class="flex-1 relative flex flex-col h-full w-full animate-in fade-in duration-500">
-            <div class="absolute inset-0">
+        <div v-show="step === 1" class="flex-1 flex flex-col h-full min-h-[440px] relative">
+            <div class="absolute inset-0 bottom-32">
                 <AdminLocationPicker 
                     ref="mapComponentRef"
                     v-model:modelValueLat="form.latitude" 
@@ -63,78 +60,72 @@ const handleConfirmSector = () => {
                     :activeBranches="activeBranches" 
                 />
             </div>
-            <div class="mt-auto z-[1001] p-6">
-                <div class="bg-zinc-900 border border-zinc-800 p-6 shadow-2xl max-w-lg mx-auto">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-8 h-8 bg-primary/20 border border-primary rounded-none flex items-center justify-center text-primary">
-                            <Navigation2 :size="14" />
-                        </div>
-                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Sensor de Ubicación</span>
-                    </div>
-                    <p class="text-sm font-mono text-white leading-snug min-h-[3rem] line-clamp-2 mb-6 border-l-2 border-primary pl-4 uppercase">
-                        {{ form.address || 'Calculando vectores...' }}
+            
+            <div class="absolute bottom-0 left-0 right-0 h-32 bg-card border-t border-border p-4 flex flex-col justify-between select-none z-[1001]">
+                <div class="flex items-start gap-2">
+                    <span class="material-symbols-rounded text-primary text-lg shrink-0 mt-0.5">navigation</span>
+                    <p class="text-xs font-mono text-foreground leading-tight line-clamp-2 uppercase">
+                        {{ form.address || 'Calculando vectores de posicionamiento...' }}
                     </p>
-                    <div class="flex gap-3">
-                        <button type="button" @click="emit('back')" class="h-14 px-6 bg-zinc-800 text-zinc-400 font-black uppercase text-[10px] tracking-widest hover:bg-zinc-700 transition-colors">
-                            <ArrowLeft :size="18" />
-                        </button>
-                        <button type="button" @click="handleConfirmSector" :disabled="!form.address || form.address === 'Calculando...'" 
-                                class="flex-1 h-14 bg-primary text-white font-black uppercase text-xs tracking-[0.2em] active:scale-95 transition-all disabled:opacity-30 disabled:bg-zinc-800">
-                            Confirmar Sector
-                        </button>
-                    </div>
                 </div>
+                <button type="button" @click="handleConfirmSector" :disabled="!form.address || form.address.includes('Calculando')" 
+                        class="admin-btn-primary w-full py-2 text-xs font-bold uppercase tracking-wider disabled:opacity-40">
+                    Confirmar Sector Geográfico
+                </button>
             </div>
         </div>
 
-        <div v-show="step === 2" class="flex-1 flex flex-col items-center justify-center p-8 max-w-xl mx-auto w-full animate-in fade-in slide-in-from-right-8 duration-700">
-            <div class="w-full text-left border-l-2 border-primary pl-4 mb-8">
-                <h1 class="text-xl font-black uppercase italic text-white tracking-tighter">Metadata Logística</h1>
-                <p class="text-primary text-[9px] font-mono tracking-[0.3em]">[ LOG_METADATA_REQUIRED ]</p>
-            </div>
+        <div v-show="step === 2" class="p-5 flex-1 flex flex-col justify-between min-h-[440px] select-none">
+            <div class="space-y-4">
+                <div class="flex items-center gap-2 pb-2 border-b border-border/60">
+                    <span class="material-symbols-rounded text-primary text-lg">layers</span>
+                    <h3 class="text-xs font-mono font-black text-foreground tracking-wider uppercase">Metadata Logística</h3>
+                </div>
 
-            <div class="w-full space-y-6">
-                <div class="w-full border border-zinc-800 bg-zinc-900 shadow-2xl relative">
-                    <div class="relative w-full h-32">
-                        <l-map ref="previewMapRef" :zoom="17" :center="[form.latitude || -16.5, form.longitude || -68.15]" :options="{ zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false }" class="h-full w-full grayscale-[0.6]">
-                            <l-tile-layer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                <div class="w-full border border-border rounded-md overflow-hidden bg-neutral-50 dark:bg-neutral-900">
+                    <div class="w-full h-24 relative z-10">
+                        <l-map ref="previewMapRef" :zoom="16" :center="[form.latitude || -16.5, form.longitude || -68.15]" :options="{ zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false }" class="h-full w-full">
+                            <l-tile-layer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                             <l-marker :lat-lng="[form.latitude || -16.5, form.longitude || -68.15]" :icon="previewIcon" />
                         </l-map>
-                        <div class="absolute top-2 right-2 bg-primary text-white px-2 py-1 text-[8px] font-black uppercase tracking-widest z-[1000]">SIGNAL_LOCKED</div>
-                    </div>
-                    <div class="p-4 flex items-center gap-4 border-t border-zinc-800">
-                        <MapPin :size="20" class="text-primary shrink-0" />
-                        <p class="text-[10px] font-mono text-zinc-400 uppercase line-clamp-2">{{ form.address }}</p>
+                        <div class="absolute top-2 right-2 bg-success/10 border border-success/30 text-success px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider z-[1000] rounded-sm">
+                            SIGNAL_LOCKED
+                        </div>
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <div class="grid grid-cols-4 gap-2">
-                        <button v-for="p in presets" :key="p.id" type="button" @click="form.alias = p.label" 
-                                class="flex flex-col items-center gap-2 p-3 border transition-all bg-zinc-950" 
-                                :class="form.alias === p.label ? 'border-primary text-primary' : 'border-zinc-800 text-zinc-600 hover:border-zinc-600'">
-                            <component :is="p.icon" :size="16" />
-                            <span class="text-[8px] font-mono font-black">{{ p.label }}</span>
-                        </button>
-                    </div>
-                    
-                    <div class="space-y-1.5">
-                        <label class="text-[9px] font-mono font-black text-zinc-500 uppercase tracking-widest ml-1">// ETIQUETA PERSONALIZADA</label>
-                        <input v-model="form.alias" type="text" class="w-full bg-zinc-950 border border-zinc-800 focus:border-primary px-4 py-3 text-sm font-mono text-white outline-none transition-all">
-                    </div>
-                    <div class="space-y-1.5">
-                        <label class="text-[9px] font-mono font-black text-zinc-500 uppercase tracking-widest ml-1">// INSTRUCCIONES DE ACCESO</label>
-                        <input v-model="form.details" type="text" class="w-full bg-zinc-950 border border-zinc-800 focus:border-primary px-4 py-3 text-sm font-mono text-white outline-none transition-all" placeholder="Piso, Puerta, Timbre...">
-                    </div>
-                </div>
-
-                <div class="flex gap-4 pt-4">
-                    <button type="button" @click="emit('back')" class="h-14 px-8 bg-zinc-800 text-zinc-400 font-black uppercase text-[10px] tracking-widest hover:bg-zinc-700 transition-colors">ATRÁS</button>
-                    <button type="button" @click="emit('next')" :disabled="!form.alias" class="flex-1 h-14 bg-primary text-white font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:bg-zinc-800">
-                        CONTINUAR <ArrowRight :size="16" />
+                <div class="grid grid-cols-4 gap-2">
+                    <button v-for="p in presets" :key="p.id" type="button" @click="form.alias = p.label" 
+                            class="flex flex-col items-center gap-1 p-2 border rounded-md transition-colors bg-neutral-50 dark:bg-neutral-800/20" 
+                            :class="form.alias === p.label ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:border-neutral-400'">
+                        <span class="material-symbols-rounded text-lg">{{ p.icon }}</span>
+                        <span class="text-[9px] font-bold tracking-tight">{{ p.label }}</span>
                     </button>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Etiqueta de Ubicación</label>
+                        <input v-model="form.alias" type="text" class="admin-input py-1.5 px-3" required placeholder="Ej. Oficina Principal" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Instrucciones de Acceso</label>
+                        <input v-model="form.details" type="text" class="admin-input py-1.5 px-3" placeholder="Piso, Nro de puerta, indicaciones adicionales..." />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-border/40 mt-4">
+                <button type="button" @click="step = 1" class="px-4 py-2 border border-border bg-card rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider transition-colors">
+                    Atrás
+                </button>
+                <div class="flex-1 text-right">
+                    <span class="text-[10px] font-mono text-muted-foreground uppercase font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded-sm border border-border">
+                        Nodo Listo
+                    </span>
                 </div>
             </div>
         </div>
+
     </div>
 </template>

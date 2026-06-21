@@ -1,11 +1,11 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 
 const form = useForm({
     email: '',
     password: '',
-    remember: false,
 });
 
 const hasErrors = computed(() => Object.keys(form.errors).length > 0);
@@ -20,9 +20,18 @@ const submit = () => {
 <template>
     <Head title="Acceso Administrador" />
 
-    <div class="min-h-screen bg-background flex items-center justify-center p-4 select-none">
+    <div class="min-h-screen bg-background flex items-center justify-center p-4 select-none relative">
+        
+        <div class="absolute top-4 right-4 border border-border bg-card rounded-md transition-colors duration-100 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+            <ThemeToggler class="p-1.5 text-foreground/80 hover:text-primary transition-colors duration-100" />
+        </div>
+
         <div class="max-w-md w-full bg-card border border-border rounded-md shadow-flat p-6 md:p-8">
             
+            <div class="text-center mb-2">
+                <span class="text-3xl font-black italic tracking-wider text-primary select-none">DU</span>
+            </div>
+
             <div class="text-center mb-6">
                 <h1 class="text-xl font-bold text-foreground tracking-tight uppercase">
                     Control de Acceso
@@ -73,27 +82,16 @@ const submit = () => {
                     />
                 </div>
 
-                <div class="flex items-center justify-between pt-1">
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        <input
-                            v-model="form.remember"
-                            type="checkbox"
-                            class="w-4 h-4 rounded border-input bg-background text-primary focus:ring-0 focus:ring-offset-0 transition-colors duration-75"
-                        />
-                        <span class="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors duration-75">
-                            Mantener terminal activa
-                        </span>
-                    </label>
+                <div class="pt-2">
+                    <button
+                        type="submit"
+                        :disabled="form.processing"
+                        class="admin-btn-primary w-full inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider disabled:cursor-not-allowed"
+                    >
+                        <span class="material-symbols-rounded text-[18px] shrink-0">login</span>
+                        <span>{{ form.processing ? 'Verificando terminal...' : 'Iniciar Sesión' }}</span>
+                    </button>
                 </div>
-
-                <button
-                    type="submit"
-                    :disabled="form.processing"
-                    class="admin-btn-primary w-full inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider disabled:cursor-not-allowed"
-                >
-                    <span class="material-symbols-rounded text-[18px] shrink-0">login</span>
-                    <span>{{ form.processing ? 'Verificando terminal...' : 'Iniciar Sesión' }}</span>
-                </button>
             </form>
         </div>
     </div>

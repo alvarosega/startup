@@ -3,7 +3,6 @@ import { ref, onMounted, nextTick } from 'vue';
 import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer, LPolygon } from "@vue-leaflet/vue-leaflet";
 import debounce from 'lodash/debounce';
-import { Loader2, Database, Cpu } from 'lucide-vue-next';
 
 const props = defineProps({
     modelValueLat: Number,
@@ -19,7 +18,8 @@ const mapRef = ref(null);
 const currentBranchId = ref(null);
 const mapMoving = ref(false);
 
-const mapUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+// Capa limpia corporativa universal
+const mapUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
 const isInsidePolygon = (lat, lng, polygon) => {
     const points = Array.isArray(polygon[0][0]) ? polygon[0] : polygon;
@@ -51,7 +51,7 @@ const reverseGeocode = debounce(async (lat, lng) => {
         const data = await response.json();
         emit('update:modelValueAddress', data.display_name || "COORDENADAS_FIJADAS");
     } catch (e) {
-        emit('update:modelValueAddress', "ERROR_GEO_SERVICE");
+        emit('update:modelValueAddress', "ERROR_SISTEMA_GEODESICO");
     }
 }, 800);
 
@@ -77,25 +77,26 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="relative w-full h-full bg-zinc-950 overflow-hidden font-mono">
-        <div class="absolute top-4 left-4 z-[1000] bg-zinc-900/90 border border-zinc-700 p-4 shadow-2xl backdrop-blur-md min-w-[240px]">
-            <div class="flex items-center gap-2 text-primary mb-3 border-b border-zinc-800 pb-2">
-                <Cpu :size="14" />
-                <span class="text-[10px] font-black tracking-widest uppercase">Geo_Telemetry_System</span>
+    <div class="relative w-full h-full bg-neutral-100 overflow-hidden font-mono">
+        
+        <div class="absolute top-3 left-3 z-[1000] bg-card/95 border border-border p-3 rounded-md shadow-flat backdrop-blur-md min-w-[220px] select-none text-foreground">
+            <div class="flex items-center gap-1.5 text-primary mb-2.5 border-b border-border/60 pb-1.5">
+                <span class="material-symbols-rounded text-sm">distance</span>
+                <span class="text-[10px] font-black tracking-wider uppercase">GEO_TELEMETRY</span>
             </div>
-            <div class="space-y-2 text-[10px]">
+            <div class="space-y-1.5 text-[10px] font-medium">
                 <div class="flex justify-between">
-                    <span class="text-zinc-500">LAT:</span>
-                    <span class="text-zinc-200">{{ modelValueLat?.toFixed(6) }}</span>
+                    <span class="text-muted-foreground">LAT:</span>
+                    <span class="text-foreground font-semibold">{{ modelValueLat?.toFixed(6) || '0.000000' }}</span>
                 </div>
                 <div class="flex justify-between">
-                    <span class="text-zinc-500">LNG:</span>
-                    <span class="text-zinc-200">{{ modelValueLng?.toFixed(6) }}</span>
+                    <span class="text-muted-foreground">LNG:</span>
+                    <span class="text-foreground font-semibold">{{ modelValueLng?.toFixed(6) || '0.000000' }}</span>
                 </div>
-                <div class="flex justify-between items-center mt-4 border-t border-zinc-800 pt-2">
-                    <span class="text-zinc-500 flex items-center gap-1"><Database :size="10" /> SUCURSAL:</span>
-                    <span :class="currentBranchId ? 'text-emerald-400 font-bold' : 'text-red-500 animate-pulse'">
-                        {{ currentBranchId ? currentBranchId.split('-')[0].toUpperCase() : 'NULL_OVERFLOW' }}
+                <div class="flex justify-between items-center mt-2.5 border-t border-border/60 pt-2">
+                    <span class="text-muted-foreground flex items-center gap-1">SUCURSAL:</span>
+                    <span :class="currentBranchId ? 'text-success font-bold' : 'text-error font-bold animate-pulse'">
+                        {{ currentBranchId ? currentBranchId.split('-')[0].toUpperCase() : 'FUERA_COBERTURA' }}
                     </span>
                 </div>
             </div>
@@ -104,31 +105,25 @@ onMounted(() => {
         <l-map ref="mapRef" :zoom="15" :center="[modelValueLat || center[0], modelValueLng || center[1]]"
                :use-global-leaflet="false" :options="{ zoomControl: false, attributionControl: false }"
                @movestart="mapMoving = true" @moveend="mapMoving = false; handleMove()"
-               class="absolute inset-0 h-full w-full grayscale-[0.6] brightness-[0.8]">
+               class="absolute inset-0 h-full w-full">
             <l-tile-layer :url="mapUrl" />
+            
             <l-polygon v-for="branch in activeBranches" :key="branch.id"
                        :lat-lngs="branch.polygon"
-                       :color="currentBranchId === branch.id ? '#00f2ff' : '#3f3f46'"
-                       :fill-opacity="0.1" :weight="1" />
+                       :color="currentBranchId === branch.id ? '#2563eb' : '#a3a3a3'"
+                       :fill-opacity="0.06" :weight="1.5" />
         </l-map>
 
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[1001]">
-            <div class="relative flex flex-col items-center">
-                <div class="w-12 h-12 border border-primary/40 rounded-full animate-pulse absolute"></div>
-                <div class="w-8 h-8 border-2 border-white flex items-center justify-center bg-zinc-900 shadow-neon-zinc">
-                    <div class="w-1 h-1 bg-primary rounded-full"></div>
-                </div>
-                <div class="h-6 w-[2px] bg-white"></div>
-                <div class="w-4 h-[1px] bg-black/50 mt-1 blur-[1px]"></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[1001] select-none">
+            <div class="relative flex flex-col items-center -mt-5">
+                <span class="material-symbols-rounded text-primary text-3xl filter drop-shadow-md">location_on</span>
+                <div class="w-1.5 h-1.5 bg-foreground rounded-full border border-card -mt-1.5"></div>
             </div>
         </div>
 
-        <div v-if="mapMoving" class="absolute bottom-4 right-4 z-[1000] flex items-center gap-2 bg-zinc-900 border border-zinc-700 px-3 py-1.5 text-zinc-400 text-[9px] font-black uppercase tracking-tighter shadow-xl">
-            <Loader2 :size="12" class="animate-spin text-primary" /> Recalculando_Vectores
+        <div v-if="mapMoving" class="absolute bottom-3 right-3 z-[1000] flex items-center gap-2 bg-card border border-border px-3 py-1.5 text-muted-foreground text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-flat select-none">
+            <span class="material-symbols-rounded text-sm text-primary animate-spin">progress_activity</span>
+            <span>Sincronizando...</span>
         </div>
     </div>
 </template>
-
-<style scoped>
-.shadow-neon-zinc { box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
-</style>
