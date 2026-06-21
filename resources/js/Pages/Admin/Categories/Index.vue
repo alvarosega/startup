@@ -1,10 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { router, Head, Link } from '@inertiajs/vue3';
-import { 
-    FolderTree, Plus, Edit2, Trash2, ArrowUpDown, 
-    ChevronDown, ChevronRight, Eye, EyeOff, Star, Search
-} from 'lucide-vue-next';
+import { router, Head } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CategoryDrawer from './Components/CategoryDrawer.vue';
 import SkuOrderModal from './Components/SkuOrderModal.vue';
@@ -16,7 +12,7 @@ const props = defineProps({
     can_manage: Boolean
 });
 
-const search = ref(props.filters.search || '');
+const search = ref(props.filters?.search || '');
 const expandedRows = ref(new Set());
 const isDrawerOpen = ref(false);
 const isModalOpen = ref(false);
@@ -57,132 +53,176 @@ const deleteCategory = (category) => {
         router.delete(route('admin.categories.destroy', category.id));
     }
 };
+
+const clearFilters = () => {
+    search.value = '';
+    handleSearch();
+};
 </script>
 
 <template>
-    <AdminLayout>
     <Head title="Góndola - Categorías" />
-
-    <div class="p-6 max-w-7xl mx-auto space-y-6">
-        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-primary/10 rounded-lg text-primary">
-                    <FolderTree :size="24" />
-                </div>
+    <AdminLayout>
+        
+        <template #header>
+            <div class="flex items-center justify-between w-full select-none">
                 <div>
-                    <h1 class="font-sans font-bold text-xl text-foreground">Pasillos y Categorías</h1>
-                    <p class="text-xs text-muted-foreground">Estructura jerárquica del catálogo OLTP</p>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase italic">Pasillos y Categorías</h1>
+                    <p class="text-[10px] text-muted-foreground font-mono tracking-wider mt-0.5 uppercase">Estructura jerárquica del catálogo OLTP</p>
                 </div>
+                <button v-if="can_manage" @click="openCreateDrawer" 
+                        class="admin-btn-primary inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+                    <span class="material-symbols-rounded text-sm">layers</span>
+                    <span>MATERIALIZAR_CATEGORÍA</span>
+                </button>
             </div>
+        </template>
+
+        <div class="space-y-4">
             
-            <button v-if="can_manage" @click="openCreateDrawer" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg shadow-sm hover:bg-primary/90 transition-colors">
-                <Plus :size="16" />
-                Materializar Categoría
-            </button>
-        </div>
+            <div class="flex items-center gap-2 max-w-md bg-card border border-border rounded-md px-3 py-1.5 shadow-flat select-none">
+                <span class="material-symbols-rounded text-muted-foreground text-lg">search</span>
+                <input v-model="search" @input="handleSearch" type="text" 
+                       placeholder="Buscar por denominación o código externo..." 
+                       class="w-full bg-transparent text-xs text-foreground outline-none border-none p-0 focus:ring-0 font-mono uppercase placeholder:text-muted-foreground/50" />
+            </div>
 
-        <div class="flex items-center gap-2 max-w-md bg-card border border-border rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-primary">
-            <Search :size="18" class="text-muted-foreground" />
-            <input v-model="search" @input="handleSearch" type="text" placeholder="Buscar por denominación o código externo..." class="w-full bg-transparent text-sm text-foreground outline-none border-none p-0 focus:ring-0" />
-        </div>
+            <div class="w-full overflow-x-auto border border-border rounded-md bg-card shadow-flat">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th class="admin-table-th w-12 text-center select-none">DESPLIEGUE</th>
+                            <th class="admin-table-th min-w-[280px]">ESTRUCTURA / DENOMINACIÓN DEL NODO</th>
+                            <th class="admin-table-th w-40">CÓDIGO EXT.</th>
+                            <th class="admin-table-th w-28 text-center select-none">ESTADO</th>
+                            <th class="admin-table-th w-28 text-center select-none">DESTACADO</th>
+                            <th class="admin-table-th w-20 text-center select-none">ORDEN</th>
+                            <th class="admin-table-th w-36 text-center select-none">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="category in categories.data" :key="category.id">
+                            
+                            <tr class="admin-table-tr bg-card">
+                                <td class="admin-table-td text-center select-none">
+                                    <button v-if="category.children && category.children.length" 
+                                            @click="toggleRow(category.id)" 
+                                            class="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground transition-colors flex items-center justify-center mx-auto border border-border/40">
+                                        <span class="material-symbols-rounded text-base">
+                                            {{ expandedRows.has(category.id) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
+                                        </span>
+                                    </button>
+                                </td>
+                                <td class="admin-table-td font-semibold text-foreground">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-sm border border-black/10 shrink-0 select-none block" 
+                                              :style="{ backgroundColor: category.bg_color || 'var(--border)' }"></span>
+                                        <span class="uppercase tracking-tight text-xs">{{ category.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="admin-table-td text-muted-foreground font-mono text-xs select-all">
+                                    {{ category.external_code || 'N/A' }}
+                                </td>
+                                <td class="admin-table-td text-center select-none">
+                                    <span :class="category.is_active ? 'badge-success' : 'badge-error'">
+                                        {{ category.is_active ? 'ACTIVO' : 'OCULTO' }}
+                                    </span>
+                                </td>
+                                <td class="admin-table-td text-center select-none">
+                                    <span class="material-symbols-rounded text-base align-middle"
+                                          :class="category.is_featured ? 'text-warning' : 'text-muted-foreground/30'"
+                                          :style="{ fontVariationSettings: category.is_featured ? `'FILL' 1` : `'FILL' 0` }">
+                                        star
+                                    </span>
+                                </td>
+                                <td class="admin-table-td text-center font-mono text-xs text-muted-foreground select-none">
+                                    {{ String(category.sort_order).padStart(2, '0') }}
+                                </td>
+                                <td class="admin-table-td text-center select-none">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button @click="openSkuModal(category)" 
+                                                class="p-1.5 text-muted-foreground hover:text-primary rounded-md hover:bg-primary/10 transition-colors flex items-center justify-center" 
+                                                title="Ordenar Góndola">
+                                            <span class="material-symbols-rounded text-base">swap_vert</span>
+                                        </button>
+                                        <button @click="openEditDrawer(category)" 
+                                                class="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-center" 
+                                                title="Editar Atributos">
+                                            <span class="material-symbols-rounded text-base">edit</span>
+                                        </button>
+                                        <button @click="deleteCategory(category)" 
+                                                class="p-1.5 text-neutral-300 hover:text-destructive rounded-md hover:bg-destructive/10 transition-colors flex items-center justify-center" 
+                                                title="Neutralizar">
+                                            <span class="material-symbols-rounded text-base">delete</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
 
-        <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-muted/40 text-muted-foreground text-xs font-semibold uppercase border-b border-border">
-                        <th class="p-4 w-10"></th>
-                        <th class="p-4">Estructura / Nombre</th>
-                        <th class="p-4">Código Ext.</th>
-                        <th class="p-4 w-24 text-center">Estado</th>
-                        <th class="p-4 w-24 text-center">Destacado</th>
-                        <th class="p-4 w-20 text-center">Orden</th>
-                        <th class="p-4 w-44 text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="text-sm divide-y divide-border">
-                    <template v-for="category in categories.data" :key="category.id">
-                        <tr class="hover:bg-muted/20 transition-colors">
-                            <td class="p-4">
-                                <button v-if="category.children && category.children.length" @click="toggleRow(category.id)" class="p-1 rounded hover:bg-muted text-muted-foreground">
-                                    <ChevronDown v-if="expandedRows.has(category.id)" :size="16" />
-                                    <ChevronRight v-else :size="16" />
-                                </button>
-                            </td>
-                            <td class="p-4 font-medium text-foreground">
-                                <div class="flex items-center gap-3">
-                                    <span class="w-3 h-3 rounded-full border border-border" :style="{ backgroundColor: category.bg_color }"></span>
-                                    {{ category.name }}
-                                </div>
-                            </td>
-                            <td class="p-4 text-muted-foreground font-mono text-xs">{{ category.external_code || 'N/A' }}</td>
-                            <td class="p-4 text-center">
-                                <span :class="category.is_active ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'" class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border">
-                                    <Eye v-if="category.is_active" :size="12" class="mr-1" />
-                                    <EyeOff v-else :size="12" class="mr-1" />
-                                    {{ category.is_active ? 'Activo' : 'Oculto' }}
-                                </span>
-                            </td>
-                            <td class="p-4 text-center">
-                                <Star :size="16" :class="category.is_featured ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/40'" class="mx-auto" />
-                            </td>
-                            <td class="p-4 text-center font-mono text-xs">{{ category.sort_order }}</td>
-                            <td class="p-4 text-right space-x-1 whitespace-nowrap">
-                                <button @click="openSkuModal(category)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors" title="Ordenar Góndola">
-                                    <ArrowUpDown :size="16" />
-                                </button>
-                                <button @click="openEditDrawer(category)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" title="Editar Atributos">
-                                    <Edit2 :size="16" />
-                                </button>
-                                <button @click="deleteCategory(category)" class="inline-flex items-center p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Neutralizar">
-                                    <Trash2 :size="16" />
+                            <template v-if="expandedRows.has(category.id) && category.children">
+                                <tr v-for="child in category.children" :key="child.id" 
+                                    class="admin-table-tr bg-neutral-50/50 dark:bg-neutral-900/20">
+                                    <td class="admin-table-td"></td>
+                                    <td class="admin-table-td text-muted-foreground font-medium pl-6">
+                                        <div class="flex items-center gap-2 select-none">
+                                            <span class="text-border font-mono text-xs">└──</span>
+                                            <span class="text-foreground uppercase tracking-tight text-xs">{{ child.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="admin-table-td text-muted-foreground font-mono text-xs select-all">
+                                        {{ child.external_code || 'N/A' }}
+                                    </td>
+                                    <td class="admin-table-td text-center select-none">
+                                        <span :class="child.is_active ? 'badge-success' : 'badge-error'">
+                                            {{ child.is_active ? 'ACTIVO' : 'OCULTO' }}
+                                        </span>
+                                    </td>
+                                    <td class="admin-table-td text-center select-none">
+                                        <span class="material-symbols-rounded text-sm align-middle"
+                                              :class="child.is_featured ? 'text-warning' : 'text-muted-foreground/30'"
+                                              :style="{ fontVariationSettings: child.is_featured ? `'FILL' 1` : `'FILL' 0` }">
+                                            star
+                                        </span>
+                                    </td>
+                                    <td class="admin-table-td text-center font-mono text-xs text-muted-foreground select-none">
+                                        {{ String(child.sort_order).padStart(2, '0') }}
+                                    </td>
+                                    <td class="admin-table-td text-center select-none">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button @click="openSkuModal(child)" 
+                                                    class="p-1.5 text-muted-foreground hover:text-primary rounded-md hover:bg-primary/10 transition-colors flex items-center justify-center">
+                                                <span class="material-symbols-rounded text-base">swap_vert</span>
+                                            </button>
+                                            <button @click="openEditDrawer(child)" 
+                                                    class="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-center">
+                                                <span class="material-symbols-rounded text-base">edit</span>
+                                            </button>
+                                            <button @click="deleteCategory(child)" 
+                                                    class="p-1.5 text-neutral-300 hover:text-destructive rounded-md hover:bg-destructive/10 transition-colors flex items-center justify-center">
+                                                <span class="material-symbols-rounded text-base">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+
+                        <tr v-if="categories.data.length === 0">
+                            <td colspan="7" class="p-16 text-center select-none bg-card border-b border-border">
+                                <span class="material-symbols-rounded text-4xl text-neutral-300 block mb-2">search_off</span>
+                                <h3 class="text-muted-foreground font-mono text-xs font-bold uppercase tracking-wider">Ninguna categoría intersecta los parámetros</h3>
+                                <button @click="clearFilters" 
+                                        class="mt-3 text-xs font-black text-primary hover:opacity-80 uppercase tracking-wider font-mono">
+                                    Reiniciar Protocolo
                                 </button>
                             </td>
                         </tr>
-
-                        <template v-if="expandedRows.has(category.id) && category.children">
-                            <tr v-for="child in category.children" :key="child.id" class="bg-muted/10 hover:bg-muted/20 transition-colors">
-                                <td class="p-4"></td>
-                                <td class="p-4 pl-10 text-muted-foreground">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-muted-foreground/40">└──</span>
-                                        {{ child.name }}
-                                    </div>
-                                </td>
-                                <td class="p-4 text-muted-foreground font-mono text-xs">{{ child.external_code || 'N/A' }}</td>
-                                <td class="p-4 text-center">
-                                    <span :class="child.is_active ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'" class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border">
-                                        {{ child.is_active ? 'Activo' : 'Oculto' }}
-                                    </span>
-                                </td>
-                                <td class="p-4 text-center">
-                                    <Star :size="14" :class="child.is_featured ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/30'" class="mx-auto" />
-                                </td>
-                                <td class="p-4 text-center font-mono text-xs">{{ child.sort_order }}</td>
-                                <td class="p-4 text-right space-x-1 whitespace-nowrap">
-                                    <button @click="openSkuModal(child)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors">
-                                        <ArrowUpDown :size="14" />
-                                    </button>
-                                    <button @click="openEditDrawer(child)" class="inline-flex items-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                                        <Edit2 :size="14" />
-                                    </button>
-                                    <button @click="deleteCategory(child)" class="inline-flex items-center p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
-                                        <Trash2 :size="14" />
-                                    </button>
-                                </td>
-                            </tr>
-                        </template>
-                    </template>
-                    <tr v-if="categories.data.length === 0">
-                        <td colspan="7" class="p-8 text-center text-muted-foreground">
-                            Ninguna categoría intersecta los parámetros de búsqueda actuales.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 
-    <CategoryDrawer :show="isDrawerOpen" :category="selectedCategory" :parents="parents" @close="isDrawerOpen = false" />
-    <SkuOrderModal :show="isModalOpen" :category="selectedCategory" @close="isModalOpen = false" />
-</AdminLayout>
+        <CategoryDrawer :show="isDrawerOpen" :category="selectedCategory" :parents="parents" @close="isDrawerOpen = false" />
+        <SkuOrderModal :show="isModalOpen" :category="selectedCategory" @close="isModalOpen = false" />
+    </AdminLayout>
 </template>

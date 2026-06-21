@@ -125,25 +125,3 @@ const onPhoneInput = (phone, obj) => {
         </form>
     </div>
 </template>
-<style scoped>
-:deep(.admin-tel-input) {
-    @apply bg-card border border-input rounded-md font-mono transition-shadow duration-75 !important;
-    height: 34px; /* Alineación perfecta con el padding de .admin-input */
-}
-:deep(.vti__input) {
-    @apply bg-transparent text-foreground text-sm font-medium focus:outline-none !important;
-}
-:deep(.vti__dropdown) {
-    @apply border-r border-border/60 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-l-md px-2 !important;
-}
-:deep(.vti__dropdown-list) {
-    @apply bg-card border border-border rounded-md shadow-flat max-h-48 overflow-y-auto z-50 text-foreground !important;
-}
-:deep(.vti__dropdown-item) {
-    @apply text-xs font-mono py-1.5 px-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 !important;
-}
-:deep(.admin-tel-input:focus-within) {
-    @apply ring-1 ring-ring border-ring !important;
-}
-
-</style>
