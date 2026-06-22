@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Admin\Price;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Sku, Price};
+use App\Models\Price;
+use App\Models\Catalog\Sku;
 use App\Actions\Admin\Price\{GetPricesBySkuAction, UpsertPriceAction, DeletePriceAction};
 use App\DTOs\Admin\Price\PriceData;
 use App\Http\Requests\Admin\Price\StorePriceRequest;

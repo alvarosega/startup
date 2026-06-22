@@ -31,12 +31,12 @@ const navigationMenu = [
     { name: 'Órdenes', route: 'admin.orders.index', pattern: 'admin.orders.*', icon: 'receipt_long', group: 'mov', permission: isSuperAdmin },
     { name: 'Radar (Vivo)', route: 'admin.logistics.monitor', pattern: 'admin.logistics.*', icon: 'radar', group: 'mov', permission: isSuperAdmin },
     
-    // Grupo: Catálogo
-    { name: 'Productos', route: 'admin.products.index', pattern: 'admin.products.*', icon: 'label', group: 'com', permission: isSuperAdmin },
+    // Grupo: Catálogo (Sincronizado con el Silo Modular de Rutas)
+    { name: 'Productos', route: 'admin.catalog.products.index', pattern: 'admin.catalog.products.*', icon: 'label', group: 'com', permission: isSuperAdmin },
     { name: 'Zonas', route: 'admin.market-zones.index', pattern: 'admin.market-zones.*', icon: 'map', group: 'com', permission: isSuperAdmin },
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'com', permission: isSuperAdmin },
-    { name: 'Marcas', route: 'admin.brands.index', pattern: 'admin.brands.*', icon: 'branding_watermark', group: 'com', permission: isSuperAdmin },
-    { name: 'Categorías', route: 'admin.categories.index', pattern: 'admin.categories.*', icon: 'account_tree', group: 'com', permission: isSuperAdmin },
+    { name: 'Marcas', route: 'admin.catalog.brands.index', pattern: 'admin.catalog.brands.*', icon: 'branding_watermark', group: 'com', permission: isSuperAdmin },
+    { name: 'Categorías', route: 'admin.catalog.categories.index', pattern: 'admin.catalog.categories.*', icon: 'account_tree', group: 'com', permission: isSuperAdmin },
     { name: 'Proveedores', route: 'admin.providers.index', pattern: 'admin.providers.*', icon: 'factory', group: 'com', permission: isSuperAdmin },
     { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'com', permission: isSuperAdmin },
     
@@ -78,10 +78,10 @@ const isGroupActive = (groupKey) => {
 <template>
     <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[72px] bg-card border-r border-border z-50 overflow-visible justify-between select-none">
         
-    <div class="flex flex-col w-full items-center overflow-visible">
-        <div class="w-full h-14 flex items-center justify-center border-b border-border/60 shrink-0 mb-3">
-            <span class="text-base font-black italic tracking-wider text-primary">DU</span>
-        </div>
+        <div class="flex flex-col w-full items-center overflow-visible">
+            <div class="w-full h-14 flex items-center justify-center border-b border-border/60 shrink-0 mb-3">
+                <span class="text-base font-black italic tracking-wider text-primary">DU</span>
+            </div>
 
             <div v-if="user" class="relative group flex items-center justify-center w-full h-12 mb-2">
                 <div class="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-sm transition-colors duration-100 hover:bg-primary/20 cursor-default">
