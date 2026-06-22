@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Provider;
+use App\Models\Operations\Provider;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Throwable;

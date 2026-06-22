@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use App\Models\Branch;
+use App\Models\Operations\Branch;
 use Spatie\Permission\Models\Role;
 
 class CustomerSeeder extends Seeder

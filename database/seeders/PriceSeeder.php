@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\{Price, Sku, Branch};
+use App\Models\Inventory\Price;
+use App\Models\Catalog\Sku;
+use App\Models\Operations\Branch;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Exception;

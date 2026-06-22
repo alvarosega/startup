@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\{Brand, Provider, Category};
+use App\Models\Catalog\{Brand, Category};
+use App\Models\Operations\Provider;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Exception;

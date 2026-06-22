@@ -22,11 +22,11 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,    
             SkuSeeder::class,
             PriceSeeder::class,
-            InventoryTestSeeder::class,
-            BundleTestSeeder::class,
+            InventorySeeder::class,
+            BundleSeeder::class,
             AdPlacementSeeder::class,  
             AdCampaignSeeder::class,
-            RetailMediaTestSeeder::class,
+            RetailMediaSeeder::class,
         ]);
     }
 }
