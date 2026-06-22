@@ -3,8 +3,8 @@
 namespace App\Actions\Admin\Users\Customer;
 
 use App\Models\Customer;
-use App\Models\Branch;
 use Illuminate\Support\Facades\Cache;
+use App\Models\Operations\Branch;
 
 class GetCustomersListAction
 {

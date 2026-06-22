@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -6,12 +9,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('providers', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));          
+            $table->uuid('id')->primary(); // UUIDv7 desde la aplicación
             $table->string('company_name'); 
             $table->string('commercial_name')->nullable();
-            $table->string('slug')->unique();
-            $table->string('tax_id')->unique(); 
-            $table->string('internal_code')->nullable()->unique();
+            $table->string('slug');
+            $table->string('tax_id'); 
+            $table->string('internal_code')->nullable();
             $table->string('contact_name')->nullable();
             $table->string('email_orders')->nullable();
             $table->string('phone')->nullable();
@@ -23,9 +26,15 @@ return new class extends Migration {
             $table->decimal('credit_limit', 12, 2)->default(0);
             $table->boolean('is_active')->default(true)->index();
             $table->text('notes')->nullable();
-            $table->timestamps();
             $table->unsignedInteger('version')->default(0);
+            
+            $table->unsignedBigInteger('deleted_epoch')->default(0); // Columna inyectada obligatoria para unicidad
+            $table->timestamps();
             $table->softDeletes();
+
+            $table->unique(['slug', 'deleted_epoch'], 'idx_providers_slug_unique');
+            $table->unique(['tax_id', 'deleted_epoch'], 'idx_providers_tax_unique');
+            $table->unique(['internal_code', 'deleted_epoch'], 'idx_providers_code_unique');
             $table->index(['is_active', 'id']);
         });
     }

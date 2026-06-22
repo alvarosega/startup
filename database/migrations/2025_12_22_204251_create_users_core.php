@@ -1,19 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         // =================================================================================
-        // SILO 1: ADMINS (Sin Registro Público ni Recuperación de Contraseña)
+        // SILO 1: ADMINS
         // =================================================================================
         Schema::create('admins', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('id')->primary(); // UUIDv7 desde la aplicación
             $table->string('first_name');
             $table->string('last_name');
             $table->string('phone', 20)->nullable();
@@ -33,7 +33,7 @@ return new class extends Migration
         // SILO 2: DRIVERS
         // =================================================================================
         Schema::create('drivers', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('id')->primary(); // UUIDv7 desde la aplicación
             $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
@@ -43,10 +43,12 @@ return new class extends Migration
             $table->boolean('is_available')->default(false);
             $table->timestamp('last_login_at')->nullable(); 
             $table->timestamp('last_seen_at')->nullable();
+            
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
             $table->softDeletes(); 
             
-            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
+            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
         });
 
         Schema::create('driver_profiles', function (Blueprint $table) {
@@ -81,7 +83,7 @@ return new class extends Migration
         Schema::create('password_reset_codes_drivers', function (Blueprint $table) {
             $table->string('email')->index();
             $table->string('token');
-            $table->timestamp('expires_at')->index(); // Mitigación de ciclo de vida de token
+            $table->timestamp('expires_at')->index();
             $table->timestamp('created_at')->nullable();
         });
 
@@ -89,7 +91,7 @@ return new class extends Migration
         // SILO 3: CUSTOMERS
         // =================================================================================
         Schema::create('customers', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('id')->primary(); // UUIDv7 desde la aplicación
             $table->uuid('branch_id')->nullable()->index();
             $table->string('phone', 20)->unique();
             $table->string('country_code', 3)->default('BO');
@@ -103,10 +105,13 @@ return new class extends Migration
             $table->decimal('longitude', 11, 8)->nullable();
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
+            
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
-        
+            $table->softDeletes();
+
             $table->index(['branch_id', 'is_active', 'created_at']);
-            $table->foreign('branch_id')->references('id')->on('branches');
+            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
         });
 
         Schema::create('customer_profiles', function (Blueprint $table) {
@@ -123,7 +128,7 @@ return new class extends Migration
         });
 
         Schema::create('customer_addresses', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('id')->primary(); // UUIDv7 desde la aplicación
             $table->uuid('customer_id');
             $table->uuid('branch_id')->nullable()->index();
             $table->string('alias')->nullable(); 
@@ -136,7 +141,7 @@ return new class extends Migration
             $table->softDeletes();
             
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreign('branch_id')->references('id')->on('branches');
+            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
         });
 
         Schema::create('customer_socials', function (Blueprint $table) {
@@ -165,14 +170,13 @@ return new class extends Migration
         Schema::create('password_reset_codes_customers', function (Blueprint $table) {
             $table->string('email')->index();
             $table->string('token');
-            $table->timestamp('expires_at')->index(); // Mitigación de ciclo de vida de token
+            $table->timestamp('expires_at')->index();
             $table->timestamp('created_at')->nullable();
         });
     }
 
     public function down(): void
     {
-        // Remoción inversa estricta por dependencias de claves foráneas
         Schema::dropIfExists('password_reset_codes_customers');
         Schema::dropIfExists('customer_billing_infos');
         Schema::dropIfExists('customer_socials');
@@ -182,7 +186,7 @@ return new class extends Migration
 
         Schema::dropIfExists('password_reset_codes_drivers');
         Schema::dropIfExists('driver_billing_infos');
-        Schema::dropIfExists('driver_profiles'); // Rectificado de driver_details
+        Schema::dropIfExists('driver_profiles'); 
         Schema::dropIfExists('drivers');
 
         Schema::dropIfExists('admins');

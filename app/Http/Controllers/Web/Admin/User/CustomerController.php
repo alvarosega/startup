@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Admin\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Branch;
+use App\Models\Operations\Branch;
 
 // Requests & DTOs
 use App\Http\Requests\Admin\Users\Customer\UpsertCustomerRequest;

@@ -6,14 +6,14 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\Admin\Auth\LoginController;
 use App\Http\Controllers\Web\Admin\User\CustomerController;
 use App\Http\Controllers\Web\Admin\Driver\DriverController;
-use App\Http\Controllers\Web\Admin\Branch\BranchController;
 use App\Http\Controllers\Web\Admin\Catalog\ProductController;
 use App\Http\Controllers\Web\Admin\Catalog\SkuController;
 use App\Http\Controllers\Web\Admin\Catalog\CategoryController;
 use App\Http\Controllers\Web\Admin\Catalog\BrandController;
+use App\Http\Controllers\Web\Admin\Operations\BranchController;
+use App\Http\Controllers\Web\Admin\Operations\ProviderController;
 use App\Http\Controllers\Web\Admin\MarketZone\MarketZoneController;
 use App\Http\Controllers\Web\Admin\Bundle\BundleController;
-use App\Http\Controllers\Web\Admin\Provider\ProviderController;
 use App\Http\Controllers\Web\Admin\Price\PriceController;
 use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
 use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeController;
@@ -46,7 +46,6 @@ Route::middleware(['auth.admin'])->group(function () {
             ->name('drivers.documents.show');
 
         Route::resource('drivers', DriverController::class);
-        Route::resource('branches', BranchController::class);
         
         // =================================================================================
         // SILO: CATALOGO (Estructura agrupada, reubicación de namespaces y nombres de rutas)
@@ -79,11 +78,18 @@ Route::middleware(['auth.admin'])->group(function () {
         });
 
         // =================================================================================
-        // OTROS DOMINIOS OPERATIVOS
+        // SILO: OPERATIONS (Unificación logística de sucursales y proveedores)
+        // =================================================================================
+        Route::prefix('operations')->name('operations.')->group(function () {
+            Route::resource('branches', BranchController::class);
+            Route::resource('providers', ProviderController::class);
+        });
+
+        // =================================================================================
+        // OTROS DOMINIOS OPERATIVOS / COMERCIALES
         // =================================================================================
         Route::resource('market-zones', MarketZoneController::class)->parameters(['market-zones' => 'market_zone']);
         Route::resource('bundles', BundleController::class)->only(['index', 'store', 'update', 'destroy']);
-        Route::resource('providers', ProviderController::class);
         
         Route::prefix('prices')->name('prices.')->group(function () {
             Route::get('/', [PriceController::class, 'index'])->name('index');

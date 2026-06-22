@@ -37,11 +37,11 @@ const navigationMenu = [
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'com', permission: isSuperAdmin },
     { name: 'Marcas', route: 'admin.catalog.brands.index', pattern: 'admin.catalog.brands.*', icon: 'branding_watermark', group: 'com', permission: isSuperAdmin },
     { name: 'Categorías', route: 'admin.catalog.categories.index', pattern: 'admin.catalog.categories.*', icon: 'account_tree', group: 'com', permission: isSuperAdmin },
-    { name: 'Proveedores', route: 'admin.providers.index', pattern: 'admin.providers.*', icon: 'factory', group: 'com', permission: isSuperAdmin },
+    { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'com', permission: isSuperAdmin },
     { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'com', permission: isSuperAdmin },
     
     // Grupo: Gestión
-    { name: 'Sucursales', route: 'admin.branches.index', pattern: 'admin.branches.*', icon: 'store', group: 'ges', permission: isSuperAdmin },
+    { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.branches.*', icon: 'store', group: 'ges', permission: isSuperAdmin },
     { name: 'Conductores', route: 'admin.drivers.index', pattern: 'admin.drivers.*', icon: 'badge', group: 'ges', permission: isSuperAdmin },
     { name: 'Equipo', route: 'admin.users.index', pattern: 'admin.users.*', icon: 'group', group: 'ges', permission: isSuperAdmin }
 ];

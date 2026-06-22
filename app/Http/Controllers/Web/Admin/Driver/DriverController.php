@@ -14,8 +14,8 @@ use App\DTOs\Admin\Driver\UpsertDriverDTO;
 // Actions
 use App\Actions\Admin\Driver\UpsertDriverAction;
 use App\Actions\Admin\Driver\GetPaginatedDriversAction;
-use App\Actions\Admin\Branch\GetActiveBranchesListAction; // <--- USAR SIEMPRE
 
+use App\Actions\Admin\Operations\Branch\GetActiveBranchesListAction;
 // Resources
 use App\Http\Resources\Admin\Driver\{DriverResource, DriverEditResource};
 use Illuminate\Support\Facades\Storage;
