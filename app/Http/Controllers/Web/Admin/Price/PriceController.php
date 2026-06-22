@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Admin\Price;
 
 use App\Http\Controllers\Controller;
-use App\Models\Price;
+use App\Models\Inventory\Price; // RECTIFICACIÓN: Namespace modular correcto
 use App\Models\Catalog\Sku;
 use App\Actions\Admin\Price\{GetPricesBySkuAction, UpsertPriceAction, DeletePriceAction};
-use App\DTOs\Admin\Price\PriceData;
-use App\Http\Requests\Admin\Price\StorePriceRequest;
+use App\DTOs\Admin\Inventory\Price\PriceData; // RECTIFICACIÓN: Sincronizado con el silo de inventario
+use App\Http\Requests\Admin\Inventory\Price\StorePriceRequest; // RECTIFICACIÓN: Sincronizado con el silo de inventario
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,7 +27,9 @@ class PriceController extends Controller
     public function store(StorePriceRequest $request, UpsertPriceAction $action): JsonResponse
     {
         $adminId = (string) Auth::guard($this->guard)->id();
-        $dto = PriceData::fromRequest($request, $adminId);
+        
+        // Sincronizado con la firma del DTO que lee el request de inventario
+        $dto = PriceData::fromRequest($request); 
 
         $price = $action->execute($dto);
 

@@ -5,100 +5,75 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web\Admin\Inventory;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\InventoryBalance;
-use App\Models\InventoryMovement;
-use App\Models\InventoryLot;
-use Illuminate\Http\JsonResponse;
+use App\Models\Inventory\InventoryBalance;
+use App\Models\Inventory\InventoryLot;
+use App\Models\Inventory\InventoryMovement;
+use App\Http\Resources\Admin\Inventory\InventoryBalanceResource;
+use App\Http\Resources\Admin\Inventory\InventoryLotResource;
+use App\Http\Requests\Admin\Inventory\Adjustment\StoreTransferToSafetyRequest;
+use App\Http\Requests\Admin\Inventory\Adjustment\StoreIsolateToQuarantineRequest;
+use App\DTOs\Admin\Inventory\Adjustment\TransferToSafetyData;
+use App\DTOs\Admin\Inventory\Adjustment\IsolateToQuarantineData;
+use App\Actions\Admin\Inventory\Adjustment\TransferToSafety;
+use App\Actions\Admin\Inventory\Adjustment\IsolateToQuarantine;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class InventoryController extends Controller
+final class InventoryController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $branchId = $request->input('branch_id');
+
+        // Lectura de balances optimizada con carga previa de relaciones estructurales
+        $query = InventoryBalance::with(['sku.product', 'branch']);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $balances = $query->get();
+
         return Inertia::render('Admin/Inventory/Index', [
-            'branches' => Branch::select('id', 'name')->get()
+            'balances' => InventoryBalanceResource::collection($balances)->resolve(),
+            'filters'  => $request->only(['branch_id'])
         ]);
-    }
-
-    public function search(Request $request): JsonResponse
-    {
-        $request->validate([
-            'branch_id' => ['required', 'uuid', 'exists:branches,id']
-        ]);
-
-        $balances = InventoryBalance::with(['sku:id,name,code'])
-            ->where('branch_id', $request->input('branch_id'))
-            ->get()
-            ->map(function ($balance) {
-                return [
-                    'sku_id'           => $balance->sku_id,
-                    'sku_name'         => $balance->sku?->name,
-                    'sku_code'         => $balance->sku?->code,
-                    'total_physical'   => (float) $balance->total_physical,
-                    'total_reserved'   => (float) $balance->total_reserved,
-                    'total_quarantine' => (float) $balance->total_quarantine,
-                    'total_safety'     => (float) $balance->total_safety,
-                    'available'        => (float) ($balance->total_physical - $balance->total_reserved - $balance->total_quarantine)
-                ];
-            });
-
-        return response()->json($balances, 200);
-    }
-
-    public function kardex(string $skuId, Request $request): JsonResponse
-    {
-        $request->validate([
-            'branch_id' => ['required', 'uuid', 'exists:branches,id']
-        ]);
-
-        $movements = InventoryMovement::with(['admin:id,name', 'lot:id,lot_code'])
-            ->where('branch_id', $request->input('branch_id'))
-            ->where('sku_id', $skuId)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($movement) {
-                return [
-                    'id'         => $movement->id,
-                    'type'       => $movement->type,
-                    'quantity'   => (float) $movement->quantity,
-                    'reference'  => $movement->reference,
-                    'reason'     => $movement->reason,
-                    'created_at' => $movement->created_at?->toIso8601String(),
-                    'admin_name' => $movement->admin?->name,
-                    'lot_code'   => $movement->lot?->lot_code
-                ];
-            });
-
-        return response()->json($movements, 200);
     }
 
     public function lots(string $skuId, Request $request): JsonResponse
     {
-        $request->validate([
-            'branch_id' => ['required', 'uuid', 'exists:branches,id']
-        ]);
+        $branchId = $request->query('branch_id');
 
-        $lots = InventoryLot::where('branch_id', $request->input('branch_id'))
-            ->where('sku_id', $skuId)
+        $lots = InventoryLot::where('sku_id', $skuId)
+            ->where('branch_id', $branchId)
             ->where('quantity', '>', 0)
-            ->get()
-            ->map(function ($lot) {
-                return [
-                    'id'                => $lot->id,
-                    'lot_code'          => $lot->lot_code,
-                    'quantity'          => (float) $lot->quantity,
-                    'initial_quantity'  => (float) $lot->initial_quantity,
-                    'reserved_quantity' => (float) $lot->reserved_quantity,
-                    'is_safety_stock'   => (bool) $lot->is_safety_stock, // RECTIFICACIÓN
-                    'is_quarantine'     => (bool) $lot->is_quarantine,   // RECTIFICACIÓN
-                    'expiration_date'   => $lot->expiration_date?->format('Y-m-d'),
-                    'is_expired'        => $lot->expiration_date ? $lot->expiration_date->isPast() : false
-                ];
-            });
+            ->orderBy('expiration_date', 'asc')
+            ->get();
 
-        return response()->json($lots, 200);
+        return response()->json([
+            'lots' => InventoryLotResource::collection($lots)->resolve()
+        ]);
+    }
+
+    public function transferToSafety(StoreTransferToSafetyRequest $request, TransferToSafety $action): JsonResponse
+    {
+        $action->execute(TransferToSafetyData::fromRequest($request));
+
+        return response()->json([
+            'status'  => 'SUCCESS',
+            'message' => 'PROTOCOLO_RESCATE: Unidades transferidas exitosamente al stock de seguridad inyectable.'
+        ]);
+    }
+
+    public function isolateToQuarantine(StoreIsolateToQuarantineRequest $request, IsolateToQuarantine $action): JsonResponse
+    {
+        $action->execute(IsolateToQuarantineData::fromRequest($request));
+
+        return response()->json([
+            'status'  => 'SUCCESS',
+            'message' => 'PROTOCOLO_AISLAMIENTO: Unidades removidas del flujo comercial y confinadas a cuarentena.'
+        ]);
     }
 }

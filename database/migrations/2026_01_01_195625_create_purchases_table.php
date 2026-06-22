@@ -9,21 +9,21 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('purchases', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('branch_id')->constrained('branches');
-            $table->foreignUuid('provider_id')->constrained('providers');
-            $table->foreignUuid('admin_id')->constrained('admins');
+            $table->uuid('id')->primary(); // Generación secuencial UUIDv7 en App
+            $table->foreignUuid('branch_id')->constrained('branches')->restrictOnDelete();
+            $table->foreignUuid('provider_id')->constrained('providers')->restrictOnDelete();
+            $table->foreignUuid('admin_id')->constrained('admins')->restrictOnDelete();
             
             $table->string('document_number', 32);
             $table->date('purchase_date')->index();
             $table->enum('payment_type', ['CASH', 'CREDIT'])->default('CASH');
-            // LEY: Columna total_amount eliminada por definición de negocio (sin costos)
-            $table->string('status')->default('COMPLETED');
+            $table->string('status')->default('COMPLETED')->index();
             
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
             $table->softDeletes();
 
+            // Clave única compuesta para evitar colisión de documentos pero permitir re-ingreso si se borra lógicamente
             $table->unique(['document_number', 'deleted_epoch'], 'idx_purchases_doc_unique');
         });
     }

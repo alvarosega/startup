@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web\Admin\Inventory;
 
-use App\Actions\Admin\Inventory\RegisterPurchaseIntakeAction;
-use App\DTOs\Admin\Inventory\PurchaseIntakeDTO;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\Inventory\StorePurchaseRequest;
-use App\Http\Resources\Admin\Inventory\PurchaseResource;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\Admin\Inventory\Purchase\StorePurchaseRequest;
+use App\DTOs\Admin\Inventory\Purchase\PurchaseData;
+use App\Actions\Admin\Inventory\Purchase\ProcessPurchaseIntake;
+use Illuminate\Http\RedirectResponse;
 
-class PurchaseIntakeController extends Controller
+final class PurchaseIntakeController extends Controller
 {
-    public function __invoke(
-        StorePurchaseRequest $request, 
-        RegisterPurchaseIntakeAction $action
-    ): JsonResponse {
-        $adminId = (string) Auth::id(); 
-        
-        $dto = PurchaseIntakeDTO::fromRequest($request->validated(), $adminId);
-        $purchase = $action->execute($dto);
+    /**
+     * Controlador Invocable Atómico para Ingesta Logística.
+     */
+    public function __invoke(StorePurchaseRequest $request, ProcessPurchaseIntake $action): RedirectResponse
+    {
+        $action->execute(PurchaseData::fromRequest($request));
 
-        return (new PurchaseResource($purchase))
-            ->response()
-            ->setStatusCode(201);
+        return redirect()->route('admin.purchases.index')
+            ->with('success', 'PROTOCOLO_RECEPCIÓN: Lote físico verificado e integrado a las existencias centrales.');
     }
 }

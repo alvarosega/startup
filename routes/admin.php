@@ -17,9 +17,6 @@ use App\Http\Controllers\Web\Admin\Bundle\BundleController;
 use App\Http\Controllers\Web\Admin\Price\PriceController;
 use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
 use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeController;
-use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeViewController;
-use App\Http\Controllers\Web\Admin\Inventory\TransferReceptionController;
-use App\Http\Controllers\Web\Admin\Inventory\TransferReceptionViewController;
 use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
@@ -48,11 +45,9 @@ Route::middleware(['auth.admin'])->group(function () {
         Route::resource('drivers', DriverController::class);
         
         // =================================================================================
-        // SILO: CATALOGO (Estructura agrupada, reubicación de namespaces y nombres de rutas)
+        // SILO: CATALOGO
         // =================================================================================
         Route::prefix('catalog')->name('catalog.')->group(function () {
-            
-            // Productos
             Route::prefix('products')->name('products.')->group(function () {
                 Route::get('reorder', [ProductController::class, 'reorder'])->name('reorder');
                 Route::patch('reorder', [ProductController::class, 'updateOrder'])->name('reorder.update');
@@ -60,29 +55,50 @@ Route::middleware(['auth.admin'])->group(function () {
             Route::get('products/check-name', [ProductController::class, 'checkName'])->name('products.check-name');
             Route::resource('products', ProductController::class);
 
-            // Variantes (SKUs)
             Route::get('products/{product}/skus/create', [SkuController::class, 'create'])->name('products.skus.create');
             Route::post('products/{product}/skus', [SkuController::class, 'store'])->name('products.skus.store');
             Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
             Route::resource('skus', SkuController::class)->only(['store', 'update', 'destroy']);
             
-            // Categorías
             Route::prefix('categories')->name('categories.')->group(function () {
                 Route::get('{category}/skus', [CategoryController::class, 'skus'])->name('skus');
                 Route::put('{category}/sku-order', [CategoryController::class, 'updateSkuOrder'])->name('update-sku-order');
             });
             Route::resource('categories', CategoryController::class)->except(['show']);
-            
-            // Marcas
             Route::resource('brands', BrandController::class);
         });
 
         // =================================================================================
-        // SILO: OPERATIONS (Unificación logística de sucursales y proveedores)
+        // SILO: OPERATIONS
         // =================================================================================
         Route::prefix('operations')->name('operations.')->group(function () {
             Route::resource('branches', BranchController::class);
             Route::resource('providers', ProviderController::class);
+        });
+
+        // =================================================================================
+        // SILO: INVENTARIOS Y ABASTECIMIENTO
+        // =================================================================================
+        Route::prefix('inventory')->name('inventory.')->group(function () {
+            Route::get('/', [InventoryController::class, 'index'])->name('index');
+            Route::get('/search', [InventoryController::class, 'search'])->name('search');
+            Route::get('/{skuId}/kardex', [InventoryController::class, 'kardex'])->name('kardex');
+            Route::get('/{skuId}/lots', [InventoryController::class, 'lots'])->name('lots');
+            
+            Route::post('/transfer-safety', [InventoryController::class, 'transferToSafety'])->name('transfer-safety');
+            Route::post('/isolate-quarantine', [InventoryController::class, 'isolateToQuarantine'])->name('isolate-quarantine');
+        });
+        
+        Route::prefix('purchases')->name('purchases.')->group(function () {
+            Route::get('/', [PurchaseIntakeViewController::class, 'index'])->name('index');
+            Route::post('/process', PurchaseIntakeController::class)->name('process');
+        });
+
+        Route::prefix('prices')->name('prices.')->group(function () {
+            Route::get('/', [PriceController::class, 'index'])->name('index');
+            Route::get('{sku}', [PriceController::class, 'show'])->name('show');
+            Route::post('/', [PriceController::class, 'store'])->name('store');
+            Route::delete('{price}', [PriceController::class, 'destroy'])->name('destroy');
         });
 
         // =================================================================================
@@ -91,26 +107,10 @@ Route::middleware(['auth.admin'])->group(function () {
         Route::resource('market-zones', MarketZoneController::class)->parameters(['market-zones' => 'market_zone']);
         Route::resource('bundles', BundleController::class)->only(['index', 'store', 'update', 'destroy']);
         
-        Route::prefix('prices')->name('prices.')->group(function () {
-            Route::get('/', [PriceController::class, 'index'])->name('index');
-            Route::get('{sku}', [PriceController::class, 'show'])->name('show');
-            Route::post('/', [PriceController::class, 'store'])->name('store');
-            Route::delete('{price}', [PriceController::class, 'destroy'])->name('destroy');
-        });
-        
-        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
-        Route::get('inventory/search', [InventoryController::class, 'search'])->name('inventory.search');
-
-        Route::get('inventory/{skuId}/kardex', [InventoryController::class, 'kardex'])->name('inventory.kardex');
-        Route::get('inventory/{skuId}/lots', [InventoryController::class, 'lots'])->name('inventory.lots');
-        
-        // Núcleo de Abastecimiento
-        Route::get('purchases', [PurchaseIntakeViewController::class, 'index'])->name('purchases.index');
-        Route::post('purchases/process', PurchaseIntakeController::class)->name('purchases.process');
-
+        // Rutas de Transferencias convertidas a Closures limpios para evitar errores de carga
         Route::get('transfers', fn() => 'Lista de transferencias en desarrollo')->name('transfers.index');
-        Route::get('transfers/{id}/receive', [TransferReceptionViewController::class, 'index'])->name('transfers.receive');
-        Route::post('transfers/{id}/reception', TransferReceptionController::class)->name('transfers.reception');
+        Route::get('transfers/{id}/receive', fn() => 'Formulario de recepción en desarrollo')->name('transfers.receive');
+        Route::post('transfers/{id}/reception', fn() => 'Procesamiento de recepción en desarrollo')->name('transfers.reception');
 
         Route::get('removals', fn() => 'En desarrollo')->name('removals.index');
         Route::get('transformations', fn() => 'En desarrollo')->name('transformations.index');
@@ -128,14 +128,14 @@ Route::middleware(['auth.admin'])->group(function () {
             Route::post('/{order:code}/unassign', [OrderController::class, 'unassignDriver'])->name('unassign-driver');
         });
         
-        Route::prefix('retail-media')->name('retail-media.')->group(function () {
+        /*Route::prefix('retail-media')->name('retail-media.')->group(function () {
             Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])->name('ad-creatives.search-skus');
             Route::get('ad-creatives/search-bundles', [AdCreativeController::class, 'searchBundles'])->name('ad-creatives.search-bundles');
             Route::get('ad-creatives/search-brands', [AdCreativeController::class, 'searchBrands'])->name('ad-creatives.search-brands');
             
-            Route::resource('ad-creatives', AdCreativeController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-creatives' => 'ad_creative']);
+            Rule::resource('ad-creatives', AdCreativeController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-creatives' => 'ad_creative']);
             Route::resource('ad-placements', AdPlacementController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-placements' => 'ad_placement']);
             Route::resource('ad-campaigns', AdCampaignController::class);
-        });
+        });*/
     });
 });

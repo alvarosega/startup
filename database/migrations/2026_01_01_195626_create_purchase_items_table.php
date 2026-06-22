@@ -10,12 +10,11 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('purchase_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('purchase_id')->constrained()->onDelete('cascade');
-            $table->foreignUuid('sku_id')->constrained('skus');
+            $table->foreignUuid('purchase_id')->constrained('purchases')->cascadeOnDelete();
+            $table->foreignUuid('sku_id')->constrained('skus')->restrictOnDelete();
             
-            // LEY: Escala de tres decimales (12,3) para mantener consistencia con inventory_lots
+            // Tres decimales para mantener consistencia absoluta con balanzas y factores de conversión fraccionados
             $table->decimal('quantity', 12, 3); 
-            // LEY: Sin columnas de costo unitario o subtotal por definición de negocio
             $table->timestamps();
         });
     }

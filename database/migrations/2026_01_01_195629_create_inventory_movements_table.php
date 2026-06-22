@@ -9,20 +9,21 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('inventory_movements', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('branch_id')->constrained('branches');
-            $table->foreignUuid('sku_id')->constrained('skus');
-            $table->uuid('inventory_lot_id'); 
-            $table->foreignUuid('admin_id')->constrained('admins');
+            $table->uuid('id')->primary(); // Generación secuencial UUIDv7 en App
+            $table->foreignUuid('branch_id')->constrained('branches')->restrictOnDelete();
+            $table->foreignUuid('sku_id')->constrained('skus')->restrictOnDelete();
             
-            $table->string('type', 20); 
+            // RECTIFICACIÓN: Restricción foránea estricta para impedir la destrucción de la trazabilidad del Kardex
+            $table->foreignUuid('inventory_lot_id')->constrained('inventory_lots')->restrictOnDelete(); 
+            $table->foreignUuid('admin_id')->constrained('admins')->restrictOnDelete();
+            
+            $table->string('type', 25)->index(); // Exclusivamente los estados validados del protocolo
             $table->decimal('quantity', 12, 3);
-            // LEY: Columna unit_cost eliminada por definición de negocio
             $table->string('reference')->nullable();
-            // LEY: Nueva columna para auditoría histórica obligatoria en cuarentenas y mermas
-            $table->string('reason')->nullable();
+            $table->string('reason')->nullable(); // Justificación obligatoria para movimientos manuales (cuarentenas, mermas, rescates)
             $table->timestamp('created_at')->useCurrent();
 
+            // Índice de cobertura para optimización de reportes cronológicos de inventario y auditorías
             $table->index(['branch_id', 'sku_id', 'created_at'], 'idx_movements_kardex_lookup');
         });
     }
