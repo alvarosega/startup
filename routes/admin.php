@@ -17,6 +17,7 @@ use App\Http\Controllers\Web\Admin\Bundle\BundleController;
 use App\Http\Controllers\Web\Admin\Price\PriceController;
 use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
 use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeController;
+use App\Http\Controllers\Web\Admin\Inventory\PurchaseIntakeViewController;
 use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
@@ -91,6 +92,7 @@ Route::middleware(['auth.admin'])->group(function () {
         
         Route::prefix('purchases')->name('purchases.')->group(function () {
             Route::get('/', [PurchaseIntakeViewController::class, 'index'])->name('index');
+            Route::get('/create', [PurchaseIntakeViewController::class, 'create'])->name('create'); // Corregido para UI Create
             Route::post('/process', PurchaseIntakeController::class)->name('process');
         });
 
@@ -105,9 +107,11 @@ Route::middleware(['auth.admin'])->group(function () {
         // OTROS DOMINIOS OPERATIVOS / COMERCIALES
         // =================================================================================
         Route::resource('market-zones', MarketZoneController::class)->parameters(['market-zones' => 'market_zone']);
-        Route::resource('bundles', BundleController::class)->only(['index', 'store', 'update', 'destroy']);
         
-        // Rutas de Transferencias convertidas a Closures limpios para evitar errores de carga
+        // Módulo de Combos con ruta de carga diferida Axios integrada
+        Route::get('bundles/{id}/items', [BundleController::class, 'items'])->name('bundles.items');
+        Route::resource('bundles', BundleController::class)->except(['show']);
+        
         Route::get('transfers', fn() => 'Lista de transferencias en desarrollo')->name('transfers.index');
         Route::get('transfers/{id}/receive', fn() => 'Formulario de recepción en desarrollo')->name('transfers.receive');
         Route::post('transfers/{id}/reception', fn() => 'Procesamiento de recepción en desarrollo')->name('transfers.reception');
@@ -128,14 +132,15 @@ Route::middleware(['auth.admin'])->group(function () {
             Route::post('/{order:code}/unassign', [OrderController::class, 'unassignDriver'])->name('unassign-driver');
         });
         
-        /*Route::prefix('retail-media')->name('retail-media.')->group(function () {
+        // Silo Activado, Corregido (Route:: en vez de Rule::) y Sincronizado con Sidebar.vue
+        Route::prefix('retail-media')->name('retail-media.')->group(function () {
             Route::get('ad-creatives/search-skus', [AdCreativeController::class, 'searchSkus'])->name('ad-creatives.search-skus');
             Route::get('ad-creatives/search-bundles', [AdCreativeController::class, 'searchBundles'])->name('ad-creatives.search-bundles');
             Route::get('ad-creatives/search-brands', [AdCreativeController::class, 'searchBrands'])->name('ad-creatives.search-brands');
             
-            Rule::resource('ad-creatives', AdCreativeController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-creatives' => 'ad_creative']);
+            Route::resource('ad-creatives', AdCreativeController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-creatives' => 'ad_creative']);
             Route::resource('ad-placements', AdPlacementController::class)->only(['index', 'store', 'update', 'destroy'])->parameters(['ad-placements' => 'ad_placement']);
             Route::resource('ad-campaigns', AdCampaignController::class);
-        });*/
+        });
     });
 });

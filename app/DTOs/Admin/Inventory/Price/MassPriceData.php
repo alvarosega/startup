@@ -6,10 +6,13 @@ namespace App\DTOs\Admin\Inventory\Price;
 
 use Illuminate\Http\Request;
 
-readonly class PriceData
+readonly class MassPriceData
 {
+    /**
+     * @param string[] $selected_skus
+     */
     public function __construct(
-        public string $sku_id,
+        public array $selected_skus,
         public string $branch_id,
         public string $type,
         public float $list_price,
@@ -25,7 +28,7 @@ readonly class PriceData
         $validated = $request->validated();
 
         return new self(
-            sku_id: (string) $validated['sku_id'],
+            selected_skus: (array) $validated['selected_skus'],
             branch_id: (string) $validated['branch_id'],
             type: (string) $validated['type'],
             list_price: (float) $validated['list_price'],

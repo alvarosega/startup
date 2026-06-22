@@ -1,376 +1,136 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { 
-    Plus, Edit2, Trash2, X, Search, CheckSquare, 
-    Square, Layers, Tag, Image as ImageIcon, Save, AlertCircle 
-} from 'lucide-vue-next';
+import { Plus, Trash2, Edit, Calendar, LayoutGrid, Layers, Eye } from 'lucide-vue-next';
+import axios from 'axios';
 
-const props = defineProps({
-    bundles: { type: Array, required: true },
-    availableSkus: { type: Array, required: true }
+defineProps({
+    bundles: Array
 });
 
-// Estados de control del modal e interfaz
-const isModalOpen = ref(false);
-const isEditing = ref(false);
-const currentBundleId = ref(null);
-const skuSearchQuery = ref('');
-const imagePreview = ref(null);
+const selectedBundle = ref(null);
+const bundleItems = ref([]);
+const loadingItems = ref(false);
 
-// Formulario reactivo de Inertia acoplado al DTO del backend
-const form = useForm({
-    _method: 'POST', // Control nativo para spoofing de archivos en Laravel
-    name: '',
-    type: 'OFFER',
-    is_active: true,
-    image: null,
-    sku_ids: []
-});
-
-// Buscador predictivo de SKUs disponibles (filtra por nombre o código)
-const filteredAvailableSkus = computed(() => {
-    const query = skuSearchQuery.value.toLowerCase().trim();
-    if (!query) return props.availableSkus;
-    return props.availableSkus.filter(sku => 
-        sku.name.toLowerCase().includes(query) || 
-        sku.code.toLowerCase().includes(query)
-    );
-});
-
-// Mapeo detallado de los SKUs que ya están seleccionados dentro del formulario
-const selectedSkusDetails = computed(() => {
-    return props.availableSkus.filter(sku => form.sku_ids.includes(sku.id));
-});
-
-// Controladores de selección (Toggle de ítems)
-const toggleSkuSelection = (skuId) => {
-    const index = form.sku_ids.indexOf(skuId);
-    if (index === -1) {
-        form.sku_ids.push(skuId);
-    } else {
-        form.sku_ids.splice(index, 1);
-    }
-};
-
-const removeSku = (skuId) => {
-    const index = form.sku_ids.indexOf(skuId);
-    if (index !== -1) {
-        form.sku_ids.splice(index, 1);
-    }
-};
-
-// Procesamiento de imágenes (Previsualización local segura)
-const handleImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+const loadBundleItems = async (bundle) => {
+    selectedBundle.value = bundle;
+    loadingItems.value = true;
+    bundleItems.value = [];
     
-    form.image = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        imagePreview.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-};
-
-// Disparadores del ciclo modal
-const openCreateModal = () => {
-    isEditing.value = false;
-    currentBundleId.value = null;
-    imagePreview.value = null;
-    skuSearchQuery.value = '';
-    form.reset();
-    form.clearErrors();
-    form._method = 'POST';
-    isModalOpen.value = true;
-};
-
-const openEditModal = (bundle) => {
-    isEditing.value = true;
-    currentBundleId.value = bundle.id;
-    skuSearchQuery.value = '';
-    form.clearErrors();
-    
-    form.name = bundle.name;
-    form.type = bundle.type;
-    form.is_active = bundle.is_active;
-    form.image = null;
-    form.sku_ids = bundle.skus.map(s => s.id);
-    form._method = 'PUT'; // Forzar spoofing de método HTTP PUT para multipart/form-data
-    
-    imagePreview.value = bundle.image;
-    isModalOpen.value = true;
-};
-
-const closeModal = () => {
-    isModalOpen.value = false;
-    form.reset();
-};
-
-// Operaciones de persistencia asíncronas
-const submitForm = () => {
-    if (isEditing.value) {
-        // Al enviar archivos mediante PUT, Laravel exige mandarlo vía POST inyectando el parámetro _method
-        form.post(route('bundles.update', currentBundleId.value), {
-            preserveScroll: true,
-            onSuccess: () => closeModal()
-        });
-    } else {
-        form.post(route('bundles.store'), {
-            preserveScroll: true,
-            onSuccess: () => closeModal()
-        });
+    try {
+        const response = await axios.get(route('admin.bundles.items', bundle.id));
+        bundleItems.value = response.data.items || [];
+    } catch (error) {
+        alert('ERROR_RESOLUCIÓN: No se pudo extraer la matriz de componentes.');
+    } finally {
+        loadingItems.value = false;
     }
 };
 
 const deleteBundle = (id) => {
-    if (confirm('¿Está completamente seguro de eliminar este grupo/plantilla comercial? Esta acción limpiará las relaciones de catálogo.')) {
-        router.delete(route('bundles.destroy', id), { preserveScroll: true });
+    if (confirm('¿CONFIRMAR DESTRUCCIÓN? Se darán de baja las dependencias publicitarias activas.')) {
+        router.delete(route('admin.bundles.destroy', id), {
+            preserveScroll: true,
+            onSuccess: () => { selectedBundle.value = null; }
+        });
     }
 };
 </script>
 
 <template>
+    <Head title="Estrategias Comerciales - Combos" />
     <AdminLayout>
         <template #header>
-            Gestión de Ofertas y Plantillas Masivas
+            <div class="flex justify-between items-center select-none font-sans">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 uppercase italic">Macro Agrupadores // Combos</h1>
+                    <p class="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono tracking-wider uppercase mt-0.5">Gestión de empaquetados promocionales y vigencias estacionales</p>
+                </div>
+                <Link :href="route('admin.bundles.create')" class="bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-50 dark:hover:bg-neutral-200 text-white dark:text-neutral-950 px-4 py-2 rounded-md transition-colors text-xs font-bold font-mono tracking-wider flex items-center gap-2">
+                    <Plus :size="14" /> CONFIGURAR_NUEVO_COMBO
+                </Link>
+            </div>
         </template>
 
-        <div class="space-y-6">
-            <div class="flex items-center justify-between bg-card border p-4 rounded-xl shadow-sm">
-                <div>
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-muted-foreground">Estructuras de Campaña</h3>
-                    <p class="text-xs text-muted-foreground">Agrupación de SKUs orientados a ofertas volumétricas independientes o inyecciones rápidas al carrito.</p>
-                </div>
-                <button @click="openCreateModal" class="btn-primary flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
-                    <Plus :size="16" /> Crear Grupo
-                </button>
-            </div>
-
-            <div class="border rounded-xl bg-card overflow-x-auto shadow-sm">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 font-mono text-xs">
+            <div class="lg:col-span-7 border border-neutral-200 dark:border-neutral-800 rounded-md bg-white dark:bg-neutral-900 shadow-sm overflow-hidden">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground font-bold">
-                            <th class="p-4 w-20">Imagen</th>
-                            <th class="p-4">Nombre de la Campaña</th>
-                            <th class="p-4">Tipo</th>
-                            <th class="p-4">Componentes</th>
-                            <th class="p-4">Estado</th>
-                            <th class="p-4 text-right">Acciones</th>
+                        <tr class="bg-neutral-50/70 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 select-none">
+                            <th class="p-3">COMBO_DESIGNACIÓN</th>
+                            <th class="p-3 w-28">ESTRATEGIA</th>
+                            <th class="p-3 w-28 text-center">ESTADO</th>
+                            <th class="p-3 w-24 text-right">ACCIONES</th>
                         </tr>
                     </thead>
-                    <tbody class="text-sm divide-y">
-                        <tr v-for="bundle in bundles" :key="bundle.id" class="hover:bg-muted/30 transition-colors">
-                            <td class="p-4">
-                                <div class="w-12 h-12 rounded-lg border bg-muted flex items-center justify-center overflow-hidden">
-                                    <img v-if="bundle.image" :src="bundle.image" class="w-full h-full object-cover" />
-                                    <Layers v-else :size="18" class="text-muted-foreground/40" />
+                    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
+                        <tr v-for="bd in bundles" :key="bd.id" :class="selectedBundle?.id === bd.id ? 'bg-neutral-50 dark:bg-neutral-950/40 font-bold' : ''" class="hover:bg-neutral-50/40 dark:hover:bg-neutral-800/10 transition-colors cursor-pointer" @click="loadBundleItems(bd)">
+                            <td class="p-3">
+                                <div class="flex items-center gap-3">
+                                    <img v-if="bd.image_url" :src="bd.image_url" class="w-8 h-8 rounded border border-neutral-200 dark:border-neutral-700 object-cover shrink-0 select-none" />
+                                    <div v-else class="w-8 h-8 bg-neutral-100 dark:bg-neutral-800 rounded flex items-center justify-center border border-neutral-200 dark:border-neutral-700 text-neutral-400 shrink-0 select-none"><LayoutGrid :size="14"/></div>
+                                    <div class="min-w-0">
+                                        <div class="text-neutral-900 dark:text-white truncate uppercase font-bold tracking-tight select-all">{{ bd.name }}</div>
+                                        <div class="text-[9px] text-neutral-400 flex items-center gap-1 mt-0.5 select-none">
+                                            <Calendar :size="10"/> {{ bd.starts_at ? bd.starts_at.slice(0,10) : 'INMEDIATO' }} // {{ bd.ends_at ? bd.ends_at.slice(0,10) : 'ETERNO' }}
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="p-4 font-medium text-foreground">
-                                {{ bundle.name }}
-                                <div class="text-[11px] font-mono text-muted-foreground mt-0.5">ID: {{ bundle.id }}</div>
+                            <td class="p-3 font-bold select-none text-[10px]">
+                                <span :class="bd.type === 'TEMPLATE' ? 'text-blue-500' : 'text-neutral-600 dark:text-neutral-400'">{{ bd.type }}</span>
                             </td>
-                            <td class="p-4">
-                                <span v-if="bundle.type === 'OFFER'" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-purple-500/10 text-purple-600 border border-purple-500/20">
-                                    Oferta Volumétrica
-                                </span>
-                                <span v-else class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-600 border border-blue-500/20">
-                                    Plantilla Rápida
+                            <td class="p-3 text-center select-none">
+                                <span :class="bd.is_active ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 border-rose-200 dark:border-rose-800'" class="px-2 py-0.5 text-[9px] font-black rounded-sm border">
+                                    {{ bd.is_active ? 'SINC' : 'BAJA' }}
                                 </span>
                             </td>
-                            <td class="p-4">
-                                <span class="font-bold text-foreground">{{ bundle.skus_count }}</span> 
-                                <span class="text-xs text-muted-foreground"> SKUs enlazados</span>
-                            </td>
-                            <td class="p-4">
-                                <span :class="bundle.is_active ? 'text-green-600' : 'text-muted-foreground'" class="text-xs font-bold uppercase tracking-wider">
-                                    {{ bundle.is_active ? '● Activo' : '○ Inactivo' }}
-                                </span>
-                            </td>
-                            <td class="p-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button @click="openEditModal(bundle)" class="p-2 border rounded-lg hover:bg-muted text-muted-foreground transition-colors" title="Editar Estructura">
-                                        <Edit2 :size="14" />
-                                    </button>
-                                    <button @click="deleteBundle(bundle.id)" class="p-2 border rounded-lg hover:bg-destructive/10 text-destructive transition-colors" title="Eliminar Registro">
-                                        <Trash2 :size="14" />
-                                    </button>
+                            <td class="p-3 text-right select-none" @click.stop>
+                                <div class="flex justify-end gap-1.5">
+                                    <Link :href="route('admin.bundles.edit', bd.id)" class="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-1 rounded border border-transparent hover:border-neutral-200 dark:hover:border-neutral-700 transition-all"><Edit :size="13"/></Link>
+                                    <button @click="deleteBundle(bd.id)" class="text-neutral-300 hover:text-rose-600 p-1 rounded border border-transparent hover:border-rose-200 dark:hover:border-rose-900/40 transition-all"><Trash2 :size="13"/></button>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="bundles.length === 0">
-                            <td colspan="6" class="p-8 text-center text-muted-foreground text-xs uppercase tracking-widest">
-                                No se registran ofertas o plantillas comerciales en este nodo.
+                            <td colspan="4" class="p-16 text-center text-neutral-400 select-none italic font-sans">
+                                Ningún macro agrupador parametrizado en el sistema core.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-                <div class="bg-card border rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-                    
-                    <div class="flex items-center justify-between p-4 border-b">
-                        <div class="flex items-center gap-2">
-                            <Layers :size="18" class="text-primary" />
-                            <h2 class="text-sm font-black uppercase tracking-wider">
-                                {{ isEditing ? 'Modificar Parámetros de Estructura' : 'Definir Nueva Campaña / Agrupador' }}
-                            </h2>
-                        </div>
-                        <button @click="closeModal" class="p-1.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors">
-                            <X :size="16" />
-                        </button>
+            <div class="lg:col-span-5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-md p-4 h-fit min-h-[300px] flex flex-col justify-between shadow-xs select-none">
+                <div v-if="selectedBundle">
+                    <div class="border-b border-neutral-200 dark:border-neutral-800 pb-2 mb-3">
+                        <div class="text-[10px] font-black text-neutral-400 uppercase tracking-widest">// COMPONENTES_DESGLOSE</div>
+                        <h3 class="text-sm font-black text-neutral-900 dark:text-white uppercase mt-1 italic tracking-tight">{{ selectedBundle.name }}</h3>
                     </div>
 
-                    <form @submit.prevent="submitForm" class="flex-1 overflow-y-auto p-6 space-y-6">
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="md:col-span-2 space-y-4">
-                                <div class="flex flex-col gap-1">
-                                    <label class="text-xs font-bold uppercase text-muted-foreground">Nombre Comercial</label>
-                                    <input type="text" v-model="form.name" class="w-full border rounded-lg p-2.5 bg-background text-sm font-medium" placeholder="Ej: Especial Bodegas de Altura" required />
-                                    <div v-if="form.errors.name" class="text-xs text-destructive font-semibold flex items-center gap-1 mt-1"><AlertCircle :size="12" /> {{ form.errors.name }}</div>
-                                </div>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs font-bold uppercase text-muted-foreground">Tipo de Comportamiento</label>
-                                        <select v-model="form.type" class="w-full border rounded-lg p-2.5 bg-background text-sm font-medium">
-                                            <option value="OFFER">Oferta Volumétrica (Control de Mínimo)</option>
-                                            <option value="TEMPLATE">Plantilla (Agregado Masivo de Ítems)</option>
-                                        </select>
-                                        <div v-if="form.errors.type" class="text-xs text-destructive font-semibold flex items-center gap-1 mt-1"><AlertCircle :size="12" /> {{ form.errors.type }}</div>
-                                    </div>
-
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs font-bold uppercase text-muted-foreground">Estado Operativo</label>
-                                        <div class="flex items-center h-full">
-                                            <label class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" v-model="form.is_active" class="sr-only peer">
-                                                <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-muted after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                                                <span class="ml-3 text-xs font-bold uppercase tracking-wider text-foreground">
-                                                    {{ form.is_active ? 'Habilitado' : 'Deshabilitado' }}
-                                                </span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs font-bold uppercase text-muted-foreground">Banner Promocional</label>
-                                <div class="flex-1 border border-dashed rounded-xl p-4 flex flex-col items-center justify-center relative min-h-[140px] bg-muted/10 overflow-hidden group">
-                                    <template v-if="imagePreview">
-                                        <img :src="imagePreview" class="absolute inset-0 w-full h-full object-cover" />
-                                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-150">
-                                            <label class="bg-background text-foreground text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg cursor-pointer shadow-md">
-                                                Cambiar Imagen
-                                                <input type="file" @change="handleImageUpload" class="hidden" accept="image/*" />
-                                            </label>
-                                        </div>
-                                    </template>
-                                    <template v-else>
-                                        <ImageIcon :size="24" class="text-muted-foreground/40 mb-2" />
-                                        <label class="text-[11px] bg-primary text-primary-foreground px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider cursor-pointer shadow-sm">
-                                            Cargar Archivo
-                                            <input type="file" @change="handleImageUpload" class="hidden" accept="image/*" />
-                                        </label>
-                                        <span class="text-[9px] text-muted-foreground mt-2 uppercase">Max: 2MB (PNG, JPG, WEBP)</span>
-                                    </template>
-                                </div>
-                                <div v-if="form.errors.image" class="text-xs text-destructive font-semibold flex items-center gap-1 mt-1"><AlertCircle :size="12" /> {{ form.errors.image }}</div>
-                            </div>
-                        </div>
-
-                        <hr class="border-border" />
-
-                        <div class="space-y-3">
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-1">
-                                    <Search :size="14" /> Motor Predictivo de Selección de Catálogo
-                                </label>
-                                <div class="relative mt-1">
-                                    <Search :size="16" class="absolute left-3 top-3 text-muted-foreground/50" />
-                                    <input type="text" v-model="skuSearchQuery" class="w-full border rounded-lg pl-10 pr-4 py-2.5 bg-background text-sm font-medium" placeholder="Buscar SKUs activos por código de barra, código interno o descripción de producto..." />
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap gap-1.5 p-3 bg-muted/30 rounded-xl border min-h-[46px]">
-                                <span v-for="sku in selectedSkusDetails" :key="sku.id" class="inline-flex items-center gap-1.5 bg-background border text-foreground px-2.5 py-1 rounded-md text-xs font-medium font-mono shadow-sm animate-in fade-in duration-100">
-                                    <Tag :size="10" class="text-primary" />
-                                    <span class="font-bold text-primary">[{{ sku.code }}]</span> {{ sku.name }}
-                                    <button type="button" @click="removeSku(sku.id)" class="text-muted-foreground hover:text-destructive rounded-full p-0.5 hover:bg-muted transition-colors">
-                                        <X :size="12" />
-                                    </button>
-                                </span>
-                                <div v-if="form.sku_ids.length === 0" class="text-xs text-muted-foreground/60 italic p-0.5">
-                                    Ningún SKU asignado a la estructura actualmente. Utilice la grilla inferior para inyectar componentes.
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                                Grilla de Asignación Masiva de Componentes ({{ filteredAvailableSkus.length }} ítems filtrados)
-                            </label>
-                            <div class="border rounded-xl max-h-[220px] overflow-y-auto bg-background divide-y shadow-inner">
-                                <div v-for="sku in filteredAvailableSkus" :key="sku.id" 
-                                    @click="toggleSkuSelection(sku.id)" 
-                                    class="flex items-center justify-between p-3 cursor-pointer select-none transition-colors"
-                                    :class="form.sku_ids.includes(sku.id) ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'"
-                                >
-                                    <div class="flex items-center gap-3">
-                                        <button type="button" class="text-primary focus:outline-none">
-                                            <CheckSquare v-if="form.sku_ids.includes(sku.id)" :size="18" />
-                                            <Square v-else :size="18" class="text-muted-foreground/40" />
-                                        </button>
-                                        <div class="text-xs font-mono font-bold text-foreground">
-                                            {{ sku.code }}
-                                        </div>
-                                        <div class="text-xs font-medium text-muted-foreground">
-                                            {{ sku.name }}
-                                        </div>
-                                    </div>
-                                    <div class="text-[10px] font-mono text-muted-foreground/50 pr-2">
-                                        {{ sku.id.substring(0,8) }}...
-                                    </div>
-                                </div>
-                                <div v-if="filteredAvailableSkus.length === 0" class="p-6 text-center text-xs text-muted-foreground uppercase tracking-wider">
-                                    Ningún artículo en el catálogo coincide con la consulta ingresada.
-                                </div>
-                            </div>
-                            <div v-if="form.errors.sku_ids" class="text-xs text-destructive font-semibold flex items-center gap-1 mt-1"><AlertCircle :size="12" /> {{ form.errors.sku_ids }}</div>
-                        </div>
-                    </form>
-
-                    <div class="p-4 border-t bg-muted/30 flex items-center justify-end gap-3 rounded-b-2xl">
-                        <button type="button" @click="closeModal" class="border rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-wider bg-background text-foreground hover:bg-muted transition-colors">
-                            Cancelar
-                        </button>
-                        <button type="button" @click="submitForm" :disabled="form.processing || form.sku_ids.length === 0" class="btn-primary flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider disabled:opacity-40">
-                            <Save :size="14" /> {{ form.processing ? 'Sincronizando...' : isEditing ? 'Guardar Cambios' : 'Estructurar Grupo' }}
-                        </button>
+                    <div v-if="loadingItems" class="p-12 text-center text-neutral-400 font-mono text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5">
+                        <span class="w-4 h-4 border-2 border-neutral-400 border-t-transparent animate-spin rounded-full"></span>
+                        <span>Mapeando Relaciones Atómicas...</span>
                     </div>
 
+                    <div v-else class="space-y-1.5 max-h-[380px] overflow-y-auto pr-1">
+                        <div v-for="item in bundleItems" :key="item.id" class="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded p-2.5 flex justify-between items-center shadow-xs">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-neutral-900 dark:text-neutral-100 uppercase truncate text-[11px] select-all">{{ item.sku_name }}</div>
+                                <div class="text-[9px] text-neutral-400 mt-0.5 select-all font-mono">{{ item.sku_code }}</div>
+                            </div>
+                            <div class="px-2.5 py-1 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded font-black text-xs text-neutral-900 dark:text-white shrink-0 select-all">
+                                {{ Number(item.quantity).toFixed(3) }} U
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="my-auto text-center text-neutral-400 italic py-12 px-4 font-sans">
+                    <Layers class="mx-auto text-neutral-300 dark:text-neutral-800 mb-2" :size="32" />
+                    Seleccione un combo maestro de la grilla para auditar analíticamente sus artículos vinculados.
                 </div>
             </div>
-
         </div>
     </AdminLayout>
 </template>
-
-<style scoped>
-.font-mono { font-family: 'JetBrains Mono', monospace; }
-/* Customización del scroll interno para la grilla de checkboxes */
-::-webkit-scrollbar {
-    width: 6px;
-}
-::-webkit-scrollbar-track {
-    @apply bg-transparent;
-}
-::-webkit-scrollbar-thumb {
-    @apply bg-neutral-500/20 rounded-full hover:bg-neutral-500/40;
-}
-</style>

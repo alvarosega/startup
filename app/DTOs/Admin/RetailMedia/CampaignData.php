@@ -4,28 +4,30 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\RetailMedia;
 
-use Carbon\Carbon;
+use Illuminate\Http\Request;
 
-final readonly class CampaignData
+readonly class CampaignData
 {
     public function __construct(
-        public string $providerId,
+        public ?string $provider_id,
         public string $name,
         public string $type,
-        public ?Carbon $startsAt,
-        public ?Carbon $endsAt,
-        public bool $isActive
+        public ?string $starts_at,
+        public ?string $ends_at,
+        public bool $is_active
     ) {}
 
-    public static function fromRequest(array $validated): self
+    public static function fromRequest(Request $request): self
     {
+        $validated = $request->validated();
+
         return new self(
-            providerId: (string) $validated['provider_id'],
-            name: (string) $validated['name'],
+            provider_id: $validated['provider_id'] ?? null,
+            name: trim((string) $validated['name']),
             type: (string) $validated['type'],
-            startsAt: $validated['starts_at'] ? Carbon::parse($validated['starts_at']) : null,
-            endsAt: $validated['ends_at'] ? Carbon::parse($validated['ends_at']) : null,
-            isActive: (bool) $validated['is_active']
+            starts_at: $validated['starts_at'] ?? null,
+            ends_at: $validated['ends_at'] ?? null,
+            is_active: (bool) ($validated['is_active'] ?? true)
         );
     }
 }

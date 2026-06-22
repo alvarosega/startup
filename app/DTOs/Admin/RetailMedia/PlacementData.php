@@ -4,22 +4,26 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\RetailMedia;
 
-final readonly class PlacementData
+use Illuminate\Http\Request;
+
+readonly class PlacementData
 {
     public function __construct(
         public string $name,
         public string $code,
-        public int $maxItems,
-        public bool $isActive
+        public int $max_items,
+        public bool $is_active
     ) {}
 
-    public static function fromRequest(array $validated): self
+    public static function fromRequest(Request $request): self
     {
+        $validated = $request->validated();
+
         return new self(
-            name: (string) $validated['name'],
-            code: strtoupper((string) $validated['code']),
-            maxItems: (int) $validated['max_items'],
-            isActive: (bool) $validated['is_active']
+            name: trim((string) $validated['name']),
+            code: mb_toUpperCase(trim((string) $validated['code'])),
+            max_items: (int) ($validated['max_items'] ?? 5),
+            is_active: (bool) ($validated['is_active'] ?? true)
         );
     }
 }

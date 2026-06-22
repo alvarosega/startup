@@ -2,21 +2,28 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Models\Bundle;
 
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BundleItem extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUv7;
 
-    protected $table = 'bundle_items';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'bundle_id',
         'sku_id',
+        'quantity'
+    ];
+
+    protected $casts = [
+        'quantity' => 'float'
     ];
 
     public function bundle(): BelongsTo
@@ -26,6 +33,6 @@ class BundleItem extends Model
 
     public function sku(): BelongsTo
     {
-        return $this->belongsTo(Sku::class, 'sku_id');
+        return $this->belongsTo(\App\Models\Catalog\Sku::class, 'sku_id');
     }
 }

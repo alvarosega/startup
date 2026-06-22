@@ -14,6 +14,8 @@ class PriceResource extends JsonResource
         return [
             'id'           => (string) $this->id,
             'sku_id'       => (string) $this->sku_id,
+            'sku_name'     => $this->relationLoaded('sku') ? mb_toUpperCase((string) $this->sku->name) : null,
+            'sku_code'     => $this->relationLoaded('sku') ? (string) $this->sku->code : null,
             'branch_id'    => (string) $this->branch_id,
             'branch_name'  => $this->relationLoaded('branch') ? mb_toUpperCase((string) $this->branch->name) : null,
             'type'         => (string) $this->type,
@@ -21,8 +23,8 @@ class PriceResource extends JsonResource
             'final_price'  => (float) $this->final_price,
             'min_quantity' => (int) $this->min_quantity,
             'priority'     => (int) $this->priority,
-            'valid_from'   => $this->valid_from?->format('Y-m-d H:i:s'),
-            'valid_to'     => $this->valid_to?->format('Y-m-d H:i:s'),
+            'valid_from'   => $this->valid_from?->format('Y-m-d H:i'),
+            'valid_to'     => $this->valid_to?->format('Y-m-d H:i'),
         ];
     }
 }

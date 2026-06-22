@@ -17,6 +17,7 @@ onMounted(() => {
     );
 });
 
+// RECTIFICACIÓN: Restauración obligatoria del prefijo 'admin.' impuesto por bootstrap/app.php
 const navigationMenu = [
     { name: 'Dashboard', route: 'admin.dashboard.index', pattern: 'admin.dashboard.*', icon: 'dashboard', group: 'root', permission: true },
     

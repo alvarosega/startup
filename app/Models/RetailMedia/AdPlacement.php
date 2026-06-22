@@ -2,28 +2,30 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Models\RetailMedia;
 
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AdPlacement extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUv7;
 
-    protected $table = 'ad_placements';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'name',
         'code',
         'max_items',
-        'is_active',
+        'is_active'
     ];
 
     protected $casts = [
         'max_items' => 'integer',
-        'is_active' => 'boolean',
+        'is_active' => 'boolean'
     ];
 
     public function creatives(): HasMany

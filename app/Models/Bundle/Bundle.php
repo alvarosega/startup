@@ -2,39 +2,38 @@
 
 declare(strict_types=1);
 
-namespace App\Models;
+namespace App\Models\Bundle;
 
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Bundle extends Model
 {
-    use HasUuids;
+    use HasFactory, SoftDeletes, HasUv7;
 
-    protected $table = 'bundles';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'name',
         'image_path',
         'type',
-        'is_active',
+        'starts_at',
+        'ends_at',
+        'is_active'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'type'      => 'string',
+        'starts_at' => 'datetime',
+        'ends_at'   => 'datetime'
     ];
 
     public function items(): HasMany
     {
         return $this->hasMany(BundleItem::class, 'bundle_id');
-    }
-
-    public function skus(): BelongsToMany
-    {
-        return $this->belongsToMany(Sku::class, 'bundle_items', 'bundle_id', 'sku_id')
-                    ->withTimestamps();
     }
 }
