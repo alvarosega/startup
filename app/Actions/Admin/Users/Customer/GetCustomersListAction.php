@@ -1,66 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Users\Customer;
 
-use App\Models\Customer;
-use Illuminate\Support\Facades\Cache;
-use App\Models\Operations\Branch;
+use App\Models\Users\Customer;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class GetCustomersListAction
 {
-    public function execute(array $filters): array
+    public function execute(array $filters): LengthAwarePaginator
     {
-        $page = request('page', 1);
-        $isFiltered = !empty($filters['search']) || !empty($filters['branch_id']);
-        
-        // Cacheamos solo la vista base (sin filtros y pagina 1) para velocidad extrema
-        if (!$isFiltered && $page == 1) {
-            $users = Cache::remember('admin_customers_list_base', 86400, fn() => $this->buildQuery($filters));
-        } else {
-            $users = $this->buildQuery($filters);
-        }
-
-        return [
-            'users'    => $users,
-            'branches' => Branch::all(['id', 'name']),
-            'filters'  => $filters 
-        ];
-    }
-
-    private function buildQuery(array $filters)
-    {
-        $query = Customer::query()
-            ->select([
-                'customers.id', 
-                'customer_profiles.first_name', 
-                'customer_profiles.last_name', 
-                'customer_profiles.avatar_type',   
-                'customer_profiles.avatar_source', 
-                'customers.email', 
-                'customers.phone', 
-                'customers.is_active', 
-                'customers.created_at', 
-                'branches.name as branch_name'
-            ])
-            ->leftJoin('customer_profiles', 'customers.id', '=', 'customer_profiles.customer_id')
-            ->leftJoin('branches', 'customers.branch_id', '=', 'branches.id');
+        $query = Customer::with(['profile', 'branch', 'addresses', 'billingInfos']);
 
         if (!empty($filters['search'])) {
-            $s = "%{$filters['search']}%";
-            $query->where(function($q) use ($s) {
-                $q->where('customers.email', 'like', $s)
-                  ->orWhere('customers.phone', 'like', $s)
-                  ->orWhere('customer_profiles.first_name', 'like', $s)
-                  ->orWhere('customer_profiles.last_name', 'like', $s);
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhereHas('profile', function ($qp) use ($search) {
+                      $qp->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                  });
             });
         }
 
-        if (!empty($filters['branch_id'])) {
-            $query->where('customers.branch_id', $filters['branch_id']);
+        if (isset($filters['is_active']) && $filters['is_active'] !== '') {
+            $query->where('is_active', filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN));
         }
 
-        return $query->orderBy('customers.created_at', 'desc')
-            ->paginate(15)
-            ->withQueryString();
+        if (!empty($filters['branch_id'])) {
+            $query->where('branch_id', $filters['branch_id']);
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate(25);
     }
 }

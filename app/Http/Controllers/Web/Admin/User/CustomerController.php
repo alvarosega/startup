@@ -1,129 +1,98 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\User;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use App\Models\Operations\Branch;
 
-// Requests & DTOs
-use App\Http\Requests\Admin\Users\Customer\UpsertCustomerRequest;
-use App\DTOs\Admin\Users\Customer\UpsertCustomerDTO;
+use App\Http\Requests\Admin\Users\Customer\StoreCustomerRequest;
+use App\Http\Requests\Admin\Users\Customer\ChangeCustomerStatusRequest;
 
-// Actions
+use App\DTOs\Admin\Users\Customer\StoreCustomerDTO;
+use App\DTOs\Admin\Users\Customer\ChangeCustomerStatusDTO;
+use App\DTOs\Admin\Users\AuditContext;
+
 use App\Actions\Admin\Users\Customer\GetCustomersListAction;
-use App\Actions\Admin\Users\Customer\GetCustomerForEditAction;
-use App\Actions\Admin\Users\Customer\UpsertCustomerAction;
-use App\Actions\Admin\Users\Customer\DeleteCustomerAction;
-use App\Http\Requests\Admin\Users\Customer\ValidateStep1Request;
-// Resources
-use App\Http\Resources\Admin\User\UserResource;
-use App\Http\Resources\Admin\User\UserEditResource;
+use App\Actions\Admin\Users\Customer\StoreCustomerAction;
+use App\Actions\Admin\Users\Customer\ChangeCustomerStatusAction;
+use App\Actions\Admin\Users\Customer\SearchDeletedCustomerAction;
+use App\Actions\Admin\Users\Customer\RestoreCustomerAction;
 
-// Services
-use App\Services\Geo\BranchCoverageService;
+use App\Http\Resources\Admin\Users\Customer\CustomerResource;
 
 class CustomerController extends Controller
 {
-    /**
-     * Listado de Clientes (Silo Único - Cacheado)
-     */
-    public function index(Request $request, GetCustomersListAction $action)
+    public function index(Request $request, GetCustomersListAction $action): InertiaResponse
     {
-        $data = $action->execute($request->only(['search', 'branch_id']));
-        
-        return Inertia::render('Admin/Users/Index', [
-            'users'    => UserResource::collection($data['users']),
-            'branches' => $data['branches'],
-            'filters'  => $data['filters']
-        ]);
-    }
-    public function validateStep1(ValidateStep1Request $request) // <--- Ahora usa el Request del namespace Admin
-    {
-        return response()->json(['valid' => true], 200);
-    }
-    public function create()
-    {
-        return Inertia::render('Admin/Users/Create', [
-            'branches' => Branch::where('is_active', true)
-                ->get(['id', 'name', 'coverage_polygon']) // <--- AÑADIR coverage_polygon
-                ->map(fn($b) => [
-                    'id' => $b->id,
-                    'name' => $b->name,
-                    'polygon' => $b->coverage_polygon // Sincronizamos con el prop 'polygon' que espera el componente
-                ])
+        $payload = $request->only(['search', 'branch_id', 'is_active']);
+        $paginator = $action->execute($payload);
+
+        return Inertia::render('Admin/Users/Customers/Index', [
+            'users' => CustomerResource::collection($paginator->items()),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ],
+            'branches' => Branch::where('is_active', true)->get(['id', 'name']),
+            'filters' => $payload
         ]);
     }
 
-    /**
-     * Registro Atómico de Cliente (DTO + Upsert Action)
-     */
-    public function store(UpsertCustomerRequest $request, UpsertCustomerAction $action)
+    public function create(): InertiaResponse
     {
-        $dto = UpsertCustomerDTO::fromRequest($request);
-        $action->execute($dto);
-
-        // Mantenemos el nombre de ruta 'admin.users.index' para no romper tu frontend
-        return redirect()->route('admin.users.index')
-            ->with('message', 'Cliente registrado exitosamente.');
-    }
-
-    public function edit(string $id, GetCustomerForEditAction $action)
-    {
-        $data = $action->execute($id);
-        
-        return Inertia::render('Admin/Users/Edit', [
-            'user'     => new UserEditResource($data['user']),
-            // CORRECCIÓN: Enviar sucursales con polígonos para el mapa de edición
-            'branches' => Branch::where('is_active', true)
-                ->get(['id', 'name', 'coverage_polygon'])
-                ->map(fn($b) => [
-                    'id' => $b->id,
-                    'name' => $b->name,
-                    'polygon' => $b->coverage_polygon 
-                ])
+        return Inertia::render('Admin/Users/Customers/Create', [
+            'branches' => Branch::where('is_active', true)->get(['id', 'name'])
         ]);
     }
 
-    /**
-     * Actualización Atómica (El mismo DTO y Action que Store)
-     */
-    public function update(UpsertCustomerRequest $request, string $id, UpsertCustomerAction $action)
+    public function store(StoreCustomerRequest $request, StoreCustomerAction $action): RedirectResponse
     {
-        $dto = UpsertCustomerDTO::fromRequest($request, $id);
-        $action->execute($dto);
-        
-        return redirect()->route('admin.users.index')
-            ->with('message', 'Datos del cliente actualizados bajo protocolo seguro.');
+        $dto = StoreCustomerDTO::fromRequest($request);
+        $context = AuditContext::fromRequest($request);
+
+        $action->execute($dto, $context);
+
+        return redirect()->route('admin.users.customers.index')
+            ->with('message', 'Cliente registrado con contraseña provisional.');
     }
 
-    /**
-     * Eliminación Controlada (SoftDelete + Purga de Caché)
-     */
-    public function destroy(string $id, DeleteCustomerAction $action)
+    public function changeStatus(ChangeCustomerStatusRequest $request, string $id, ChangeCustomerStatusAction $action): RedirectResponse
     {
-        $action->execute($id);
+        $dto = ChangeCustomerStatusDTO::fromRequest($request, $id);
+        $context = AuditContext::fromRequest($request);
 
-        return redirect()->route('admin.users.index')
-            ->with('message', 'Cliente eliminado del silo operativo.');
+        $action->execute($dto, $context);
+
+        return redirect()->route('admin.users.customers.index')
+            ->with('message', 'Estado del cliente actualizado de forma segura.');
     }
 
-    /**
-     * API Interna: Orquestación del Servicio Geográfico
-     */
-    public function identifyBranch(Request $request, BranchCoverageService $geoService)
+    public function searchDeleted(Request $request, SearchDeletedCustomerAction $action): JsonResponse
     {
-        $request->validate([
-            'latitude'  => 'required|numeric',
-            'longitude' => 'required|numeric',
-        ]);
+        $request->validate(['phone' => 'required|string']);
+        $customer = $action->execute($request->input('phone'));
 
-        $branchId = $geoService->identifyBranch(
-            (float) $request->latitude, 
-            (float) $request->longitude
-        );
+        if (!$customer) {
+            return response()->json(['message' => 'No se encontró ningún usuario eliminado con ese teléfono.'], 404);
+        }
 
-        return response()->json(['branch_id' => $branchId]);
+        return response()->json(['user' => new CustomerResource($customer)]);
+    }
+
+    public function restoreDeleted(Request $request, string $id, RestoreCustomerAction $action): RedirectResponse
+    {
+        $context = AuditContext::fromRequest($request);
+        $action->execute($id, $context);
+
+        return redirect()->route('admin.users.customers.index')
+            ->with('message', 'Cuenta de cliente restaurada en modo inactivo para revisión.');
     }
 }

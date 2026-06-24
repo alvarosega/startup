@@ -38,7 +38,10 @@ return new class extends Migration {
             $table->string('phone', 20)->unique();
             $table->string('email')->unique();
             $table->string('password');
-            $table->string('status')->default('pending')->comment('pending, approved, suspended'); 
+            $table->string('status')->default('pending')->comment('pending, approved, rejected, suspended'); 
+            $table->boolean('was_previously_deleted')->default(false);
+            $table->boolean('needs_password_change')->default(false);
+            
             $table->boolean('is_online')->default(false);
             $table->boolean('is_available')->default(false);
             $table->timestamp('last_login_at')->nullable(); 
@@ -105,6 +108,8 @@ return new class extends Migration {
             $table->decimal('longitude', 11, 8)->nullable();
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
+            $table->boolean('was_previously_deleted')->default(false);
+            $table->boolean('needs_password_change')->default(false);
             
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();

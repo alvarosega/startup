@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\Admin\Auth\LoginController;
 use App\Http\Controllers\Web\Admin\User\CustomerController;
-use App\Http\Controllers\Web\Admin\Driver\DriverController;
+use App\Http\Controllers\Web\Admin\User\DriverController;
 use App\Http\Controllers\Web\Admin\Catalog\ProductController;
 use App\Http\Controllers\Web\Admin\Catalog\SkuController;
 use App\Http\Controllers\Web\Admin\Catalog\CategoryController;
@@ -35,16 +35,32 @@ Route::middleware(['auth.admin'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
     Route::middleware('role:super_admin,super_admin')->group(function () {
-        Route::post('users/validate-step-1', [CustomerController::class, 'validateStep1'])->name('users.validate-step-1');
-        Route::resource('users', CustomerController::class);
-        Route::post('users/identify-branch', [CustomerController::class, 'identifyBranch'])->name('users.identify-branch');
-        
-        Route::get('drivers/{driver}/documents/{path}', [DriverController::class, 'showDocument'])
-            ->where('path', '.*')
-            ->name('drivers.documents.show');
+// =================================================================================
+        // SILO SEGREGADO: GESTIÓN DE USUARIOS (ADMINISTRATIVO)
+        // =================================================================================
+        Route::prefix('users')->name('users.')->group(function () {
+            
+            // Sub-silo: Customers (Clientes)
+            Route::prefix('customers')->name('customers.')->group(function () {
+                Route::get('/', [CustomerController::class, 'index'])->name('index');
+                Route::get('/create', [CustomerController::class, 'create'])->name('create');
+                Route::post('/', [CustomerController::class, 'store'])->name('store');
+                Route::patch('/{id}/status', [CustomerController::class, 'changeStatus'])->name('change-status');
+                Route::post('/search-deleted', [CustomerController::class, 'searchDeleted'])->name('search-deleted');
+                Route::post('/{id}/restore', [CustomerController::class, 'restoreDeleted'])->name('restore');
+            });
 
-        Route::resource('drivers', DriverController::class);
-        
+            // Sub-silo: Drivers (Repartidores)
+            Route::prefix('drivers')->name('drivers.')->group(function () {
+                Route::get('/', [DriverController::class, 'index'])->name('index');
+                Route::get('/create', [DriverController::class, 'create'])->name('create');
+                Route::post('/', [DriverController::class, 'store'])->name('store');
+                Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
+                Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
+                Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
+            });
+            
+        });
         // =================================================================================
         // SILO: CATALOGO
         // =================================================================================

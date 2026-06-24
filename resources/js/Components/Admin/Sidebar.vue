@@ -38,8 +38,8 @@ const navigationMenu = [
     
     // Grupo: Operativa
     { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: isSuperAdmin },
-    { name: 'Conductores', route: 'admin.drivers.index', pattern: 'admin.drivers.*', icon: 'badge', group: 'operativa', permission: isSuperAdmin },
-    { name: 'Equipo', route: 'admin.users.index', pattern: 'admin.users.*', icon: 'group', group: 'operativa', permission: isSuperAdmin },
+    { name: 'Clientes', route: 'admin.users.customers.index', pattern: 'admin.users.customers.*', icon: 'group', group: 'operativa', permission: isSuperAdmin },
+    { name: 'Repartidores', route: 'admin.users.drivers.index', pattern: 'admin.users.drivers.*', icon: 'badge', group: 'operativa', permission: isSuperAdmin },
 
     // Grupo: Marketing
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: isSuperAdmin },

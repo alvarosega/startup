@@ -1,19 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Traits;
 
-use App\Rules\GlobalUniqueIdentity; // <--- OBLIGATORIO
+use App\Rules\GlobalUniqueIdentity;
 
 trait ValidatesGlobalIdentity
 {
-    /**
-     * Limpia el teléfono para que sea un string internacional puro (+XXXXXXXX)
-     */
-    protected function normalizeIdentityData()
+    protected function normalizeIdentityData(): void
     {
-        if ($this->has('phone') && !empty($this->phone)) {
-            $phone = $this->phone;
-            $cleanPhone = preg_replace('/[^\+0-9]/', '', $phone);
+        if ($this->has('phone') && !empty($this->input('phone'))) {
+            $cleanPhone = preg_replace('/[^\+0-9]/', '', (string) $this->input('phone'));
             
             if (!str_starts_with($cleanPhone, '+')) {
                 $cleanPhone = '+' . $cleanPhone;
@@ -23,25 +21,18 @@ trait ValidatesGlobalIdentity
         }
     }
 
-    /**
-     * Reglas para validación de teléfono en los 3 silos
-     * ACEPTA $ignoreId para procesos de edición (UPDATE)
-     */
-    protected function globalPhoneRules($ignoreId = null) // <--- CORRECCIÓN: Declarar parámetro
+    protected function globalPhoneRules($ignoreId = null): array
     {
         return [
             'required', 
             'string', 
             'min:8', 
             'max:20', 
-            new GlobalUniqueIdentity($ignoreId) // <--- Ahora la variable sí existe aquí
+            new GlobalUniqueIdentity($ignoreId)
         ];
     }
 
-    /**
-     * Reglas para validación de email en los 3 silos
-     */
-    protected function globalEmailRules($ignoreId = null) // <--- CORRECCIÓN: Declarar parámetro
+    protected function globalEmailRules($ignoreId = null): array
     {
         return [
             'required', 
