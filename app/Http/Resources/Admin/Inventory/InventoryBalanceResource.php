@@ -16,7 +16,7 @@ class InventoryBalanceResource extends JsonResource
         return [
             'branch_id'        => (string) $this->branch_id,
             'sku_id'           => (string) $this->sku_id,
-            'sku_name'         => $this->relationLoaded('sku') ? mb_toUpperCase((string) $this->sku->name) : null,
+            'sku_name'         => $this->relationLoaded('sku') ? mb_strtoupper((string) $this->sku->name) : null,
             'sku_code'         => $this->relationLoaded('sku') ? (string) $this->sku->code : null,
             'total_physical'   => (float) $this->total_physical,
             'total_reserved'   => (float) $this->total_reserved,

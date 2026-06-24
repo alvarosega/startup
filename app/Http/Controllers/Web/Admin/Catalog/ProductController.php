@@ -29,7 +29,7 @@ class ProductController extends Controller
         $formData = app(GetProductFormDataAction::class)->execute();
 
         // Extracción de acoplamiento de modelo estático hacia variable de inyección limpia
-        $formData['branches'] = \App\Models\Branch::where('is_active', true)
+        $formData['branches'] = \App\Models\Operations\Branch::where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
     

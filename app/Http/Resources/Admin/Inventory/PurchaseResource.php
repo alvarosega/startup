@@ -13,7 +13,7 @@ class PurchaseResource extends JsonResource
     {
         return [
             'id'              => (string) $this->id,
-            'branch_name'     => $this->relationLoaded('branch') ? mb_toUpperCase((string) $this->branch->name) : null,
+            'branch_name'     => $this->relationLoaded('branch') ? mb_strtoupper((string) $this->branch->name) : null,
             'provider_name'   => $this->relationLoaded('provider') ? mb_convert_encoding((string) $this->provider->company_name, 'UTF-8', 'UTF-8') : null,
             'operator_name'   => $this->relationLoaded('admin') ? (string) ($this->admin->first_name . ' ' . $this->admin->last_name) : null,
             'document_number' => (string) $this->document_number,

@@ -14,7 +14,7 @@ class InventoryLotResource extends JsonResource
         return [
             'id'                      => (string) $this->id,
             'lot_code'                => (string) $this->lot_code,
-            'sku_name'                => $this->relationLoaded('sku') ? mb_toUpperCase((string) $this->sku->name) : null,
+            'sku_name'                => $this->relationLoaded('sku') ? mb_strtoupper((string) $this->sku->name) : null,
             'sku_code'                => $this->relationLoaded('sku') ? (string) $this->sku->code : null,
             'quantity'                => (float) $this->quantity,
             'safety_quantity'         => (float) $this->safety_quantity,
