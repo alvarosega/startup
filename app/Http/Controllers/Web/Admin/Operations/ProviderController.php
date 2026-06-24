@@ -29,19 +29,18 @@ class ProviderController extends Controller
         $version = Cache::get('admin_providers_version', 1);
         $cacheKey = "admin_providers_v{$version}_search_" . md5($search . $page);
 
-        // Anti-pattern corregido: Guardar en caché arreglos primitivos limpios en lugar de objetos Resource serializados
         $cachedData = Cache::remember($cacheKey, 3600, function () use ($action, $search) {
             $paginator = $action->execute($search);
             return [
                 'items' => ProviderResource::collection($paginator->items())->resolve(),
                 'meta'  => [
                     'next_cursor' => $paginator->nextCursor()?->encode(),
-                    'prev_cursor' => $paginator->prevCursor()?->encode(),
+                    'prev_cursor' => $paginator->previousCursor()?->encode(), // RECTIFICACIÓN: previousCursor()
                 ]
             ];
         });
 
-        return Inertia::render('Admin/Providers/Index', [
+        return Inertia::render('Admin/Operations/Providers/Index', [
             'providers'  => $cachedData,
             'filters'    => $request->only(['search']),
             'can_manage' => true
@@ -50,7 +49,7 @@ class ProviderController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Admin/Providers/Workspace', [
+        return Inertia::render('Admin/Operations/Providers/Workspace', [
             'provider' => null
         ]);
     }

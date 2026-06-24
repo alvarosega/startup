@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Web\Admin\Catalog;
 
 use App\Http\Controllers\Controller;
 use App\Models\Catalog\Brand;
-use App\Models\Provider;
+use App\Models\Operations\Provider;
 use App\Models\Catalog\Category;
 use App\Actions\Admin\Catalog\Brand\{ListBrands, UpsertBrandAction, GetBrandStatsAction, DeleteBrandAction};
 use App\DTOs\Admin\Catalog\Brand\BrandData;
