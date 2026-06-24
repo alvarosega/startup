@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,18 +17,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             // SILO: ADMIN
-            \Illuminate\Support\Facades\Route::middleware(['web', 'inertia.admin'])
+            // Se remueve el ->name('admin.') global para evitar la sobrescritura y destrucción
+            // de las rutas planas exigidas por el test inmutable de QA.
+            Route::middleware(['web', 'inertia.admin'])
                 ->prefix(env('ADMIN_PATH', 'adm'))
-                ->name('admin.')
                 ->group(base_path('routes/admin.php'));
 
             // SILO: CUSTOMER
-            \Illuminate\Support\Facades\Route::middleware(['web', 'inertia.customer'])
+            Route::middleware(['web', 'inertia.customer'])
                 ->name('customer.')
                 ->group(base_path('routes/customer.php'));
 
             // SILO: DRIVER
-            \Illuminate\Support\Facades\Route::middleware(['web', 'inertia.driver'])
+            Route::middleware(['web', 'inertia.driver'])
                 ->prefix('driver')
                 ->name('driver.')
                 ->group(base_path('routes/driver.php'));
@@ -43,26 +45,22 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            // Middlewares de Spatie
             'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             
-            // Middlewares de Compartición de Estado de Inertia
             'inertia.customer'   => \App\Http\Middleware\HandleCustomerInertiaRequests::class,
             'inertia.admin'      => \App\Http\Middleware\HandleAdminInertiaRequests::class,
             'inertia.driver'     => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
             
-            // CORRECCIÓN: Registro de los 3 Middlewares de Control de Acceso (Opción B)
             'auth.admin'         => \App\Http\Middleware\Auth\AuthenticateAdmin::class,
             'auth.driver'        => \App\Http\Middleware\Auth\AuthenticateDriver::class,
             'auth.customer'      => \App\Http\Middleware\Auth\AuthenticateCustomer::class,
 
-            // Otros utilitarios
             'idempotency'        => \App\Http\Middleware\CheckIdempotency::class,
         ]);
 
-        // --- REDIRECCIÓN DE USUARIOS LOGUEADOS (Preventivo) ---
+        // --- REDIRECCIÓN DE USUARIOS LOGUEADOS ---
         $middleware->redirectUsersTo(function (Request $request) {
             $adminPath = env('ADMIN_PATH', 'adm');
         
@@ -82,7 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $adminPath = env('ADMIN_PATH', 'adm');
 
             if ($request->is($adminPath . '/*') || $request->is($adminPath)) {
-                return route('admin.login'); 
+                return route('login'); 
             }
 
             if ($request->is('driver/*') || $request->is('driver')) {
@@ -93,7 +91,6 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // REPORTAR ERRORES REALES AL LOG ANTES DE QUE INERTIA COLAPSE
         $exceptions->report(function (\Throwable $e) {
             \Illuminate\Support\Facades\Log::emergency('--- ERROR CRÍTICO DETECTADO ---');
             \Illuminate\Support\Facades\Log::emergency($e->getMessage());

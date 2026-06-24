@@ -19,17 +19,26 @@ class Admin extends Authenticatable
     protected $guard_name = 'super_admin';
 
     protected $fillable = [
-        'first_name', 'last_name', 'phone', 'email', 'password', 'branch_id', 'is_active'
+        'first_name', 
+        'last_name', 
+        'phone', 
+        'email', 
+        'password', 
+        'branch_id', 
+        'is_active',
+        'last_login_at',
+        'last_seen_at'
     ];
 
     protected $hidden = [
-        'password', 'mfa_secret'
+        'password', 
+        'mfa_secret'
     ];
 
     protected $casts = [
-        'password' => 'hashed',
-        'is_active' => 'boolean',
-        'last_seen_at' => 'datetime',
+        'password'      => 'hashed',
+        'is_active'     => 'boolean',
+        'last_seen_at'  => 'datetime',
         'last_login_at' => 'datetime',
     ];
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Admin\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -9,7 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class LoginAdminRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool 
+    { 
+        return true; 
+    }
 
     public function rules(): array
     {
@@ -24,14 +29,13 @@ class LoginAdminRequest extends FormRequest
     {
         $key = $this->getThrottleKey();
 
-        // Corrección: check puro sin incremento automático
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.throttle', [
                     'seconds' => $seconds,
-                    'minutes' => ceil($seconds / 60),
+                    'minutes' => (int) ceil($seconds / 60),
                 ]),
             ]);
         }
@@ -44,12 +48,11 @@ class LoginAdminRequest extends FormRequest
 
     public function clearRateLimiter(): void
     {
-        // Obligatorio para limpiar el historial tras un login exitoso
         RateLimiter::clear($this->getThrottleKey());
     }
 
     protected function getThrottleKey(): string
     {
-        return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower((string) $this->input('email')) . '|' . $this->ip());
     }
 }

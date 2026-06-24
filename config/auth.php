@@ -67,15 +67,6 @@ return [
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Resetting Passwords
-    |--------------------------------------------------------------------------
-    |
-    | REGLA DE NEGOCIO: Se elimina por completo el broker 'super_admin'.
-    | El silo administrativo no tiene permitido el restablecimiento de contraseñas.
-    |
-    */
 
     'passwords' => [
         'customers' => [

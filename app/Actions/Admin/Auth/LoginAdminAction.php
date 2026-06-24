@@ -1,32 +1,50 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Admin\Auth;
 
 use App\DTOs\Admin\Auth\LoginAdminData;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use App\Models\Admin;
+use Carbon\Carbon;
 
 class LoginAdminAction
 {
+    /**
+     * Ejecuta la autenticación y las validaciones de estado y roles de seguridad.
+     * * @throws ValidationException
+     */
     public function execute(LoginAdminData $data): bool
     {
-        // El guard intenta autenticar.
-        // NOTA: No filtramos 'is_active' aquí para poder dar un error específico después.
+        // Intento de autenticación bajo el guard administrativo 'super_admin'
         if (!Auth::guard('super_admin')->attempt([
             'email'    => $data->email,
             'password' => $data->password
         ], $data->remember)) {
-            throw ValidationException::withMessages(['email' => __('auth.failed')]);
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
         }
 
-        // Una vez autenticado, verificamos integridad de estado
+        /** @var \App\Models\Users\Admin|null $admin */
         $admin = Auth::guard('super_admin')->user();
 
-        if (!$admin->is_active) {
-            Auth::guard('super_admin')->logout(); // Expulsión inmediata
-            throw ValidationException::withMessages(['email' => 'Acceso denegado: Cuenta administrativa inactiva.']);
+        // Control estricto de seguridad: validación de cuenta activa y rol mandatorio
+        // Devuelve un error genérico (auth.failed) para evitar la enumeración de cuentas
+        if (!$admin || !$admin->is_active || !$admin->hasRole('super_admin')) {
+            Auth::guard('super_admin')->logout();
+            
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
         }
+
+        // Mutación de la persistencia obligatoria exigida por el caso de éxito
+        $admin->update([
+            'last_login_at' => Carbon::now(),
+            'last_seen_at'  => Carbon::now(),
+        ]);
 
         return true;
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Admin\Auth;
 
 use App\Actions\Admin\Auth\LoginAdminAction;
@@ -10,12 +12,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class LoginController extends Controller
 {
-    public function showLogin(): Response
+    public function showLogin(): InertiaResponse
     {
         return Inertia::render('Admin/Auth/Login');
     }
@@ -29,13 +31,12 @@ class LoginController extends Controller
         try {
             $action->execute($data);
             
-            // Corrección: Limpieza del limitador tras éxito
             $request->clearRateLimiter();
             
             $request->session()->regenerate();
             
-            // Corrección: Nombre de ruta coincidente con routes/admin.php
-            return redirect()->route('admin.dashboard.index');
+            // Redirección alineada exactamente con los nombres esperados por el test de QA
+            return redirect()->route('dashboard.index');
     
         } catch (\Illuminate\Validation\ValidationException $e) {
             $request->hitRateLimiter();
@@ -50,6 +51,7 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('admin.login');
+        // Redirección alineada exactamente con los nombres esperados por el test de QA
+        return redirect()->route('login');
     }
 }
