@@ -10,6 +10,21 @@ const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
 
+// Motor de Telemetría para Tooltips Centralizados (Previene desajustes por scroll)
+const hoveredTitle = ref(null);
+const tooltipTop = ref(0);
+
+const showTooltip = (event, title) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    // Calcula el centro geométrico vertical exacto del ítem respecto al viewport
+    tooltipTop.value = rect.top + rect.height / 2;
+    hoveredTitle.value = title;
+};
+
+const hideTooltip = () => {
+    hoveredTitle.value = null;
+};
+
 const isDevelopment = ref(false);
 onMounted(() => {
     isDevelopment.value = ['localhost', '127.0.0.1', 'test', 'dev'].some(host => 
@@ -53,7 +68,6 @@ const filteredMenu = computed(() => {
     });
 });
 
-// Agrupación y mapeo simétrico para la botonera del Dock Móvil
 const mobileGroups = computed(() => ({
     stock: { label: 'Stock e Inventarios', items: filteredMenu.value.filter(i => i.group === 'stock') },
     logistica: { label: 'Logística y Flujos', items: filteredMenu.value.filter(i => i.group === 'logistica') },
@@ -84,23 +98,26 @@ const isMobileGroupActive = (groupKey) => {
 </script>
 
 <template>
+    <!-- ENTORNO ESCRITORIO (DESKTOP) -->
     <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[72px] bg-card border-r border-border z-50 overflow-visible justify-between select-none">
         
         <div class="flex flex-col w-full items-center overflow-visible">
+            <!-- Logotipo: Conectado al motor central de tooltips -->
             <Link :href="route('admin.dashboard.index')" 
+                  @mouseenter="showTooltip($event, 'Dashboard Central')"
+                  @mouseleave="hideTooltip"
                   :class="[isActiveRoute('admin.dashboard.*') ? 'bg-neutral-100 dark:bg-neutral-800 text-primary border-b border-primary' : 'border-b border-border/60 hover:bg-neutral-100 dark:hover:bg-neutral-900']"
-                  class="w-full h-14 flex flex-col items-center justify-center shrink-0 mb-3 transition-colors duration-75 relative group">
+                  class="w-full h-14 flex flex-col items-center justify-center shrink-0 mb-3 transition-colors duration-75 relative">
                 <span class="text-base font-black italic tracking-wider text-primary">DU</span>
-                <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-border rounded-md text-[10px] font-bold uppercase tracking-wider text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none">
-                    Dashboard Central
-                </span>
             </Link>
 
+            <!-- Perfil de Usuario -->
             <div v-if="user" class="relative group flex items-center justify-center w-full h-12 mb-2 shrink-0">
                 <div class="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-sm cursor-default">
                     <span>{{ user?.first_name?.[0]?.toUpperCase() || 'U' }}</span>
                 </div>
                 
+                <!-- El panel de usuario se mantiene fixed lateral ya que no pertenece a la zona con scroll -->
                 <div class="fixed left-[76px] hidden group-hover:flex flex-col p-2.5 bg-card border border-border rounded-md shadow-flat z-50 pointer-events-none min-w-[140px]">
                     <span class="text-xs font-semibold text-foreground leading-tight">
                         {{ user?.first_name }} {{ user?.last_name || '' }}
@@ -111,6 +128,7 @@ const isMobileGroupActive = (groupKey) => {
                 </div>
             </div>
 
+            <!-- Contenedor con Scroll: Los hijos delegan el título al pasar el cursor -->
             <nav class="w-full h-[calc(100vh-210px)] overflow-y-auto overflow-x-visible no-scrollbar py-1 border-t border-border/40 flex flex-col items-center">
                 <template v-for="(groupKey, gIndex) in ['stock', 'logistica', 'catalogo', 'operativa', 'marketing']" :key="groupKey">
                     
@@ -121,13 +139,16 @@ const isMobileGroupActive = (groupKey) => {
                         :key="item.route"
                         :href="route(item.route)"
                         :active="isActiveRoute(item.pattern)"
-                        :title="item.name"
                         :icon="item.icon"
+                        @mouseenter="showTooltip($event, item.name)"
+                        @mouseleave="hideTooltip"
+                        @click="hideTooltip"
                     />
                 </template>
             </nav>
         </div>
 
+        <!-- Barra de Herramientas Inferior -->
         <div class="flex flex-col w-full items-center border-t border-border shrink-0 bg-card z-10 pb-2">
             <div class="w-full h-12 flex items-center justify-center text-foreground/80 hover:text-primary transition-colors duration-100">
                 <ThemeToggler class="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" />
@@ -137,53 +158,37 @@ const isMobileGroupActive = (groupKey) => {
                 :href="route('admin.logout')" 
                 method="post" 
                 as="button" 
-                class="group relative flex items-center justify-center h-12 w-full text-destructive hover:bg-destructive/10 transition-colors duration-75"
+                @mouseenter="showTooltip($event, 'Cerrar Sesión')"
+                @mouseleave="hideTooltip"
+                @click="hideTooltip"
+                class="relative flex items-center justify-center h-12 w-full text-destructive hover:bg-destructive/10 transition-colors duration-75"
             >
                 <span class="material-symbols-rounded text-[20px]">logout</span>
-                <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-destructive/30 rounded-md text-xs font-medium text-destructive shadow-flat whitespace-nowrap z-50 pointer-events-none">
-                    Cerrar Sesión
-                </span>
             </Link>
 
             <div v-if="isDevelopment" class="text-[8px] font-bold tracking-widest text-neutral-400 bg-neutral-100 dark:bg-neutral-800/60 border border-border px-1 rounded-sm mt-1 select-none">
                 DEV
             </div>
         </div>
+
+        <!-- INSTANCIA ÚNICA DE TOOLTIP PORTALIZADO (Inmune a desajustes por scroll) -->
+        <div v-if="hoveredTitle" 
+             :style="{ top: tooltipTop + 'px' }"
+             class="fixed left-[76px] -translate-y-1/2 px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none uppercase font-mono tracking-wide animate-in fade-in duration-75">
+            {{ hoveredTitle }}
+        </div>
     </aside>
 
+    <!-- ENTORNO MÓVIL (MÓDULOS DE CONTROL TÁCTIL) -->
     <div class="md:hidden">
-        <div 
-            v-if="activeMobileMenu" 
-            @click="closeMobileMenu" 
-            class="fixed inset-0 bg-neutral-950/40 z-40 cursor-pointer transition-opacity duration-75"
-        ></div>
+        <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-neutral-950/40 z-40 cursor-pointer transition-opacity duration-75"></div>
 
-        <div 
-            v-if="activeMobileMenu" 
-            class="fixed bottom-[82px] left-3 right-3 bg-card z-50 p-4 flex flex-col max-h-[60vh] rounded-md border border-border shadow-flat"
-        >
+        <div v-if="activeMobileMenu" class="fixed bottom-[82px] left-3 right-3 bg-card z-50 p-4 flex flex-col max-h-[60vh] rounded-md border border-border shadow-flat">
             <div class="flex justify-between items-center mb-3 pb-2 border-b border-border">
-                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">
-                    {{ mobileGroups[activeMobileMenu]?.label }}
-                </h3>
+                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">{{ mobileGroups[activeMobileMenu]?.label }}</h3>
                 <button @click="closeMobileMenu" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-75">
                     <span class="material-symbols-rounded text-[18px] text-muted-foreground block">close</span>
                 </button>
-            </div>
-
-            <div v-if="activeMobileMenu === 'operativa' && user" class="flex items-center justify-between p-2 mb-3 bg-neutral-100/60 dark:bg-neutral-800/40 border border-border/60 rounded-md">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-xs">
-                        {{ user?.first_name?.[0]?.toUpperCase() || 'U' }}
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-xs font-semibold text-foreground leading-none">{{ user?.first_name }}</span>
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
-                            {{ user?.roles?.[0]?.replace('_', ' ') || 'Staff' }}
-                        </span>
-                    </div>
-                </div>
-                <ThemeToggler class="p-1.5 text-foreground border border-border bg-card rounded-md shadow-sm" />
             </div>
 
             <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2 no-scrollbar">
@@ -201,13 +206,7 @@ const isMobileGroupActive = (groupKey) => {
                     <span class="text-xs font-medium text-center leading-none">{{ subItem.name }}</span>
                 </Link>
 
-                <Link 
-                    v-if="activeMobileMenu === 'operativa'"
-                    :href="route('admin.logout')" 
-                    method="post" 
-                    as="button" 
-                    class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75"
-                >
+                <Link v-if="activeMobileMenu === 'operativa'" :href="route('admin.logout')" method="post" as="button" class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75">
                     <span class="material-symbols-rounded text-[20px]">logout</span>
                     <span class="text-xs font-medium text-center leading-none">Cerrar Sesión</span>
                 </Link>
@@ -215,8 +214,8 @@ const isMobileGroupActive = (groupKey) => {
         </div>
     </div>
 
+    <!-- DOCK TÁCTIL INFERIOR -->
     <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card border-t border-border z-40 grid grid-cols-5 px-1 items-center shadow-flat select-none">
-        
         <button @click="toggleMobileMenu('stock')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'stock' || isMobileGroupActive('stock') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'stock' || isMobileGroupActive('stock')) ? { fontVariationSettings: `'FILL' 1` } : {}">inventory</span>
             <span class="text-[9px] font-medium mt-1">Stock</span>

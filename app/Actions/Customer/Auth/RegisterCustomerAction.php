@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customer\Auth;
 
-use App\Models\Customer;
+use App\Models\Users\Customer;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
 use App\Services\Geo\BranchCoverageService;
 use App\Services\ShopContextService;
@@ -33,40 +35,42 @@ class RegisterCustomerAction
                 if ($duplicate) return $duplicate;
             }
 
-            // APLICACIÓN DE LA REGLA: Se remueve el fallback global. Si está fuera de rango, es NULL.
             $assignedBranchId = $data->branchId 
                 ?? $this->geoService->identifyBranch($data->latitude, $data->longitude);
 
-            $customer = Customer::create([
-                'phone'           => $data->phone,
-                'email'           => $data->email,
-                'password'        => Hash::make($data->password),
-                'country_code'    => $data->countryCode,
-                'branch_id'       => $assignedBranchId, // Almacena UUID o null de forma limpia
-                'latitude'        => $data->latitude,
-                'longitude'       => $data->longitude,
-                'is_active'       => true,
-                'idempotency_key' => $idempotencyKey,
-            ]);
-
-            $customer->profile()->create([
-                'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
-                'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
-                'avatar_type'   => $data->avatarType, 
-                'avatar_source' => $data->avatarSource, 
-            ]);
-
-            $customer->addresses()->create([
-                'alias'      => $data->alias,
-                'address'    => $data->address,
-                'reference'  => $data->details,
-                'latitude'   => $data->latitude,
-                'longitude'  => $data->longitude,
-                'branch_id'  => $assignedBranchId, // Sincronizado con el estado nulo del cliente
-                'is_default' => true,
-            ]);
-
-            $customer->assignRole('customer');
+                $customer = Customer::create([
+                    'phone'               => $data->phone,
+                    'email'               => $data->email,
+                    'password'            => Hash::make($data->password),
+                    'country_code'        => $data->countryCode,
+                    'branch_id'           => $assignedBranchId,
+                    'last_known_location' => DB::raw("ST_GeomFromText('POINT({$data->latitude} {$data->longitude})')"),
+                    'is_active'           => true,
+                    'idempotency_key'     => $idempotencyKey,
+                ]);
+                
+                $customer->profile()->create([
+                    'first_name'    => mb_convert_encoding($data->firstName, 'UTF-8'),
+                    'last_name'     => mb_convert_encoding($data->lastName, 'UTF-8'),
+                    'avatar_type'   => $data->avatarType, 
+                    'avatar_source' => $data->avatarSource, 
+                ]);
+                
+                // CORRECCIÓN: Inserción directa en base de datos para saltar la interferencia de PointCast con DB::raw
+                DB::table('customer_addresses')->insert([
+                    'id'          => (string) \Illuminate\Support\Str::uuid7(),
+                    'customer_id' => (string) $customer->id,
+                    'branch_id'   => $assignedBranchId,
+                    'alias'       => $data->alias,
+                    'address'     => $data->address,
+                    'reference'   => $data->details,
+                    'position'    => DB::raw("ST_GeomFromText('POINT({$data->latitude} {$data->longitude})')"),
+                    'is_default'  => true,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+                
+                $customer->assignRole('customer');
 
             if ($data->guestUuid) {
                 $this->cartService->fusionGuestCart((string) $customer->id, $data->guestUuid);
@@ -80,9 +84,6 @@ class RegisterCustomerAction
         });
     }
 
-    /**
-     * Valida de forma aislada e indexada para evitar Table Scans y Deadlocks estructurales.
-     */
     private function validateGlobalUniqueness(string $email, string $phone): void
     {
         $tables = ['admins', 'customers', 'drivers'];

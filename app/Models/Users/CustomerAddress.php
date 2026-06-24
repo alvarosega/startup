@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Traits\HasUv7;
+use App\Casts\PointCast;
 use App\Models\Operations\Branch;
 
 class CustomerAddress extends Model
@@ -21,16 +22,14 @@ class CustomerAddress extends Model
         'branch_id',
         'alias',
         'address',
-        'latitude',
-        'longitude',
+        'position', // Campo de persistencia espacial nativa
         'reference',
         'is_default',
     ];
 
     protected $casts = [
         'is_default' => 'boolean',
-        'latitude' => 'float',
-        'longitude' => 'float',
+        'position' => PointCast::class, // Abstracción total del binario geospacial
     ];
 
     public function customer(): BelongsTo

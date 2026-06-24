@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Models;
+declare(strict_types=1);
+
+namespace App\Models\Users;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -8,6 +10,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Operations\Branch;
 
 class Admin extends Authenticatable
 {
@@ -16,18 +19,11 @@ class Admin extends Authenticatable
     protected $guard_name = 'super_admin';
 
     protected $fillable = [
-        'first_name', 
-        'last_name', 
-        'phone', 
-        'email', 
-        'password', 
-        'branch_id', 
-        'is_active'
+        'first_name', 'last_name', 'phone', 'email', 'password', 'branch_id', 'is_active'
     ];
 
     protected $hidden = [
-        'password', 
-        'remember_token',
+        'password', 'mfa_secret'
     ];
 
     protected $casts = [

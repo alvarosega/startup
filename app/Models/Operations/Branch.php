@@ -4,73 +4,84 @@ declare(strict_types=1);
 
 namespace App\Models\Operations;
 
-use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
+use App\Traits\HasUv7;
+use App\Models\Admin;
+use App\Models\Users\Customer;
+use App\Models\Users\Driver;
 
 class Branch extends Model
 {
-    use HasFactory, SoftDeletes, HasUv7;
+    use HasUv7, SoftDeletes, HasFactory;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
+    protected $table = 'branches';
 
     protected $fillable = [
-        'name', 'slug', 'phone', 'city', 'address', 
-        'coverage_polygon', 'opening_hours', 'is_active', 
-        'is_default', 'latitude', 'longitude',
-        'delivery_base_fee', 'delivery_price_per_km', 
-        'surge_multiplier', 'min_order_amount', 
-        'small_order_fee', 'base_service_fee_percentage',
-        'deleted_epoch'
+        'name', 'slug', 'city', 'phone', 'address', 'location', 'coverage_polygon',
+        'delivery_base_fee', 'delivery_price_per_km', 'surge_multiplier',
+        'min_order_amount', 'small_order_fee', 'base_service_fee_percentage',
+        'is_default', 'is_active', 'deleted_epoch'
     ];
 
     protected $casts = [
-        'is_active'                   => 'boolean',
-        'opening_hours'               => 'array',
-        'coverage_polygon'            => 'array',
-        'is_default'                  => 'boolean',
-        'latitude'                    => 'float',
-        'longitude'                   => 'float',
-        'delivery_base_fee'           => 'float',
-        'delivery_price_per_km'       => 'float',
-        'surge_multiplier'            => 'float',
-        'min_order_amount'            => 'float',
-        'small_order_fee'             => 'float',
-        'base_service_fee_percentage' => 'float',
-        'deleted_epoch'               => 'integer',
+        'is_default' => 'boolean',
+        'is_active' => 'boolean',
+        'deleted_epoch' => 'integer',
+        'delivery_base_fee' => 'decimal:2',
+        'delivery_price_per_km' => 'decimal:2',
+        'surge_multiplier' => 'decimal:2',
+        'min_order_amount' => 'decimal:2',
+        'small_order_fee' => 'decimal:2',
+        'base_service_fee_percentage' => 'decimal:2',
     ];
 
-    protected static function booted(): void
+    protected static function boot(): void
     {
-        static::saving(function (self $branch) {
-            if ($branch->is_default) {
-                static::where('id', '!=', $branch->id)
-                    ->where('deleted_epoch', 0)
-                    ->update(['is_default' => false]);
-                Cache::forget('shop_default_branch_id');
-            }
-        });
-
-        static::deleting(function (self $model) {
-            $model->deleted_epoch = time();
-            $model->save();
-        });
-
-        static::restoring(function (self $model) {
-            $model->deleted_epoch = 0;
+        parent::boot();
+        static::deleting(function (Branch $branch) {
+            $branch->deleted_epoch = time();
+            $branch->saveQuietly();
         });
     }
 
-    public function scopeActive($query)
+    // =================================================================================
+    // RELACIONES
+    // =================================================================================
+    public function admins(): HasMany
+    {
+        return $this->hasMany(Admin::class);
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class);
+    }
+
+    public function drivers(): HasMany
+    {
+        return $this->hasMany(Driver::class);
+    }
+
+    // =================================================================================
+    // LOCAL SCOPES (ABSTRACCIÓN GEOSPACIAL)
+    // =================================================================================
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
-    public static function getMinimalList()
+    /**
+     * Evalúa qué sucursales cubren un punto geográfico específico mediante la base de datos.
+     */
+    public function scopeWithinCoverage(Builder $query, float $latitude, float $longitude): Builder
     {
-        return self::active()->orderBy('name')->get(['id', 'name']);
+        return $query->whereRaw(
+            "ST_Contains(coverage_polygon, ST_GeomFromText(?))",
+            ["POINT({$longitude} {$latitude})"]
+        );
     }
 }

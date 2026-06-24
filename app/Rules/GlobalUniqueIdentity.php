@@ -15,9 +15,9 @@ class GlobalUniqueIdentity implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $silos = [
-            'admins' => 'App\Models\Admin',
-            'customers' => 'App\Models\Customer',
-            'drivers' => 'App\Models\Driver'
+            'admins' => 'App\Models\Users\Admin',
+            'customers' => 'App\Models\Users\Customer',
+            'drivers' => 'App\Models\Users\Driver'
         ];
         
         foreach ($silos as $table => $modelClass) {

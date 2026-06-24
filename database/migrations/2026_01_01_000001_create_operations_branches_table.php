@@ -11,19 +11,15 @@ return new class extends Migration {
     {
         Schema::create('branches', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            
-            $table->string('name')->unique(); 
-            $table->string('slug')->unique()->index(); 
-            
+            $table->string('name'); 
+            $table->string('slug'); 
             $table->string('city')->default('La Paz');
             $table->string('phone', 20)->nullable();
             $table->string('address')->nullable();
             
-            $table->decimal('latitude', 10, 8)->nullable(); 
-            $table->decimal('longitude', 11, 8)->nullable();
-    
-            $table->json('coverage_polygon')->nullable();
-            $table->json('opening_hours')->nullable();
+            // CORRECCIÓN: Datos Geoespaciales nativos de Laravel 12 / MySQL
+            $table->geometry('location', subtype: 'point')->spatialIndex();
+            $table->geometry('coverage_polygon', subtype: 'polygon')->spatialIndex();
             
             $table->decimal('delivery_base_fee', 8, 2)->default(0.00);
             $table->decimal('delivery_price_per_km', 8, 2)->default(0.00);
@@ -38,6 +34,9 @@ return new class extends Migration {
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
             $table->softDeletes();
+
+            $table->unique(['name', 'deleted_epoch']);
+            $table->unique(['slug', 'deleted_epoch']);
         });
     }
 

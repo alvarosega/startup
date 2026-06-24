@@ -2,7 +2,7 @@
 
 namespace App\Actions\Customer\Auth;
 
-use App\Models\Branch;
+use App\Models\Operations\Branch;
 use Illuminate\Database\Eloquent\Collection;
 
 class GetActiveBranchesAction

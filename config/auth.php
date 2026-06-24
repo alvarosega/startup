@@ -55,15 +55,15 @@ return [
     'providers' => [
         'admins' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Admin::class,
+            'model' => App\Models\Users\Admin::class,
         ],
         'drivers' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Driver::class,
+            'model' => App\Models\Users\Driver::class,
         ],
         'customers' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Customer::class,
+            'model' => App\Models\Users\Customer::class,
         ],
     ],
 

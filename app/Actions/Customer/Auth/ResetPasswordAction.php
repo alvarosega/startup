@@ -2,7 +2,7 @@
 
 namespace App\Actions\Customer\Auth;
 
-use App\Models\Customer;
+use App\Models\Users\Customer;
 use App\DTOs\Customer\Auth\ResetPasswordDTO; // <--- IMPORTAMOS EL DTO
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;

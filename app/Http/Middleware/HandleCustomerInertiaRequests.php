@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Inertia\Inertia;
-use App\Models\Branch;
+use App\Models\Operations\Branch;
 use App\Http\Resources\Customer\Auth\CustomerResource; 
 use App\Http\Resources\Customer\Cart\CartResource; 
 use App\Actions\Customer\Cart\GetCustomerCartAction;

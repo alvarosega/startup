@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Customer\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,13 +24,8 @@ class ValidateStep1Request extends FormRequest
     public function rules(): array
     {
         return [
-            'first_name'   => ['required', 'string', 'max:100'],
-            'last_name'    => ['required', 'string', 'max:100'],
-            // CORRECCIÓN: Unificado a max:3 para evitar asimetrías con el paso final
-            'country_code' => ['required', 'string', 'max:3'],
-            'email'        => $this->globalEmailRules(),
             'phone'        => $this->globalPhoneRules(),
-            'password'     => ['required', 'string', 'min:8', 'confirmed'],
+            'country_code' => ['nullable', 'string', 'max:3'],
         ];
     }
 }
