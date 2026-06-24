@@ -10,20 +10,20 @@ const props = defineProps({
 });
 
 const classes = computed(() => {
-    const base = 'group relative flex items-center justify-center w-full h-12 transition-colors duration-75 ease-linear select-none';
+    const base = 'group relative flex items-center justify-center w-full h-10 transition-colors duration-75 ease-linear select-none shrink-0 mb-1 rounded-md';
     const state = props.active
-        ? 'bg-neutral-200 text-foreground dark:bg-neutral-800'
-        : 'text-muted-foreground hover:bg-neutral-100 hover:text-foreground dark:hover:bg-neutral-900';
+        ? 'bg-neutral-100 text-foreground dark:bg-neutral-800 font-bold'
+        : 'text-muted-foreground hover:bg-neutral-50 hover:text-foreground dark:hover:bg-neutral-900/60';
 
     return `${base} ${state}`;
 });
 </script>
 
 <template>
-    <Link :href="href" :class="classes">
+    <Link :href="href" :class="classes" class="w-11 mx-auto">
         <div 
             v-if="active" 
-            class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"
+            class="absolute left-0 top-2 bottom-2 w-[3px] bg-primary rounded-r-sm"
         ></div>
         
         <span 
@@ -33,7 +33,7 @@ const classes = computed(() => {
             {{ icon }}
         </span>
         
-        <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none">
+        <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none uppercase font-mono tracking-wide">
             {{ title }}
         </span>
     </Link>
