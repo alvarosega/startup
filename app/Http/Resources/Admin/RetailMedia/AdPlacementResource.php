@@ -13,7 +13,7 @@ class AdPlacementResource extends JsonResource
     {
         return [
             'id'        => (string) $this->id,
-            'name'      => mb_toUpperCase((string) $this->name),
+            'name'      => mb_strtoupper((string) $this->name),
             'code'      => (string) $this->code,
             'max_items' => (int) $this->max_items,
             'is_active' => (bool) $this->is_active,

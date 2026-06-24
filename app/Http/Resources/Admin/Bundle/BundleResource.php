@@ -14,7 +14,7 @@ class BundleResource extends JsonResource
     {
         return [
             'id'          => (string) $this->id,
-            'name'        => mb_toUpperCase((string) $this->name),
+            'name'        => mb_strtoupper((string) $this->name),
             'image_url'   => $this->image_path ? Storage::url($this->image_path) : null,
             'type'        => (string) $this->type,
             'starts_at'   => $this->starts_at?->format('Y-m-d H:i:s'),

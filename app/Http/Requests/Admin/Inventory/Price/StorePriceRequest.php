@@ -26,12 +26,12 @@ class StorePriceRequest extends FormRequest
                 'required', 
                 'numeric', 
                 'min:0.01', 
-                'lte:list_price' // Restricción comercial dura: El precio final de venta no puede superar al de lista
+                'lte:list_price' // El precio final de venta no puede superar al de lista
             ],
             'min_quantity'    => ['required', 'integer', 'min:1'],
             'priority'        => ['required', 'integer', 'min:1'],
             'valid_from'      => ['required', 'date'],
-            'valid_to'        => ['nullable', 'date', 'after:valid_from'], // Restricción cronológica: Fin posterior al inicio
+            'valid_to'        => ['nullable', 'date', 'after:valid_from'], // Fin posterior al inicio
         ];
     }
 

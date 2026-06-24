@@ -7,8 +7,9 @@ namespace App\Http\Controllers\Web\Admin\Price;
 use App\Http\Controllers\Controller;
 use App\Models\Catalog\Sku;
 use App\Models\Operations\Branch;
+use App\Models\Inventory\Price; // RECTIFICACIÓN: Importación correcta del Modelo Eloquent
 use App\Http\Resources\Admin\Inventory\PriceResource;
-use App\Http\Requests\Admin\Inventory\Price;
+use App\Http\Requests\Admin\Inventory\Price\StorePriceRequest; // RECTIFICACIÓN: Importación directa de la clase Request
 use App\DTOs\Admin\Inventory\Price\MassPriceData;
 use App\Actions\Admin\Inventory\Price\StoreMassPrices;
 use Illuminate\Http\RedirectResponse;
@@ -19,24 +20,23 @@ final class PriceController extends Controller
 {
     public function index(): Response
     {
-        // Carga optimizada de la matriz comercial activa
+        // Ejecución de la consulta sobre el modelo de persistencia Price
         $prices = Price::with(['sku', 'branch'])
             ->where('deleted_epoch', 0)
             ->orderBy('created_at', 'desc')
             ->get();
 
         $branches = Branch::where('deleted_epoch', 0)->get(['id', 'name']);
-        
         $skus = Sku::whereNull('deleted_at')->get(['id', 'name', 'code']);
 
         return Inertia::render('Admin/Prices/Index', [
             'prices'   => PriceResource::collection($prices)->resolve(),
-            'branches' => $branches->map(fn($b) => ['id' => $b->id, 'name' => mb_toUpperCase($b->name)]),
-            'skus'     => $skus->map(fn($s) => ['id' => $s->id, 'name' => mb_toUpperCase($s->name), 'code' => $s->code])
+            'branches' => $branches->map(fn($b) => ['id' => $b->id, 'name' => mb_strtoupper($b->name)]),
+            'skus'     => $skus->map(fn($s) => ['id' => $s->id, 'name' => mb_strtoupper($s->name), 'code' => $s->code])
         ]);
     }
 
-    public function store(Price\StorePriceRequest $request, StoreMassPrices $action): RedirectResponse
+    public function store(StorePriceRequest $request, StoreMassPrices $action): RedirectResponse
     {
         $action->execute(MassPriceData::fromRequest($request));
 
@@ -46,7 +46,7 @@ final class PriceController extends Controller
 
     public function destroy(Price $price): RedirectResponse
     {
-        // Soft delete controlado bajo protocolo epoch
+        // Soft delete bajo control estricto de epoch
         $price->update([
             'deleted_epoch' => time(),
             'deleted_at'    => now()

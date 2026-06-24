@@ -51,7 +51,7 @@ class Brand extends Model
 
     public function provider(): BelongsTo 
     { 
-        return $this->belongsTo(\App\Models\Provider::class); 
+        return $this->belongsTo(\App\Models\Operations\Provider::class); 
     }
 
     public function category(): BelongsTo 

@@ -14,8 +14,8 @@ class AdCampaignResource extends JsonResource
         return [
             'id'            => (string) $this->id,
             'provider_id'   => (string) $this->provider_id,
-            'provider_name' => $this->relationLoaded('provider') ? mb_toUpperCase((string) $this->provider->company_name) : null,
-            'name'          => mb_toUpperCase((string) $this->name),
+            'provider_name' => $this->relationLoaded('provider') ? mb_strtoupper((string) $this->provider->company_name) : null,
+            'name'          => mb_strtoupper((string) $this->name),
             'type'          => (string) $this->type,
             'starts_at'     => $this->starts_at?->format('Y-m-d H:i:s'),
             'ends_at'       => $this->ends_at?->format('Y-m-d H:i:s'),
