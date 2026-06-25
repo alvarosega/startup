@@ -85,14 +85,10 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::resource('brands', BrandController::class);
         });
 
-        // =================================================================================
-        // SILO: OPERATIONS
-        // =================================================================================
         Route::prefix('operations')->name('operations.')->group(function () {
-            Route::resource('branches', BranchController::class);
+            Route::resource('branches', BranchController::class)->except(['show']);
             Route::resource('providers', ProviderController::class);
         });
-
         // =================================================================================
         // SILO: INVENTARIOS Y ABASTECIMIENTO
         // =================================================================================

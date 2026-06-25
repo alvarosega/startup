@@ -12,24 +12,22 @@ use App\Http\Requests\Admin\Operations\Branch\UpdateBranchRequest;
 use App\Actions\Admin\Operations\Branch\CreateBranch;
 use App\Actions\Admin\Operations\Branch\UpdateBranch;
 use App\Actions\Admin\Operations\Branch\ListBranches;
-use App\Http\Resources\Admin\Operations\Branch\BranchResource;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
 class BranchController extends Controller
 {
     public function index(ListBranches $action): Response
     {
-        // CORRECCIÓN: Apuntar al nuevo directorio operativo de vistas
         return Inertia::render('Admin/Operations/Branches/Index', [
-            'branches' => BranchResource::collection($action->execute())->resolve()
+            'branches' => $action->execute()
         ]);
     }
 
     public function create(): Response
     {
-        // CORRECCIÓN: Cambiar referencia de Workspace a Create
         return Inertia::render('Admin/Operations/Branches/Create');
     }
 
@@ -43,9 +41,39 @@ class BranchController extends Controller
 
     public function edit(Branch $branch): Response
     {
-        // CORRECCIÓN: Cambiar referencia de Workspace a Edit
+        $spatialData = Branch::select([
+            DB::raw('ST_AsText(location) as location_wkt'),
+            DB::raw('ST_AsText(coverage_polygon) as polygon_wkt')
+        ])->where('id', $branch->id)->first();
+
+        $latitude = 0.0;
+        $longitude = 0.0;
+        if ($spatialData && preg_match('/POINT\(([-\d\.]+) ([-\d\.]+)\)/i', (string) $spatialData->location_wkt, $matches)) {
+            $longitude = (float) $matches[1];
+            $latitude = (float) $matches[2];
+        }
+
+        $coveragePolygon = [];
+        if ($spatialData && $spatialData->polygon_wkt && preg_match('/POLYGON\(\((.+)\)\)/i', (string) $spatialData->polygon_wkt, $polyMatches)) {
+            $cleanedPolygonString = str_replace(', ', ',', $polyMatches[1]);
+            $coordPairs = explode(',', $cleanedPolygonString);
+            foreach ($coordPairs as $pair) {
+                $coords = explode(' ', trim($pair));
+                if (count($coords) === 2) {
+                    // Se mantiene simetría pura para Inertia mapeando [longitud, latitud]
+                    $coveragePolygon[] = [(float) $coords[0], (float) $coords[1]];
+                }
+            }
+        }
+
+        $mappedBranch = array_merge($branch->toArray(), [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'coverage_polygon' => $coveragePolygon
+        ]);
+
         return Inertia::render('Admin/Operations/Branches/Edit', [
-            'branch' => (new BranchResource($branch))->resolve()
+            'branch' => $mappedBranch
         ]);
     }
 
@@ -60,6 +88,7 @@ class BranchController extends Controller
     public function destroy(Branch $branch): RedirectResponse
     {
         $branch->delete();
+        
         return redirect()->back()->with('success', 'Nodo de sucursal extraído de circulación (Soft Delete).');
     }
 }

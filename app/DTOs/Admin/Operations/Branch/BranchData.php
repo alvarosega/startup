@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\Operations\Branch;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 
 readonly class BranchData
 {
@@ -13,41 +13,64 @@ readonly class BranchData
         public string $city,
         public ?string $phone,
         public ?string $address,
-        public ?float $latitude,
-        public ?float $longitude,
-        public ?array $coverage_polygon,
-        public ?array $opening_hours,
-        public bool $is_default,
-        public bool $is_active,
-        public float $delivery_base_fee,
-        public float $delivery_price_per_km,
-        public float $surge_multiplier,
-        public float $min_order_amount,
-        public float $small_order_fee,
-        public float $base_service_fee_percentage
+        public float $latitude,
+        public string $locationWkt,
+        public ?string $coveragePolygonWkt,
+        public bool $isDefault,
+        public bool $isActive,
+        public float $deliveryBaseFee,
+        public float $deliveryPricePerKm,
+        public float $surgeMultiplier,
+        public float $minOrderAmount,
+        public float $smallOrderFee,
+        public float $baseServiceFeePercentage
     ) {}
 
-    public static function fromRequest(Request $request): self
+    /**
+     * Factoría estática acoplada a los FormRequests validados para operaciones de creación y actualización.
+     */
+    public static function fromRequest(FormRequest $request): self
     {
         $validated = $request->validated();
+
+        $lat = (float) $validated['latitude'];
+        $lng = (float) $validated['longitude'];
+
+        // Construcción segura del WKT para el punto espacial (POINT: longitud latitud)
+        $locationWkt = "POINT({$lng} {$lat})";
+
+        // Mapeo directo y ordenamiento de coordenadas espaciales nativas basadas en [longitud, latitud]
+        $coveragePolygonWkt = null;
+        if (!empty($validated['coverage_polygon']) && is_array($validated['coverage_polygon'])) {
+            $points = [];
+            foreach ($validated['coverage_polygon'] as $coord) {
+                if (isset($coord[0], $coord[1])) {
+                    // QA envía directamente [longitud, latitud], se concatena de forma nativa para MySQL
+                    $points[] = "{$coord[0]} {$coord[1]}";
+                }
+            }
+            if (!empty($points)) {
+                $polygonString = implode(',', $points);
+                $coveragePolygonWkt = "POLYGON(({$polygonString}))";
+            }
+        }
 
         return new self(
             name: (string) $validated['name'],
             city: (string) ($validated['city'] ?? 'La Paz'),
-            phone: $validated['phone'] ?? null,
-            address: $validated['address'] ?? null,
-            latitude: isset($validated['latitude']) ? (float) $validated['latitude'] : null,
-            longitude: isset($validated['longitude']) ? (float) $validated['longitude'] : null,
-            coverage_polygon: $validated['coverage_polygon'] ?? null,
-            opening_hours: $validated['opening_hours'] ?? null,
-            is_default: $request->boolean('is_default'),
-            is_active: $request->boolean('is_active', true),
-            delivery_base_fee: (float) ($validated['delivery_base_fee'] ?? 0.00),
-            delivery_price_per_km: (float) ($validated['delivery_price_per_km'] ?? 0.00),
-            surge_multiplier: (float) ($validated['surge_multiplier'] ?? 1.00),
-            min_order_amount: (float) ($validated['min_order_amount'] ?? 0.00),
-            small_order_fee: (float) ($validated['small_order_fee'] ?? 0.00),
-            base_service_fee_percentage: (float) ($validated['base_service_fee_percentage'] ?? 0.00)
+            phone: isset($validated['phone']) ? (string) $validated['phone'] : null,
+            address: isset($validated['address']) ? (string) $validated['address'] : null,
+            latitude: $lat,
+            locationWkt: $locationWkt,
+            coveragePolygonWkt: $coveragePolygonWkt,
+            isDefault: (bool) $request->boolean('is_default'),
+            isActive: (bool) $request->boolean('is_active', true),
+            deliveryBaseFee: (float) ($validated['delivery_base_fee'] ?? 0.00),
+            deliveryPricePerKm: (float) ($validated['delivery_price_per_km'] ?? 0.00),
+            surgeMultiplier: (float) ($validated['surge_multiplier'] ?? 1.00),
+            minOrderAmount: (float) ($validated['min_order_amount'] ?? 0.00),
+            smallOrderFee: (float) ($validated['small_order_fee'] ?? 0.00),
+            baseServiceFeePercentage: (float) ($validated['base_service_fee_percentage'] ?? 0.00)
         );
     }
 }
