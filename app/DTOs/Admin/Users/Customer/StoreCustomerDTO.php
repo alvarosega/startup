@@ -26,7 +26,7 @@ final class StoreCustomerDTO
             lastName: (string) $validated['last_name'],
             email: (string) $validated['email'],
             phone: (string) $validated['phone'],
-            branchId: $validated['branch_id'] ?? null,
+            branchId: isset($validated['branch_id']) ? (string) $validated['branch_id'] : null,
             isActive: (bool) $validated['is_active']
         );
     }

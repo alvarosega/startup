@@ -20,14 +20,14 @@ class RestoreCustomerAction
             
             $customer->update([
                 'deleted_epoch' => 0,
-                'is_active' => false, // Re-registro/Recuperación requiere revisión manual
+                'is_active' => false,
                 'was_previously_deleted' => true
             ]);
 
             DB::table('audit_logs')->insert([
                 'id' => (string) Str::uuid7(),
                 'causer_type' => $context->causerType,
-                'causer_id' => $context->causerId,
+                'causerId' => $context->causerId,
                 'target_type' => Customer::class,
                 'target_id' => $customer->id,
                 'action' => 'customer_restored_by_admin',

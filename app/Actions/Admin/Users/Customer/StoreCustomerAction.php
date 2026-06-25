@@ -10,6 +10,7 @@ use App\DTOs\Admin\Users\AuditContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class StoreCustomerAction
 {
@@ -22,9 +23,9 @@ class StoreCustomerAction
                 'branch_id' => $dto->branchId,
                 'email' => $dto->email,
                 'phone' => $dto->phone,
-                'password' => Hash::make('password'), // Contraseña provisional obligatoria
+                'password' => Hash::make('password'),
                 'is_active' => $dto->isActive,
-                'needs_password_change' => true, // Fuerza la redefinición en el primer login B2C
+                'needs_password_change' => true,
                 'was_previously_deleted' => false
             ]);
 
@@ -35,14 +36,14 @@ class StoreCustomerAction
                 'avatar_type' => 'icon',
                 'avatar_source' => 'default.png'
             ]);
-            \Spatie\Permission\Models\Role::firstOrCreate([
+
+            // Saneamiento de entorno de pruebas: garantiza que el rol exista bajo el guard correcto antes de asignarlo
+            Role::firstOrCreate([
                 'name' => 'customer',
                 'guard_name' => 'customer'
             ]);
 
-            // 3. Asignación del Rol de Seguridad para el ecosistema Spatie RBAC
-            $customer->assignRole('customer');
-            // 3. Asignación del Rol de Seguridad para el ecosistema Spatie RBAC
+            // 3. Asignación única del Rol de Seguridad para el ecosistema Spatie RBAC
             $customer->assignRole('customer');
 
             // 4. Registro inmutable en la tabla física de auditoría

@@ -1,201 +1,339 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { router, useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import axios from 'axios';
 
 const props = defineProps({
-    users: Object,
-    pagination: Object,
-    branches: Array,
-    filters: Object
+    users: {
+        type: Array,
+        required: true
+    },
+    pagination: {
+        type: Object,
+        required: true
+    },
+    branches: {
+        type: Array,
+        required: true
+    },
+    filters: {
+        type: Object,
+        required: true
+    }
 });
 
-// Estados de Filtros reactivos
-const search = ref(props.filters.search || '');
-const branchId = ref(props.filters.branch_id || '');
-const isActive = ref(props.filters.is_active || '');
+// Inicialización de filtros reactivos basados en las props del servidor
+const searchFilter = ref(props.filters.search || '');
+const branchFilter = ref(props.filters.branch_id || '');
+const statusFilter = ref(props.filters.is_active !== undefined && props.filters.is_active !== null ? String(props.filters.is_active) : '');
 
-// Control de carga para Toggles individuales
-const loadingStates = ref({});
+// Instancia de formulario para la mutación de estado inline (Status Toggle)
+const statusForm = useForm({
+    is_active: false
+});
 
-// Estados de los Drawers
-const isRecoveryOpen = ref(false);
+// Instancia de formulario para el procesamiento de restauración de cuentas
+const restoreForm = useForm({});
+
+// Estado del modal de recuperación de cuentas eliminadas
+const isModalOpen = ref(false);
 const searchPhone = ref('');
-const recoveryUser = ref(null);
-const recoveryError = ref('');
+const foundUser = ref(null);
+const searchError = ref('');
 const isSearching = ref(false);
 
-// Ejecución de filtros
+/**
+ * Ejecuta el re-fetch de datos aplicando los filtros reactivos seleccionados.
+ */
 const applyFilters = () => {
-    router.get(route('admin.users.customers.index'), {
-        search: search.value,
-        branch_id: branchId.value,
-        is_active: isActive.value
-    }, { preserveState: true, replace: true });
-};
-
-watch([branchId, isActive], () => applyFilters());
-
-// Mutación atómica de activación/desactivación
-const toggleStatus = (id, currentStatus) => {
-    loadingStates.value[id] = true;
-    router.patch(route('admin.users.customers.change-status', id), {
-        is_active: !currentStatus
+    router.get(route('customers.index'), {
+        search: searchFilter.value || undefined,
+        branch_id: branchFilter.value || undefined,
+        is_active: statusFilter.value !== '' ? statusFilter.value : undefined
     }, {
-        preserveScroll: true,
-        onFinish: () => loadingStates.value[id] = false
+        preserveState: true,
+        replace: true
     });
 };
 
-// Lógica asíncrona de búsqueda en el Drawer de recuperación
-const searchDeletedUser = async () => {
-    if (!searchPhone.value) return;
+// Observadores para la ejecución automática de filtros ante cambios de estado
+watch([branchFilter, statusFilter], () => {
+    applyFilters();
+});
+
+/**
+ * Conmuta el estado de actividad de un cliente utilizando useForm nativo.
+ */
+const toggleStatus = (user) => {
+    statusForm.is_active = !user.is_active;
+    statusForm.patch(route('customers.change-status', user.id), {
+        preserveScroll: true
+    });
+};
+
+/**
+ * Realiza una consulta asíncrona al endpoint de borrados para validar existencia por teléfono.
+ */
+const searchDeletedCustomer = async () => {
+    if (!searchPhone.value) {
+        searchError.value = 'El número de teléfono es obligatorio.';
+        return;
+    }
+
     isSearching.value = true;
-    recoveryError.value = '';
-    recoveryUser.value = null;
+    searchError.value = '';
+    foundUser.value = null;
 
     try {
-        const response = await axios.post(route('admin.users.customers.search-deleted'), {
-            phone: searchPhone.value
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const response = await window.fetch(route('customers.search-deleted'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Inertia': 'true',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify({ phone: searchPhone.value })
         });
-        recoveryUser.value = response.data.user;
+
+        const data = await response.json();
+
+        if (response.status === 404) {
+            searchError.value = data.message;
+        } else if (!response.ok) {
+            searchError.value = 'Ocurrió un error inesperado en la terminal.';
+        } else {
+            foundUser.value = data.user;
+        }
     } catch (error) {
-        recoveryError.value = error.response?.data?.message || 'Error en la búsqueda.';
+        searchError.value = 'Fallo de conexión con el servidor.';
     } finally {
         isSearching.value = false;
     }
 };
 
-const executeRestore = (id) => {
-    router.post(route('admin.users.customers.restore', id), {}, {
+/**
+ * Despacha la petición POST de restauración e invalida el estado local del modal.
+ */
+const submitRestore = () => {
+    if (!foundUser.value) return;
+
+    restoreForm.post(route('customers.restore', foundUser.value.id), {
         onSuccess: () => {
-            isRecoveryOpen.value = false;
+            isModalOpen.value = false;
             searchPhone.value = '';
-            recoveryUser.value = null;
+            foundUser.value = null;
+            searchError.value = '';
         }
     });
+};
+
+/**
+ * Resetea por completo los campos operativos al cerrar el modal de recuperación.
+ */
+const closeRestoreModal = () => {
+    isModalOpen.value = false;
+    searchPhone.value = '';
+    foundUser.value = null;
+    searchError.value = '';
 };
 </script>
 
 <template>
     <AdminLayout>
-        <div class="p-6 max-w-7xl mx-auto space-y-6">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-5">
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight text-foreground">Gestión de Clientes</h1>
-                    <p class="text-xs text-muted-foreground mt-0.5">Silo administrativo y control de estados.</p>
+        <template #header>
+            Gestión de Clientes (B2C)
+        </template>
+
+        <div class="space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                    <div>
+                        <input 
+                            v-model="searchFilter"
+                            type="text"
+                            placeholder="Buscar por nombre, correo..."
+                            class="admin-input"
+                            @keyup.enter="applyFilters"
+                        />
+                    </div>
+                    <div>
+                        <select v-model="branchFilter" class="admin-input">
+                            <option value="">Todas las sucursales</option>
+                            <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                                {{ branch.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <select v-model="statusFilter" class="admin-input">
+                            <option value="">Todos los estados</option>
+                            <option value="1">Activos</option>
+                            <option value="0">Inactivos</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="flex gap-2 w-full sm:w-auto">
-                    <button @click="isRecoveryOpen = true" class="px-3 py-2 bg-neutral-100 dark:bg-neutral-800 border border-border rounded-md text-xs font-semibold hover:bg-neutral-200 text-foreground transition-colors">
-                        Recuperar Eliminado
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button 
+                        type="button" 
+                        @click="isModalOpen = true"
+                        class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm transition-colors duration-100 hover:bg-neutral-200 dark:hover:bg-neutral-800 inline-flex items-center gap-1.5"
+                    >
+                        <span class="material-symbols-rounded text-lg">history</span>
+                        <span>Restaurar Cuenta</span>
                     </button>
-                    <Link :href="route('admin.users.customers.create')" class="px-3 py-2 bg-primary text-white rounded-md text-xs font-semibold hover:bg-primary/90 transition-colors">
-                        Crear Cliente
+
+                    <Link 
+                        :href="route('customers.create')"
+                        class="admin-btn-primary inline-flex items-center gap-1.5"
+                    >
+                        <span class="material-symbols-rounded text-lg">person_add</span>
+                        <span>Nuevo Cliente</span>
                     </Link>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-card p-4 rounded-md border border-border shadow-sm">
-                <input v-model="search" @keyup.enter="applyFilters" type="text" placeholder="Buscar por nombre, correo o teléfono..." class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-primary" />
-                <select v-model="branchId" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-primary">
-                    <option value="">Todas las sucursales</option>
-                    <option v-for="branch in branches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-                </select>
-                <select v-model="isActive" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-primary">
-                    <option value="">Todos los estados</option>
-                    <option value="true">Activos</option>
-                    <option value="false">Inactivos</option>
-                </select>
-            </div>
-
-            <div class="bg-card border border-border rounded-md overflow-hidden shadow-sm">
-                <table class="w-full text-left border-collapse">
+            <div class="bg-card border border-border rounded-md shadow-flat overflow-x-auto">
+                <table class="admin-table">
                     <thead>
-                        <tr class="bg-neutral-50 dark:bg-neutral-900 border-b border-border text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                            <th class="p-3">Cliente</th>
-                            <th class="p-3">Teléfono</th>
-                            <th class="p-3">Sucursal</th>
-                            <th class="p-3">Alertas</th>
-                            <th class="p-3 text-center">Estado</th>
+                        <tr>
+                            <th class="admin-table-th">Cliente</th>
+                            <th class="admin-table-th">Identificador (Email)</th>
+                            <th class="admin-table-th">Teléfono</th>
+                            <th class="admin-table-th">Sucursal Asignada</th>
+                            <th class="admin-table-th text-center">Estado</th>
+                            <th class="admin-table-th text-right">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-border text-xs text-foreground">
-                        <tr v-for="item in users.data" :key="item.id" class="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30 transition-colors">
-                            <td class="p-3 font-medium">
-                                <div class="flex flex-col">
-                                    <span>{{ item.profile?.first_name }} {{ item.profile?.last_name }}</span>
-                                    <span class="text-[10px] text-muted-foreground">{{ item.email }}</span>
-                                </div>
-                            </td>
-                            <td class="p-3 font-mono text-[11px]">{{ item.phone }}</td>
-                            <td class="p-3 text-muted-foreground">{{ item.branch?.name || 'Global' }}</td>
-                            <td class="p-3">
-                                <span v-if="item.was_previously_deleted" class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded text-[10px] font-bold uppercase tracking-wide">
-                                    Re-registrado
-                                </span>
-                            </td>
-                            <td class="p-3">
-                                <div class="flex justify-center items-center">
-                                    <button @click="toggleStatus(item.id, item.is_active)" :disabled="loadingStates[item.id]" :class="[item.is_active ? 'bg-primary' : 'bg-neutral-300 dark:bg-neutral-700']" class="w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none relative">
-                                        <div :class="[item.is_active ? 'translate-x-5' : 'translate-x-0']" class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200"></div>
-                                    </button>
-                                </div>
+                    <tbody>
+                        <tr v-if="users.length === 0">
+                            <td colspan="6" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
+                                No se encontraron registros de clientes bajo los parámetros seleccionados.
                             </td>
                         </tr>
-                        <tr v-if="users.data.length === 0">
-                            <td colspan="5" class="p-8 text-center text-muted-foreground">No se encontraron clientes bajo los filtros aplicados.</td>
+                        <tr v-for="user in users" :key="user.id" class="admin-table-tr">
+                            <td class="admin-table-td">
+                                {{ user.first_name }} {{ user.last_name }}
+                            </td>
+                            <td class="admin-table-td">
+                                {{ user.email }}
+                            </td>
+                            <td class="admin-table-td font-mono text-xs">
+                                {{ user.phone }}
+                            </td>
+                            <td class="admin-table-td">
+                                <span v-if="user.branch">{{ user.branch.name }}</span>
+                                <span v-else class="text-muted-foreground/60 italic font-normal text-xs">Sin asignar</span>
+                            </td>
+                            <td class="admin-table-td text-center">
+                                <span :class="user.is_active ? 'badge-success' : 'badge-error'">
+                                    {{ user.is_active ? 'Activo' : 'Inactivo' }}
+                                </span>
+                            </td>
+                            <td class="admin-table-td text-right">
+                                <button 
+                                    type="button"
+                                    @click="toggleStatus(user)"
+                                    :disabled="statusForm.processing"
+                                    class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded border border-border hover:bg-neutral-200 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+                                >
+                                    {{ user.is_active ? 'Desactivar' : 'Activar' }}
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+
+            <div v-if="pagination.links && pagination.links.length > 3" class="flex items-center justify-between bg-card p-4 border border-border rounded-md shadow-flat">
+                <div class="text-xs text-muted-foreground font-medium">
+                    Página {{ pagination.current_page }} de {{ pagination.last_page }}
+                </div>
+                <div class="flex items-center gap-1">
+                    <template v-for="(link, index) in pagination.links" :key="index">
+                        <div 
+                            v-if="link.url === null" 
+                            class="px-2.5 py-1 text-xs text-muted-foreground/40 border border-border/50 rounded-sm cursor-not-allowed select-none"
+                            v-html="link.label"
+                        />
+                        <Link
+                            v-else
+                            :href="link.url"
+                            class="px-2.5 py-1 text-xs font-semibold rounded-sm border transition-colors"
+                            :class="[link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-foreground border-border hover:bg-secondary']"
+                            v-html="link.label"
+                        />
+                    </template>
+                </div>
+            </div>
         </div>
 
-        <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
-            <div v-if="isRecoveryOpen" @click="isRecoveryOpen = false" class="fixed inset-0 bg-neutral-950/40 z-50"></div>
-        </Transition>
-        <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="translate-x-full" enter-to-class="translate-x-0" leave-active-class="transition duration-200 ease-in" leave-from-class="translate-x-0" leave-to-class="translate-x-full">
-            <div v-if="isRecoveryOpen" class="fixed inset-y-0 right-0 max-w-md w-full bg-card border-l border-border shadow-2xl z-50 p-5 flex flex-col justify-between">
-                <div>
-                    <div class="flex justify-between items-center border-b border-border pb-3 mb-4">
-                        <h3 class="text-sm font-bold uppercase tracking-wide text-foreground">Recuperar Historial Cliente</h3>
-                        <button @click="isRecoveryOpen = false" class="text-muted-foreground hover:text-foreground">
-                            <span class="material-symbols-rounded text-lg block">close</span>
-                        </button>
+        <div v-if="isModalOpen" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-neutral-950/50 backdrop-blur-sm" @click="closeRestoreModal"></div>
+            
+            <div class="relative w-full max-w-md bg-card border border-border rounded-md shadow-flat p-6 z-10 animate-in fade-in zoom-in-95 duration-100">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                    <h2 class="text-sm font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-lg text-primary">history</span>
+                        <span>Restaurar Cuenta Eliminada</span>
+                    </h2>
+                    <button @click="closeRestoreModal" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground">
+                        <span class="material-symbols-rounded text-base block">close</span>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Teléfono de la cuenta a buscar
+                        </label>
+                        <div class="flex gap-2">
+                            <input 
+                                v-model="searchPhone"
+                                type="text"
+                                placeholder="+51999888777"
+                                class="admin-input flex-1 font-mono"
+                                :disabled="isSearching || restoreForm.processing"
+                                @keyup.enter="searchDeletedCustomer"
+                            />
+                            <button 
+                                type="button"
+                                @click="searchDeletedCustomer"
+                                :disabled="isSearching || restoreForm.processing"
+                                class="px-3 bg-secondary border border-border rounded-md text-xs font-bold uppercase tracking-wider hover:bg-neutral-200 dark:hover:bg-neutral-800 disabled:opacity-50 inline-flex items-center justify-center shrink-0"
+                            >
+                                {{ isSearching ? 'Buscando...' : 'Buscar' }}
+                            </button>
+                        </div>
+                        <p v-if="searchError" class="text-xs text-error font-medium mt-1 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm shrink-0">error</span>
+                            <span>{{ searchError }}</span>
+                        </p>
                     </div>
 
-                    <div class="space-y-4">
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Número de Teléfono</label>
-                            <div class="flex gap-2">
-                                <input v-model="searchPhone" type="text" placeholder="+591XXXXXXXX" class="w-full bg-background border border-border rounded-md px-3 py-2 text-xs focus:outline-none focus:border-primary" />
-                                <button @click="searchDeletedUser" :disabled="isSearching" class="px-3 py-2 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 disabled:opacity-50">
-                                    {{ isSearching ? 'Buscando...' : 'Buscar' }}
-                                </button>
-                            </div>
+                    <div v-if="foundUser" class="p-3 bg-neutral-100 dark:bg-neutral-800/50 border border-border rounded-md space-y-3 animate-in fade-in duration-75">
+                        <div class="text-xs space-y-1">
+                            <div class="text-muted-foreground uppercase tracking-wider font-semibold text-[10px]">Registro Localizado</div>
+                            <div class="text-foreground font-bold text-sm">{{ foundUser.first_name }} {{ foundUser.last_name }}</div>
+                            <div class="text-muted-foreground font-medium font-mono text-[11px]">{{ foundUser.email }}</div>
                         </div>
 
-                        <div v-if="recoveryError" class="p-3 bg-rose-50 border border-rose-200 rounded text-rose-700 text-xs font-medium">
-                            {{ recoveryError }}
-                        </div>
-
-                        <div v-if="recoveryUser" class="bg-background border border-border rounded p-4 space-y-3">
-                            <h4 class="text-xs font-bold text-foreground border-b border-border pb-1.5">Registro Encontrado en Papelera</h4>
-                            <div class="grid grid-cols-2 gap-2 text-[11px]">
-                                <span class="text-muted-foreground">Nombre completo:</span>
-                                <span class="font-medium text-foreground text-right">{{ recoveryUser.profile?.first_name }} {{ recoveryUser.profile?.last_name }}</span>
-                                <span class="text-muted-foreground">Correo electrónico:</span>
-                                <span class="font-medium text-foreground text-right overflow-hidden text-ellipsis">{{ recoveryUser.email }}</span>
-                            </div>
-                            <div class="mt-2 border-t border-dashed border-border pt-2">
-                                <button @click="executeRestore(recoveryUser.id)" class="w-full py-2 bg-amber-600 text-white rounded text-xs font-bold hover:bg-amber-700 transition-colors">
-                                    Confirmar Restauración en Servidor
-                                </button>
-                            </div>
+                        <div class="pt-2 border-t border-border/60">
+                            <button
+                                type="button"
+                                @click="submitRestore"
+                                :disabled="restoreForm.processing"
+                                class="w-full admin-btn-primary inline-flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+                            >
+                                <span class="material-symbols-rounded text-base shrink-0">settings_backup_restore</span>
+                                <span>{{ restoreForm.processing ? 'Restaurando...' : 'Confirmar Restauración' }}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        </Transition>
+        </div>
     </AdminLayout>
 </template>

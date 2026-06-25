@@ -25,22 +25,16 @@ use App\Actions\Admin\Users\Customer\ChangeCustomerStatusAction;
 use App\Actions\Admin\Users\Customer\SearchDeletedCustomerAction;
 use App\Actions\Admin\Users\Customer\RestoreCustomerAction;
 
-use App\Http\Resources\Admin\Users\Customer\CustomerResource;
-
 class CustomerController extends Controller
 {
     public function index(Request $request, GetCustomersListAction $action): InertiaResponse
     {
         $payload = $request->only(['search', 'branch_id', 'is_active']);
-        $paginator = $action->execute($payload);
+        $result = $action->execute($payload);
 
         return Inertia::render('Admin/Users/Customers/Index', [
-            'users' => CustomerResource::collection($paginator->items()),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'total' => $paginator->total(),
-            ],
+            'users' => $result['users'],
+            'pagination' => $result['pagination'],
             'branches' => Branch::where('is_active', true)->get(['id', 'name']),
             'filters' => $payload
         ]);
@@ -59,8 +53,9 @@ class CustomerController extends Controller
         $context = AuditContext::fromRequest($request);
 
         $action->execute($dto, $context);
+
         return redirect()->route('customers.index')
-        ->with('message', 'Cliente registrado con contraseña provisional.');
+            ->with('message', 'Cliente registrado con contraseña provisional.');
     }
 
     public function changeStatus(ChangeCustomerStatusRequest $request, string $id, ChangeCustomerStatusAction $action): RedirectResponse
@@ -77,13 +72,15 @@ class CustomerController extends Controller
     public function searchDeleted(Request $request, SearchDeletedCustomerAction $action): JsonResponse
     {
         $request->validate(['phone' => 'required|string']);
-        $customer = $action->execute($request->input('phone'));
+        $userData = $action->execute((string) $request->input('phone'));
 
-        if (!$customer) {
+        if (!$userData) {
             return response()->json(['message' => 'No se encontró ningún usuario eliminado con ese teléfono.'], 404);
         }
 
-        return response()->json(['user' => new CustomerResource($customer)]);
+        return response()->json([
+            'user' => $userData
+        ]);
     }
 
     public function restoreDeleted(Request $request, string $id, RestoreCustomerAction $action): RedirectResponse
