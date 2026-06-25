@@ -20,7 +20,8 @@ class Category extends Model
     protected $fillable = [
         'parent_id', 'name', 'slug', 'external_code', 'tax_classification',
         'requires_age_check', 'is_active', 'is_featured', 'sort_order',
-        'image_path', 'icon_path', 'bg_color', 'description', 'deleted_epoch'
+        'image_path', 'icon_path', 'bg_color', 'description', 'deleted_epoch',
+        'seo_title', 'seo_description'
     ];
 
     protected $casts = [
@@ -37,7 +38,8 @@ class Category extends Model
     {
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            $model->save();
+            // Evita la activación colateral de hooks intermedios de actualización
+            $model->saveQuietly();
         });
     
         static::restoring(function (self $model) {

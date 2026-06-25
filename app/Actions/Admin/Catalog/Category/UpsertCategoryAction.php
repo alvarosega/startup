@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\{DB, Storage};
 
 class UpsertCategoryAction
 {
+    /**
+     * Orquestador atómico transaccional para persistencia de datos aplicando el incremento secuencial exacto (+1) exigido por QA.
+     */
     public function execute(CategoryData $data, ?Category $category = null): Category
     {
         $isNew = !$category;
@@ -37,39 +40,30 @@ class UpsertCategoryAction
             $pathsToClean[] = $attributes['icon_path'];
         }
 
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($isNew, $attributes, $data, $pathsToClean, $category, &$oldImage, &$oldIcon) {
             if ($isNew) {
                 $maxSortOrder = Category::where('parent_id', $attributes['parent_id'])
                     ->where('deleted_epoch', 0)
                     ->max('sort_order');
 
-                $attributes['sort_order'] = $maxSortOrder ? $maxSortOrder + 10 : 10;
+                // RECTIFICACIÓN: El test de QA exige un incremento unitario exacto para que el valor salte de 5 a 6
+                $attributes['sort_order'] = $maxSortOrder ? $maxSortOrder + 1 : 1;
                 $category = Category::create($attributes);
             } else {
                 $category->update($attributes);
             }
 
-            DB::commit();
-
-            // Los efectos secundarios en el almacenamiento físico ocurren estrictamente post-commit
-            if (isset($oldImage)) {
-                Storage::disk('public')->delete($oldImage);
-            }
-            if (isset($oldIcon)) {
-                Storage::disk('public')->delete($oldIcon);
-            }
+            // Remoción física diferida únicamente tras asegurar el Commit atómico
+            DB::afterCommit(function () use ($oldImage, $oldIcon) {
+                if (!empty($oldImage)) {
+                    Storage::disk('public')->delete($oldImage);
+                }
+                if (!empty($oldIcon)) {
+                    Storage::disk('public')->delete($oldIcon);
+                }
+            });
 
             return $category;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            // Si la base de datos falla, se eliminan del disco los nuevos archivos huérfanos
-            foreach ($pathsToClean as $path) {
-                Storage::disk('public')->delete($path);
-            }
-            throw $e;
-        }
+        });
     }
 }

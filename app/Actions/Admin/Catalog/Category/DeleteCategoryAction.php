@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 class DeleteCategoryAction
 {
+    /**
+     * Resguarda la integridad referencial antes de ejecutar un borrado lógico en cascada.
+     */
     public function execute(Category $category): bool
     {
         return DB::transaction(function () use ($category) {

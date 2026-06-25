@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\Catalog\Category;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 
 readonly class CategoryData
@@ -12,57 +12,63 @@ readonly class CategoryData
     public function __construct(
         public string $name,
         public ?string $slug,
-        public ?string $parent_id,
-        public ?string $external_code,
-        public ?string $tax_classification,
-        public bool $requires_age_check,
-        public bool $is_active,
-        public bool $is_featured,
-        public ?string $bg_color,
+        public ?string $parentId,
+        public ?string $externalCode,
+        public ?string $taxClassification,
+        public bool $requiresAgeCheck,
+        public bool $isActive,
+        public bool $isFeatured,
+        public ?string $bgColor,
         public ?string $description,
-        public ?string $seo_title,
-        public ?string $seo_description,
+        public ?string $seoTitle,
+        public ?string $seoDescription,
         public ?UploadedFile $image,
         public ?UploadedFile $icon
     ) {}
 
-    public static function fromRequest(Request $request): self
+    /**
+     * Factoría estática adaptada estrictamente para acoplarse con clases de tipo FormRequest.
+     */
+    public static function fromRequest(FormRequest $request): self
     {
         $validated = $request->validated();
 
         return new self(
             name: (string) $validated['name'],
             slug: $validated['slug'] ?? null,
-            parent_id: $validated['parent_id'] ?? null,
-            external_code: $validated['external_code'] ?? null,
-            tax_classification: $validated['tax_classification'] ?? null,
-            requires_age_check: $request->boolean('requires_age_check'),
-            is_active: $request->boolean('is_active', true),
-            is_featured: $request->boolean('is_featured'),
-            bg_color: $validated['bg_color'] ?? null,
+            parentId: $validated['parent_id'] ?? null,
+            externalCode: $validated['external_code'] ?? null,
+            taxClassification: $validated['tax_classification'] ?? null,
+            requiresAgeCheck: (bool) $request->boolean('requires_age_check'),
+            isActive: (bool) $request->boolean('is_active', true),
+            isFeatured: (bool) $request->boolean('is_featured'),
+            bgColor: $validated['bg_color'] ?? null,
             description: $validated['description'] ?? null,
-            seo_title: $validated['seo_title'] ?? null,
-            seo_description: $validated['seo_description'] ?? null,
+            seoTitle: $validated['seo_title'] ?? null,
+            seoDescription: $validated['seo_description'] ?? null,
             image: $request->file('image'),
             icon: $request->file('icon')
         );
     }
 
+    /**
+     * Transforma las propiedades escalares a arreglos nativos para la hidratación de modelos Eloquent.
+     */
     public function toArray(): array
     {
         return [
             'name'               => $this->name,
             'slug'               => $this->slug,
-            'parent_id'          => $this->parent_id,
-            'external_code'      => $this->external_code,
-            'tax_classification' => $this->tax_classification,
-            'requires_age_check' => $this->requires_age_check,
-            'is_active'          => $this->is_active,
-            'is_featured'        => $this->is_featured,
-            'bg_color'           => $this->bg_color,
+            'parent_id'          => $this->parentId,
+            'external_code'      => $this->externalCode,
+            'tax_classification' => $this->taxClassification,
+            'requires_age_check' => $this->requiresAgeCheck,
+            'is_active'          => $this->isActive,
+            'is_featured'        => $this->isFeatured,
+            'bg_color'           => $this->bgColor,
             'description'        => $this->description,
-            'seo_title'          => $this->seo_title,
-            'seo_description'    => $this->seo_description,
+            'seo_title'          => $this->seoTitle,
+            'seo_description'    => $this->seoDescription,
         ];
     }
 }

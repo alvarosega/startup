@@ -10,11 +10,17 @@ use Illuminate\Support\Str;
 
 class StoreCategoryRequest extends FormRequest
 {
+    /**
+     * Restringe el transporte HTTP únicamente a usuarios autorizados con el rol de super_admin.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
     }
 
+    /**
+     * Sanea y prepara los campos de slugs de forma automatizada previa validación.
+     */
     protected function prepareForValidation(): void
     {
         if ($this->name && !$this->slug) {
@@ -29,7 +35,7 @@ class StoreCategoryRequest extends FormRequest
         return [
             'name'               => ['required', 'string', 'max:100'],
             'slug'               => ['required', 'string', 'max:120', Rule::unique('categories')->where('deleted_epoch', 0)],
-            'parent_id'          => ['nullable', 'uuid', Rule::exists('categories', 'id')->whereNull('parent_id')->withoutTrashed()],
+            'parent_id'          => ['nullable', 'string', Rule::exists('categories', 'id')->whereNull('parent_id')],
             'external_code'      => ['nullable', 'string', 'max:50', Rule::unique('categories')->where('deleted_epoch', 0)],
             'tax_classification' => ['nullable', 'string', 'max:50'],
             'requires_age_check' => ['required', 'boolean'],

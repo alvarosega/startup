@@ -7,15 +7,21 @@ namespace App\Http\Requests\Admin\Catalog\Category;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
-use App\Models\Category;
+use App\Models\Catalog\Category;
 
 class UpdateCategoryRequest extends FormRequest
 {
+    /**
+     * Restringe el transporte HTTP únicamente a usuarios autorizados con el rol de super_admin.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
     }
 
+    /**
+     * Sanea y prepara los campos de slugs de forma automatizada previa validación.
+     */
     protected function prepareForValidation(): void
     {
         if ($this->name && !$this->slug) {
@@ -27,7 +33,9 @@ class UpdateCategoryRequest extends FormRequest
 
     public function rules(): array
     {
-        $catId = $this->route('category')?->id ?? $this->route('category');
+        $catId = $this->route('category') instanceof Category 
+            ? $this->route('category')->id 
+            : $this->route('category');
 
         return [
             'name'               => ['required', 'string', 'max:100'],
@@ -45,8 +53,8 @@ class UpdateCategoryRequest extends FormRequest
             'seo_description'    => ['nullable', 'string', 'max:160'],
             'parent_id'          => [
                 'nullable', 
-                'uuid', 
-                Rule::exists('categories', 'id')->whereNull('parent_id')->withoutTrashed(),
+                'string', 
+                Rule::exists('categories', 'id')->whereNull('parent_id'),
                 function ($attribute, $value, $fail) use ($catId) {
                     if ($value === $catId) {
                         $fail('Operación inválida: Una categoría no puede ser hija de sí misma.');
