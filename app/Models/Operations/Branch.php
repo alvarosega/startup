@@ -27,6 +27,15 @@ class Branch extends Model
         'is_default', 'is_active', 'deleted_epoch'
     ];
 
+    /**
+     * BLINDAJE DE SERIALIZACIÓN: Oculta los campos geométricos binarios crudos para prevenir
+     * el colapso de malformación UTF-8 al ejecutar toArray() o json_encode() en el sistema.
+     */
+    protected $hidden = [
+        'location',
+        'coverage_polygon',
+    ];
+
     protected $casts = [
         'is_default' => 'boolean',
         'is_active' => 'boolean',
