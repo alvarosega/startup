@@ -1,18 +1,28 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 
+// Instanciación reactiva del formulario nativo de Inertia
 const form = useForm({
     email: '',
     password: '',
 });
 
-const hasErrors = computed(() => Object.keys(form.errors).length > 0);
+// Acceso al estado global compartido (Shared Props) provisto por HandleAdminInertiaRequests
+const pageProps = computed(() => usePage().props);
+const flashError = computed(() => pageProps.value.flash?.error);
 
+/**
+ * Despacha la petición de autenticación hacia el backend.
+ * Mapea la ruta exacta definida en el archivo de rutas (login.store).
+ */
 const submit = () => {
-    form.post(route('admin.login.store'), {
-        onFinish: () => form.reset('password'),
+    form.post(route('login.store'), {
+        onFinish: () => {
+            // Purga obligatoria de datos sensibles del DOM inmediatamente al finalizar la ejecución
+            form.reset('password');
+        },
     });
 };
 </script>
@@ -20,13 +30,13 @@ const submit = () => {
 <template>
     <Head title="Acceso Administrador" />
 
-    <div class="min-h-screen bg-background flex items-center justify-center p-4 select-none relative">
+    <div data-context="admin" class="min-h-screen bg-background flex items-center justify-center p-4 select-none relative">
         
         <div class="absolute top-4 right-4 border border-border bg-card rounded-md transition-colors duration-100 hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <ThemeToggler class="p-1.5 text-foreground/80 hover:text-primary transition-colors duration-100" />
         </div>
 
-        <div class="max-w-md w-full bg-card border border-border rounded-md shadow-flat p-6 md:p-8">
+        <div class="max-w-md w-full bg-card border border-card-border rounded-md shadow-flat p-6 md:p-8">
             
             <div class="text-center mb-2">
                 <span class="text-3xl font-black italic tracking-wider text-primary select-none">DU</span>
@@ -42,13 +52,11 @@ const submit = () => {
             </div>
 
             <div 
-                v-if="hasErrors" 
-                class="mb-4 p-3 bg-error/10 border border-error/20 rounded-md text-error text-xs flex flex-col gap-1.5"
+                v-if="flashError" 
+                class="mb-4 p-3 bg-error/10 border border-error/20 rounded-md text-error text-xs flex items-center gap-2 font-medium"
             >
-                <div v-for="(error, key) in form.errors" :key="key" class="flex items-center gap-2 font-medium">
-                    <span class="material-symbols-rounded text-base shrink-0">error</span>
-                    <span>{{ error }}</span>
-                </div>
+                <span class="material-symbols-rounded text-base shrink-0">error</span>
+                <span>{{ flashError }}</span>
             </div>
 
             <form @submit.prevent="submit" class="space-y-4">
@@ -64,8 +72,13 @@ const submit = () => {
                         autofocus
                         autocomplete="username"
                         class="admin-input"
+                        :class="{ 'border-error focus:ring-error focus:border-error': form.errors.email }"
                         placeholder="operador@cybermarket.com"
                     />
+                    <div v-if="form.errors.email" class="text-error text-xs flex items-center gap-1 mt-1 font-medium">
+                        <span class="material-symbols-rounded text-sm shrink-0">error</span>
+                        <span>{{ form.errors.email }}</span>
+                    </div>
                 </div>
 
                 <div class="space-y-1.5">
@@ -78,8 +91,13 @@ const submit = () => {
                         required
                         autocomplete="current-password"
                         class="admin-input"
+                        :class="{ 'border-error focus:ring-error focus:border-error': form.errors.password }"
                         placeholder="••••••••"
                     />
+                    <div v-if="form.errors.password" class="text-error text-xs flex items-center gap-1 mt-1 font-medium">
+                        <span class="material-symbols-rounded text-sm shrink-0">error</span>
+                        <span>{{ form.errors.password }}</span>
+                    </div>
                 </div>
 
                 <div class="pt-2">

@@ -17,11 +17,10 @@ class LoginAdminAction
      */
     public function execute(LoginAdminData $data): bool
     {
-        // Intento de autenticación bajo el guard administrativo 'super_admin'
         if (!Auth::guard('super_admin')->attempt([
             'email'    => $data->email,
             'password' => $data->password
-        ], $data->remember)) {
+        ])) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
@@ -30,8 +29,6 @@ class LoginAdminAction
         /** @var \App\Models\Users\Admin|null $admin */
         $admin = Auth::guard('super_admin')->user();
 
-        // Control estricto de seguridad: validación de cuenta activa y rol mandatorio
-        // Devuelve un error genérico (auth.failed) para evitar la enumeración de cuentas
         if (!$admin || !$admin->is_active || !$admin->hasRole('super_admin')) {
             Auth::guard('super_admin')->logout();
             
@@ -40,7 +37,6 @@ class LoginAdminAction
             ]);
         }
 
-        // Mutación de la persistencia obligatoria exigida por el caso de éxito
         $admin->update([
             'last_login_at' => Carbon::now(),
             'last_seen_at'  => Carbon::now(),

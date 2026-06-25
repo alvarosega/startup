@@ -32,10 +32,8 @@ class LoginController extends Controller
             $action->execute($data);
             
             $request->clearRateLimiter();
-            
             $request->session()->regenerate();
             
-            // Redirección alineada exactamente con los nombres esperados por el test de QA
             return redirect()->route('dashboard.index');
     
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -51,7 +49,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // Redirección alineada exactamente con los nombres esperados por el test de QA
         return redirect()->route('login');
     }
 }

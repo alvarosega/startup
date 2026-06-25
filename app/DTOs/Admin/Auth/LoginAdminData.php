@@ -11,13 +11,12 @@ readonly class LoginAdminData
     public function __construct(
         public string $email,
         public string $password,
-        public bool $remember,
         public string $ip,
         public string $userAgent,
     ) {}
 
     /**
-     * Factoría estática acoplada de forma segura al FormRequest validado.
+     * Factoría estática acoplada por tipo al FormRequest validado.
      */
     public static function fromRequest(LoginAdminRequest $request): self
     {
@@ -26,7 +25,6 @@ readonly class LoginAdminData
         return new self(
             email: (string) $validated['email'],
             password: (string) $validated['password'],
-            remember: (bool) $request->boolean('remember'),
             ip: (string) ($request->ip() ?? '127.0.0.1'),
             userAgent: (string) ($request->userAgent() ?? 'Unknown')
         );

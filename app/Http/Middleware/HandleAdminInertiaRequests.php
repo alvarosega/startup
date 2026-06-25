@@ -1,22 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Resources\Admin\Auth\AdminResource; 
 
 class HandleAdminInertiaRequests extends Middleware
 {
     /**
-     * Se cambia la vista raíz para que use resources/views/admin.blade.php
      * @var string
      */
     protected $rootView = 'admin'; 
 
     public function share(Request $request): array
     {
+        /** @var \App\Models\Users\Admin|null $admin */
         $admin = Auth::guard('super_admin')->user();
         
         if ($admin) {
@@ -27,15 +28,30 @@ class HandleAdminInertiaRequests extends Middleware
             }
         }
 
+        // Mapeo manual directo para preservar la inmutabilidad y pureza de Inertia sin dependencias REST API
+        $userData = $admin ? [
+            'id'          => (string) $admin->id,
+            'first_name'  => (string) $admin->first_name,
+            'last_name'   => (string) $admin->last_name,
+            'full_name'   => (string) "{$admin->first_name} {$admin->last_name}",
+            'email'       => (string) $admin->email,
+            'roles'       => $admin->getRoleNames(),
+            'permissions' => [
+                'manage_users'   => (bool) $admin->can('manage_users'),
+                'manage_drivers' => (bool) $admin->can('manage_drivers'),
+                'manage_catalog' => (bool) $admin->can('manage_catalog'),
+            ],
+        ] : null;
+
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $admin ? (new AdminResource($admin))->resolve() : null,
+                'user' => $userData,
             ],
             'flash' => [
                 'message' => fn () => $request->session()->get('message'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
-            'errors' => fn () => $request->session()->get('errors')
+            'errors' => fn () => $request->session()->get('error')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : (object) [],
         ]);

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -8,6 +10,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Models\Operations\Branch;
 use Spatie\Permission\Models\Role;
+use Exception;
+use Throwable;
 
 class CustomerSeeder extends Seeder
 {
@@ -26,79 +30,110 @@ class CustomerSeeder extends Seeder
             return;
         }
 
-        $customerRole = Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+        // El guard se cambia a 'customer' según la configuración defaults de su config/auth.php
+        $customerRole = Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'customer']);
         $password = Hash::make('password');
         
         $file = fopen($csvPath, 'r');
-        fgetcsv($file, 0, ";"); // Omitir cabecera
+        $rawHeaders = fgetcsv($file, 0, ";");
+        
+        if (!$rawHeaders) {
+            $this->command->error("CRÍTICO: CSV de clientes vacío o ilegible.");
+            fclose($file);
+            return;
+        }
 
+        // Normalización de cabeceras para mapeo asociativo
+        $headers = array_map(fn($h) => strtolower(preg_replace('/^[\xef\xbb\xbf]+/', '', trim((string)$h))), $rawHeaders);
         $count = 0;
+        $rowNumber = 1;
 
-        DB::transaction(function () use ($file, $branches, $customerRole, $password, &$count) {
-            while (($row = fgetcsv($file, 0, ";")) !== FALSE) {
-                $row = array_map('trim', $row);
-                if (count($row) < 9 || empty($row[2])) continue;
+        DB::beginTransaction();
+
+        try {
+            while (($rowData = fgetcsv($file, 0, ";")) !== FALSE) {
+                $rowNumber++;
+                
+                if (empty(array_filter($rowData))) continue;
+
+                if (count($headers) !== count($rowData)) {
+                    throw new Exception("Error en fila {$rowNumber}: Número de columnas inconsistente con la cabecera.");
+                }
+
+                $row = array_combine($headers, array_map('trim', $rowData));
+
+                if (empty($row['email']) || empty($row['phone'])) {
+                    throw new Exception("Fila {$rowNumber}: Campos 'email' y 'phone' son mandatorios.");
+                }
 
                 $customerId = (string) Str::uuid();
                 $branch = $branches->random();
                 
-                // Mapeo: 0:fn, 1:ln, 2:email, 3:phone, 4:lat, 5:lng, 6:alias, 7:address, 8:ref
-                $lat = floatval($row[4]);
-                $lng = floatval($row[5]);
+                $lat = (float) $row['latitude'];
+                $lng = (float) $row['longitude'];
 
-                // 1. Core
+                // Compilación de expresiones espaciales nativas WKT (Longitud Latitud)
+                $locationExpression = DB::raw("ST_GeomFromText('POINT({$lng} {$lat})')");
+
+                // 1. Inserción en Tabla Core (Customers)
                 DB::table('customers')->insert([
-                    'id'           => $customerId,
-                    'branch_id'    => $branch->id,
-                    'phone'        => '+591' . $row[3],
-                    'country_code' => 'BO',
-                    'email'        => $row[2],
-                    'password'     => $password,
-                    'trust_score'  => 50,
-                    'is_active'    => true,
-                    'latitude'     => $lat,
-                    'longitude'    => $lng,
-                    'created_at'   => now(),
-                    'updated_at'   => now(),
+                    'id'                    => $customerId,
+                    'branch_id'             => $branch->id,
+                    'phone'                 => '+591' . $row['phone'],
+                    'country_code'          => 'BO',
+                    'email'                 => $row['email'],
+                    'password'              => $password,
+                    'trust_score'           => 50,
+                    'is_active'             => true,
+                    'last_known_location'   => $locationExpression,
+                    'created_at'            => now(),
+                    'updated_at'            => now(),
                 ]);
 
-                // 2. Profile
+                // 2. Inserción en Tabla Profile (Customer Profiles)
                 DB::table('customer_profiles')->insert([
                     'customer_id'   => $customerId,
-                    'first_name'    => strtoupper($row[0]),
-                    'last_name'     => strtoupper($row[1]),
+                    'first_name'    => strtoupper($row['first_name']),
+                    'last_name'     => strtoupper($row['last_name']),
+                    'avatar_type'   => 'icon',
                     'avatar_source' => 'avatar_' . rand(1, 8) . '.png',
                     'created_at'    => now(),
                     'updated_at'    => now(),
                 ]);
 
-                // 3. Address
+                // 3. Inserción en Tabla de Direcciones (Customer Addresses)
                 DB::table('customer_addresses')->insert([
                     'id'          => (string) Str::uuid(),
                     'customer_id' => $customerId,
                     'branch_id'   => $branch->id,
-                    'alias'       => strtoupper($row[6]),
-                    'address'     => strtoupper($row[7]),
-                    'reference'   => strtoupper($row[8]),
-                    'latitude'    => $lat,
-                    'longitude'   => $lng,
+                    'alias'       => strtoupper($row['alias']),
+                    'address'     => strtoupper($row['address']),
+                    'position'    => $locationExpression,
+                    'reference'   => strtoupper($row['reference']),
                     'is_default'  => true,
                     'created_at'  => now(),
                     'updated_at'  => now(),
                 ]);
 
-                // 4. Role
+                // 4. Inserción de Relación Polimórfica de Roles (Spatie)
                 DB::table('model_has_roles')->insert([
                     'role_id'    => $customerRole->id,
-                    'model_type' => 'App\Models\Customer',
+                    'model_type' => 'App\Models\Users\Customer', // Ajustado al namespace físico de config/auth.php
                     'model_id'   => $customerId,
                 ]);
 
                 $count++;
             }
-        });
 
-        fclose($file);
-        $this->command->info("✅ CustomerSeeder: $count registros importados.");
+            DB::commit();
+            fclose($file);
+            $this->command->info("✅ CustomerSeeder: $count registros importados de forma consistente.");
+
+        } catch (Throwable $e) {
+            DB::rollBack();
+            if (is_resource($file)) fclose($file);
+            $this->command->error("ABORTO EN FILA {$rowNumber}: " . $e->getMessage());
+            throw $e;
+        }
     }
 }

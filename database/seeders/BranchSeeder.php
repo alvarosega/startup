@@ -25,6 +25,7 @@ class BranchSeeder extends Seeder
         $rawHeaders = fgetcsv($file, 0, ',');
         if (!$rawHeaders) {
             $this->command->error("CRÍTICO: CSV vacío o ilegible.");
+            fclose($file);
             return;
         }
         $headers = array_map(fn($h) => strtolower(preg_replace('/^[\xef\xbb\xbf]+/', '', trim((string)$h))), $rawHeaders);
@@ -53,34 +54,44 @@ class BranchSeeder extends Seeder
                     throw new Exception("Fila {$rowNumber}: Campos 'name' y 'slug' son obligatorios.");
                 }
 
-                // Validación estricta de JSON
-                $coveragePolygon = null;
-                if ($cleanRow['coverage_polygon']) {
-                    $coveragePolygon = json_decode($cleanRow['coverage_polygon'], true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
+                // PROCESAMIENTO GEOSPACIAL: Generación de POINT nativo (WKT usa: Longitud Latitud)
+                if (!isset($cleanRow['latitude']) || !isset($cleanRow['longitude'])) {
+                    throw new Exception("Fila {$rowNumber}: Coordenadas 'latitude' y 'longitude' son obligatorias.");
+                }
+                $latitude = (float) $cleanRow['latitude'];
+                $longitude = (float) $cleanRow['longitude'];
+                $locationExpression = DB::raw("ST_GeomFromText('POINT({$longitude} {$latitude})')");
+
+                // PROCESAMIENTO GEOSPACIAL: Conversión y cierre estructurado de POLYGON
+                $coveragePolygonExpression = null;
+                if (!empty($cleanRow['coverage_polygon'])) {
+                    $polyData = json_decode($cleanRow['coverage_polygon'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE || !is_array($polyData)) {
                         throw new Exception("Fila {$rowNumber}: JSON inválido en 'coverage_polygon'.");
                     }
-                }
 
-                $openingHours = null;
-                if ($cleanRow['opening_hours']) {
-                    $openingHours = json_decode($cleanRow['opening_hours'], true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        throw new Exception("Fila {$rowNumber}: JSON inválido en 'opening_hours'.");
+                    // Inversión de coordenadas a estándar espacial (Longitud Latitud)
+                    $wktPoints = array_map(fn($point) => "{$point[1]} {$point[0]}", $polyData);
+
+                    // Regla de cierre GIS: El primer y último punto deben coincidir estrictamente
+                    if (reset($wktPoints) !== end($wktPoints)) {
+                        $wktPoints[] = reset($wktPoints);
                     }
+
+                    $wktPolygonString = "POLYGON((" . implode(',', $wktPoints) . "))";
+                    $coveragePolygonExpression = DB::raw("ST_GeomFromText('{$wktPolygonString}')");
+                } else {
+                    throw new Exception("Fila {$rowNumber}: El campo 'coverage_polygon' es mandatorio para el índice espacial.");
                 }
 
-                // LEY: No se envía ID. El sistema inyecta el UUID aleatorio/dinámico por fila.
                 Branch::create([
                     'name'                          => $cleanRow['name'],
                     'slug'                          => strtolower($cleanRow['slug']),
                     'city'                          => $cleanRow['city'] ?? 'La Paz',
                     'phone'                         => $cleanRow['phone'] ?? null,
                     'address'                       => $cleanRow['address'] ?? null,
-                    'latitude'                      => isset($cleanRow['latitude']) ? (float) $cleanRow['latitude'] : null,
-                    'longitude'                     => isset($cleanRow['longitude']) ? (float) $cleanRow['longitude'] : null,
-                    'coverage_polygon'              => $coveragePolygon,
-                    'opening_hours'                 => $openingHours,
+                    'location'                      => $locationExpression,
+                    'coverage_polygon'              => $coveragePolygonExpression,
                     'delivery_base_fee'             => (float) ($cleanRow['delivery_base_fee'] ?? 0.00),
                     'delivery_price_per_km'         => (float) ($cleanRow['delivery_price_per_km'] ?? 0.00),
                     'surge_multiplier'              => (float) ($cleanRow['surge_multiplier'] ?? 1.00),
@@ -95,16 +106,15 @@ class BranchSeeder extends Seeder
             DB::commit();
             fclose($file);
 
-            // AUTOMATIZACIÓN DE PURGA: Destruye los punteros obsoletos en memoria inmediatamente después del commit
             Cache::forget('active_branch_polygons');
             Cache::forget('shop_default_branch_id');
 
-            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales sembradas. Memoria caché invalidada correctamente.");
+            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales sembradas. Estructuras espaciales compiladas e invalidación de caché ejecutada.");
 
         } catch (Throwable $e) {
             DB::rollBack();
             if (is_resource($file)) fclose($file);
-            $this->command->error("ABORTO: " . $e->getMessage());
+            $this->command->error("ABORTO EN FILA {$rowNumber}: " . $e->getMessage());
             throw $e;
         }
     }
