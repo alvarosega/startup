@@ -6,14 +6,16 @@ namespace App\Actions\Admin\Operations\Provider;
 
 use App\Models\Operations\Provider;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class DeleteProvider
 {
+    /**
+     * Aplica restricciones operativas atómicas sin purgar ni alterar marcas comerciales huérfanas.
+     */
     public function execute(Provider $provider): bool
     {
-        $deleted = DB::transaction(function () use ($provider) {
+        return DB::transaction(function () use ($provider) {
             if ($provider->brands()->exists()) {
                 throw ValidationException::withMessages([
                     'provider' => 'PROTECCIÓN_ACTIVA: Operación cancelada. El proveedor tiene marcas comerciales vinculadas en el catálogo.'
@@ -22,11 +24,5 @@ class DeleteProvider
 
             return (bool) $provider->delete();
         });
-
-        if ($deleted) {
-            Cache::increment('admin_providers_version');
-        }
-
-        return $deleted;
     }
 }

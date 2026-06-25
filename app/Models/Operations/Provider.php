@@ -34,7 +34,6 @@ class Provider extends Model
         'credit_limit',
         'is_active',
         'notes',
-        'version',
         'deleted_epoch'
     ];
 
@@ -44,19 +43,15 @@ class Provider extends Model
         'min_order_value' => 'float',
         'credit_days'     => 'integer',
         'credit_limit'    => 'float',
-        'version'         => 'integer',
         'deleted_epoch'   => 'integer',
     ];
 
     protected static function booted(): void
     {
-        static::updating(function (self $model) {
-            $model->version++;
-        });
-
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            $model->save();
+            // Ejecución silenciosa para evitar efectos secundarios o disparos en cadena de eventos intermedios
+            $model->saveQuietly();
         });
 
         static::restoring(function (self $model) {

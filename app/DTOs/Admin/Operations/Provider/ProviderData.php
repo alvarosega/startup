@@ -4,31 +4,33 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\Operations\Provider;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 
 readonly class ProviderData
 {
     public function __construct(
         public ?string $id,
-        public string $company_name,
-        public ?string $commercial_name,
-        public string $tax_id,
-        public ?string $internal_code,
-        public ?string $contact_name,
-        public ?string $email_orders,
+        public string $companyName,
+        public ?string $commercialName,
+        public string $taxId,
+        public ?string $internalCode,
+        public ?string $contactName,
+        public ?string $emailOrders,
         public ?string $phone,
         public ?string $address,
         public ?string $city,
-        public int $lead_time_days,
-        public float $min_order_value,
-        public int $credit_days,
-        public float $credit_limit,
-        public bool $is_active,
-        public ?string $notes,
-        public int $version
+        public int $leadTimeDays,
+        public float $minOrderValue,
+        public int $creditDays,
+        public float $creditLimit,
+        public bool $isActive,
+        public ?string $notes
     ) {}
 
-    public static function fromRequest(Request $request, ?string $id = null): self
+    /**
+     * Factoría estática adaptada para asimilar peticiones HTTP validadas eliminando el rastro de versiones.
+     */
+    public static function fromRequest(FormRequest $request, ?string $id = null): self
     {
         $validated = $request->validated();
         $email = $validated['email_orders'] ?? null;
@@ -36,22 +38,21 @@ readonly class ProviderData
 
         return new self(
             id: $id,
-            company_name: trim((string) $validated['company_name']),
-            commercial_name: $validated['commercial_name'] ?? null,
-            tax_id: (string) $validated['tax_id'],
-            internal_code: $validated['internal_code'] ?? null,
-            contact_name: $validated['contact_name'] ?? null,
-            email_orders: $email ? strtolower(trim((string) $email)) : null,
+            companyName: trim((string) $validated['company_name']),
+            commercialName: !empty($validated['commercial_name']) ? trim((string) $validated['commercial_name']) : null,
+            taxId: trim((string) $validated['tax_id']),
+            internalCode: !empty($validated['internal_code']) ? trim((string) $validated['internal_code']) : null,
+            contactName: !empty($validated['contact_name']) ? trim((string) $validated['contact_name']) : null,
+            emailOrders: $email ? strtolower(trim((string) $email)) : null,
             phone: $phone ? preg_replace('/[^\+0-9]/', '', (string) $phone) : null,
-            address: $validated['address'] ?? null,
-            city: $validated['city'] ?? null,
-            lead_time_days: (int) ($validated['lead_time_days'] ?? 1),
-            min_order_value: (float) ($validated['min_order_value'] ?? 0),
-            credit_days: (int) ($validated['credit_days'] ?? 0),
-            credit_limit: (float) ($validated['credit_limit'] ?? 0),
-            is_active: $request->boolean('is_active', true),
-            notes: $validated['notes'] ?? null,
-            version: (int) ($validated['version'] ?? 0)
+            address: !empty($validated['address']) ? trim((string) $validated['address']) : null,
+            city: !empty($validated['city']) ? trim((string) $validated['city']) : null,
+            leadTimeDays: (int) ($validated['lead_time_days'] ?? 1),
+            minOrderValue: (float) ($validated['min_order_value'] ?? 0.00),
+            creditDays: (int) ($validated['credit_days'] ?? 0),
+            creditLimit: (float) ($validated['credit_limit'] ?? 0.00),
+            isActive: (bool) $request->boolean('is_active', true),
+            notes: !empty($validated['notes']) ? trim((string) $validated['notes']) : null
         );
     }
 }

@@ -26,7 +26,6 @@ return new class extends Migration {
             $table->decimal('credit_limit', 12, 2)->default(0);
             $table->boolean('is_active')->default(true)->index();
             $table->text('notes')->nullable();
-            $table->unsignedInteger('version')->default(0);
             
             $table->unsignedBigInteger('deleted_epoch')->default(0); // Columna inyectada obligatoria para unicidad
             $table->timestamps();

@@ -9,9 +9,12 @@ use Illuminate\Validation\Rule;
 
 class StoreProviderRequest extends FormRequest
 {
+    /**
+     * Blindaje en la frontera de transporte HTTP mediante control estricto de roles.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
     }
 
     public function rules(): array
