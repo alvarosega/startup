@@ -23,6 +23,7 @@ use App\Http\Controllers\Web\Admin\Order\OrderController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdPlacementController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCampaignController;
+use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 
 // Rutas de autenticación planas para cumplimiento estricto del Test de QA
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
@@ -31,9 +32,8 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware(['auth:super_admin'])->group(function () {
     
-    Route::get('/dashboard', function () {
-        return 'Dashboard Administrativo';
-    })->name('dashboard.index');
+    // CORRECCIÓN: Se remueve el cierre de texto plano y se conecta el controlador real de Inertia
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
     // GRUPOS DE COMPATIBILIDAD PLANA PROTEGIDOS CON CONTROL DE ROL ESTRICTO PARA QA (Retornan 403 ante intrusos)
     Route::middleware('role:super_admin,super_admin')->group(function () {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
 import SidebarLink from '@/Components/Admin/SidebarLink.vue';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
@@ -10,53 +10,78 @@ const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
 const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
 
-// Motor de Telemetría para Tooltips Centralizados (Previene desajustes por scroll)
+// Motor de Telemetría para Tooltips Centralizados (Fijados al Viewport)
 const hoveredTitle = ref(null);
 const tooltipTop = ref(0);
+const navContainerRef = ref(null);
 
+/**
+ * Calcula la posición del tooltip basándose en las coordenadas del elemento del DOM.
+ */
 const showTooltip = (event, title) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    // Calcula el centro geométrico vertical exacto del ítem respecto al viewport
     tooltipTop.value = rect.top + rect.height / 2;
     hoveredTitle.value = title;
 };
 
+/**
+ * Destruye la visibilidad del tooltip activo.
+ */
 const hideTooltip = () => {
     hoveredTitle.value = null;
 };
 
+/**
+ * Handler síncrono para suprimir el desajuste visual de coordenadas fijas durante el scroll del panel.
+ */
+const handleNavScroll = () => {
+    if (hoveredTitle.value) {
+        hideTooltip();
+    }
+};
+
 const isDevelopment = ref(false);
+
 onMounted(() => {
     isDevelopment.value = ['localhost', '127.0.0.1', 'test', 'dev'].some(host => 
         window.location.hostname.includes(host)
     );
+    
+    // Vinculación del listener para evitar fugas de posición visual en scroll
+    if (navContainerRef.value) {
+        navContainerRef.value.addEventListener('scroll', handleNavScroll, { passive: true });
+    }
 });
 
+onUnmounted(() => {
+    // Purga absoluta de listeners globales y estados reactivos para mitigar fugas de memoria (Memory Leaks)
+    if (navContainerRef.value) {
+        navContainerRef.value.removeEventListener('scroll', handleNavScroll);
+    }
+    hideTooltip();
+});
+
+// Estructura inmutable del árbol de navegación operacional
 const navigationMenu = [
-    // Grupo: Stock
     { name: 'Stock Base', route: 'admin.inventory.index', pattern: 'admin.inventory.*', icon: 'warehouse', group: 'stock', permission: isSuperAdmin },
     { name: 'Precios Masivos', route: 'admin.prices.index', pattern: 'admin.prices.*', icon: 'payments', group: 'stock', permission: isSuperAdmin },
     { name: 'Ingresos', route: 'admin.purchases.index', pattern: 'admin.purchases.*', icon: 'move_to_inbox', group: 'stock', permission: isSuperAdmin },
     { name: 'Transformaciones', route: 'admin.transformations.index', pattern: 'admin.transformations.*', icon: 'precision_manufacturing', group: 'stock', permission: isSuperAdmin },
     
-    // Grupo: Logística
     { name: 'Órdenes', route: 'admin.orders.index', pattern: 'admin.orders.*', icon: 'receipt_long', group: 'logistica', permission: isSuperAdmin },
     { name: 'Radar (Vivo)', route: 'admin.logistics.monitor', pattern: 'admin.logistics.*', icon: 'radar', group: 'logistica', permission: isSuperAdmin },
     { name: 'Transferencias', route: 'admin.transfers.index', pattern: 'admin.transfers.*', icon: 'local_shipping', group: 'logistica', permission: isSuperAdmin },
     { name: 'Bajas', route: 'admin.removals.index', pattern: 'admin.removals.*', icon: 'delete_forever', group: 'logistica', permission: isSuperAdmin },
     
-    // Grupo: Catálogo
     { name: 'Productos', route: 'admin.catalog.products.index', pattern: 'admin.catalog.products.*', icon: 'label', group: 'catalogo', permission: isSuperAdmin },
     { name: 'Categorías', route: 'admin.catalog.categories.index', pattern: 'admin.catalog.categories.*', icon: 'account_tree', group: 'catalogo', permission: isSuperAdmin },
     { name: 'Marcas', route: 'admin.catalog.brands.index', pattern: 'admin.catalog.brands.*', icon: 'branding_watermark', group: 'catalogo', permission: isSuperAdmin },
     { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'catalogo', permission: isSuperAdmin },
     
-    // Grupo: Operativa
     { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: isSuperAdmin },
-    { name: 'Clientes', route: 'admin.users.customers.index', pattern: 'admin.users.customers.*', icon: 'group', group: 'operativa', permission: isSuperAdmin },
-    { name: 'Repartidores', route: 'admin.users.drivers.index', pattern: 'admin.users.drivers.*', icon: 'badge', group: 'operativa', permission: isSuperAdmin },
+    { name: 'Clientes', route: 'customers.index', pattern: 'customers.*', icon: 'group', group: 'operativa', permission: isSuperAdmin },
+    { name: 'Repartidores', route: 'drivers.index', pattern: 'drivers.*', icon: 'badge', group: 'operativa', permission: isSuperAdmin },
 
-    // Grupo: Marketing
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: isSuperAdmin },
     { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'marketing', permission: isSuperAdmin }
 ];
@@ -98,29 +123,25 @@ const isMobileGroupActive = (groupKey) => {
 </script>
 
 <template>
-    <!-- ENTORNO ESCRITORIO (DESKTOP) -->
     <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[72px] bg-card border-r border-border z-50 overflow-visible justify-between select-none">
         
         <div class="flex flex-col w-full items-center overflow-visible">
-            <!-- Logotipo: Conectado al motor central de tooltips -->
-            <Link :href="route('admin.dashboard.index')" 
+            <Link :href="route('dashboard.index')" 
                   @mouseenter="showTooltip($event, 'Dashboard Central')"
                   @mouseleave="hideTooltip"
-                  :class="[isActiveRoute('admin.dashboard.*') ? 'bg-neutral-100 dark:bg-neutral-800 text-primary border-b border-primary' : 'border-b border-border/60 hover:bg-neutral-100 dark:hover:bg-neutral-900']"
+                  :class="[isActiveRoute('dashboard.*') ? 'bg-neutral-100 dark:bg-neutral-800 text-primary border-b border-primary' : 'border-b border-border/60 hover:bg-neutral-100 dark:hover:bg-neutral-900']"
                   class="w-full h-14 flex flex-col items-center justify-center shrink-0 mb-3 transition-colors duration-75 relative">
                 <span class="text-base font-black italic tracking-wider text-primary">DU</span>
             </Link>
 
-            <!-- Perfil de Usuario -->
             <div v-if="user" class="relative group flex items-center justify-center w-full h-12 mb-2 shrink-0">
                 <div class="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-sm cursor-default">
                     <span>{{ user?.first_name?.[0]?.toUpperCase() || 'U' }}</span>
                 </div>
                 
-                <!-- El panel de usuario se mantiene fixed lateral ya que no pertenece a la zona con scroll -->
                 <div class="fixed left-[76px] hidden group-hover:flex flex-col p-2.5 bg-card border border-border rounded-md shadow-flat z-50 pointer-events-none min-w-[140px]">
                     <span class="text-xs font-semibold text-foreground leading-tight">
-                        {{ user?.first_name }} {{ user?.last_name || '' }}
+                        {{ user?.full_name }}
                     </span>
                     <span class="text-[10px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
                         {{ user?.roles?.[0]?.replace('_', ' ') || 'Staff' }}
@@ -128,11 +149,10 @@ const isMobileGroupActive = (groupKey) => {
                 </div>
             </div>
 
-            <!-- Contenedor con Scroll: Los hijos delegan el título al pasar el cursor -->
-            <nav class="w-full h-[calc(100vh-210px)] overflow-y-auto overflow-x-visible no-scrollbar py-1 border-t border-border/40 flex flex-col items-center">
+            <nav ref="navContainerRef" class="w-full h-[calc(100vh-210px)] overflow-y-auto overflow-x-visible no-scrollbar py-1 border-t border-border/40 flex flex-col items-center">
                 <template v-for="(groupKey, gIndex) in ['stock', 'logistica', 'catalogo', 'operativa', 'marketing']" :key="groupKey">
                     
-                    <div v-if="gIndex > 0" class="w-8 border-t border-border/50 my-2 shrink-0"></div>
+                    <div v-if="gIndex > 0 && filteredMenu.some(i => i.group === groupKey)" class="w-8 border-t border-border/50 my-2 shrink-0"></div>
                     
                     <SidebarLink 
                         v-for="item in filteredMenu.filter(i => i.group === groupKey)" 
@@ -148,14 +168,13 @@ const isMobileGroupActive = (groupKey) => {
             </nav>
         </div>
 
-        <!-- Barra de Herramientas Inferior -->
         <div class="flex flex-col w-full items-center border-t border-border shrink-0 bg-card z-10 pb-2">
             <div class="w-full h-12 flex items-center justify-center text-foreground/80 hover:text-primary transition-colors duration-100">
                 <ThemeToggler class="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" />
             </div>
 
             <Link 
-                :href="route('admin.logout')" 
+                :href="route('logout')" 
                 method="post" 
                 as="button" 
                 @mouseenter="showTooltip($event, 'Cerrar Sesión')"
@@ -171,15 +190,13 @@ const isMobileGroupActive = (groupKey) => {
             </div>
         </div>
 
-        <!-- INSTANCIA ÚNICA DE TOOLTIP PORTALIZADO (Inmune a desajustes por scroll) -->
         <div v-if="hoveredTitle" 
              :style="{ top: tooltipTop + 'px' }"
-             class="fixed left-[76px] -translate-y-1/2 px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none uppercase font-mono tracking-wide animate-in fade-in duration-75">
+             class="fixed left-[76px] -translate-y-1/2 px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none uppercase font-mono tracking-wide">
             {{ hoveredTitle }}
         </div>
     </aside>
 
-    <!-- ENTORNO MÓVIL (MÓDULOS DE CONTROL TÁCTIL) -->
     <div class="md:hidden">
         <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-neutral-950/40 z-40 cursor-pointer transition-opacity duration-75"></div>
 
@@ -197,16 +214,16 @@ const isMobileGroupActive = (groupKey) => {
                     :key="subItem.route"
                     @click="closeMobileMenu" 
                     :href="route(subItem.route)" 
-                    :class="[isActiveRoute(subItem.pattern) ? 'border-primary bg-primary/5 text-foreground' : 'border-border bg-background text-muted-foreground']"
+                    :class="[isActiveRoute(subItem.pattern) ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-border bg-background text-muted-foreground']"
                     class="border p-3 rounded-md flex flex-col items-center justify-center gap-1.5 transition-colors duration-75"
                 >
                     <span class="material-symbols-rounded text-[20px]" :style="{ fontVariationSettings: isActiveRoute(subItem.pattern) ? `'FILL' 1` : `'FILL' 0` }">
                         {{ subItem.icon }}
                     </span>
-                    <span class="text-xs font-medium text-center leading-none">{{ subItem.name }}</span>
+                    <span class="text-xs text-center leading-none">{{ subItem.name }}</span>
                 </Link>
 
-                <Link v-if="activeMobileMenu === 'operativa'" :href="route('admin.logout')" method="post" as="button" class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75">
+                <Link :href="route('logout')" method="post" as="button" class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75">
                     <span class="material-symbols-rounded text-[20px]">logout</span>
                     <span class="text-xs font-medium text-center leading-none">Cerrar Sesión</span>
                 </Link>
@@ -214,7 +231,6 @@ const isMobileGroupActive = (groupKey) => {
         </div>
     </div>
 
-    <!-- DOCK TÁCTIL INFERIOR -->
     <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card border-t border-border z-40 grid grid-cols-5 px-1 items-center shadow-flat select-none">
         <button @click="toggleMobileMenu('stock')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'stock' || isMobileGroupActive('stock') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'stock' || isMobileGroupActive('stock')) ? { fontVariationSettings: `'FILL' 1` } : {}">inventory</span>
@@ -227,8 +243,8 @@ const isMobileGroupActive = (groupKey) => {
         </button>
         
         <div class="flex items-center justify-center -mt-3">
-            <Link :href="route('admin.dashboard.index')" @click="closeMobileMenu" :class="[isActiveRoute('admin.dashboard.*') ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300']" class="w-11 h-11 rounded-md flex items-center justify-center shadow-flat transition-transform duration-75 active:scale-95">
-                <span class="material-symbols-rounded text-[20px]" :style="isActiveRoute('admin.dashboard.*') ? { fontVariationSettings: `'FILL' 1` } : {}">home</span>
+            <Link :href="route('dashboard.index')" @click="closeMobileMenu" :class="[isActiveRoute('dashboard.*') ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300']" class="w-11 h-11 rounded-md flex items-center justify-center shadow-flat transition-transform duration-75 active:scale-95">
+                <span class="material-symbols-rounded text-[20px]" :style="isActiveRoute('dashboard.*') ? { fontVariationSettings: `'FILL' 1` } : {}">home</span>
             </Link>
         </div>
 
