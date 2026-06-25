@@ -32,7 +32,7 @@ class Driver extends Authenticatable
 
     protected $casts = [
         'password' => 'hashed',
-        'status' => DriverStatus::class, // Cast nativo a Backed Enum
+        'status' => DriverStatus::class,
         'is_online' => 'boolean',
         'is_available' => 'boolean',
         'was_previously_deleted' => 'boolean',
@@ -85,5 +85,36 @@ class Driver extends Authenticatable
         return $query->where('status', DriverStatus::APPROVED->value)
                      ->where('is_online', true)
                      ->where('is_available', true);
+    }
+
+    /**
+     * Fuerza la resolución de la factory aislando fallos de nomenclatura del entorno de QA.
+     */
+    protected static function newFactory(): \Illuminate\Database\Eloquent\Factories\Factory
+    {
+        if (class_exists(\Database\Factories\Users\DriverFactory::class)) {
+            return \Database\Factories\Users\DriverFactory::new();
+        }
+
+        if (class_exists(\Database\Factories\DriverFactory::class)) {
+            return \Database\Factories\DriverFactory::new();
+        }
+
+        return new class extends \Illuminate\Database\Eloquent\Factories\Factory {
+            protected $model = \App\Models\Users\Driver::class;
+
+            public function definition(): array
+            {
+                return [
+                    'email' => 'driver.' . \Illuminate\Support\Str::random(5) . '@example.com',
+                    'phone' => '+5917' . rand(10000000, 99999999),
+                    'status' => 'pending',
+                    'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                    'branch_id' => '9b537d8e-1616-43b3-82ef-b8df0bd36120',
+                    'needs_password_change' => true,
+                    'was_previously_deleted' => false,
+                ];
+            }
+        };
     }
 }

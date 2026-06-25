@@ -15,9 +15,11 @@ final class ChangeCustomerStatusDTO
 
     public static function fromRequest(ChangeCustomerStatusRequest $request, string $customerId): self
     {
+        $validated = $request->validated();
+
         return new self(
             customerId: $customerId,
-            isActive: (bool) $request->validated('is_active')
+            isActive: (bool) $validated['is_active']
         );
     }
 }

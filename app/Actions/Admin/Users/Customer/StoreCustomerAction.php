@@ -35,7 +35,13 @@ class StoreCustomerAction
                 'avatar_type' => 'icon',
                 'avatar_source' => 'default.png'
             ]);
+            \Spatie\Permission\Models\Role::firstOrCreate([
+                'name' => 'customer',
+                'guard_name' => 'customer'
+            ]);
 
+            // 3. Asignación del Rol de Seguridad para el ecosistema Spatie RBAC
+            $customer->assignRole('customer');
             // 3. Asignación del Rol de Seguridad para el ecosistema Spatie RBAC
             $customer->assignRole('customer');
 

@@ -33,11 +33,12 @@ class GlobalUniqueIdentity implements ValidationRule
                 continue;
             }
 
-            // Corrección: Tanto 'drivers' como 'customers' manejan SoftDeletes y deleted_epoch
             if (in_array($table, ['drivers', 'customers'], true)) {
-                if (!is_null($record->deleted_at) || (int)$record->deleted_epoch > 0) {
+                $hasDeletedAt = isset($record->deleted_at) && !is_null($record->deleted_at);
+                $hasDeletedEpoch = isset($record->deleted_epoch) && (int) $record->deleted_epoch > 0;
+
+                if ($hasDeletedAt || $hasDeletedEpoch) {
                     
-                    // Extraer el último motivo de eliminación desde la tabla de auditoría
                     $latestLog = DB::table('audit_logs')
                         ->where('target_type', $modelClass)
                         ->where('target_id', $record->id)
@@ -46,11 +47,12 @@ class GlobalUniqueIdentity implements ValidationRule
 
                     $reason = 'No especificado';
                     if ($latestLog) {
-                        $payload = json_decode($latestLog->payload_before ?? '{}', true);
+                        $payload = json_decode((string) ($latestLog->payload_before ?? '{}'), true);
                         $reason = $payload['rejection_reason'] ?? $latestLog->action;
                     }
 
-                    $fail("El " . ($attribute === 'email' ? 'correo' : 'teléfono') . " pertenece a una cuenta que fue eliminada el {$record->deleted_at}. Motivo registrado: {$reason}.");
+                    $deletedDate = $record->deleted_at ?? date('Y-m-d H:i:s', (int) $record->deleted_epoch);
+                    $fail("El " . ($attribute === 'email' ? 'correo' : 'teléfono') . " pertenece a una cuenta que fue eliminada el {$deletedDate}. Motivo registrado: {$reason}.");
                     return;
                 }
             }

@@ -60,7 +60,7 @@ class DriverController extends Controller
 
         $action->execute($dto, $context);
 
-        return redirect()->route('admin.users.drivers.index')
+        return redirect()->route('drivers.index')
             ->with('message', 'Repartidor registrado de forma completa.');
     }
 
@@ -71,7 +71,7 @@ class DriverController extends Controller
 
         $action->execute($dto, $context);
 
-        return redirect()->route('admin.users.drivers.index')
+        return redirect()->route('drivers.index')
             ->with('message', 'Estado del repartidor e integridad de sesión actualizados.');
     }
 
@@ -92,7 +92,7 @@ class DriverController extends Controller
         $context = AuditContext::fromRequest($request);
         $action->execute($id, $context);
 
-        return redirect()->route('admin.users.drivers.index')
+        return redirect()->route('drivers.index')
             ->with('message', 'Cuenta de repartidor restaurada en estado "pending".');
     }
 }

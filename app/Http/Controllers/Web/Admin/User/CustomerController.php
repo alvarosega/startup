@@ -59,9 +59,8 @@ class CustomerController extends Controller
         $context = AuditContext::fromRequest($request);
 
         $action->execute($dto, $context);
-
-        return redirect()->route('admin.users.customers.index')
-            ->with('message', 'Cliente registrado con contraseña provisional.');
+        return redirect()->route('customers.index')
+        ->with('message', 'Cliente registrado con contraseña provisional.');
     }
 
     public function changeStatus(ChangeCustomerStatusRequest $request, string $id, ChangeCustomerStatusAction $action): RedirectResponse
@@ -71,7 +70,7 @@ class CustomerController extends Controller
 
         $action->execute($dto, $context);
 
-        return redirect()->route('admin.users.customers.index')
+        return redirect()->route('customers.index')
             ->with('message', 'Estado del cliente actualizado de forma segura.');
     }
 
@@ -92,7 +91,7 @@ class CustomerController extends Controller
         $context = AuditContext::fromRequest($request);
         $action->execute($id, $context);
 
-        return redirect()->route('admin.users.customers.index')
+        return redirect()->route('customers.index')
             ->with('message', 'Cuenta de cliente restaurada en modo inactivo para revisión.');
     }
 }

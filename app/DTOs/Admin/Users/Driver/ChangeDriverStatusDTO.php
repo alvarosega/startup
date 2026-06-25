@@ -14,12 +14,14 @@ final class ChangeDriverStatusDTO
         public readonly ?string $rejectionReason
     ) {}
 
-    public static function fromRequest(ChangeDriverStatusRequest $request, string $driverId): self
+    public static function fromRequest(\App\Http\Requests\Admin\Users\Driver\ChangeDriverStatusRequest $request, string $driverId): self
     {
+        $validated = $request->validated();
+
         return new self(
             driverId: $driverId,
-            status: $request->validated('status'),
-            rejectionReason: $request->validated('rejection_reason')
+            status: (string) $validated['status'],
+            rejectionReason: isset($validated['rejection_reason']) ? (string) $validated['rejection_reason'] : null
         );
     }
 }

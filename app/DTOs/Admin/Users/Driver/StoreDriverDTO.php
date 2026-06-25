@@ -20,18 +20,20 @@ final class StoreDriverDTO
         public readonly string $vehicleType
     ) {}
 
-    public static function fromRequest(StoreDriverRequest $request): self
+    public static function fromRequest(\App\Http\Requests\Admin\Users\Driver\StoreDriverRequest $request): self
     {
+        $validated = $request->validated();
+
         return new self(
-            firstName: $request->validated('first_name'),
-            lastName: $request->validated('last_name'),
-            email: $request->validated('email'),
-            phone: $request->validated('phone'),
-            branchId: $request->validated('branch_id'),
-            status: $request->validated('status'),
-            licenseNumber: $request->validated('license_number'),
-            licensePlate: $request->validated('license_plate'),
-            vehicleType: $request->validated('vehicle_type')
+            firstName: (string) $validated['first_name'],
+            lastName: (string) $validated['last_name'],
+            email: (string) $validated['email'],
+            phone: (string) $validated['phone'],
+            branchId: (string) $validated['branch_id'],
+            status: (string) $validated['status'],
+            licenseNumber: (string) $validated['license_number'],
+            licensePlate: (string) $validated['license_plate'],
+            vehicleType: (string) $validated['vehicle_type']
         );
     }
 }

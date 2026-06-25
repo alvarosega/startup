@@ -19,13 +19,15 @@ final class StoreCustomerDTO
 
     public static function fromRequest(StoreCustomerRequest $request): self
     {
+        $validated = $request->validated();
+
         return new self(
-            firstName: $request->validated('first_name'),
-            lastName: $request->validated('last_name'),
-            email: $request->validated('email'),
-            phone: $request->validated('phone'),
-            branchId: $request->validated('branch_id'),
-            isActive: (bool) $request->validated('is_active')
+            firstName: (string) $validated['first_name'],
+            lastName: (string) $validated['last_name'],
+            email: (string) $validated['email'],
+            phone: (string) $validated['phone'],
+            branchId: $validated['branch_id'] ?? null,
+            isActive: (bool) $validated['is_active']
         );
     }
 }

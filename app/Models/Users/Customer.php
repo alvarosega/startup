@@ -51,6 +51,24 @@ class Customer extends Authenticatable
             $customer->saveQuietly();
         });
     }
+    public function scopeFilter(Builder $query, array $filters): Builder
+    {
+        return $query->when(!empty($filters['search']), function (Builder $q) use ($filters) {
+            $search = $filters['search'];
+            $q->where(function (Builder $inner) use ($search) {
+                $inner->where('email', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhereHas('profile', function (Builder $qp) use ($search) {
+                          $qp->where('first_name', 'like', "%{$search}%")
+                             ->orWhere('last_name', 'like', "%{$search}%");
+                      });
+            });
+        })->when(isset($filters['is_active']) && $filters['is_active'] !== '', function (Builder $q) use ($filters) {
+            $q->where('is_active', filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN));
+        })->when(!empty($filters['branch_id']), function (Builder $q) use ($filters) {
+            $q->where('branch_id', $filters['branch_id']);
+        });
+    }
 
     // =================================================================================
     // RELACIONES MAPEADAS

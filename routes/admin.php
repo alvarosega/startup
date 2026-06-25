@@ -35,34 +35,30 @@ Route::middleware(['auth:super_admin'])->group(function () {
         return 'Dashboard Administrativo';
     })->name('dashboard.index');
 
+    // GRUPOS DE COMPATIBILIDAD PLANA PROTEGIDOS CON CONTROL DE ROL ESTRICTO PARA QA (Retornan 403 ante intrusos)
+    Route::middleware('role:super_admin,super_admin')->group(function () {
+        
+        Route::group(['prefix' => 'users/customers', 'as' => 'customers.'], function () {
+            Route::get('/', [CustomerController::class, 'index'])->name('index');
+            Route::get('/create', [CustomerController::class, 'create'])->name('create');
+            Route::post('/', [CustomerController::class, 'store'])->name('store');
+            Route::patch('/{id}/status', [CustomerController::class, 'changeStatus'])->name('change-status');
+            Route::post('/search-deleted', [CustomerController::class, 'searchDeleted'])->name('search-deleted');
+            Route::post('/{id}/restore', [CustomerController::class, 'restoreDeleted'])->name('restore');
+        });
+
+        Route::group(['prefix' => 'users/drivers', 'as' => 'drivers.'], function () {
+            Route::get('/', [DriverController::class, 'index'])->name('index');
+            Route::get('/create', [DriverController::class, 'create'])->name('create');
+            Route::post('/', [DriverController::class, 'store'])->name('store');
+            Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
+            Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
+            Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
+        });
+    });
+
     // El prefijo 'admin.' se inyecta aquí para blindar la compatibilidad con Sidebar.vue y controladores internos
     Route::middleware('role:super_admin,super_admin')->name('admin.')->group(function () {
-
-        // =================================================================================
-        // SILO SEGREGADO: GESTIÓN DE USUARIOS (ADMINISTRATIVO)
-        // =================================================================================
-        Route::prefix('users')->name('users.')->group(function () {
-            
-            // Sub-silo: Customers (Clientes)
-            Route::prefix('customers')->name('customers.')->group(function () {
-                Route::get('/', [CustomerController::class, 'index'])->name('index');
-                Route::get('/create', [CustomerController::class, 'create'])->name('create');
-                Route::post('/', [CustomerController::class, 'store'])->name('store');
-                Route::patch('/{id}/status', [CustomerController::class, 'changeStatus'])->name('change-status');
-                Route::post('/search-deleted', [CustomerController::class, 'searchDeleted'])->name('search-deleted');
-                Route::post('/{id}/restore', [CustomerController::class, 'restoreDeleted'])->name('restore');
-            });
-
-            // Sub-silo: Drivers (Repartidores)
-            Route::prefix('drivers')->name('drivers.')->group(function () {
-                Route::get('/', [DriverController::class, 'index'])->name('index');
-                Route::get('/create', [DriverController::class, 'create'])->name('create');
-                Route::post('/', [DriverController::class, 'store'])->name('store');
-                Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
-                Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
-                Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
-            });
-        });
 
         // =================================================================================
         // SILO: CATALOGO
