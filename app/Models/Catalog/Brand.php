@@ -18,8 +18,9 @@ class Brand extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    // RECTIFICACIÓN: Se incorpora 'id' al fillable para permitir la asignación explícita de UUIDs en la suite de pruebas
     protected $fillable = [
-        'parent_id', 'provider_id', 'category_id', 'name', 'slug', 'bg_color',
+        'id', 'parent_id', 'provider_id', 'category_id', 'name', 'slug', 'bg_color',
         'image_path', 'website', 'is_active', 'is_featured', 'sort_order', 'description', 'deleted_epoch'
     ];
 
@@ -36,7 +37,7 @@ class Brand extends Model
     {
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            // RECTIFICACIÓN: Mutación silenciosa para neutralizar ciclos redundantes de guardado
+            // RECTIFICACIÓN: Mutación silenciosa para evitar ciclos redundantes e infinitos de hooks de guardado
             $model->saveQuietly();
         });
 

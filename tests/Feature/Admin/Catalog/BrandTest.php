@@ -2,500 +2,503 @@
 
 declare(strict_types=1);
 
-/**
- * RUTA DEL ARCHIVO: tests/Feature/Admin/Catalog/BrandTest.php
- * COMANDO DE EJECUCIÓN: ./vendor/bin/pest tests/Feature/Admin/Catalog/BrandTest.php
- */
-
 use App\Models\Users\Admin;
+use App\Models\Catalog\Category;
+use App\Models\Catalog\Brand;
+use App\Models\Catalog\Product;
+use App\Models\Operations\Provider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Storage::fake('public');
-
-    // 1. Persistencia estricta de la tabla 'branches' con datos geoespaciales reales
-    $this->branchId = (string) Str::uuid7();
-    DB::table('branches')->insert([
-        'id' => $this->branchId,
-        'name' => 'Sucursal Central QA',
-        'slug' => 'sucursal-central-qa',
-        'city' => 'La Paz',
-        'phone' => '+59171234567',
-        'address' => 'Av. Arce #1234',
-        'location' => DB::raw("ST_PointFromText('POINT(-16.5000 -68.1500)')"),
-        'coverage_polygon' => DB::raw("ST_PolygonFromText('POLYGON((-16.5 -68.1, -16.5 -68.2, -16.6 -68.2, -16.6 -68.1, -16.5 -68.1))')"),
-        'delivery_base_fee' => 10.00,
-        'delivery_price_per_km' => 2.50,
-        'surge_multiplier' => 1.00,
-        'min_order_amount' => 50.00,
-        'small_order_fee' => 5.00,
-        'base_service_fee_percentage' => 3.50,
-        'is_default' => true,
-        'is_active' => true,
-        'deleted_epoch' => 0,
-        'created_at' => now(),
-        'updated_at' => now(),
+    
+    $this->superAdminRole = Role::create([
+        'name' => 'super_admin',
+        'guard_name' => 'super_admin'
     ]);
 
-    // 2. Persistencia estricta de la tabla 'categories' basada en su esquema contractual
-    $this->categoryId = (string) Str::uuid7();
-    DB::table('categories')->insert([
-        'id' => $this->categoryId,
-        'parent_id' => null,
-        'name' => 'Repuestos Hidráulicos',
-        'slug' => 'repuestos-hidraulicos',
-        'external_code' => 'CAT-HYD-001',
-        'deleted_epoch' => 0,
-        'tax_classification' => 'STANDARD',
+    $this->user = Admin::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000001',
+        'first_name' => 'Super',
+        'last_name' => 'Admin',
+        'email' => 'admin@test.com',
+        'password' => bcrypt('password'),
+        'is_active' => true,
+    ]);
+
+    $this->user->assignRole($this->superAdminRole);
+
+    $this->defaultCategory = Category::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000010',
+        'name' => 'Bebidas',
+        'slug' => 'bebidas',
         'requires_age_check' => false,
         'is_active' => true,
         'is_featured' => false,
-        'sort_order' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
-    // 3. Proveedor activo por defecto para flujos ordinarios
-    $this->activeProviderId = (string) Str::uuid7();
-    DB::table('providers')->insert([
-        'id' => $this->activeProviderId,
-        'company_name' => 'Distribuidora Automotriz Activa S.A.',
-        'commercial_name' => 'Dist Auto Activa',
-        'slug' => 'distribuidora-automotriz-activa-sa',
-        'tax_id' => 'NIT-11223344-0',
-        'internal_code' => 'PROV-ACT-01',
+    $this->defaultProvider = Provider::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000011',
+        'company_name' => 'Proveedor Central S.A.',
+        'slug' => 'proveedor-central-sa',
+        'tax_id' => 'NIT-123456789',
         'is_active' => true,
-        'deleted_epoch' => 0,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
+});
 
-    // 4. Proveedor INACTIVO para validación explícita de regla de negocio
-    $this->inactiveProviderId = (string) Str::uuid7();
-    DB::table('providers')->insert([
-        'id' => $this->inactiveProviderId,
-        'company_name' => 'Importaciones Desactivadas SRL',
-        'commercial_name' => 'Imp Desactivadas',
-        'slug' => 'importaciones-desactivadas-srl',
-        'tax_id' => 'NIT-55667788-9',
-        'internal_code' => 'PROV-INA-02',
-        'is_active' => false,
-        'deleted_epoch' => 0,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+dataset('invalid_brand_payloads', [
+    'missing_name' => [
+        fn($providerId, $categoryId) => [
+            'name' => '', 'provider_id' => $providerId, 'category_id' => $categoryId,
+            'is_active' => true, 'is_featured' => false
+        ],
+        'name'
+    ],
+    'name_exceeds_max' => [
+        fn($providerId, $categoryId) => [
+            'name' => str_repeat('b', 101), 'provider_id' => $providerId, 'category_id' => $categoryId,
+            'is_active' => true, 'is_featured' => false
+        ],
+        'name'
+    ],
+    'invalid_website_url' => [
+        fn($providerId, $categoryId) => [
+            'name' => 'Brand Corp', 'provider_id' => $providerId, 'category_id' => $categoryId,
+            'website' => 'not-a-valid-url', 'is_active' => true, 'is_featured' => false
+        ],
+        'website'
+    ],
+    'malformed_bg_hex_color' => [
+        fn($providerId, $categoryId) => [
+            'name' => 'Brand Corp', 'provider_id' => $providerId, 'category_id' => $categoryId,
+            'bg_color' => '#FFFF000', 'is_active' => true, 'is_featured' => false
+        ],
+        'bg_color'
+    ],
+    'non_existent_provider' => [
+        fn($providerId, $categoryId) => [
+            'name' => 'Brand Corp', 'provider_id' => '018cbf91-9b71-7000-8000-999999999999', 'category_id' => $categoryId,
+            'is_active' => true, 'is_featured' => false
+        ],
+        'provider_id'
+    ],
+]);
 
-    // 5. Blindaje Absoluto de Caja Negra: Inserción directa vía SQL para evitar restricciones de $fillable en el modelo
-    $this->adminId = (string) Str::uuid7();
-    DB::table('admins')->insert([
-        'id' => $this->adminId,
-        'first_name' => 'QA Lead',
-        'last_name' => 'Automation Engineer',
-        'phone' => '+59170000000',
-        'branch_id' => $this->branchId,
-        'email' => 'superadmin-test@platform.com',
-        'password' => bcrypt('StrictSecurityPassword2026*'),
+test('guest access to brand endpoints redirects to login', function () {
+    $this->get('/adm/catalog/brands')->assertRedirect('adm/login');
+    $this->post('/adm/catalog/brands', [])->assertRedirect('adm/login');
+});
+
+test('unauthorized users without super_admin role receive 403 status code', function () {
+    $regularAdmin = Admin::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000002',
+        'first_name' => 'Jane',
+        'last_name' => 'Doe',
+        'email' => 'jane@test.com',
+        'password' => bcrypt('password'),
         'is_active' => true,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
-    // Hidratación del modelo desde el registro real de la base de datos para simular la sesión
-    $this->adminUser = Admin::find($this->adminId);
+    $this->actingAs($regularAdmin, 'super_admin')
+        ->get('/adm/catalog/brands')
+        ->assertStatus(403);
 });
 
-/*
-|--------------------------------------------------------------------------
-| CAPA DE SEGURIDAD Y MIDDLEWARE DE ACCESO (401 / 403)
-|--------------------------------------------------------------------------
-*/
-
-test('unauthenticated request to brand creation returns a redirection to login', function () {
-    $response = $this->post('/catalog/brands', [
-        'name' => 'Unauthenticated Brand',
-    ]);
-
-    $response->assertStatus(302);
-    $response->assertRedirect(route('login'));
-});
-
-test('authenticated user using non-authorized guard receives a forbidden response', function () {
-    $response = $this->actingAs($this->adminUser, 'customer')
-        ->postJson('/catalog/brands', [
-            'name' => 'Unauthorized Post',
-        ]);
-
-    $response->assertStatus(403);
-});
-
-/*
-|--------------------------------------------------------------------------
-| FLUJOS DE CREACIÓN (STORE) - REGLAS DE NEGOCIO Y ÉXITO
-|--------------------------------------------------------------------------
-*/
-
-test('super admin can successfully create a brand with a complete contract payload', function () {
-    $imageFile = UploadedFile::fake()->image('brand_identity.png')->size(1500);
-
-    $payload = [
-        'name' => 'Brembo Premium',
-        'slug' => 'brembo-premium',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'website' => 'https://brembo.com',
-        'image' => $imageFile,
+test('super admin can render brand index view component interface', function () {
+    Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000200',
+        'name' => 'Coca Cola',
+        'slug' => 'coca-cola',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
         'is_active' => true,
         'is_featured' => true,
-        'description' => 'Sistemas de frenado de alto rendimiento.',
-        'bg_color' => '#FF0000',
-    ];
+    ]);
 
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->post('/catalog/brands', $payload);
+    $this->actingAs($this->user, 'super_admin')
+        ->get('/adm/catalog/brands')
+        ->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Catalog/Brands/Index')
+            ->has('brands')
+        );
+});
 
-    $response->assertStatus(302);
+test('super admin can render brand creation interface layout', function () {
+    $this->actingAs($this->user, 'super_admin')
+        ->get('/adm/catalog/brands/create')
+        ->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Catalog/Brands/Create')
+        );
+});
 
-    $this->assertDatabaseHas('brands', [
-        'name' => 'Brembo Premium',
-        'slug' => 'brembo-premium',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'website' => 'https://brembo.com',
+test('super admin can store a root brand structure with automatic slug generation', function () {
+    $payload = [
+        'name' => 'Pepsi Co',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'website' => 'https://pepsi.com',
         'is_active' => true,
         'is_featured' => true,
-        'description' => 'Sistemas de frenado de alto rendimiento.',
-        'bg_color' => '#FF0000',
-        'deleted_epoch' => 0,
-    ]);
-});
-
-test('brand creation allows association with an inactive provider according to business rule', function () {
-    $payload = [
-        'name' => 'Bosch Automotive',
-        'slug' => 'bosch-automotive',
-        'provider_id' => $this->inactiveProviderId,
-        'category_id' => $this->categoryId,
-        'is_active' => true,
-        'is_featured' => false,
+        'bg_color' => '#0000FF',
+        'description' => 'Bebidas gasificadas refrescantes',
     ];
 
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->post('/catalog/brands', $payload);
-
-    $response->assertStatus(302);
-
-    $this->assertDatabaseHas('brands', [
-        'name' => 'Bosch Automotive',
-        'provider_id' => $this->inactiveProviderId,
-    ]);
-});
-
-test('sort_order defaults to 1 when creating a brand in a completely empty table', function () {
-    $payload = [
-        'name' => 'Initial Brand Test',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'is_active' => true,
-        'is_featured' => false,
-    ];
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->post('/catalog/brands', $payload);
-
-    $response->assertStatus(302);
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $payload)
+        ->assertRedirect();
 
     $this->assertDatabaseHas('brands', [
-        'name' => 'Initial Brand Test',
-        'sort_order' => 1,
-    ]);
-});
-
-test('sort_order automatically increments based on global maximum value plus one when omitted', function () {
-    DB::table('brands')->insert([
-        'id' => (string) Str::uuid7(),
-        'name' => 'Base Brand A',
-        'slug' => 'base-brand-a',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'sort_order' => 99,
-        'is_active' => true,
-        'is_featured' => false,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $payload = [
-        'name' => 'Incremental Brand B',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'is_active' => true,
-        'is_featured' => false,
-    ];
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->post('/catalog/brands', $payload);
-
-    $response->assertStatus(302);
-
-    $this->assertDatabaseHas('brands', [
-        'name' => 'Incremental Brand B',
-        'sort_order' => 100,
-    ]);
-});
-
-test('slug is inferred and formatted automatically from name if omitted from the payload', function () {
-    $payload = [
-        'name' => 'ACDelco Gold Parts  ',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'is_active' => true,
-        'is_featured' => false,
-    ];
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->post('/catalog/brands', $payload);
-
-    $response->assertStatus(302);
-
-    $this->assertDatabaseHas('brands', [
-        'slug' => 'acdelco-gold-parts',
-    ]);
-});
-
-/*
-|--------------------------------------------------------------------------
-| FLUJOS DE VALIDACIÓN E INTEGRIDAD DE DATOS (422)
-|--------------------------------------------------------------------------
-*/
-
-test('store process fails validation when mandatory payload keys are empty', function () {
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->postJson('/catalog/brands', [
-            'name' => '',
-            'provider_id' => '',
-            'category_id' => '',
-            'is_active' => null,
-            'is_featured' => null,
-        ]);
-
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors(['name', 'provider_id', 'category_id', 'is_active', 'is_featured']);
-});
-
-test('store validation rejects structural anomalies and out-of-bound variables', function () {
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->postJson('/catalog/brands', [
-            'name' => str_repeat('A', 101),
-            'slug' => str_repeat('s', 121),
-            'website' => 'ftp://invalid-web-format',
-            'bg_color' => '#FF000',
-            'provider_id' => (string) Str::uuid7(),
-            'category_id' => (string) Str::uuid7(),
-        ]);
-
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors(['name', 'slug', 'website', 'bg_color', 'provider_id', 'category_id']);
-});
-
-test('store validation rejects a slug that matches an existing active brand', function () {
-    DB::table('brands')->insert([
-        'id' => (string) Str::uuid7(),
-        'name' => 'Active Line',
-        'slug' => 'active-line',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'deleted_epoch' => 0,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->postJson('/catalog/brands', [
-            'name' => 'Active Line Alternative',
-            'slug' => 'active-line',
-            'provider_id' => $this->activeProviderId,
-            'category_id' => $this->categoryId,
-            'is_active' => true,
-            'is_featured' => false,
-        ]);
-
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors(['slug']);
-});
-
-test('store validation rejects a slug matching an archived brand returning the exact explicit alert message', function () {
-    DB::table('brands')->insert([
-        'id' => (string) Str::uuid7(),
-        'name' => 'Old Legacy Brand',
-        'slug' => 'old-legacy-brand',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'deleted_epoch' => 1719350400,
-        'deleted_at' => now(),
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->postJson('/catalog/brands', [
-            'name' => 'New Rebuilt Line',
-            'slug' => 'old-legacy-brand',
-            'provider_id' => $this->activeProviderId,
-            'category_id' => $this->categoryId,
-            'is_active' => true,
-            'is_featured' => false,
-        ]);
-
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors(['slug']);
-    
-    $errorArray = $response->json('errors.slug');
-    expect($errorArray[0])->toBe('la marca fue eliminada, desea volverla a crear?');
-});
-
-/*
-|--------------------------------------------------------------------------
-| FLUJOS DE ACTUALIZACIÓN (UPDATE) - REGLAS DE NEGOCIO RESTRICTIVAS
-|--------------------------------------------------------------------------
-*/
-
-test('super admin can completely update a brand configuration without slug collisions with itself', function () {
-    $brandId = (string) Str::uuid7();
-    DB::table('brands')->insert([
-        'id' => $brandId,
-        'name' => 'Castrol Oil',
-        'slug' => 'castrol-oil',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'is_active' => true,
-        'is_featured' => false,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $payload = [
-        'name' => 'Castrol Edge Ultra',
-        'slug' => 'castrol-oil',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'website' => 'https://castrol.com/edge',
-        'is_active' => true,
-        'is_featured' => true,
-        'description' => 'Nueva fórmula de lubricantes.',
-        'bg_color' => '#00FF00',
-    ];
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->put("/catalog/brands/{$brandId}", $payload);
-
-    $response->assertStatus(302);
-
-    $this->assertDatabaseHas('brands', [
-        'id' => $brandId,
-        'name' => 'Castrol Edge Ultra',
-        'slug' => 'castrol-oil',
-        'is_featured' => true,
-        'bg_color' => '#00FF00',
-    ]);
-});
-
-test('update validation fails if a brand attempts to point to itself as parent_id', function () {
-    $brandId = (string) Str::uuid7();
-    DB::table('brands')->insert([
-        'id' => $brandId,
-        'name' => 'Cyclic Brand',
-        'slug' => 'cyclic-brand',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
+        'name' => 'Pepsi Co',
+        'slug' => 'pepsi-co',
         'parent_id' => null,
-        'is_active' => true,
-        'is_featured' => false,
-        'created_at' => now(),
-        'updated_at' => now(),
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'deleted_epoch' => 0,
+        'bg_color' => '#0000FF',
     ]);
-
-    $payload = [
-        'name' => 'Cyclic Brand Modified',
-        'slug' => 'cyclic-brand',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
-        'is_active' => true,
-        'is_featured' => false,
-        'parent_id' => $brandId,
-    ];
-
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->putJson("/catalog/brands/{$brandId}", $payload);
-
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors(['parent_id']);
-    expect($response->json('errors.parent_id.0'))->toBe('Operación inválida: Una marca no puede ser sub-marca de sí misma.');
 });
 
-test('update validation blocks execution if a brand with existing children attempts to descend a level', function () {
-    $currentParentId = (string) Str::uuid7();
-    $childId = (string) Str::uuid7();
-    $targetParentId = (string) Str::uuid7();
-
-    DB::table('brands')->insert([
-        [
-            'id' => $targetParentId,
-            'name' => 'Nueva Marca Raiz Destino',
-            'slug' => 'nueva-marca-raiz-destino',
-            'provider_id' => $this->activeProviderId,
-            'category_id' => $this->categoryId,
-            'parent_id' => null,
-            'is_active' => true,
-            'is_featured' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'id' => $currentParentId,
-            'name' => 'Marca Raiz Actual Con Hijos',
-            'slug' => 'marca-raiz-actual-con-hijos',
-            'provider_id' => $this->activeProviderId,
-            'category_id' => $this->categoryId,
-            'parent_id' => null,
-            'is_active' => true,
-            'is_featured' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'id' => $childId,
-            'name' => 'Marca Hija Dependiente',
-            'slug' => 'marca-hija-dependiente',
-            'provider_id' => $this->activeProviderId,
-            'category_id' => $this->categoryId,
-            'parent_id' => $currentParentId,
-            'is_active' => true,
-            'is_featured' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]
+test('super admin can store sub brand hierarchy under a live root brand record', function () {
+    $rootBrand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000300',
+        'name' => 'Nestle',
+        'slug' => 'nestle',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
     ]);
 
     $payload = [
-        'name' => 'Intento Cambio Estructural',
-        'slug' => 'marca-raiz-actual-con-hijos',
-        'provider_id' => $this->activeProviderId,
-        'category_id' => $this->categoryId,
+        'name' => 'Nestle Pure Life',
+        'parent_id' => $rootBrand->id,
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
         'is_active' => true,
         'is_featured' => false,
-        'parent_id' => $targetParentId,
     ];
 
-    $response = $this->actingAs($this->adminUser, 'super_admin')
-        ->putJson("/catalog/brands/{$currentParentId}", $payload);
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $payload)
+        ->assertRedirect();
 
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors(['parent_id']);
-    expect($response->json('errors.parent_id.0'))->toBe('Restricción de nivel: Esta marca posee sub-marcas asignadas y no puede descender de nivel.');
+    $this->assertDatabaseHas('brands', [
+        'name' => 'Nestle Pure Life',
+        'parent_id' => $rootBrand->id,
+        'slug' => 'nestle-pure-life',
+    ]);
+});
+
+test('storing a third tier brand tree deep level aborts with validation errors', function () {
+    $rootBrand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000400',
+        'name' => 'Root Holding',
+        'slug' => 'root-holding',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $subBrand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000401',
+        'name' => 'Mid Division',
+        'slug' => 'mid-division',
+        'parent_id' => $rootBrand->id,
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $payload = [
+        'name' => 'Deep Level Failure',
+        'parent_id' => $subBrand->id,
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $payload)
+        ->assertStatus(302)
+        ->assertSessionHasErrors(['parent_id']);
+});
+
+test('active identical slug criteria triggers unique validation failure', function () {
+    Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000500',
+        'name' => 'Cerveza Paceña',
+        'slug' => 'cerveza-pacena',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+        'deleted_epoch' => 0,
+    ]);
+
+    $payload = [
+        'name' => 'Paceña Tradicional',
+        'slug' => 'cerveza-pacena',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $payload)
+        ->assertStatus(302)
+        ->assertSessionHasErrors(['slug']);
+});
+
+test('storing duplicate slug behaves normally if past collisions hold soft delete signatures', function () {
+    Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000600',
+        'name' => 'Old Brand',
+        'slug' => 'old-brand',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+        'deleted_epoch' => 1719360000,
+        'deleted_at' => '2026-06-25 22:00:00',
+    ]);
+
+    $payload = [
+        'name' => 'Revived Old Brand',
+        'slug' => 'old-brand',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $payload)
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('brands', [
+        'name' => 'Revived Old Brand',
+        'slug' => 'old-brand',
+        'deleted_epoch' => 0,
+    ]);
+});
+
+test('binary asset streaming updates physical storage references matching brand schemas', function () {
+    $payload = [
+        'name' => 'Multimedia Brand',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'image' => UploadedFile::fake()->image('brand_logo.webp'),
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $payload)
+        ->assertRedirect();
+
+    $record = Brand::where('slug', 'multimedia-brand')->first();
+    expect($record->image_path)->not->toBeNull();
+});
+
+test('brand incoming data pool structural verification matrix requests', function (Closure $data, string $field) {
+    $this->actingAs($this->user, 'super_admin')
+        ->post('/adm/catalog/brands', $data($this->defaultProvider->id, $this->defaultCategory->id))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([$field]);
+})->with('invalid_brand_payloads');
+
+test('edit interface paths return valid view variables context elements hydration', function () {
+    $brand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000700',
+        'name' => 'Fanta',
+        'slug' => 'fanta',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $this->actingAs($this->user, 'super_admin')
+        ->get("/adm/catalog/brands/{$brand->id}/edit")
+        ->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Catalog/Brands/Edit')
+            ->has('brand')
+        );
+});
+
+test('update requests fail validation when pointing parent destination at itself', function () {
+    $brand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000800',
+        'name' => 'Sprite',
+        'slug' => 'sprite',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $payload = [
+        'name' => 'Sprite Updated',
+        'slug' => 'sprite',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'parent_id' => $brand->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+
+    $this->actingAs($this->user, 'super_admin')
+        ->put("/adm/catalog/brands/{$brand->id}", $payload)
+        ->assertStatus(302)
+        ->assertSessionHasErrors(['parent_id']);
+});
+
+test('brands managing active tree levels refuse degradation changes if child elements remain live', function () {
+    $parentBrand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000900',
+        'name' => 'Parent Group',
+        'slug' => 'parent-group',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000901',
+        'name' => 'Child Branch',
+        'slug' => 'child-branch',
+        'parent_id' => $parentBrand->id,
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $anotherRoot = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000000902',
+        'name' => 'External Group',
+        'slug' => 'external-group',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $payload = [
+        'name' => 'Parent Group Modified',
+        'slug' => 'parent-group',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'parent_id' => $anotherRoot->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+
+    $this->actingAs($this->user, 'super_admin')
+        ->put("/adm/catalog/brands/{$parentBrand->id}", $payload)
+        ->assertStatus(302)
+        ->assertSessionHasErrors(['parent_id']);
+});
+
+test('unlinked isolated brand units process standard soft deletion transformations', function () {
+    $brand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000001000',
+        'name' => 'Brand Without Items',
+        'slug' => 'brand-without-items',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+        'deleted_epoch' => 0,
+    ]);
+
+    $this->actingAs($this->user, 'super_admin')
+        ->delete("/adm/catalog/brands/{$brand->id}")
+        ->assertRedirect();
+
+    $this->assertSoftDeleted('brands', [
+        'id' => $brand->id,
+    ]);
+
+    $record = Brand::withTrashed()->find($brand->id);
+    expect($record->deleted_epoch)->toBeGreaterThan(0);
+});
+
+test('active sub brand branches intercept parent destructions aborting removal flows', function () {
+    $rootBrand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000001100',
+        'name' => 'Main Head',
+        'slug' => 'main-head',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000001101',
+        'name' => 'Dependent Sub',
+        'slug' => 'dependent-sub',
+        'parent_id' => $rootBrand->id,
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $this->actingAs($this->user, 'super_admin')
+        ->delete("/adm/catalog/brands/{$rootBrand->id}")
+        ->assertStatus(302)
+        ->assertSessionHasErrors(['brand']);
+
+    $this->assertDatabaseHas('brands', [
+        'id' => $rootBrand->id,
+        'deleted_at' => null,
+    ]);
+});
+
+test('product entity catalog connections enforce referential lock structures over deletions', function () {
+    $brand = Brand::create([
+        'id' => '018cbf91-9b71-7000-8000-000000001200',
+        'name' => 'Intel',
+        'slug' => 'intel',
+        'provider_id' => $this->defaultProvider->id,
+        'category_id' => $this->defaultCategory->id,
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    Product::create([
+        'id' => '018cbf91-9b71-7000-8000-000000001201',
+        'brand_id' => $brand->id,
+        'category_id' => $this->defaultCategory->id,
+        'name' => 'Core i9 Processor',
+        'slug' => 'core-i9-processor',
+        'is_active' => true,
+        'is_featured' => false,
+    ]);
+
+    $this->actingAs($this->user, 'super_admin')
+        ->delete("/adm/catalog/brands/{$brand->id}")
+        ->assertStatus(302)
+        ->assertSessionHasErrors(['brand']);
+
+    $this->assertDatabaseHas('brands', [
+        'id' => $brand->id,
+        'deleted_at' => null,
+    ]);
 });

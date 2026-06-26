@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\{DB, Storage};
 class UpsertBrandAction
 {
     /**
-     * RECTIFICACIÓN: Migración integral a DB::transaction encapsulando eventos físicos post-commit.
+     * Orquestador transaccional para la persistencia atómica de marcas y limpieza diferida de multimedia.
      */
     public function execute(BrandData $data, ?Brand $brand = null): Brand
     {
@@ -31,13 +31,13 @@ class UpsertBrandAction
                     ->where('deleted_epoch', 0)
                     ->max('sort_order');
 
-                $attributes['sort_order'] = $maxSortOrder ? $maxSortOrder + 1 : 1;
+                // RECTIFICACIÓN: Evaluación estricta de nulidad para evitar el comportamiento falsy del entero 0
+                $attributes['sort_order'] = is_null($maxSortOrder) ? 1 : $maxSortOrder + 1;
                 $brand = Brand::create($attributes);
             } else {
                 $brand->update($attributes);
             }
 
-            // Remoción diferida del archivo huérfano del disco únicamente tras un Commit exitoso
             DB::afterCommit(function () use ($data, $oldPath) {
                 if ($data->image && $oldPath) {
                     Storage::disk('public')->delete($oldPath);
