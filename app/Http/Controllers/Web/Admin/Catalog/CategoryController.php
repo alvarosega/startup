@@ -10,6 +10,7 @@ use App\DTOs\Admin\Catalog\Category\CategoryData;
 use App\Http\Requests\Admin\Catalog\Category\StoreCategoryRequest;
 use App\Http\Requests\Admin\Catalog\Category\UpdateCategoryRequest;
 use App\Actions\Admin\Catalog\Category\ListCategoriesAction;
+use App\Actions\Admin\Catalog\Category\GetCategoryParentsAction;
 use App\Actions\Admin\Catalog\Category\GetCategoryForEditAction;
 use App\Actions\Admin\Catalog\Category\UpsertCategoryAction;
 use App\Actions\Admin\Catalog\Category\DeleteCategoryAction;
@@ -27,6 +28,16 @@ class CategoryController extends Controller
     public function index(Request $request, ListCategoriesAction $action): Response
     {
         return Inertia::render('Admin/Catalog/Categories/Index', $action->execute($request->all()));
+    }
+
+    /**
+     * Orquestador puro para la renderización de la vista de creación.
+     */
+    public function create(GetCategoryParentsAction $action): Response
+    {
+        return Inertia::render('Admin/Catalog/Categories/Create', [
+            'parents' => $action->execute()
+        ]);
     }
 
     /**

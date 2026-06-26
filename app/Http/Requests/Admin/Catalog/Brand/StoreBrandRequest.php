@@ -10,9 +10,12 @@ use Illuminate\Support\Str;
 
 class StoreBrandRequest extends FormRequest
 {
+    /**
+     * RECTIFICACIÓN: Blindaje perimetral restrictivo asociado al rol administrativo super_admin.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
     }
 
     protected function prepareForValidation(): void
@@ -27,9 +30,9 @@ class StoreBrandRequest extends FormRequest
         return [
             'name'        => ['required', 'string', 'max:100'],
             'slug'        => ['required', 'string', 'max:120', Rule::unique('brands')->where('deleted_epoch', 0)],
-            'parent_id'   => ['nullable', 'uuid', Rule::exists('brands', 'id')->whereNull('parent_id')->withoutTrashed()],
-            'provider_id' => ['required', 'uuid', Rule::exists('providers', 'id')],
-            'category_id' => ['required', 'uuid', Rule::exists('categories', 'id')->withoutTrashed()],
+            'parent_id'   => ['nullable', 'string', Rule::exists('brands', 'id')->whereNull('parent_id')],
+            'provider_id' => ['required', 'string', Rule::exists('providers', 'id')],
+            'category_id' => ['required', 'string', Rule::exists('categories', 'id')],
             'website'     => ['nullable', 'url', 'max:255'],
             'image'       => ['nullable', 'image', 'mimes:webp,jpg,png', 'max:2048'],
             'is_active'   => ['required', 'boolean'],

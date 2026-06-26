@@ -6,13 +6,14 @@ namespace App\Http\Controllers\Web\Admin\Catalog;
 
 use App\Http\Controllers\Controller;
 use App\Models\Catalog\Brand;
-use App\Models\Operations\Provider;
-use App\Models\Catalog\Category;
-use App\Actions\Admin\Catalog\Brand\{ListBrands, UpsertBrandAction, GetBrandStatsAction, DeleteBrandAction};
+use App\Actions\Admin\Catalog\Brand\ListBrandsAction;
+use App\Actions\Admin\Catalog\Brand\GetBrandFormOptionsAction;
+use App\Actions\Admin\Catalog\Brand\GetBrandStatsAction;
+use App\Actions\Admin\Catalog\Brand\UpsertBrandAction;
+use App\Actions\Admin\Catalog\Brand\DeleteBrandAction;
 use App\DTOs\Admin\Catalog\Brand\BrandData;
 use App\Http\Requests\Admin\Catalog\Brand\StoreBrandRequest;
 use App\Http\Requests\Admin\Catalog\Brand\UpdateBrandRequest;
-use App\Http\Resources\Admin\Catalog\Brand\BrandResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -20,14 +21,27 @@ use Inertia\Response;
 
 class BrandController extends Controller
 {
-    public function index(Request $request, ListBrands $listAction, GetBrandStatsAction $statsAction): Response
+    /**
+     * RECTIFICACIÓN: Controlador depurado de cualquier rastro de consultas SQL directas y lógicas JsonResource.
+     */
+    public function index(Request $request, ListBrandsAction $listAction, GetBrandStatsAction $statsAction, GetBrandFormOptionsAction $optionsAction): Response
     {
         return Inertia::render('Admin/Catalog/Brands/Index', [
-            'brands'     => BrandResource::collection($listAction->execute($request->all())),
+            'brands'     => $listAction->execute($request->all()),
             'stats'      => $statsAction->execute(),
             'filters'    => $request->only(['search', 'provider_id', 'category_id', 'market_zone_id']),
-            'options'    => $this->getBrandOptions(),
+            'options'    => $optionsAction->execute(),
             'can_manage' => true
+        ]);
+    }
+
+    /**
+     * Proporciona la estructura limpia para renderizado perimetral de creación.
+     */
+    public function create(GetBrandFormOptionsAction $optionsAction): Response
+    {
+        return Inertia::render('Admin/Catalog/Brands/Create', [
+            'options' => $optionsAction->execute()
         ]);
     }
 
@@ -36,6 +50,32 @@ class BrandController extends Controller
         $action->execute(BrandData::fromRequest($request));
         
         return redirect()->route('admin.catalog.brands.index')->with('success', 'Marca materializada en el catálogo.');
+    }
+
+    /**
+     * Proporciona los datos planos mapeados del modelo para hidratación asimilable por Vue en edición.
+     */
+    public function edit(Brand $brand, GetBrandFormOptionsAction $optionsAction): Response
+    {
+        $mappedBrand = [
+            'id'          => (string) $brand->id,
+            'parent_id'   => $brand->parent_id ? (string) $brand->parent_id : null,
+            'provider_id' => (string) $brand->provider_id,
+            'category_id' => (string) $brand->category_id,
+            'name'        => (string) $brand->name,
+            'slug'        => (string) $brand->slug,
+            'bg_color'    => $brand->bg_color ? (string) $brand->bg_color : null,
+            'image_path'  => $brand->image_path ? (string) $brand->image_path : null,
+            'website'     => $brand->website ? (string) $brand->website : null,
+            'is_active'   => (bool) $brand->is_active,
+            'is_featured' => (bool) $brand->is_featured,
+            'description' => $brand->description ? (string) $brand->description : null,
+        ];
+
+        return Inertia::render('Admin/Catalog/Brands/Edit', [
+            'brand'   => $mappedBrand,
+            'options' => $optionsAction->execute()
+        ]);
     }
 
     public function update(UpdateBrandRequest $request, Brand $brand, UpsertBrandAction $action): RedirectResponse
@@ -50,14 +90,5 @@ class BrandController extends Controller
         $action->execute($brand);
         
         return redirect()->route('admin.catalog.brands.index')->with('success', 'Marca neutralizada del sistema.');
-    }
-
-    private function getBrandOptions(): array
-    {
-        return [
-            'providers'  => Provider::where('is_active', true)->orderBy('commercial_name')->get(['id', 'commercial_name as name']),
-            'categories' => Category::where('is_active', true)->whereNull('parent_id')->orderBy('name')->get(['id', 'name']),
-            'parents'    => Brand::whereNull('parent_id')->orderBy('name')->get(['id', 'name'])
-        ];
     }
 }

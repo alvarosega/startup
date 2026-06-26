@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\{DB, Storage};
 
 class UpsertBrandAction
 {
+    /**
+     * RECTIFICACIÓN: Migración integral a DB::transaction encapsulando eventos físicos post-commit.
+     */
     public function execute(BrandData $data, ?Brand $brand = null): Brand
     {
         $isNew = !$brand;
@@ -22,34 +25,26 @@ class UpsertBrandAction
             $pathsToClean[] = $attributes['image_path'];
         }
 
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($isNew, $attributes, $data, $pathsToClean, $brand, $oldPath) {
             if ($isNew) {
                 $maxSortOrder = Brand::where('parent_id', $attributes['parent_id'])
                     ->where('deleted_epoch', 0)
                     ->max('sort_order');
 
-                $attributes['sort_order'] = $maxSortOrder ? $maxSortOrder + 10 : 10;
+                $attributes['sort_order'] = $maxSortOrder ? $maxSortOrder + 1 : 1;
                 $brand = Brand::create($attributes);
             } else {
                 $brand->update($attributes);
             }
 
-            DB::commit();
-
-            if ($data->image && $oldPath) {
-                Storage::disk('public')->delete($oldPath);
-            }
+            // Remoción diferida del archivo huérfano del disco únicamente tras un Commit exitoso
+            DB::afterCommit(function () use ($data, $oldPath) {
+                if ($data->image && $oldPath) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            });
 
             return $brand;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            foreach ($pathsToClean as $path) {
-                Storage::disk('public')->delete($path);
-            }
-            throw $e;
-        }
+        });
     }
 }

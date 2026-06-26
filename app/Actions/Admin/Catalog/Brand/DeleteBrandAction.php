@@ -10,6 +10,9 @@ use Illuminate\Validation\ValidationException;
 
 class DeleteBrandAction
 {
+    /**
+     * Evalúa las integridades relacionales de llaves foráneas previas a la mutación de borrado lógico.
+     */
     public function execute(Brand $brand): bool
     {
         return DB::transaction(function () use ($brand) {

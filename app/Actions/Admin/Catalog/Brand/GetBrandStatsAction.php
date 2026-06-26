@@ -8,12 +8,15 @@ use App\Models\Catalog\Brand;
 
 class GetBrandStatsAction
 {
+    /**
+     * Provee indicadores numéricos planos agregados del subdominio en tiempo real.
+     */
     public function execute(): array
     {
         return [
-            'total'    => Brand::count(),
-            'active'   => Brand::where('is_active', true)->count(),
-            'featured' => Brand::where('is_featured', true)->count(),
+            'total'    => (int) Brand::count(),
+            'active'   => (int) Brand::where('is_active', true)->count(),
+            'featured' => (int) Brand::where('is_featured', true)->count(),
         ];
     }
 }

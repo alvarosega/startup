@@ -36,7 +36,8 @@ class Brand extends Model
     {
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            $model->save();
+            // RECTIFICACIÓN: Mutación silenciosa para neutralizar ciclos redundantes de guardado
+            $model->saveQuietly();
         });
 
         static::restoring(function (self $model) {
