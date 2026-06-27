@@ -17,13 +17,14 @@ return new class extends Migration {
             $table->string('document_number', 32);
             $table->date('purchase_date')->index();
             $table->enum('payment_type', ['CASH', 'CREDIT'])->default('CASH');
-            $table->string('status')->default('COMPLETED')->index();
+            
+            // RECTIFICACIÓN: Catálogo cerrado de estados para evitar ambigüedades operacionales
+            $table->enum('status', ['PENDING', 'COMPLETED', 'CANCELLED'])->default('PENDING')->index();
             
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
-            $table->softDeletes();
+            $table->softDeletes(); // RECTIFICACIÓN: Blindaje contra eliminación física cruda
 
-            // RECTIFICACIÓN: Unicidad compuesta expandida con el proveedor para viabilizar facturación multiproveedor homónima
             $table->unique(['provider_id', 'document_number', 'deleted_epoch'], 'idx_purchases_doc_unique');
         });
     }

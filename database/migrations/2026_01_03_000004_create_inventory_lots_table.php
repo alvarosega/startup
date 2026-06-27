@@ -10,7 +10,7 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('inventory_lots', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('purchase_id')->nullable()->constrained('purchases')->nullOnDelete();
+            $table->foreignUuid('purchase_id')->nullable()->constrained('purchases')->restrictOnDelete();
             $table->foreignUuid('transfer_id')->nullable()->index(); 
             $table->foreignUuid('branch_id')->constrained('branches')->restrictOnDelete();
             $table->foreignUuid('sku_id')->constrained('skus')->restrictOnDelete();
@@ -24,7 +24,6 @@ return new class extends Migration {
             $table->decimal('initial_safety_quantity', 12, 3)->default(0.000); 
             
             $table->decimal('reserved_quantity', 12, 3)->default(0.000); 
-            // RECTIFICACIÓN: Congelamiento del costo de adquisición neto para la extracción en la cola FIFO
             $table->decimal('cost_price', 12, 2)->default(0.00);
             
             $table->boolean('is_quarantine')->default(false)->index(); 
@@ -39,7 +38,6 @@ return new class extends Migration {
                 'idx_lots_fefo_lookup'
             );
 
-            // RECTIFICACIÓN: Se asocia el indicador epoch para permitir el re-uso de códigos de lote purgados del sistema
             $table->unique(['branch_id', 'lot_code', 'deleted_epoch'], 'idx_lots_branch_code_unique');
         });
     }

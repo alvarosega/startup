@@ -1,8 +1,8 @@
-<?php
+Purchase/PurchaseItemDataDTO.php<?php
 
 declare(strict_types=1);
 
-namespace App\DTOs\Admin\Inventory;
+namespace App\DTOs\Admin\Inventory\Purchase;
 
 readonly class PurchaseItemDataDTO
 {

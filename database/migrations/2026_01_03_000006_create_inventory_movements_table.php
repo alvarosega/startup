@@ -15,9 +15,8 @@ return new class extends Migration {
             $table->foreignUuid('inventory_lot_id')->constrained('inventory_lots')->restrictOnDelete(); 
             $table->foreignUuid('admin_id')->constrained('admins')->restrictOnDelete();
             
-            $table->string('type', 25)->index(); 
+            $table->string('type', 50)->index(); // RECTIFICACIÓN: Columna expandida para albergar tipos complejos del protocolo
             $table->decimal('quantity', 12, 3);
-            // RECTIFICACIÓN: Persistencia estática del remanente inmediato, optimizando auditorías de saldo a costo O(1)
             $table->decimal('balance_after', 12, 3);
             $table->string('reference')->nullable();
             $table->string('reason')->nullable(); 

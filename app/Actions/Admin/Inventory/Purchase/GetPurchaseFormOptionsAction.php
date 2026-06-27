@@ -6,6 +6,7 @@ namespace App\Actions\Admin\Inventory\Purchase;
 
 use App\Models\Operations\Branch;
 use App\Models\Operations\Provider;
+use App\Models\Catalog\Sku;
 
 class GetPurchaseFormOptionsAction
 {
@@ -23,6 +24,14 @@ class GetPurchaseFormOptionsAction
                 ->get(['id', 'company_name'])
                 ->map(fn($p) => ['id' => (string) $p->id, 'company_name' => (string) $p->company_name])
                 ->toArray(),
+
+            'skus' => Sku::where('is_active', true)
+                ->with('product:id,name')
+                ->get()
+                ->map(fn($s) => [
+                    'id' => (string) $s->id,
+                    'display' => "{$s->product->name} [{$s->code}]"
+                ])->toArray(),
         ];
     }
 }

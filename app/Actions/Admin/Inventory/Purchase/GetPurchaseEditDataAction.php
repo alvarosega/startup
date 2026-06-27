@@ -5,43 +5,44 @@ declare(strict_types=1);
 namespace App\Actions\Admin\Inventory\Purchase;
 
 use App\Models\Inventory\Purchase;
-use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
-class ListPurchasesAction
+class GetPurchaseEditDataAction
 {
-    public function execute(Request $request): array
+    /**
+     * Extrae y deconstruye una compra pendiente validando la inmutabilidad de estados terminales.
+     */
+    public function execute(Purchase $purchase): array
     {
-        $purchases = Purchase::with(['branch:id,name', 'provider:id,company_name', 'admin:id,first_name,last_name', 'items.sku.product'])
-            ->withTrashed() // Muestra registros con Soft Delete para auditoría de cancelados
-            ->orderBy('id', 'desc')
-            ->cursorPaginate(15)
-            ->withQueryString();
+        // RECTIFICACIÓN: Control riguroso de flujo interrumpiendo la petición si la compra ya fue consolidada o descartada
+        if (in_array($purchase->status, ['COMPLETED', 'CANCELLED'], true)) {
+            throw new HttpException(403, "VIOLACIÓN_LOGÍSTICA: La compra ya posee el estado terminal '{$purchase->status}' y no admite modificaciones ni ingresos físicos diferidos.");
+        }
 
-        $mappedItems = array_map(function ($purchase) {
-            return [
+        $purchase->load([
+            'branch:id,name',
+            'provider:id,company_name',
+            'items.sku.product:id,name'
+        ]);
+
+        return [
+            'purchase' => [
                 'id' => (string) $purchase->id,
                 'document_number' => (string) $purchase->document_number,
                 'purchase_date' => $purchase->purchase_date->toDateString(),
                 'payment_type' => (string) $purchase->payment_type,
                 'status' => (string) $purchase->status,
-                'is_deleted' => $purchase->trashed(),
                 'branch_name' => $purchase->branch ? (string) $purchase->branch->name : null,
                 'provider_name' => $purchase->provider ? (string) $purchase->provider->company_name : null,
-                'admin_name' => $purchase->admin ? "{$purchase->admin->first_name} {$purchase->admin->last_name}" : null,
                 'items' => $purchase->items->map(fn($item) => [
                     'sku_id' => (string) $item->sku_id,
                     'sku_code' => $item->sku ? (string) $item->sku->code : null,
                     'product_name' => $item->sku && $item->sku->product ? (string) $item->sku->product->name : null,
+                    'sku_name' => $item->sku ? (string) $item->sku->name : null,
                     'quantity' => (float) $item->quantity,
                     'cost_price' => (float) $item->cost_price,
                 ])->toArray(),
-            ];
-        }, $purchases->items());
-
-        return [
-            'data' => $mappedItems,
-            'next' => $purchases->nextCursor()?->encode(),
-            'prev' => $purchases->previousCursor()?->encode(),
+            ]
         ];
     }
 }

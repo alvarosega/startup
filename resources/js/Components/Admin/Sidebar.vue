@@ -66,7 +66,6 @@ const navigationMenu = [
     { name: 'Stock Base', route: 'admin.inventory.index', pattern: 'admin.inventory.*', icon: 'warehouse', group: 'stock', permission: isSuperAdmin },
     { name: 'Precios Masivos', route: 'admin.prices.index', pattern: 'admin.prices.*', icon: 'payments', group: 'stock', permission: isSuperAdmin },
     { name: 'Ingresos', route: 'admin.purchases.index', pattern: 'admin.purchases.*', icon: 'move_to_inbox', group: 'stock', permission: isSuperAdmin },
-    { name: 'Transformaciones', route: 'admin.transformations.index', pattern: 'admin.transformations.*', icon: 'precision_manufacturing', group: 'stock', permission: isSuperAdmin },
     
     { name: 'Órdenes', route: 'admin.orders.index', pattern: 'admin.orders.*', icon: 'receipt_long', group: 'logistica', permission: isSuperAdmin },
     { name: 'Radar (Vivo)', route: 'admin.logistics.monitor', pattern: 'admin.logistics.*', icon: 'radar', group: 'logistica', permission: isSuperAdmin },
@@ -83,7 +82,7 @@ const navigationMenu = [
     { name: 'Repartidores', route: 'drivers.index', pattern: 'drivers.*', icon: 'badge', group: 'operativa', permission: isSuperAdmin },
 
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: isSuperAdmin },
-    { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'marketing', permission: isSuperAdmin }
+   // { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'marketing', permission: isSuperAdmin }
 ];
 
 const filteredMenu = computed(() => {

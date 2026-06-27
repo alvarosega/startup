@@ -10,13 +10,17 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('purchase_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('purchase_id')->constrained('purchases')->cascadeOnDelete();
+            $table->foreignUuid('purchase_id')->constrained('purchases')->restrictOnDelete(); // RECTIFICACIÓN: Se revoca la cascada física
             $table->foreignUuid('sku_id')->constrained('skus')->restrictOnDelete();
             
             $table->decimal('quantity', 12, 3); 
-            // RECTIFICACIÓN: Inyección obligatoria de costo de entrada para trazabilidad y valoración FIFO
             $table->decimal('cost_price', 12, 2)->default(0.00);
+            
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
+            $table->softDeletes(); // RECTIFICACIÓN: Soporte de borrado lógico sincronizado
+
+            $table->index(['purchase_id', 'sku_id'], 'idx_purchase_items_lookup');
         });
     }
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\DTOs\Admin\Inventory;
+namespace App\DTOs\Admin\Inventory\Purchase;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -17,6 +17,7 @@ readonly class PurchaseDataDTO
         public string $documentNumber,
         public string $purchaseDate,
         public string $paymentType,
+        public string $status,
         public array $items
     ) {}
 
@@ -30,8 +31,8 @@ readonly class PurchaseDataDTO
                 skuId: (string) $item['sku_id'],
                 quantity: (float) $item['quantity'],
                 costPrice: (float) $item['cost_price'],
-                lotCode: isset($item['lot_code']) ? (string) $item['lot_code'] : null,
-                expirationDate: isset($item['expiration_date']) ? (string) $item['expiration_date'] : null
+                lotCode: $item['lot_code'] ?? null,
+                expirationDate: $item['expiration_date'] ?? null
             );
         }
 
@@ -41,6 +42,7 @@ readonly class PurchaseDataDTO
             documentNumber: (string) $validated['document_number'],
             purchaseDate: (string) $validated['purchase_date'],
             paymentType: (string) $validated['payment_type'],
+            status: (string) $validated['status'],
             items: $mappedItems
         );
     }

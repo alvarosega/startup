@@ -29,7 +29,16 @@ class Purchase extends Model
 
     protected static function booted(): void
     {
+        static::updating(function (self $model) {
+            if ($model->getOriginal('status') === 'COMPLETED') {
+                throw new \BadMethodCallException('VIOLACIÓN_CONTABLE: Una compra consolidada como COMPLETED es inmutable.');
+            }
+        });
+
         static::deleting(function (self $model) {
+            if ($model->getOriginal('status') === 'COMPLETED') {
+                throw new \BadMethodCallException('VIOLACIÓN_CONTABLE: Prohibido aplicar Soft Delete a una compra COMPLETED.');
+            }
             $model->deleted_epoch = time();
             $model->saveQuietly();
         });
@@ -57,10 +66,5 @@ class Purchase extends Model
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseItem::class);
-    }
-
-    public function lots(): HasMany
-    {
-        return $this->hasMany(InventoryLot::class);
     }
 }

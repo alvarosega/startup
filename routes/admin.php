@@ -21,10 +21,9 @@ use App\Http\Controllers\Web\Admin\RetailMedia\AdPlacementController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCampaignController;
 use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
 
-// RECTIFICACIÓN: Sincronización estricta de namespaces del Silo de Inventarios y Precios
+// Sincronización de namespaces del Silo de Inventarios y Precios
 use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
 use App\Http\Controllers\Web\Admin\Inventory\PurchaseController;
-use App\Http\Controllers\Web\Admin\Inventory\TransformationController;
 use App\Http\Controllers\Web\Admin\Inventory\PriceController;
 
 // Rutas de autenticación planas para cumplimiento estricto del Test de QA
@@ -36,7 +35,7 @@ Route::middleware(['auth:super_admin'])->group(function () {
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
-    // GRUPOS DE COMPATIBILIDAD PLANA PROTEGIDOS CON CONTROL DE ROL ESTRICTO PARA QA (Retornan 403 ante intrusos)
+    // GRUPOS DE COMPATIBILIDAD PLANA PROTEGIDOS CON CONTROL DE ROL ESTRICTO PARA QA
     Route::middleware('role:super_admin,super_admin')->group(function () {
         
         Route::group(['prefix' => 'users/customers', 'as' => 'customers.'], function () {
@@ -105,23 +104,18 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::post('/isolate-quarantine', [InventoryController::class, 'isolateToQuarantine'])->name('isolate-quarantine');
         });
         
-        // RECTIFICACIÓN: Enrutamiento acoplado al nuevo PurchaseController plano y asimilable por DTOs
         Route::prefix('purchases')->name('purchases.')->group(function () {
             Route::get('/', [PurchaseController::class, 'index'])->name('index');
             Route::get('/create', [PurchaseController::class, 'create'])->name('create');
             Route::post('/', [PurchaseController::class, 'store'])->name('store');
+            Route::get('/{purchase}/edit', [PurchaseController::class, 'edit'])->name('edit');
+            Route::put('/{purchase}', [PurchaseController::class, 'complete'])->name('complete');
+            Route::post('/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('cancel');
         });
 
-        // RECTIFICACIÓN: Enrutamiento acoplado al nuevo PriceController unificado de Inventarios
         Route::prefix('prices')->name('prices.')->group(function () {
             Route::get('/', [PriceController::class, 'index'])->name('index');
             Route::post('/', [PriceController::class, 'store'])->name('store');
-        });
-
-        // RECTIFICACIÓN: Extracción de clausuras "En desarrollo" y conexión al controlador realizado
-        Route::prefix('transformations')->name('transformations.')->group(function () {
-            Route::get('/', [TransformationController::class, 'index'])->name('index');
-            Route::post('/', [TransformationController::class, 'store'])->name('store');
         });
 
         // =================================================================================
@@ -149,5 +143,6 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::post('/{order:code}/ready', [OrderController::class, 'markAsReady'])->name('mark-as-ready');
             Route::post('/{order:code}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
         });
-    }
-}
+        
+    });
+});
