@@ -19,11 +19,10 @@ use Illuminate\Http\RedirectResponse;
 class SkuController extends Controller
 {
     /**
-     * Procesa la inserción masiva de SKUs desde la pestaña correspondiente del Workspace.
+     * Procesa la inserción masiva de SKUs desde el Workspace de trabajo.
      */
     public function store(StoreBulkSkuRequest $request, Product $product, CreateBulkSkuAction $action): RedirectResponse
     {
-        // El DTO extrae de forma segura la estructura limpia validada por el FormRequest
         $dto = CreateBulkSkuDTO::fromRequest($request);
         $action->execute($product->id, $dto->skus);
 
@@ -31,7 +30,7 @@ class SkuController extends Controller
     }
 
     /**
-     * Actualiza los parámetros de una presentación específica de forma atómica.
+     * Actualiza los parámetros de una presentación comercial de forma atómica.
      */
     public function update(UpdateSkuRequest $request, Sku $sku, UpdateSkuAction $action): RedirectResponse
     {
@@ -41,7 +40,7 @@ class SkuController extends Controller
     }
 
     /**
-     * Remueve lógicamente una variante sin destruir el resto del Workspace.
+     * Remueve lógicamente una variante sin alterar el Workspace de trabajo general.
      */
     public function destroy(Sku $sku, DeleteSkuAction $action): RedirectResponse
     {

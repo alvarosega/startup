@@ -10,20 +10,20 @@ use Illuminate\Support\Facades\{DB, Storage};
 
 class UpdateSkuAction
 {
+    /**
+     * RECTIFICACIÓN: Reestructuración transaccional atómica bajo la directiva afterCommit.
+     */
     public function execute(Sku $sku, SkuDataDTO $data): void
     {
         $pathsToClean = [];
         $oldPath = null;
 
-        DB::beginTransaction();
-        try {
+        DB::transaction(function () use ($sku, $data, &$pathsToClean, &$oldPath) {
             $lockedSku = Sku::where('id', $sku->id)->lockForUpdate()->firstOrFail();
             $oldPath = $lockedSku->image_path;
 
-            // Sincronización rigurosa con nomenclatura snake_case del DTO e inmutabilidad del código controlada por el Modelo
             $attributes = [
                 'name'              => $data->name,
-                'code'              => $data->code,
                 'base_price'        => $data->base_price,
                 'conversion_factor' => $data->conversion_factor,
                 'weight'            => $data->weight,
@@ -36,20 +36,12 @@ class UpdateSkuAction
             }
 
             $lockedSku->update($attributes);
-            DB::commit();
 
-            // Aislamiento de efectos secundarios físicos post-commit para prevenir pérdida de archivos ante fallos SQL
-            if ($data->image && $oldPath) {
-                Storage::disk('public')->delete($oldPath);
-            }
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            foreach ($pathsToClean as $path) {
-                Storage::disk('public')->delete($path);
-            }
-            throw $e;
-        }
+            DB::afterCommit(function () use ($data, $oldPath) {
+                if ($data->image && $oldPath) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            });
+        });
     }
 }

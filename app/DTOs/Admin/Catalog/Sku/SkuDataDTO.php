@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\Catalog\Sku;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 
 readonly class SkuDataDTO
@@ -19,7 +19,10 @@ readonly class SkuDataDTO
         public ?UploadedFile $image = null
     ) {}
 
-    public static function fromRequest(Request $request): self
+    /**
+     * RECTIFICACIÓN: Factoría estática adaptada para transporte atómico.
+     */
+    public static function fromRequest(FormRequest $request): self
     {
         $validated = $request->validated();
 
@@ -29,7 +32,7 @@ readonly class SkuDataDTO
             base_price: (float) $validated['base_price'],
             conversion_factor: (float) $validated['conversion_factor'],
             weight: (float) $validated['weight'],
-            is_active: $request->boolean('is_active'),
+            is_active: (bool) $request->boolean('is_active'),
             image: $request->file('image')
         );
     }

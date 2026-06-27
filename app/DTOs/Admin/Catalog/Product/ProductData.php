@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\Catalog\Product;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 
 readonly class ProductData
@@ -20,7 +20,10 @@ readonly class ProductData
         public ?UploadedFile $image
     ) {}
 
-    public static function fromRequest(Request $request): self
+    /**
+     * RECTIFICACIÓN: Typehint ajustado a FormRequest eliminando excepciones de llamadas mágicas.
+     */
+    public static function fromRequest(FormRequest $request): self
     {
         $validated = $request->validated();
 
@@ -29,8 +32,8 @@ readonly class ProductData
             brand_id: (string) $validated['brand_id'],
             category_id: (string) $validated['category_id'],
             description: $validated['description'] ?? null,
-            is_active: $request->boolean('is_active'),
-            is_alcoholic: $request->boolean('is_alcoholic'),
+            is_active: (bool) $request->boolean('is_active'),
+            is_alcoholic: (bool) $request->boolean('is_alcoholic'),
             idempotency_key: (string) ($validated['idempotency_key'] ?? $request->header('X-Idempotency-Key')),
             image: $request->file('image')
         );

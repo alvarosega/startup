@@ -8,9 +8,12 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreBulkSkuRequest extends FormRequest
 {
+    /**
+     * RECTIFICACIÓN: Control de acceso restrictivo basado en guard de sesión administrativo.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
     }
 
     public function rules(): array

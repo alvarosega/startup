@@ -23,15 +23,16 @@ class CreateBulkSkuAction
         DB::transaction(function () use ($productId, $skusData) {
             Product::where('id', $productId)->lockForUpdate()->firstOrFail();
 
-            // Optimización algorítmica: Leer el orden máximo una sola vez fuera del bucle
-            $nextSortOrder = (int) Sku::where('product_id', $productId)
+            $maxSortOrder = Sku::where('product_id', $productId)
                 ->where('deleted_epoch', 0)
                 ->max('sort_order');
+
+            // RECTIFICACIÓN: Mitigación del comportamiento falsy del entero cero
+            $nextSortOrder = is_null($maxSortOrder) ? 0 : (int) $maxSortOrder;
 
             foreach ($skusData as $data) {
                 $nextSortOrder += 10;
 
-                // Sincronización con las propiedades snake_case corregidas del DTO
                 Sku::create([
                     'product_id'        => $productId,
                     'name'              => $data->name,

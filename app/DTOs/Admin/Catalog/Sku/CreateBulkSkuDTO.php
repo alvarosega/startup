@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\DTOs\Admin\Catalog\Sku;
 
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\FormRequest;
 
 readonly class CreateBulkSkuDTO
 {
@@ -15,7 +15,10 @@ readonly class CreateBulkSkuDTO
         public array $skus
     ) {}
 
-    public static function fromRequest(Request $request): self
+    /**
+     * RECTIFICACIÓN: Mapeo tipado desde FormRequest.
+     */
+    public static function fromRequest(FormRequest $request): self
     {
         $validated = $request->validated();
         $skus = [];

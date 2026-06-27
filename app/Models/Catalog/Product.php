@@ -19,7 +19,7 @@ class Product extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'brand_id', 'category_id', 'name', 'slug', 'description', 
+        'id', 'brand_id', 'category_id', 'name', 'slug', 'description', 
         'image_path', 'sort_order', 'is_active', 'is_featured', 'is_alcoholic', 'deleted_epoch'
     ];
 
@@ -35,7 +35,8 @@ class Product extends Model
     {
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            $model->save();
+            // RECTIFICACIÓN: Mutación silenciosa para impedir re-ejecución en cadena de eventos de guardado
+            $model->saveQuietly();
         });
 
         static::restoring(function (self $model) {

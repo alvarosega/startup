@@ -8,18 +8,30 @@ use App\Models\Catalog\Product;
 use App\DTOs\Admin\Catalog\Product\ProductData;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\{DB, Storage};
+use Illuminate\Support\Facades\{DB, Storage, Cache};
 
 class UpsertProductAction
 {
+    /**
+     * Resuelve de forma transaccional la persistencia de productos maestros con control de duplicidad.
+     */
     public function execute(ProductData $data, ?Product $product = null): Product
     {
         $isUpdate = !is_null($product);
         $pathsToClean = [];
         $oldPath = null;
 
-        DB::beginTransaction();
-        try {
+        // RECTIFICACIÓN: Control de idempotencia perimetral utilizando almacenamiento volátil atómico
+        if (!$isUpdate && !empty($data->idempotency_key)) {
+            $cacheKey = "idemp_product:{$data->idempotency_key}";
+            if (!Cache::add($cacheKey, true, 300)) {
+                throw ValidationException::withMessages([
+                    'idempotency_key' => 'CONFLICTO_PROCESAMIENTO: La transacción ya fue procesada bajo este token de idempotencia.'
+                ]);
+            }
+        }
+
+        return DB::transaction(function () use ($isUpdate, $data, $product, &$pathsToClean, &$oldPath) {
             if ($isUpdate) {
                 $product = Product::where('id', $product->id)->lockForUpdate()->firstOrFail();
                 $oldPath = $product->image_path;
@@ -32,13 +44,15 @@ class UpsertProductAction
             if (!$isUpdate) {
                 $slugExists = Product::where('slug', $newSlug)->where('deleted_epoch', 0)->exists();
                 if ($slugExists) {
+                    // RECTIFICACIÓN: Vector de error compuesto mutando simultáneamente 'name' y 'slug' para QA
                     throw ValidationException::withMessages([
-                        'name' => 'CONFLICTO_INTEGRIDAD: El slug automático derivado ya se encuentra registrado.'
+                        'name' => 'CONFLICTO_INTEGRIDAD: El nombre asignado colisiona con una entidad activa.',
+                        'slug' => 'CONFLICTO_INTEGRIDAD: El slug automático derivado ya se encuentra registrado.'
                     ]);
                 }
                 
                 $maxSortOrder = Product::where('deleted_epoch', 0)->max('sort_order');
-                $product->sort_order = $maxSortOrder ? $maxSortOrder + 1 : 1;
+                $product->sort_order = is_null($maxSortOrder) ? 1 : $maxSortOrder + 1;
             }
 
             if ($data->image) {
@@ -46,7 +60,6 @@ class UpsertProductAction
                 $pathsToClean[] = $product->image_path;
             }
 
-            // Sincronización estricta con las propiedades snake_case del DTO unificado
             $product->fill([
                 'name'         => $data->name,
                 'slug'         => $newSlug,
@@ -58,22 +71,14 @@ class UpsertProductAction
             ]);
 
             $product->save();
-            DB::commit();
 
-            // Remoción física diferida únicamente tras confirmación del commit
-            if ($data->image && $oldPath) {
-                Storage::disk('public')->delete($oldPath);
-            }
+            DB::afterCommit(function () use ($data, $oldPath) {
+                if ($data->image && $oldPath) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            });
 
             return $product;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            foreach ($pathsToClean as $path) {
-                Storage::disk('public')->delete($path);
-            }
-            throw $e;
-        }
+        });
     }
 }

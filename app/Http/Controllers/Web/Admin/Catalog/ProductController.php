@@ -11,46 +11,38 @@ use App\Http\Requests\Admin\Catalog\Product\UpdateProductRequest;
 use App\DTOs\Admin\Catalog\Product\ProductData;
 use App\Actions\Admin\Catalog\Product\{
     UpsertProductAction, DeleteProductAction, 
-    ListProductsAction, GetProductStatsAction, GetProductFormDataAction,
-    CheckProductExistenceAction
+    ListProductsAction, GetProductStatsAction, GetProductFormOptionsAction,
+    GetProductForEditAction, GetProductsForReorderAction, CheckProductExistenceAction
 };
 use App\Actions\Admin\Catalog\Shared\ReorderEntityAction;
-use App\Http\Resources\Admin\Catalog\Product\ProductResource;
-use App\Http\Resources\Admin\Catalog\Product\ProductOrderResource;
 use Illuminate\Http\{Request, JsonResponse, RedirectResponse};
 use Inertia\{Inertia, Response as InertiaResponse};
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction): InertiaResponse
+    /**
+     * RECTIFICACIÓN: Se erradica de forma definitiva el uso de transformadores REST.
+     * Toda la hidratación cruzada externa de Branches se delega a GetProductFormOptionsAction.
+     */
+    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction, GetProductFormOptionsAction $optionsAction): InertiaResponse
     {
-        $products = $listAction->execute($request);
-        $formData = app(GetProductFormDataAction::class)->execute();
-
-        // Extracción de acoplamiento de modelo estático hacia variable de inyección limpia
-        $formData['branches'] = \App\Models\Operations\Branch::where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-    
         return Inertia::render('Admin/Catalog/Products/Index', [
-            'products'   => ProductResource::collection($products),
+            'products'   => $listAction->execute($request),
             'filters'    => $request->only(['search', 'category', 'brand', 'status']),
             'stats'      => $statsAction->execute(),
-            'options'    => $formData,
+            'options'    => $optionsAction->execute(),
             'can_manage' => true,
         ]);
     }
 
-    public function reorder(Request $request): InertiaResponse
+    /**
+     * RECTIFICACIÓN: Lógica extraída quirúrgicamente hacia GetProductsForReorderAction.
+     */
+    public function reorder(GetProductsForReorderAction $action): InertiaResponse
     {
-        $products = Product::select(['id', 'name', 'image_path', 'sort_order'])
-            ->where('is_active', true)
-            ->orderBy('sort_order', 'asc')
-            ->get();
-
-        return Inertia::render('Admin/Catalog/Products//Reorder', [
-            'products' => ProductOrderResource::collection($products)
+        return Inertia::render('Admin/Catalog/Products/Reorder', [
+            'products' => $action->execute()
         ]);
     }
 
@@ -60,7 +52,7 @@ class ProductController extends Controller
 
         $action->execute('products', $request->ids);
 
-        return redirect()->route('admin.catalog.product.index')
+        return redirect()->route('admin.catalog.products.index')
             ->with('success', 'Orden del catálogo global actualizado de forma secuencial.');
     }
 
@@ -69,10 +61,10 @@ class ProductController extends Controller
         return response()->json(['available' => !$action->execute((string) $request->query('name'))]);
     }
 
-    public function create(GetProductFormDataAction $dataAction): InertiaResponse
+    public function create(GetProductFormOptionsAction $optionsAction): InertiaResponse
     {
         return Inertia::render('Admin/Catalog/Products/Workspace', array_merge(
-            $dataAction->execute(),
+            $optionsAction->execute(),
             [
                 'product'  => null,
                 'idempKey' => (string) Str::uuid()
@@ -88,13 +80,14 @@ class ProductController extends Controller
             ->with('success', 'Información base materializada. Proceda a configurar variantes físicas y precios.');
     }
 
-    public function edit(Product $product, GetProductFormDataAction $dataAction): InertiaResponse
+    /**
+     * RECTIFICACIÓN: Control de transporte de datos plano delegado a GetProductForEditAction.
+     */
+    public function edit(Product $product, GetProductForEditAction $editAction, GetProductFormOptionsAction $optionsAction): InertiaResponse
     {
-        $product->load(['skus.prices', 'brand', 'category']);
-        
         return Inertia::render('Admin/Catalog/Products/Workspace', array_merge(
-            ['product' => new ProductResource($product)],
-            $dataAction->execute()
+            ['product' => $editAction->execute($product)],
+            $optionsAction->execute()
         ));
     }
 

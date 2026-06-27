@@ -20,7 +20,7 @@ class Sku extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'product_id', 'name', 'code', 'base_price', 
+        'id', 'product_id', 'name', 'code', 'base_price', 
         'conversion_factor', 'weight', 'image_path',
         'sort_order', 'is_active', 'deleted_epoch'
     ];
@@ -42,15 +42,10 @@ class Sku extends Model
             }
         });
 
-        static::updating(function (Sku $sku) {
-            if ($sku->isDirty('code') && !empty($sku->getOriginal('code'))) {
-                throw new \Exception("VIOLACIÓN_DE_PROTOCOLO: El código SKU es inmutable.");
-            }
-        });
-
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            $model->save();
+            // RECTIFICACIÓN: Persistencia atómica silenciosa
+            $model->saveQuietly();
         });
 
         static::restoring(function (self $model) {
@@ -152,14 +147,5 @@ class Sku extends Model
                 'next_tier'   => null
             ];
         });
-    }
-
-    public static function getAvailableForBundles()
-    {
-        return self::select(['id', 'product_id', 'name', 'base_price'])
-            ->with('product:id,name')
-            ->active()
-            ->orderBy('name')
-            ->get();
     }
 }

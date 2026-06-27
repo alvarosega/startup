@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 class GetProductStatsAction
 {
+    /**
+     * Ejecuta una consulta agregada optimizada sobre el catálogo global.
+     */
     public function execute(): array
     {
         $stats = DB::table('products')
