@@ -15,7 +15,6 @@ use App\Actions\Admin\Inventory\Stock\GetSkuLotsAction;
 use App\Actions\Admin\Inventory\Stock\TransferToSafetyAction;
 use App\Actions\Admin\Inventory\Stock\IsolateToQuarantineAction;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -23,6 +22,9 @@ use Inertia\Response as InertiaResponse;
 
 class InventoryController extends Controller
 {
+    /**
+     * Vista 1: Bandeja de Balances Globales Consolidados
+     */
     public function index(Request $request, ListInventoryBalancesAction $action): InertiaResponse
     {
         return Inertia::render('Admin/Inventory/Stock/Index', [
@@ -31,6 +33,9 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * Vista 2: Historial Inmutable de Movimientos (Kardex)
+     */
     public function kardex(string $skuId, Request $request, GetSkuKardexAction $action): InertiaResponse
     {
         return Inertia::render('Admin/Inventory/Stock/Kardex', [
@@ -39,13 +44,20 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function lots(string $skuId, Request $request, GetSkuLotsAction $action): JsonResponse
+    /**
+     * Vista 3: RECTIFICACIÓN - Renderiza la vista independiente de desglose de capas FIFO sin modales
+     */
+    public function lots(string $skuId, Request $request, GetSkuLotsAction $action): InertiaResponse
     {
-        return response()->json([
-            'lots' => $action->execute($skuId, $request)
+        return Inertia::render('Admin/Inventory/Stock/Lots', [
+            'sku_id' => $skuId,
+            'lots'   => $action->execute($skuId, $request)
         ]);
     }
 
+    /**
+     * Procesamiento: Asignación de porción del stock ordinario al fondo de seguridad
+     */
     public function transferToSafety(TransferSafetyRequest $request, TransferToSafetyAction $action): RedirectResponse
     {
         $dto = TransferSafetyDataDTO::fromRequest($request);
@@ -57,6 +69,9 @@ class InventoryController extends Controller
             ->with('success', 'Asignación de stock al fondo de contingencia ejecutada correctamente.');
     }
 
+    /**
+     * Procesamiento: Bloqueo total preventivo de un lote específico enviándolo a cuarentena
+     */
     public function isolateToQuarantine(IsolateQuarantineRequest $request, IsolateToQuarantineAction $action): RedirectResponse
     {
         $dto = IsolateQuarantineDataDTO::fromRequest($request);
