@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('purchases', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // Generación secuencial UUIDv7 en App
+            $table->uuid('id')->primary();
             $table->foreignUuid('branch_id')->constrained('branches')->restrictOnDelete();
             $table->foreignUuid('provider_id')->constrained('providers')->restrictOnDelete();
             $table->foreignUuid('admin_id')->constrained('admins')->restrictOnDelete();
@@ -23,8 +23,8 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
 
-            // Clave única compuesta para evitar colisión de documentos pero permitir re-ingreso si se borra lógicamente
-            $table->unique(['document_number', 'deleted_epoch'], 'idx_purchases_doc_unique');
+            // RECTIFICACIÓN: Unicidad compuesta expandida con el proveedor para viabilizar facturación multiproveedor homónima
+            $table->unique(['provider_id', 'document_number', 'deleted_epoch'], 'idx_purchases_doc_unique');
         });
     }
 

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('prices', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // Generación secuencial UUIDv7 en App
+            $table->uuid('id')->primary();
             $table->foreignUuid('sku_id')->constrained('skus')->cascadeOnDelete();
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete(); 
             
@@ -30,7 +30,12 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
         
-            // Índice de cobertura compuesto para optimización extrema de consultas de precio ganador (Winning Price)
+            // RECTIFICACIÓN: Restricción única operativa para impedir colisiones de prioridad en ventanas idénticas
+            $table->unique(
+                ['branch_id', 'sku_id', 'type', 'min_quantity', 'priority', 'deleted_epoch'], 
+                'idx_prices_operational_unique'
+            );
+
             $table->index(
                 ['branch_id', 'sku_id', 'priority', 'valid_from', 'valid_to', 'deleted_epoch'], 
                 'idx_price_winning_lookup'

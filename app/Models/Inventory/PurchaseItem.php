@@ -4,26 +4,20 @@ declare(strict_types=1);
 
 namespace App\Models\Inventory;
 
-use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PurchaseItem extends Model
 {
-    use HasFactory, HasUv7;
-
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = [
-        'purchase_id',
-        'sku_id',
-        'quantity'
-    ];
+    protected $fillable = ['id', 'purchase_id', 'sku_id', 'quantity', 'cost_price'];
 
     protected $casts = [
-        'quantity' => 'float'
+        'id'         => 'string',
+        'quantity'   => 'float',
+        'cost_price' => 'float',
     ];
 
     public function purchase(): BelongsTo

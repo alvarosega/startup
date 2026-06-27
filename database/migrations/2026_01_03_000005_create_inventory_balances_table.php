@@ -22,7 +22,6 @@ return new class extends Migration {
             $table->primary(['branch_id', 'sku_id']);
         });
 
-        // RECTIFICACIÓN MATEMÁTICA: El stock físico real en sistema jamás puede ser inferior a la suma de todas las fuerzas de retención
         DB::statement('ALTER TABLE inventory_balances ADD CONSTRAINT chk_balances_available_positive CHECK (total_physical >= (total_reserved + total_quarantine + total_safety))');
     }
 

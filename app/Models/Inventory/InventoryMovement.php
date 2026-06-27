@@ -6,34 +6,42 @@ namespace App\Models\Inventory;
 
 use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryMovement extends Model
 {
-    use HasFactory, HasUv7;
+    use HasUv7;
 
     public $incrementing = false;
     protected $keyType = 'string';
     
-    // El Kardex opera bajo inserciones puras cronológicas sin mutación posterior
-    const UPDATED_AT = null;
+    // Desactivar marcas de tiempo estándar: se utiliza únicamente created_at nativo por migración
+    public $timestamps = false;
 
     protected $fillable = [
-        'branch_id',
-        'sku_id',
-        'inventory_lot_id',
-        'admin_id',
-        'type',
-        'quantity',
-        'reference',
-        'reason'
+        'id', 'branch_id', 'sku_id', 'inventory_lot_id', 'admin_id',
+        'type', 'quantity', 'balance_after', 'reference', 'reason', 'created_at'
     ];
 
     protected $casts = [
-        'quantity'   => 'float',
-        'created_at' => 'datetime'
+        'quantity'      => 'float',
+        'balance_after' => 'float',
+        'created_at'    => 'datetime',
     ];
+
+    /**
+     * RECTIFICACIÓN: Blindaje contable de inmutabilidad absoluta sobre transacciones ejecutadas en el Kardex.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function () {
+            throw new \BadMethodCallException('VIOLACIÓN_DE_PROTOCOLO: Los registros de Kardex son inmutables.');
+        });
+
+        static::deleting(function () {
+            throw new \BadMethodCallException('VIOLACIÓN_DE_PROTOCOLO: Los registros de Kardex no pueden ser removidos.');
+        });
+    }
 
     public function branch(): BelongsTo
     {
@@ -52,6 +60,6 @@ class InventoryMovement extends Model
 
     public function admin(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Admin::class);
+        return $this->belongsTo(\App\Models\Users\Admin::class);
     }
 }

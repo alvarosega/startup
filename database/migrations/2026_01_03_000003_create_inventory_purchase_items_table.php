@@ -13,8 +13,9 @@ return new class extends Migration {
             $table->foreignUuid('purchase_id')->constrained('purchases')->cascadeOnDelete();
             $table->foreignUuid('sku_id')->constrained('skus')->restrictOnDelete();
             
-            // Tres decimales para mantener consistencia absoluta con balanzas y factores de conversión fraccionados
             $table->decimal('quantity', 12, 3); 
+            // RECTIFICACIÓN: Inyección obligatoria de costo de entrada para trazabilidad y valoración FIFO
+            $table->decimal('cost_price', 12, 2)->default(0.00);
             $table->timestamps();
         });
     }

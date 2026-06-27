@@ -13,12 +13,11 @@ return new class extends Migration {
             $table->foreignUuid('branch_id')->constrained('branches');
             $table->foreignUuid('admin_id')->constrained('admins');
             
-            $table->uuid('source_sku_id');
-            $table->foreign('source_sku_id')->references('id')->on('skus');
+            // RECTIFICACIÓN: Enlace restrictivo a nivel de lotes origen/destino para salvaguardar la cola cronológica del FIFO
+            $table->foreignUuid('source_inventory_lot_id')->constrained('inventory_lots')->restrictOnDelete();
             $table->decimal('quantity_removed', 12, 3); 
             
-            $table->uuid('destination_sku_id');
-            $table->foreign('destination_sku_id')->references('id')->on('skus');
+            $table->foreignUuid('destination_inventory_lot_id')->constrained('inventory_lots')->restrictOnDelete();
             $table->decimal('quantity_added', 12, 3); 
             
             $table->text('notes')->nullable();
