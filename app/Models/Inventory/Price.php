@@ -8,7 +8,6 @@ use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
 
 class Price extends Model
 {
@@ -24,13 +23,13 @@ class Price extends Model
     ];
 
     protected $casts = [
-        'list_price'    => 'decimal:2',
-        'final_price'   => 'decimal:2',
-        'min_quantity'  => 'integer',
-        'priority'      => 'integer',
+        'list_price' => 'float',
+        'final_price' => 'float',
+        'min_quantity' => 'integer',
+        'priority' => 'integer',
         'deleted_epoch' => 'integer',
-        'valid_from'    => 'datetime',
-        'valid_to'      => 'datetime',
+        'valid_from' => 'datetime',
+        'valid_to' => 'datetime'
     ];
 
     protected static function booted(): void
@@ -58,30 +57,5 @@ class Price extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Users\Admin::class, 'created_by_id');
-    }
-
-    public function updater(): BelongsTo
-    {
-        return $this->belongsTo(\App\Models\Users\Admin::class, 'updated_by_id');
-    }
-
-    /**
-     * Scope para determinar el precio ganador (Winning Price) según prioridad ascendente y volumen.
-     */
-    public function scopeScopeWinningPrice(Builder $query, string $branchId, string $skuId, int $quantity): void
-    {
-        $now = now()->toDateTimeString();
-
-        $query->where('branch_id', $branchId)
-            ->where('sku_id', $skuId)
-            ->where('min_quantity', '<=', $quantity)
-            ->where('deleted_epoch', 0)
-            ->where('valid_from', '<=', $now)
-            ->where(function (Builder $q) use ($now) {
-                $q->whereNull('valid_to')
-                  ->orWhere('valid_to', '>=', $now);
-            })
-            ->orderBy('priority', 'desc')
-            ->orderBy('final_price', 'asc');
     }
 }

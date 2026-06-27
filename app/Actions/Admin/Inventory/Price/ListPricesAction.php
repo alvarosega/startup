@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Actions\Admin\Inventory\Price;
 
 use App\Models\Inventory\Price;
-use App\Models\Operations\Branch;
-use App\Models\Catalog\Sku;
 use Illuminate\Http\Request;
 
 class ListPricesAction
@@ -28,7 +26,7 @@ class ListPricesAction
                 'min_quantity' => (int) $price->min_quantity,
                 'priority' => (int) $price->priority,
                 'valid_from' => $price->valid_from->toDateTimeString(),
-                'valid_to' => $price->valid_to ? $price->valid_to->toDateTimeString() : null,
+                'valid_to' => $price->valid_to ? $price->valid_to->toDateTimeString() : 'Indefinido (∞)',
                 'branch_name' => $price->branch ? (string) $price->branch->name : null,
                 'sku_code' => $price->sku ? (string) $price->sku->code : null,
                 'product_name' => $price->sku && $price->sku->product ? (string) $price->sku->product->name : null,
@@ -36,16 +34,9 @@ class ListPricesAction
         }, $prices->items());
 
         return [
-            'prices' => [
-                'data' => $mappedItems,
-                'next' => $prices->nextCursor()?->encode(),
-                'prev' => $prices->previousCursor()?->encode(),
-            ],
-            'branches' => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name'])->toArray(),
-            'skus' => Sku::where('is_active', true)->with('product:id,name')->get()->map(fn($s) => [
-                'id' => (string) $s->id,
-                'display' => "{$s->product->name} [{$s->code}]"
-            ])->toArray(),
+            'data' => $mappedItems,
+            'next' => $prices->nextCursor()?->encode(),
+            'prev' => $prices->previousCursor()?->encode(),
         ];
     }
 }

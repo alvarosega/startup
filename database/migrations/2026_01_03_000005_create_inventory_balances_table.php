@@ -22,6 +22,7 @@ return new class extends Migration {
             $table->primary(['branch_id', 'sku_id']);
         });
 
+        // LEY: Garantía absoluta de consistencia. El stock físico debe cubrir todas las sub-reservas logísticas
         DB::statement('ALTER TABLE inventory_balances ADD CONSTRAINT chk_balances_available_positive CHECK (total_physical >= (total_reserved + total_quarantine + total_safety))');
     }
 

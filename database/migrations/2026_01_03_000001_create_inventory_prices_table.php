@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->foreignUuid('sku_id')->constrained('skus')->cascadeOnDelete();
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete(); 
             
+            // RECTIFICACIÓN: Indexación explícita para tipificación comercial cerrada
             $table->string('type')->index(); 
             $table->decimal('list_price', 12, 2)->default(0.00); 
             $table->decimal('final_price', 12, 2)->default(0.00); 
@@ -30,7 +31,6 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
         
-            // RECTIFICACIÓN: Restricción única operativa para impedir colisiones de prioridad en ventanas idénticas
             $table->unique(
                 ['branch_id', 'sku_id', 'type', 'min_quantity', 'priority', 'deleted_epoch'], 
                 'idx_prices_operational_unique'

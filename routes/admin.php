@@ -115,9 +115,10 @@ Route::middleware(['auth:super_admin'])->group(function () {
 
         Route::prefix('prices')->name('prices.')->group(function () {
             Route::get('/', [PriceController::class, 'index'])->name('index');
+            Route::get('/create', [PriceController::class, 'create'])->name('create');
             Route::post('/', [PriceController::class, 'store'])->name('store');
+            Route::delete('/{price}', [PriceController::class, 'destroy'])->name('destroy');
         });
-
         // =================================================================================
         // OTROS DOMINIOS OPERATIVOS / COMERCIALES
         // =================================================================================
@@ -130,7 +131,12 @@ Route::middleware(['auth:super_admin'])->group(function () {
         Route::get('transfers/{id}/receive', fn() => 'Formulario de recepción en desarrollo')->name('transfers.receive');
         Route::post('transfers/{id}/reception', fn() => 'Procesamiento de recepción en desarrollo')->name('transfers.reception');
 
-        Route::get('removals', fn() => 'En desarrollo')->name('removals.index');
+        // RECTIFICACIÓN: Enrutamiento expandido para el flujo independiente de mermas y bajas sin modales
+        Route::prefix('removals')->name('removals.')->group(function () {
+            Route::get('/', [RemovalController::class, 'index'])->name('index');
+            Route::get('/create', [RemovalController::class, 'create'])->name('create');
+            Route::post('/', [RemovalController::class, 'store'])->name('store');
+        });
 
         Route::get('/logistics/monitor', [MonitorController::class, 'index'])->name('logistics.monitor');
         
