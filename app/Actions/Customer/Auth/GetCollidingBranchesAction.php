@@ -7,17 +7,21 @@ namespace App\Actions\Customer\Auth;
 use App\Architecture\ActionResult;
 use App\Models\Operations\Branch;
 
-final class GetActiveBranchesAction
+final class GetCollidingBranchesAction
 {
-    public function execute(): ActionResult
+    public function execute(?float $latitude, ?float $longitude): ActionResult
     {
+        if (is_null($latitude) || is_null($longitude)) {
+            return ActionResult::success([]);
+        }
+
         $branches = Branch::query()
             ->active()
-            ->get(['id', 'name', 'address'])
+            ->withinCoverage($latitude, $longitude)
+            ->get(['id', 'name'])
             ->map(fn (Branch $branch) => [
                 'id' => $branch->id,
                 'name' => $branch->name,
-                'address' => $branch->address,
             ])
             ->toArray();
 

@@ -44,7 +44,7 @@ class ShopController extends Controller
         return Inertia::render('Customer/Shop/Index', [
             // 1. DATOS SINCRÓNICOS (Navegación inmediata)
             // Mantenemos topBrands sync si son esenciales para el primer renderizado visual
-            'topBrands' => BrandNavResource::collection($brandsAction->execute())->resolve(),
+            /*'topBrands' => BrandNavResource::collection($brandsAction->execute())->resolve(),
 
             // 2. DATOS DIFERIDOS (Activan Skeletons en el Frontend)
             'brandBanners' => Inertia::defer(fn() => 
@@ -78,7 +78,7 @@ class ShopController extends Controller
                 Auth::guard('customer')->check() 
                     ? FavoriteProductResource::collection($favoritesAction->execute())->resolve()
                     : []
-            ),
+            ),*/
         ]);
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Actions\Customer\Category;
 
-use App\Models\{Sku, Category, AdCreative};
+use App\Models\Catalog\Sku;
+use App\Models\Catalog\Category;
+use App\Models\RetailMedia\AdCreative;
 use App\DTOs\Customer\Shop\Category\CategoryPageDTO;
 use Illuminate\Support\Facades\{Cache, DB};
 

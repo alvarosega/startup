@@ -26,17 +26,14 @@ return new class extends Migration {
             $table->boolean('was_previously_deleted')->default(false);
             $table->boolean('needs_password_change')->default(false);
             
-            // CORRECCIÓN OBLIGATORIA: Soporte para SessionGuard Remember Me
             $table->rememberToken();
-            
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
-            $table->softDeletes();
         
             $table->unique(['email', 'deleted_epoch']);
             $table->unique(['phone', 'deleted_epoch']);
             $table->index(['branch_id', 'is_active', 'created_at']);
-            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
+            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('restrict');
         });
 
         Schema::create('customer_profiles', function (Blueprint $table) {
@@ -49,7 +46,7 @@ return new class extends Migration {
             $table->string('avatar_source')->default('avatar_1.svg');
             $table->timestamps();
 
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
         });
 
         Schema::create('customer_addresses', function (Blueprint $table) {
@@ -61,34 +58,34 @@ return new class extends Migration {
             $table->geometry('position', subtype: 'point')->spatialIndex();
             $table->string('reference')->nullable(); 
             $table->boolean('is_default')->default(false); 
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
-            $table->softDeletes();
             
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
+            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('restrict');
         });
 
         Schema::create('customer_socials', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->uuid('customer_id');
             $table->string('provider_name'); 
             $table->string('provider_id'); 
             $table->json('data_json')->nullable();
             $table->timestamps();
 
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
             $table->unique(['provider_name', 'provider_id']);
         });
 
         Schema::create('customer_billing_infos', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->uuid('customer_id');
             $table->string('nit_number');
             $table->string('business_name');
             $table->boolean('is_default')->default(false);
             $table->timestamps();
 
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
         });
     }
 

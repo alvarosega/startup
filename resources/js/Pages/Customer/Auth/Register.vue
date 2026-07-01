@@ -3,12 +3,14 @@ import { ref, computed, onMounted } from 'vue';
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
-import axios from 'axios';
 
 import LocationWorkflow from '@/Components/Customer/Maps/LocationWorkflow.vue'; 
-import { Smartphone, Lock, Mail, User, ArrowRight, CheckCircle } from 'lucide-vue-next';
+import { User, ArrowRight, CheckCircle } from 'lucide-vue-next';
 
-const props = defineProps({ activeBranches: Array });
+const props = defineProps({ 
+    activeBranches: { type: Array, required: true },
+    collidingBranches: { type: Array, default: () => [] }
+});
 
 const currentStep = ref(1);
 const steps = [
@@ -17,17 +19,27 @@ const steps = [
     { id: 3, title: 'PERFIL', code: 'VISUAL' },
 ];
 
-const validatingStep1 = ref(false);
 const isPhoneValid = ref(false);
 const registrationId = ref(null);
 const formattedPhone = ref(''); 
 
 const form = useForm({
-    first_name: '', last_name: '', phone: '', email: '', 
-    password: '', password_confirmation: '', country_code: 'BO',
-    alias: '', address: '', details: '', latitude: null, longitude: null,
-    branch_id: null, avatar_type: 'icon', avatar_source: null, 
-    avatar_file: null, guest_client_uuid: null
+    first_name: '', 
+    last_name: '', 
+    phone: '', 
+    email: '', 
+    password: '', 
+    password_confirmation: '', 
+    country_code: 'BO',
+    alias: '', 
+    address: '', 
+    details: '', 
+    latitude: null, 
+    longitude: null,
+    branch_id: null, 
+    avatar_type: 'icon', 
+    avatar_source: null, 
+    guest_client_uuid: null
 });
 
 onMounted(() => {
@@ -41,36 +53,22 @@ const onInput = (phone, obj) => {
     formattedPhone.value = obj?.number || phone; 
 };
 
-const handleStep1Validation = async () => {
+const handleStep1Validation = () => {
     form.clearErrors();
 
+    if (!form.first_name.trim()) form.setError('first_name', 'El nombre es requerido.');
+    if (!form.last_name.trim()) form.setError('last_name', 'El apellido es requerido.');
+    if (!form.email.trim()) form.setError('email', 'El email es requerido.');
+    if (!form.password) form.setError('password', 'La contraseña es requerida.');
+    if (form.password !== form.password_confirmation) {
+        form.setError('password_confirmation', 'Las contraseñas no coinciden.');
+    }
     if (!isPhoneValid.value && form.phone.length > 0) {
         form.setError('phone', 'El formato del número de teléfono no es válido.');
-        return;
     }
 
-    validatingStep1.value = true;
-    
-    try {
-        await axios.post(route('customer.register.validate-step-1'), {
-            first_name: form.first_name, 
-            last_name: form.last_name,
-            phone: formattedPhone.value, 
-            country_code: form.country_code,
-            email: form.email, 
-            password: form.password,
-            password_confirmation: form.password_confirmation
-        });
-        currentStep.value = 2; 
-    } catch (error) {
-        if (error.response?.status === 422) {
-            const errs = error.response.data.errors;
-            for (const f in errs) { 
-                form.setError(f, errs[f][0]); 
-            }
-        }
-    } finally { 
-        validatingStep1.value = false; 
+    if (Object.keys(form.errors).length === 0) {
+        currentStep.value = 2;
     }
 };
 
@@ -80,9 +78,8 @@ const submit = () => {
     form.transform((data) => ({
         ...data,
         phone: formattedPhone.value
-    })).post(route('customer.register'), {
+    })).post(route('customer.register.store'), {
         preserveScroll: true,
-        forceFormData: true, 
         headers: { 'X-Idempotency-Key': registrationId.value }
     });
 };
@@ -154,9 +151,8 @@ const containerTransform = computed(() => {
 
                         <div class="pt-4 flex gap-3">
                             <Link :href="route('customer.login')" class="h-11 px-6 rounded-xl bg-transparent border border-[#32323b] text-foreground font-black uppercase text-[10px] tracking-widest flex items-center hover:bg-foreground/5 transition-colors">Login</Link>
-                            <button @click="handleStep1Validation" :disabled="validatingStep1" class="flex-1 h-11 btn-primary flex items-center justify-center gap-2 disabled:opacity-30">
-                                <span v-if="validatingStep1" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                <template v-else>Siguiente <ArrowRight :size="14" stroke-width="3" /></template>
+                            <button @click="handleStep1Validation" class="flex-1 h-11 btn-primary flex items-center justify-center gap-2">
+                                Siguiente <ArrowRight :size="14" stroke-width="3" />
                             </button>
                         </div>
                     </div>
@@ -167,6 +163,7 @@ const containerTransform = computed(() => {
                 <LocationWorkflow 
                     :form="form" 
                     :activeBranches="activeBranches" 
+                    :collidingBranches="collidingBranches"
                     :isActive="currentStep === 2"
                     submitLabel="Confirmar Sector" 
                     @next="currentStep = 3" 
@@ -183,6 +180,7 @@ const containerTransform = computed(() => {
 
                     <div v-if="form.hasErrors" class="mb-4 p-2.5 w-full rounded-xl bg-red-500/10 border border-red-500/20 text-center">
                         <p class="text-[8px] text-red-500 font-black uppercase tracking-wider">Error de validación global</p>
+                        <p v-for="(error, key) in form.errors" :key="key" class="text-[8px] text-red-400 font-bold mt-0.5">{{ error }}</p>
                     </div>
 
                     <div class="relative mb-8">
@@ -209,35 +207,6 @@ const containerTransform = computed(() => {
                     </div>
                 </div>
             </div>
-
         </main>
     </div>
 </template>
-
-<style scoped>
-.font-mono { font-family: 'JetBrains Mono', monospace; }
-.ease-f1 { transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
-
-:deep(.hardware-tel-input) {
-    background: transparent !important;
-    border: 1px solid #32323b !important;
-    border-radius: 0.75rem !important;
-    height: 44px !important;
-}
-:deep(.hardware-tel-input .vti__input) {
-    background: transparent !important;
-    color: currentColor !important;
-    font-weight: 900 !important;
-    font-size: 13px !important;
-}
-:deep(.hardware-tel-input .vti__dropdown-list) {
-    background-color: #15151e !important;
-    border: 1px solid #32323b !important;
-    border-radius: 0.75rem !important;
-    color: #ffffff !important;
-}
-.du-cyber-canvas:not(.dark) :deep(.hardware-tel-input .vti__dropdown-list) {
-    background-color: #ffffff !important;
-    color: #15151e !important;
-}
-</style>

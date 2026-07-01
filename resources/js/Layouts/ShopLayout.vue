@@ -64,7 +64,7 @@ const userInitials = computed(() => {
 const navigation = [
     { name: 'Inicio',       icon: Gauge,       route: 'customer.index' },
     { name: 'Promociones',  icon: Tag,         route: 'customer.index' },
-    { name: 'Pedidos',      icon: Receipt,     route: 'customer.order.index' },
+    //{ name: 'Pedidos',      icon: Receipt,     route: 'customer.order.index' },
     { name: 'Direcciones',  icon: MapPin,      route: 'customer.profile.addresses' }, 
     { name: 'Seguridad',    icon: ShieldCheck, route: 'customer.profile.security' },
 ];
@@ -205,7 +205,7 @@ const toggleSearch = () => {
                                 <FullScreenToggler />
                             </div>
                             
-                            <Link :href="route('customer.cart.index')" 
+                           <!-- {{/* <Link :href="route('customer.cart.index')" 
                                   :disabled="isOutOfCoverage && !!user"
                                   class="relative flex items-center justify-center p-2 bg-transparent transition-all duration-150 group focus:outline-none active:scale-95"
                                   :class="isOutOfCoverage && user ? 'opacity-10 pointer-events-none select-none' : ''">
@@ -214,7 +214,7 @@ const toggleSearch = () => {
                                         class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-none animate-in zoom-in duration-150">
                                     {{ cartCount }}
                                 </span>
-                            </Link>
+                            </Link>*/}}-->
                         </div>
                     </div>
                 </div>
@@ -258,10 +258,10 @@ const toggleSearch = () => {
         </main>
 
         <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#ffffff] dark:bg-[#15151f] border-t border-[#32323b] z-[100] flex justify-around items-center px-1 pb-safe select-none">
-            <Link :href="route('customer.order.index')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.order.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
+            <!--<Link :href="route('customer.order.index')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.order.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
                 <LayoutDashboard :size="20" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Pedidos</span>
-            </Link>
+            </Link>-->
 
             <button @click="toggleSearch" class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white active:scale-95 duration-75">
                 <Compass :size="20" :stroke-width="2.5" />
@@ -273,7 +273,7 @@ const toggleSearch = () => {
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Inicio</span>
             </Link>
 
-            <Link :href="route('customer.cart.index')" 
+            <!-- <Link :href="route('customer.cart.index')" 
                   :disabled="isOutOfCoverage && !!user"
                   class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white relative transition-all duration-75" 
                   :class="[route().current('customer.cart.*') ? 'text-primary' : '', isOutOfCoverage && user ? 'opacity-10 pointer-events-none select-none' : '']">
@@ -284,16 +284,16 @@ const toggleSearch = () => {
                     </span>
                 </div>
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Carrito</span>
-            </Link>
+            </Link>-->
 
-            <Link :href="user ? route('customer.profile.index') : route('customer.login')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.profile.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
+            <!--<Link :href="user ? route('customer.profile.index') : route('customer.login')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.profile.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
                 <div v-if="user" class="w-5 h-5 border-2 overflow-hidden bg-background" :class="route().current('customer.profile.*') ? 'border-primary' : 'border-[#15151f] dark:border-white'">
                     <img v-if="user?.profile?.avatar_url" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
                     <span v-else class="text-[9px] font-black h-full flex items-center justify-center text-foreground">{{ userInitials }}</span>
                 </div>
                 <Fingerprint v-else :size="20" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">{{ user ? 'Perfil' : 'Entrar' }}</span>
-            </Link>
+            </Link>-->
         </nav>
 
         <Transition name="drawer">

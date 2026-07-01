@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Customer\Category;
 
-use App\Models\{Category, AdCreative};
+use App\Models\Catalog\Category;
+use App\Models\RetailMedia\AdCreative;
 use App\Services\ShopContextService;
 use App\DTOs\Customer\Category\{CategoryPageDTO, CategorySummaryDTO, CreativeDTO};
 use Illuminate\Support\Facades\Cache;

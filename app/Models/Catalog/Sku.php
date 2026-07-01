@@ -71,12 +71,12 @@ class Sku extends Model
 
     public function prices(): HasMany 
     { 
-        return $this->hasMany(\App\Models\Price::class); 
+        return $this->hasMany(\App\Models\Inventory\Price::class); 
     }
 
     public function inventoryLots(): HasMany 
     { 
-        return $this->hasMany(\App\Models\InventoryLot::class); 
+        return $this->hasMany(\App\Models\Inventory\InventoryLot::class); 
     }
 
     public function bundles(): BelongsToMany

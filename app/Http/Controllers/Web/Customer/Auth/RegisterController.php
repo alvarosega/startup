@@ -1,75 +1,68 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Customer\Auth;
 
+use App\Actions\Customer\Auth\GetActiveBranchesAction;
+use App\Actions\Customer\Auth\GetCollidingBranchesAction;
+use App\Actions\Customer\Auth\RegisterCustomerAction;
+use App\DTOs\Customer\Auth\RegisterCustomerData;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Customer\Auth\RegisterRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Http\Requests\Customer\Auth\RegisterRequest;
-use App\Http\Requests\Customer\Auth\ValidateStep1Request;
-use App\DTOs\Customer\Auth\RegisterCustomerData;
-use App\Actions\Customer\Auth\RegisterCustomerAction;
-use App\Actions\Customer\Auth\GetActiveBranchesAction; 
-use App\Http\Resources\Customer\Branch\BranchResource; 
-use App\Exceptions\IdentityCollisionException;
-use App\Actions\Customer\Cart\SyncGuestCartAction; // INYECCIÓN
 
-class RegisterController extends Controller
+final class RegisterController extends Controller
 {
-    public function create(GetActiveBranchesAction $branchAction): Response
-    {
-        $avatars = collect(range(1, 8))->map(function ($i) {
-            return [
-                'id' => "avatar_{$i}.png",
-                'url' => asset("assets/avatars/avatar_{$i}.png")
-            ];
-        })->toArray();
+    public function create(
+        Request $request, 
+        GetActiveBranchesAction $branchesAction,
+        GetCollidingBranchesAction $collidingAction
+    ): Response {
+        $lat = $request->filled('latitude') ? (float) $request->query('latitude') : null;
+        $lng = $request->filled('longitude') ? (float) $request->query('longitude') : null;
+
+        $activeBranches = $branchesAction->execute();
+        $collidingBranches = $collidingAction->execute($lat, $lng);
+        
+        $avatars = collect(range(1, 8))->map(fn (int $i) => [
+            'id' => "avatar_{$i}.png",
+            'url' => asset("assets/avatars/avatar_{$i}.png")
+        ])->toArray();
 
         return Inertia::render('Customer/Auth/Register', [
-            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve(),
+            'activeBranches' => $activeBranches->data,
+            'collidingBranches' => $collidingBranches->data,
             'availableAvatars' => $avatars
         ]);
     }
 
-    public function validateStep1(ValidateStep1Request $request)
+    public function store(RegisterRequest $request, RegisterCustomerAction $action): RedirectResponse
     {
-        return response()->json(['valid' => true], 200);
-    }
+        $validated = $request->validated();
+        $validated['guest_client_uuid'] = $request->session()->get('guest_client_uuid');
 
-    public function store(RegisterRequest $request, RegisterCustomerAction $action, SyncGuestCartAction $syncCartAction): RedirectResponse
-    {
-        // Captura preventiva del UUID de invitado antes de desmantelar la sesión vieja
-        $guestUuid = $request->session()->get('guest_client_uuid');
+        $dto = RegisterCustomerData::fromArray($validated);
+        
+        $idempotencyKey = $request->header('X-Idempotency-Key');
+        $idempotencyKey = is_array($idempotencyKey) ? ($idempotencyKey[0] ?? null) : $idempotencyKey;
 
-        try {
-            $data = RegisterCustomerData::fromRequest($request);
-            
-            $customer = $action->execute(
-                $data, 
-                $request->header('X-Idempotency-Key')
-            ); 
+        $result = $action->execute($dto, $idempotencyKey);
 
-            Auth::guard('customer')->login($customer);
-
-            $request->session()->regenerate();
-            
-            // Invocación explícita delegando la limpieza del guest_client_uuid al Action
-            $syncCartAction->execute((string) $customer->id, $guestUuid);
-
-            return redirect()->route('customer.index')
-                ->with('status', 'Registro completado con éxito.');
-    
-        } catch (IdentityCollisionException $e) {
-            return back()->withErrors(['phone' => $e->getMessage()])->withInput();
-        } catch (\Exception $e) {
-            Log::emergency('[CustomerRegister] Critical Failure', [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return back()->withErrors(['phone' => 'Error de integridad en el registro.'])->withInput();
+        if (!$result->isSuccess) {
+            return back()->withErrors(['phone' => $result->errorMessage])->withInput();
         }
+
+        /** @var \Illuminate\Contracts\Auth\Authenticatable $customer */
+        $customer = $result->data;
+        Auth::guard('customer')->login($customer);
+        $request->session()->regenerate();
+
+        return redirect()->route('customer.index')
+            ->with('status', 'Registro completado con éxito.');
     }
 }

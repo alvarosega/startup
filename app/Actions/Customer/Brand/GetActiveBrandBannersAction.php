@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Customer\Brand;
 
-use App\Models\AdCreative;
+use App\Models\RetailMedia\AdCreative;
 use Illuminate\Support\Collection;
 
 class GetActiveBrandBannersAction

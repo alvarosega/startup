@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Customer\Brand;
 
-use App\Models\Brand;
+use App\Models\Catalog\Brand;
 use App\Services\ShopContextService;
 use Illuminate\Database\Eloquent\Collection;
 

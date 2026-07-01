@@ -1,28 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs\Customer\Auth;
 
-use App\Http\Requests\Customer\Auth\LoginRequest;
-
-readonly class LoginCustomerData
+final readonly class LoginCustomerData
 {
-    public function __construct(
+    private function __construct(
         public string $phone,
         public string $password,
-        public bool $remember = false,
-        public ?string $guestUuid = null
+        public bool $remember,
+        public ?string $guestUuid
     ) {}
 
-    public static function fromRequest(LoginRequest $request): self
+    /**
+     * @param array<string, mixed> $validatedData
+     */
+    public static function fromArray(array $validatedData): static
     {
-        // Dictamen: Usamos solo datos validados para evitar inyección de parámetros sucios
-        $v = $request->validated();
-
-        return new self(
-            phone:     (string) $v['phone'],
-            password:  (string) $v['password'],
-            remember:  (bool) ($v['remember'] ?? false),
-            guestUuid: $v['guest_client_uuid'] ?? null
+        return new static(
+            (string) ($validatedData['phone'] ?? ''),
+            (string) ($validatedData['password'] ?? ''),
+            (bool) ($validatedData['remember'] ?? false),
+            isset($validatedData['guest_client_uuid']) ? (string) $validatedData['guest_client_uuid'] : null
         );
     }
 }
