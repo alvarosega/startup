@@ -12,6 +12,7 @@ use App\Actions\Customer\Profiles\DeleteAddressAction;
 use App\DTOs\Customer\Profiles\AddressData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Profiles\AddressRequest;
+use App\Services\Customer\Queries\CustomerQueryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,42 +21,28 @@ use Inertia\Response;
 
 final class AddressController extends Controller
 {
+    public function __construct(
+        private readonly CustomerQueryService $customerQueryService
+    ) {}
+
     public function index(GetActiveBranchesAction $branchAction): Response
     {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
         
-        $addresses = $user->addresses()
-            ->where('deleted_epoch', 0)
-            ->orderBy('is_default', 'desc')
-            ->get()
-            ->map(fn($addr) => [
-                'id' => $addr->id,
-                'alias' => $addr->alias,
-                'address' => $addr->address,
-                'reference' => $addr->reference,
-                'is_default' => (bool) $addr->is_default,
-                'branch_id' => $addr->branch_id
-            ])->toArray();
-
         $activeBranches = $branchAction->execute();
         
         return Inertia::render('Customer/Profiles/AddressesPage', [
-            'addresses' => $addresses,
-            'activeBranches' => $activeBranches->data
+            'addresses'      => $this->customerQueryService->getAddressesForCustomer($customerId),
+            'activeBranches' => $activeBranches->data,
         ]);
     }
 
-    public function create(Request $request, GetActiveBranchesAction $branchAction, GetCollidingBranchesAction $collidingAction): Response|RedirectResponse
-    {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
-        
-        if ($user->addresses()->where('deleted_epoch', 0)->count() >= 10) {
-            return redirect()->route('customer.profile.addresses')
-                ->withErrors(['limit' => 'Límite de 10 direcciones alcanzado. Elimine una ubicación para continuar.']);
-        }
-
+    public function create(
+        Request $request, 
+        GetActiveBranchesAction $branchAction, 
+        GetCollidingBranchesAction $collidingAction
+    ): Response {
         $lat = $request->filled('latitude') ? (float) $request->query('latitude') : null;
         $lng = $request->filled('longitude') ? (float) $request->query('longitude') : null;
 
@@ -63,86 +50,87 @@ final class AddressController extends Controller
         $collidingBranches = $collidingAction->execute($lat, $lng);
 
         return Inertia::render('Customer/Profiles/AddressFormPage', [
-            'address' => null, 
-            'activeBranches' => $activeBranches->data,
-            'collidingBranches' => $collidingBranches->data
+            'address'           => null, 
+            'activeBranches'    => $activeBranches->data,
+            'collidingBranches' => $collidingBranches->data,
         ]);
     }
 
     public function store(AddressRequest $request, UpsertAddressAction $action): RedirectResponse
     {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
 
         $dto = AddressData::fromArray($request->validated());
-        $action->execute($user, $dto);
+        $action->execute($customerId, $dto);
 
-        return redirect()->route('customer.profile.addresses')
+        return redirect()->route('customer.profile.addresses.index')
             ->with('success', 'Ubicación guardada de forma exitosa.');
     }
 
-    public function edit(string $id, Request $request, GetActiveBranchesAction $branchAction, GetCollidingBranchesAction $collidingAction): Response
-    {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
-        $addressModel = $user->addresses()->where('deleted_epoch', 0)->findOrFail($id);
+    public function edit(
+        string $id, 
+        Request $request, 
+        GetActiveBranchesAction $branchAction, 
+        GetCollidingBranchesAction $collidingAction
+    ): Response {
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
+        
+        $address = $this->customerQueryService->getAddressByIdForCustomer($id, $customerId);
+        if (!$address) {
+            abort(404, 'La dirección solicitada no existe o no pertenece a su cuenta.');
+        }
 
-        $lat = $request->filled('latitude') ? (float) $request->query('latitude') : null;
-        $lng = $request->filled('longitude') ? (float) $request->query('longitude') : null;
+        // Si el request no provee coordenadas de refresco, se inyectan las de la dirección almacenada
+        $lat = $request->filled('latitude') ? (float) $request->query('latitude') : $address['latitude'];
+        $lng = $request->filled('longitude') ? (float) $request->query('longitude') : $address['longitude'];
 
         $activeBranches = $branchAction->execute();
         $collidingBranches = $collidingAction->execute($lat, $lng);
 
-        $address = [
-            'id' => $addressModel->id,
-            'alias' => $addressModel->alias,
-            'address' => $addressModel->address,
-            'reference' => $addressModel->reference,
-            'branch_id' => $addressModel->branch_id
-        ];
-
         return Inertia::render('Customer/Profiles/AddressFormPage', [
-            'address' => $address, 
-            'activeBranches' => $activeBranches->data,
-            'collidingBranches' => $collidingBranches->data
+            'address'           => $address, 
+            'activeBranches'    => $activeBranches->data,
+            'collidingBranches' => $collidingBranches->data,
         ]);
     }
 
     public function update(string $id, AddressRequest $request, UpsertAddressAction $action): RedirectResponse
     {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
 
         $dto = AddressData::fromArray($request->validated());
-        $action->execute($user, $dto, $id);
+        $action->execute($customerId, $dto, $id);
 
-        return redirect()->route('customer.profile.addresses')
+        return redirect()->route('customer.profile.addresses.index')
             ->with('success', 'Ubicación modificada de forma exitosa.');
     }
 
     public function makeDefault(string $id, SetDefaultAddressAction $action): RedirectResponse
     {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
 
-        $action->execute($user, $id);
+        $action->execute($customerId, $id);
 
-        return redirect()->route('customer.profile.addresses')
+        return redirect()->route('customer.profile.addresses.index')
             ->with('success', 'Dirección preferida actualizada.');
     }
 
     public function destroy(string $id, DeleteAddressAction $action): RedirectResponse
     {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
         
-        $result = $action->execute($user, $id);
+        $result = $action->execute($customerId, $id);
 
         if (!$result->isSuccess) {
             return back()->withErrors(['delete' => $result->errorMessage]);
         }
 
-        return redirect()->route('customer.profile.addresses')
+        return redirect()->route('customer.profile.addresses.index')
             ->with('success', 'Dirección removida de la libreta.');
     }
 }

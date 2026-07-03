@@ -43,3 +43,10 @@ Route::middleware(['auth:customer'])->group(function (): void {
         });
     });
 });
+
+// --- STUBS TEMPORALES PARA CONSONANCIA DE INTERFAZ (ZIGGY) ---
+// Estas rutas evitan el quiebre de JavaScript en el layout global y vistas de autenticación.
+// Serán sustituidas una vez se ejecute el diseño analítico y estructural de sus respectivos módulos.
+Route::get('cart-stub', fn (): string => '')->name('cart.index');
+Route::get('order-stub', fn (): string => '')->name('order.index');
+Route::get('password-reset-stub', fn (): string => '')->name('password.request');

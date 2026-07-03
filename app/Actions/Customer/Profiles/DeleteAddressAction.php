@@ -5,42 +5,36 @@ declare(strict_types=1);
 namespace App\Actions\Customer\Profiles;
 
 use App\Architecture\ActionResult;
-use App\Models\Users\Customer;
+use App\Models\Users\CustomerAddress;
 use Illuminate\Support\Facades\DB;
 
 final class DeleteAddressAction
 {
-    public function execute(Customer $customer, string $addressId): ActionResult
+    public function execute(string $customerId, string $addressId): ActionResult
     {
-        return DB::transaction(function () use ($customer, $addressId): ActionResult {
-            $address = $customer->addresses()
+        return DB::transaction(function () use ($customerId, $addressId): ActionResult {
+            /** @var CustomerAddress|null $address */
+            $address = CustomerAddress::query()
+                ->where('id', $addressId)
+                ->where('customer_id', $customerId)
                 ->where('deleted_epoch', 0)
-                ->findOrFail($addressId);
+                ->first();
 
-            if ($address->is_default) {
-                return ActionResult::failure('Restricción de Seguridad: No puede eliminar su ubicación predeterminada activa.');
+            if (!$address) {
+                return ActionResult::failure('La ubicación seleccionada no existe o ya ha sido removida.');
             }
 
-            $timestamp = time();
+            // Aplicación de la regla de negocio inquebrantable
+            if ((bool) $address->is_default) {
+                return ActionResult::failure('Operación denegada: No se puede eliminar la dirección marcada como predeterminada. Designe otra ubicación como preferida antes de proceder.');
+            }
 
-            DB::table('customer_addresses')
-                ->where('id', $addressId)
-                ->update([
-                    'deleted_epoch' => $timestamp,
-                    'updated_at' => now()
-                ]);
-
-            DB::table('audit_logs')->insert([
-                'id' => (string) \Illuminate\Support\Str::uuid7(),
-                'target_type' => 'App\Models\Users\CustomerAddress',
-                'target_id' => $addressId,
-                'action' => 'eliminacion',
-                'payload_before' => json_encode(['customer_id' => $customer->id, 'rejection_reason' => 'eliminacion']),
-                'created_at' => now(),
-                'updated_at' => now()
+            $address->update([
+                'deleted_epoch' => time(),
+                'is_default'    => false,
             ]);
 
-            return ActionResult::success();
+            return ActionResult::success($address);
         });
     }
 }

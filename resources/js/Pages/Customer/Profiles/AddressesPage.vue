@@ -1,26 +1,24 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import ProfileNav from './Partials/ProfileNav.vue'; 
 import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 import L from 'leaflet';
-import { 
-    MapPin, Plus, Star, Trash2, Edit2, Map as MapIcon 
-} from 'lucide-vue-next';
+import { MapPin, Plus, Star, Trash2, Edit2, Map as MapIcon } from 'lucide-vue-next';
 import 'leaflet/dist/leaflet.css';
 
 const props = defineProps({
-    user: Object, 
-    addresses: Array,
-    activeBranches: Array
+    addresses: { type: Array, required: true },
+    activeBranches: { type: Array, required: true }
 });
 
-// CORRECCIÓN: Alineación de la regla de negocio del núcleo logístico (Límite 10)
+const page = usePage();
+const errors = computed(() => page.props.errors);
+
 const MAX_ADDRESSES = 10;
 const canAddMore = computed(() => props.addresses.length < MAX_ADDRESSES);
 
-// Icono personalizado para el mapa
 const customIcon = L.divIcon({
     className: 'custom-pin',
     html: `<div class="w-8 h-8 bg-zinc-900 rounded-full border-[3px] border-white shadow-lg flex items-center justify-center text-white"><div class="w-2 h-2 bg-white rounded-full"></div></div>`,
@@ -28,7 +26,6 @@ const customIcon = L.divIcon({
     iconAnchor: [16, 32]
 });
 
-// Calcula el centro del mapa basado en la dirección predeterminada o la primera disponible
 const mapCenter = computed(() => {
     const defaultAddr = props.addresses.find(a => a.is_default);
     if (defaultAddr) {
@@ -40,19 +37,20 @@ const mapCenter = computed(() => {
     return [-16.5000, -68.1500];
 });
 
-// Generación de un identificador de estado compuesto para forzar el re-render del mapa
 const mapStateKey = computed(() => {
     return props.addresses.map(a => `${a.id}_${a.is_default}`).join(',');
 });
 
-// Acciones de registro
 const makeDefault = (id) => {
     router.patch(route('customer.profile.addresses.set-default', { id }), {}, { preserveScroll: true });
 };
 
+/**
+ * RECTIFICACIÓN: Consistencia absoluta con el verbo POST exigido por la ruta de borrado lógico
+ */
 const deleteAddr = (id) => {
-    if(confirm('¿Eliminar esta ubicación permanentemente?')) {
-        router.delete(route('customer.profile.addresses.destroy', { id }), { preserveScroll: true });
+    if (confirm('¿Eliminar esta ubicación permanentemente de su cuenta?')) {
+        router.post(route('customer.profile.addresses.destroy', { id }), {}, { preserveScroll: true });
     }
 };
 </script>
@@ -69,6 +67,16 @@ const deleteAddr = (id) => {
 
             <ProfileNav />
 
+            <!-- Alerta de Error de Control Perimetral Limit -->
+            <div v-if="errors.limit" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-xs font-bold uppercase tracking-wide">
+                {{ errors.limit }}
+            </div>
+
+            <!-- Alerta de Error Atómica de Acción Destroy -->
+            <div v-if="errors.delete" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-xs font-bold uppercase tracking-wide">
+                {{ errors.delete }}
+            </div>
+
             <div class="flex justify-end mb-6">
                 <Link v-if="canAddMore" :href="route('customer.profile.addresses.create')" 
                       class="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-zinc-800 transition-all active:scale-95 shadow-lg shadow-zinc-200">
@@ -77,7 +85,7 @@ const deleteAddr = (id) => {
             </div>
 
             <div class="mb-8 rounded-[2.5rem] overflow-hidden border border-zinc-200 shadow-sm h-72 relative bg-zinc-100 z-10">
-                <l-map :key="mapStateKey" :zoom="14" :center="mapCenter" class="h-full w-full grayscale-[0.2]">
+                <l-map :key="mapStateKey" :zoom="14" :center="mapCenter" class="h-full w-full">
                     <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
                     <l-marker v-for="addr in addresses" :key="addr.id" 
                               :lat-lng="[parseFloat(addr.latitude), parseFloat(addr.longitude)]" 

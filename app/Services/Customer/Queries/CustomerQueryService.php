@@ -45,4 +45,63 @@ final class CustomerQueryService
             ->where('deleted_epoch', 0)
             ->value('alias');
     }
+
+    public function getAddressesForCustomer(string $customerId): array
+    {
+        return \App\Models\Users\CustomerAddress::query()
+            ->where('customer_id', $customerId)
+            ->where('deleted_epoch', 0)
+            ->orderBy('is_default', 'desc')
+            ->get()
+            ->map(function (\App\Models\Users\CustomerAddress $addr) {
+                /** @var array{lat: float, lng: float} $position */
+                $position = $addr->position;
+
+                return [
+                    'id'         => $addr->id,
+                    'alias'      => $addr->alias ?? '',
+                    'address'    => $addr->address,
+                    'reference'  => $addr->reference,
+                    'is_default' => (bool) $addr->is_default,
+                    'branch_id'  => $addr->branch_id,
+                    'latitude'   => $position['lat'],
+                    'longitude'  => $position['lng'],
+                ];
+            })->toArray();
+    }
+
+    public function getAddressByIdForCustomer(string $addressId, string $customerId): ?array
+    {
+        /** @var \App\Models\Users\CustomerAddress|null $addr */
+        $addr = \App\Models\Users\CustomerAddress::query()
+            ->where('id', $addressId)
+            ->where('customer_id', $customerId)
+            ->where('deleted_epoch', 0)
+            ->first();
+
+        if (!$addr) {
+            return null;
+        }
+
+        /** @var array{lat: float, lng: float} $position */
+        $position = $addr->position;
+
+        return [
+            'id'         => $addr->id,
+            'alias'      => $addr->alias ?? '',
+            'address'    => $addr->address,
+            'reference'  => $addr->reference,
+            'branch_id'  => $addr->branch_id,
+            'latitude'   => $position['lat'],
+            'longitude'  => $position['lng'],
+        ];
+    }
+
+    public function countActiveAddresses(string $customerId): int
+    {
+        return \App\Models\Users\CustomerAddress::query()
+            ->where('customer_id', $customerId)
+            ->where('deleted_epoch', 0)
+            ->count();
+    }
 }

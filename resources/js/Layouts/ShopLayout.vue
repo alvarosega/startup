@@ -2,9 +2,13 @@
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
-    Compass,
     Gauge,
-    Menu, X, Tag, ShieldCheck, MapPin, AlertTriangle, Search
+    Tag,
+    ShieldCheck,
+    MapPin,
+    AlertTriangle,
+    Search,
+    User
 } from 'lucide-vue-next';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
@@ -13,15 +17,12 @@ const page = usePage();
 const isSearchActive = ref(false);
 const searchQuery = ref('');
 const isSidebarExpanded = ref(false);
-const isMobileMenuOpen = ref(false);
 
+// Sincronización con el middleware unificado
 const user = computed(() => page.props.auth?.customer);
 const location = computed(() => page.props.location_context || { label: 'LOCALIZANDO...', type: 'branch' });
-
-// RESOLUCIÓN DE COBERTURA DESDE BACKEND EN BASE A LA BASE DE DATOS
 const isOutOfCoverage = computed(() => page.props.shop_context?.is_out_of_coverage ?? false);
 
-// REGLA DE NEGOCIO: Mapeo de Etiquetas del Header por Escenarios Geográficos
 const locationText = computed(() => {
     if (!user.value) return 'INVITADO'; 
     if (isOutOfCoverage.value) return 'FUERA DE COBERTURA'; 
@@ -34,7 +35,6 @@ const locationSubtext = computed(() => {
     return 'Entregar en';
 });
 
-// Re-mapeo reactivo del nombre completo basado en el perfil estructurado del middleware
 const userFullName = computed(() => {
     const profile = user.value?.profile;
     if (!profile) return 'Invitado';
@@ -58,7 +58,6 @@ const filteredNavigation = computed(() => {
     return navigation.filter(item => ['customer.index'].includes(item.route) || !!user.value);
 });
 
-// Invocación atómica del método DELETE alineada con LogoutController
 const logout = () => router.post(route('customer.logout'));
 
 const toggleSearch = () => {
@@ -72,6 +71,7 @@ const toggleSearch = () => {
 <template>
     <div class="du-cyber-canvas flex min-h-[100svh] text-foreground font-sans transition-colors duration-150 overflow-x-hidden selection:bg-primary/30">
         
+        <!-- ESCRITORIO: ASIDE CON BOTÓN DE ENLACE DIRECTO AL PERFIL -->
         <aside 
             @mouseenter="isSidebarExpanded = true"
             @mouseleave="isSidebarExpanded = false"
@@ -89,6 +89,7 @@ const toggleSearch = () => {
                 </div>
             </div>
 
+            <!-- Navegación del Panel Lateral -->
             <nav class="flex-1 px-3 space-y-1.5 mt-4 overflow-y-auto no-scrollbar">
                 <Link v-for="item in filteredNavigation" :key="item.name" :href="route().has(item.route) ? route(item.route) : '#'" 
                     class="flex items-center h-11 transition-all duration-150 ease-f1 group relative focus:ring-1 focus:ring-primary focus:outline-none"
@@ -111,10 +112,14 @@ const toggleSearch = () => {
                 </Link>
             </nav>
 
+            <!-- RECTIFICACIÓN: El contenedor inferior completo muta a un enlace dinámico hacia el módulo de perfil -->
             <div class="p-3 border-t border-border bg-card">
-                <div class="flex items-center w-full h-12 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-150 overflow-hidden group cursor-pointer">
+                <Link 
+                    :href="user ? route('customer.profile.index') : route('customer.login')"
+                    class="flex items-center w-full h-12 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-150 overflow-hidden group cursor-pointer px-1 rounded-md"
+                >
                     <div class="w-[52px] flex justify-center shrink-0">
-                        <div class="w-8 h-8 border border-border overflow-hidden bg-background flex items-center justify-center rounded-none">
+                        <div class="w-8 h-8 border border-border overflow-hidden bg-background flex items-center justify-center rounded-none select-none">
                             <img v-if="user?.profile?.avatar_source" :src="`/assets/avatars/${user.profile.avatar_source}`" class="w-full h-full object-cover" />
                             <span v-else class="text-xs font-black text-foreground">{{ userInitials }}</span>
                         </div>
@@ -123,31 +128,27 @@ const toggleSearch = () => {
                         <span class="text-xs font-extrabold truncate w-32 uppercase tracking-tighter text-foreground">{{ userFullName }}</span>
                         
                         <div v-if="!user" class="flex gap-2 items-center leading-none mt-0.5">
-                            <Link :href="route('customer.login')" class="text-[10px] font-black text-primary uppercase hover:underline tracking-widest">Entrar</Link>
-                            <span class="text-[10px] text-neutral-500">|</span>
-                            <Link :href="route('customer.register')" class="text-[10px] font-black text-foreground uppercase hover:underline tracking-widest">Unirse</Link>
+                            <span class="text-[10px] font-black text-primary uppercase tracking-widest">Entrar</span>
                         </div>
                         
-                        <button v-else @click="logout" class="text-[10px] font-black text-primary-aaa dark:text-primary hover:underline uppercase tracking-widest mt-0.5">
+                        <!-- El botón intercepta la propagación para evitar disparar el enlace del contenedor padre -->
+                        <button v-else @click.stop.prevent="logout" class="text-[10px] font-black text-primary-aaa dark:text-primary hover:underline uppercase tracking-widest mt-0.5">
                             Cerrar Sesión
                         </button>
                     </div>
-                </div>
+                </Link>
             </div>
         </aside>
 
+        <!-- CUERPO DE TRABAJO -->
         <main class="flex-1 flex flex-col w-full pt-16 lg:pt-20 transition-all duration-150 ease-f1 relative z-10" 
               :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[76px]'">
             
+            <!-- HEADER DE ESCRITORIO / MÓVIL -->
             <header class="fixed top-0 left-0 lg:left-[76px] right-0 z-[60] w-full lg:w-auto transition-all duration-150 ease-f1">
-                <div class="h-16 flex items-center justify-between px-4 lg:px-8 max-w-7xl mx-auto w-full bg-background bg-f1-lines-random border-b transition-colors duration-200"
-                     :class="isOutOfCoverage && user ? 'border-red-500/50 bg-red-500/[0.03] dark:bg-red-950/20' : 'border-[#32323b]'">
+                <div class="h-16 flex items-center justify-between px-4 lg:px-8 max-w-7xl mx-auto w-full bg-background border-b transition-colors duration-200 border-border">
                 
                     <div v-if="!isSearchActive" class="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-150">
-                        <button @click="isMobileMenuOpen = true" class="lg:hidden p-2 bg-transparent text-foreground active:scale-95 transition-transform duration-75">
-                            <Menu :size="22" :stroke-width="1.5" />
-                        </button>
-
                         <button @click="user ? router.visit(route('customer.profile.addresses.index')) : router.visit(route('customer.register'))" class="flex items-center gap-3 px-2 py-1.5 bg-transparent transition-colors duration-150 group focus:outline-none">
                             <div class="w-8 h-8 bg-transparent flex items-center justify-center">
                                 <AlertTriangle v-if="isOutOfCoverage && user" :size="16" :stroke-width="1.5" class="text-red-500 animate-pulse" />
@@ -172,7 +173,7 @@ const toggleSearch = () => {
                                     v-model="searchQuery" 
                                     type="text" 
                                     placeholder="¿QUÉ BUSCAS HOY?"
-                                    class="w-full h-10 bg-transparent border-b border-[#32323b] border-t-0 border-x-0 pl-11 pr-4 text-xs font-bold tracking-widest focus:ring-0 focus:border-primary text-foreground placeholder:text-neutral-500 uppercase transition-colors duration-150"
+                                    class="w-full h-10 bg-transparent border-b border-border border-t-0 border-x-0 pl-11 pr-4 text-xs font-bold tracking-widest focus:ring-0 focus:border-primary text-foreground placeholder:text-neutral-500 uppercase transition-colors duration-150"
                                 />
                             </div>
                             <button @click="toggleSearch" class="p-2.5 bg-transparent text-foreground active:scale-95 transition-transform duration-75"><X :size="18" :stroke-width="1.5" /></button>
@@ -192,13 +193,14 @@ const toggleSearch = () => {
                 </div>
             </header>
 
+            <!-- Renderizado de Vistas -->
             <section class="flex-1 w-full mx-auto pb-8 pt-4" :class="route().current('customer.index') ? 'max-w-full' : 'max-w-7xl px-4 lg:px-8'">
                 <slot />
             </section>
 
-            <footer class="w-full border-t border-[#32323b] py-12 px-6 lg:px-8 bg-[#ffffff] dark:bg-[#15151f] mt-auto relative z-10 text-[#15151f] dark:text-white select-none">
+            <footer class="w-full border-t border-border py-12 px-6 lg:px-8 bg-card mt-auto relative z-10 select-none">
                 <div class="max-w-7xl mx-auto space-y-6">
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#15151f] dark:text-white">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-foreground">
                         <div class="flex items-center gap-3">
                             <div class="w-4 h-4 bg-primary flex items-center justify-center text-primary-foreground text-[8px] font-black leading-none">DU</div>
                             <span class="tracking-[0.3em]">De Una Digital</span>
@@ -213,68 +215,32 @@ const toggleSearch = () => {
             </footer>
         </main>
 
-        <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#ffffff] dark:bg-[#15151f] border-t border-[#32323b] z-[100] flex justify-around items-center px-1 pb-safe select-none">
-            <button @click="toggleSearch" class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white active:scale-95 duration-75">
-                <Compass :size="20" :stroke-width="2.5" />
+        <!-- MÓVIL: MENÚ INFERIOR CON ICONO DE PERFIL FIJO EN EL EXTREMO DERECHO -->
+        <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-card border-t border-border z-[100] flex justify-around items-center px-1 pb-safe select-none">
+            <button @click="toggleSearch" class="flex flex-col items-center justify-center w-16 h-full text-foreground active:scale-95 duration-75">
+                <Search :size="20" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Buscar</span>
             </button>
 
-            <Link :href="route('customer.index')" class="flex flex-col items-center justify-center w-16 h-full border-b-4 transition-colors duration-75" :class="route().current('customer.index') ? 'border-primary text-primary' : 'border-transparent text-[#15151f] dark:text-white'">
+            <Link :href="route('customer.index')" class="flex flex-col items-center justify-center w-16 h-full border-b-4 transition-colors duration-75" :class="route().current('customer.index') ? 'border-primary text-primary' : 'border-transparent text-foreground'">
                 <Gauge :size="22" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Inicio</span>
             </Link>
-        </nav>
 
-        <Transition name="drawer">
-            <div v-if="isMobileMenuOpen" class="fixed inset-0 z-[110] lg:hidden">
-                <div class="absolute inset-0 bg-neutral-950/80" @click="isMobileMenuOpen = false"></div>
-                <div class="absolute left-0 top-0 h-full w-[85%] max-w-[320px] bg-card border-r border-border flex flex-col shadow-none">
-                    <div class="h-16 px-4 flex justify-between items-center border-b border-border bg-background">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-primary flex items-center justify-center">
-                                <span class="text-primary-foreground text-xs font-black">DU</span>
-                            </div>
-                            <span class="font-black text-xs uppercase tracking-widest text-foreground">Menú</span>
-                        </div>
-                        <div class="flex items-center gap-1 ml-auto mr-2 border-r border-border pr-2">
-                            <ThemeToggler />
-                            <FullScreenToggler />
-                        </div>
-                        <button @click="isMobileMenuOpen = false" class="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-foreground transition-colors duration-150">
-                            <X :size="20" />
-                        </button>
-                    </div>
-                    
-                    <nav class="flex-1 p-4 space-y-1 overflow-y-auto no-scrollbar">
-                        <Link v-for="item in filteredNavigation" :key="item.name" 
-                            :href="route().has(item.route) ? route(item.route) : '#'" 
-                            @click="isMobileMenuOpen = false"
-                            class="flex items-center gap-4 p-4 text-xs font-black uppercase tracking-[0.15em] transition-colors duration-150"
-                            :class="route().current(item.route) ? 'bg-neutral-100 dark:bg-neutral-800 text-primary border-l-2 border-primary' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-foreground border-l-2 border-transparent'"
-                        >
-                            <component :is="item.icon" :size="18" />
-                            {{ item.name }}
-                        </Link>
-                    </nav>
-
-                    <div class="p-4 border-t border-border bg-background space-y-4">
-                        <div v-if="user">
-                            <button @click="logout" class="w-full h-10 border border-border text-[10px] font-black text-foreground hover:text-primary hover:border-primary uppercase tracking-widest active:scale-95 transition-all duration-75">
-                                Cerrar Sesión
-                            </button>
-                        </div>
-                        <div v-else class="grid grid-cols-2 gap-2">
-                            <Link :href="route('customer.login')" class="flex items-center justify-center h-10 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all duration-75">
-                                Entrar
-                            </Link>
-                            <Link :href="route('customer.register')" class="flex items-center justify-center h-10 border border-border text-foreground text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all duration-75">
-                                Registro
-                            </Link>
-                        </div>
-                    </div>
+            <!-- RECTIFICACIÓN: Enlace atómico en la parte derecha para acceso inmediato a la suite de perfiles -->
+            <Link 
+                :href="user ? route('customer.profile.index') : route('customer.login')" 
+                class="flex flex-col items-center justify-center w-16 h-full border-b-4 transition-colors duration-75"
+                :class="route().current('customer.profile.*') ? 'border-primary text-primary' : 'border-transparent text-foreground'"
+            >
+                <!-- Renderiza el avatar real si está autenticado; de lo contrario expone el nodo genérico de login -->
+                <div v-if="user?.profile?.avatar_source" class="w-5 h-5 rounded-full border border-border overflow-hidden bg-background flex items-center justify-center select-none">
+                    <img :src="`/assets/avatars/${user.profile.avatar_source}`" class="w-full h-full object-cover" />
                 </div>
-            </div>
-        </Transition>
+                <component v-else :is="User" :size="20" :stroke-width="2.5" />
+                <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Perfil</span>
+            </Link>
+        </nav>
     </div>
 </template>
 
@@ -282,16 +248,6 @@ const toggleSearch = () => {
 :deep(svg) { stroke-width: 2 !important; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-
-.drawer-enter-active, .drawer-leave-active {
-    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
-}
-.drawer-enter-from, .drawer-leave-to .absolute.bg-card {
-    transform: translateX(-100%);
-}
-.drawer-enter-from .absolute.inset-0, .drawer-leave-to .absolute.inset-0 {
-    opacity: 0;
-}
 
 .du-cyber-canvas {
     position: relative;

@@ -4,18 +4,20 @@ import ShopLayout from '@/Layouts/ShopLayout.vue';
 import LocationWorkflow from '@/Components/Customer/Maps/LocationWorkflow.vue';
 
 const props = defineProps({
-    address: Object, // Nulo si es creación, con datos si es edición
-    activeBranches: Array
+    address: { type: Object, default: null }, 
+    activeBranches: { type: Array, required: true },
+    collidingBranches: { type: Array, default: () => [] }
 });
 
 const isEditing = !!props.address;
 
+// Alineación estricta de las llaves del useForm con el payload de AddressRequest
 const form = useForm({
     alias: props.address?.alias || '', 
     address: props.address?.address || '', 
-    details: props.address?.reference || '',
-    latitude: props.address?.latitude ? parseFloat(props.address.latitude) : -16.5000, 
-    longitude: props.address?.longitude ? parseFloat(props.address.longitude) : -68.1500, 
+    reference: props.address?.reference || '', // Sincronizado bajo el campo formal reference
+    latitude: props.address?.latitude ? parseFloat(props.address.latitude) : -16.49969, 
+    longitude: props.address?.longitude ? parseFloat(props.address.longitude) : -68.12154, 
     branch_id: props.address?.branch_id || null, 
 });
 
@@ -28,7 +30,7 @@ const submitAddress = () => {
 };
 
 const goBack = () => {
-    window.history.back(); // O router.visit(route('customer.profile.addresses'))
+    window.history.back();
 };
 </script>
 
@@ -45,10 +47,12 @@ const goBack = () => {
                 <p class="text-zinc-500 text-sm mt-1">Configura tu punto de despacho logístico.</p>
             </div>
 
+            <!-- Inyección del Orquestador Logístico Unificado -->
             <div class="flex-1 bg-white border border-zinc-200 rounded-[2.5rem] overflow-hidden shadow-sm flex flex-col relative">
                 <LocationWorkflow 
                     :form="form"
                     :activeBranches="activeBranches"
+                    :collidingBranches="collidingBranches"
                     :submitLabel="isEditing ? 'Actualizar Dirección' : 'Guardar Dirección'"
                     @next="submitAddress"
                     @back="goBack"

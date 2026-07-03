@@ -20,7 +20,6 @@ return new class extends Migration {
             $table->integer('trust_score')->default(50);
             $table->boolean('is_active')->default(true); 
             $table->timestamp('email_verified_at')->nullable();
-            $table->geometry('last_known_location', subtype: 'point')->nullable();
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('last_login_at')->nullable();
             $table->boolean('was_previously_deleted')->default(false);
@@ -33,20 +32,34 @@ return new class extends Migration {
             $table->unique(['email', 'deleted_epoch']);
             $table->unique(['phone', 'deleted_epoch']);
             $table->index(['branch_id', 'is_active', 'created_at']);
-            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('restrict');
+            
+            $table->foreign('branch_id')
+                ->references('id')
+                ->on('branches')
+                ->onDelete('restrict')
+                ->onUpdate('restrict');
         });
 
         Schema::create('customer_profiles', function (Blueprint $table) {
-            $table->uuid('customer_id')->primary();
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
+            $table->uuid('id')->primary();
+            $table->uuid('customer_id');
+            $table->string('first_name');
+            $table->string('last_name');
             $table->date('birth_date')->nullable();
-            $table->string('gender', 20)->nullable();
+            $table->string('gender', 20)->nullable(); // Valores permitidos: MALE, FEMALE, OTHER
             $table->string('avatar_type')->default('icon'); 
             $table->string('avatar_source')->default('avatar_1.svg');
+            
+            $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
 
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
+            $table->unique(['customer_id', 'deleted_epoch']);
+            
+            $table->foreign('customer_id')
+                ->references('id')
+                ->on('customers')
+                ->onDelete('restrict')
+                ->onUpdate('restrict');
         });
 
         Schema::create('customer_addresses', function (Blueprint $table) {
@@ -61,8 +74,17 @@ return new class extends Migration {
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
             
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
-            $table->foreign('branch_id')->references('id')->on('branches')->onDelete('restrict');
+            $table->foreign('customer_id')
+                ->references('id')
+                ->on('customers')
+                ->onDelete('restrict')
+                ->onUpdate('restrict');
+                
+            $table->foreign('branch_id')
+                ->references('id')
+                ->on('branches')
+                ->onDelete('restrict')
+                ->onUpdate('restrict');
         });
 
         Schema::create('customer_socials', function (Blueprint $table) {
@@ -73,7 +95,12 @@ return new class extends Migration {
             $table->json('data_json')->nullable();
             $table->timestamps();
 
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
+            $table->foreign('customer_id')
+                ->references('id')
+                ->on('customers')
+                ->onDelete('restrict')
+                ->onUpdate('restrict');
+                
             $table->unique(['provider_name', 'provider_id']);
         });
 
@@ -85,7 +112,11 @@ return new class extends Migration {
             $table->boolean('is_default')->default(false);
             $table->timestamps();
 
-            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('restrict');
+            $table->foreign('customer_id')
+                ->references('id')
+                ->on('customers')
+                ->onDelete('restrict')
+                ->onUpdate('restrict');
         });
     }
 

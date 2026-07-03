@@ -4,69 +4,60 @@ declare(strict_types=1);
 
 namespace App\Actions\Customer\Profiles;
 
-use App\Architecture\ActionResult;
 use App\DTOs\Customer\Profiles\AddressData;
-use App\Models\Users\Customer;
-use App\Services\Geo\BranchCoverageService;
+use App\Models\Users\CustomerAddress;
+use App\Services\Customer\Queries\CustomerQueryService;
+use App\Exceptions\Customer\Auth\DomainException; // Asegurar herencia de base DomainException
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 final class UpsertAddressAction
 {
-    public function __construct(protected BranchCoverageService $geoService) {}
+    public function __construct(
+        private readonly CustomerQueryService $customerQueryService
+    ) {}
 
-    public function execute(Customer $customer, AddressData $dto, ?string $addressId = null): ActionResult
+    public function execute(string $customerId, AddressData $dto, ?string $addressId = null): void
     {
-        DB::transaction(function () use ($customer, $dto, $addressId): void {
-            $assignedBranchId = $dto->branchId ?? $this->geoService->identifyBranch($dto->latitude, $dto->longitude);
-            
-            $isFirstAddress = !$customer->addresses()->where('deleted_epoch', 0)->exists();
-            $shouldBeDefault = $isFirstAddress;
+        DB::transaction(function () use ($customerId, $dto, $addressId): void {
+            $activeCount = $this->customerQueryService->countActiveAddresses($customerId);
 
-            if ($addressId) {
-                $address = $customer->addresses()->where('deleted_epoch', 0)->findOrFail($addressId);
-                $shouldBeDefault = (bool) $address->is_default;
+            if ($addressId === null) {
+                if ($activeCount >= 10) {
+                    throw new DomainException('No es posible registrar la ubicación: Se ha excedido el límite estricto de 10 direcciones activas.');
+                }
+                
+                // Si es la primera dirección del cliente, se fuerza como predeterminada
+                $isDefault = $activeCount === 0;
 
-                DB::table('customer_addresses')
-                    ->where('id', $addressId)
-                    ->update([
-                        'branch_id' => $assignedBranchId,
-                        'alias' => $dto->alias,
-                        'address' => $dto->address,
-                        'reference' => $dto->details,
-                        'position' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
-                        'updated_at' => now(),
-                    ]);
-            } else {
-                $addressId = (string) Str::uuid7();
-                DB::table('customer_addresses')->insert([
-                    'id' => $addressId,
-                    'customer_id' => (string) $customer->id,
-                    'branch_id' => $assignedBranchId,
-                    'alias' => $dto->alias,
-                    'address' => $dto->address,
-                    'reference' => $dto->details,
-                    'position' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
-                    'is_default' => $shouldBeDefault,
+                CustomerAddress::query()->create([
+                    'id'            => (string) Str::uuid7(),
+                    'customer_id'   => $customerId,
+                    'branch_id'     => $dto->branchId,
+                    'alias'         => mb_convert_encoding($dto->alias, 'UTF-8'),
+                    'address'       => mb_convert_encoding($dto->address, 'UTF-8'),
+                    'reference'     => $dto->reference !== null ? mb_convert_encoding($dto->reference, 'UTF-8') : null,
+                    'position'      => ['lat' => $dto->latitude, 'lng' => $dto->longitude],
+                    'is_default'    => $isDefault,
                     'deleted_epoch' => 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
                 ]);
+                return;
             }
 
-            if ($shouldBeDefault) {
-                DB::table('customer_addresses')
-                    ->where('customer_id', $customer->id)
-                    ->where('id', '!=', $addressId)
-                    ->update(['is_default' => false, 'updated_at' => now()]);
+            /** @var CustomerAddress $address */
+            $address = CustomerAddress::query()
+                ->where('id', $addressId)
+                ->where('customer_id', $customerId)
+                ->where('deleted_epoch', 0)
+                ->findOrFail($addressId);
 
-                $customer->update([
-                    'branch_id' => $assignedBranchId,
-                    'last_known_location' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
-                ]);
-            }
+            $address->update([
+                'branch_id' => $dto->branchId,
+                'alias'     => mb_convert_encoding($dto->alias, 'UTF-8'),
+                'address'   => mb_convert_encoding($dto->address, 'UTF-8'),
+                'reference' => $dto->reference !== null ? mb_convert_encoding($dto->reference, 'UTF-8') : null,
+                'position'  => ['lat' => $dto->latitude, 'lng' => $dto->longitude],
+            ]);
         });
-
-        return ActionResult::success();
     }
 }

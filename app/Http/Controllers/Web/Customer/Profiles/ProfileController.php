@@ -4,68 +4,101 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web\Customer\Profiles;
 
-use App\Actions\Customer\Profiles\UpdatePersonalDataAction;
-use App\Actions\Customer\Profiles\UpdateAvatarAction;
-use App\DTOs\Customer\Profiles\ProfileUpdateData;
+use App\Actions\Customer\Profiles\UpdateCustomerAvatarAction;
+use App\Actions\Customer\Profiles\UpdateCustomerProfileAction;
+use App\DTOs\Customer\Profiles\UpdateProfileData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Profiles\UpdateProfileRequest;
-use App\Http\Resources\Customer\Auth\CustomerResource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use stdClass;
 
 final class ProfileController extends Controller
 {
     public function index(): Response
     {
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
-        $user->load('profile');
-    
-        $availableAvatars = collect(range(1, 8))->map(fn(int $i) => [
-            'id' => "avatar_{$i}.png",
-            'url' => asset("assets/avatars/avatar_{$i}.png")
-        ])->toArray();
-    
-        return Inertia::render('Customer/Profiles/PersonalInfoPage', [
-            'user' => (new CustomerResource($user))->resolve(), 
-            'availableAvatars' => $availableAvatars,
-            'config' => [
-                'identity_locked' => true 
-            ]
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
+
+        /** @var stdClass|null $profile */
+        $profile = DB::table('customer_profiles')
+            ->where('customer_id', $customerId)
+            ->where('deleted_epoch', 0)
+            ->first();
+
+        return Inertia::render('Customer/Profiles/Index', [
+            'profile'          => $this->mapProfilePayload($profile),
+            'availableAvatars' => $this->getAvailableAvatars(),
         ]);
+    }
+
+    public function update(UpdateProfileRequest $request, UpdateCustomerProfileAction $action): RedirectResponse
+    {
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
+
+        $dto = UpdateProfileData::fromArray($request->validated());
+        $action->execute($customerId, $dto);
+
+        return redirect()->route('customer.profile.index')
+            ->with('success', 'Datos de perfil actualizados correctamente.');
+    }
+
+    public function updateAvatar(Request $request, UpdateCustomerAvatarAction $action): RedirectResponse
+    {
+        /** @var string $customerId */
+        $customerId = Auth::guard('customer')->id();
+        
+        /** @var string $avatarSource */
+        $avatarSource = $request->input('avatar_source', '');
+
+        $action->execute($customerId, $avatarSource);
+
+        return redirect()->route('customer.profile.index')
+            ->with('success', 'Avatar actualizado correctamente.');
     }
 
     public function security(): Response
     {
-        return Inertia::render('Customer/Profiles/SecurityPage');
+        return Inertia::render('Customer/Profiles/Security');
     }
 
-    public function update(UpdateProfileRequest $request, UpdatePersonalDataAction $action): RedirectResponse
+    /**
+     * @return array{first_name: string, last_name: string, full_name: string, birth_date: ?string, gender: string, avatar_source: string, avatar_url: string}|null
+     */
+    private function mapProfilePayload(?stdClass $profile): ?array
     {
-        $dto = ProfileUpdateData::fromArray($request->validated());
-        
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
-        
-        $action->execute($user, $dto);
-    
-        return back()->with('success', 'Perfil actualizado.');
+        if ($profile === null) {
+            return null;
+        }
+
+        $firstName = (string) ($profile->first_name ?? '');
+        $lastName = (string) ($profile->last_name ?? '');
+        $avatarSource = (string) ($profile->avatar_source ?? 'avatar_1.png');
+
+        return [
+            'first_name'    => $firstName,
+            'last_name'     => $lastName,
+            'full_name'     => mb_strtoupper("{$firstName} {$lastName}"),
+            'birth_date'    => isset($profile->birth_date) ? (string) $profile->birth_date : null,
+            'gender'        => (string) ($profile->gender ?? 'MALE'),
+            'avatar_source' => $avatarSource,
+            'avatar_url'    => "/assets/avatars/{$avatarSource}",
+        ];
     }
 
-    public function updateAvatar(Request $request, UpdateAvatarAction $action): RedirectResponse
+    /**
+     * @return array<int, array{id: string, url: string}>
+     */
+    private function getAvailableAvatars(): array
     {
-        $request->validate([
-            'avatar_source' => ['required', 'string', 'regex:/^avatar_[1-8]\.png$/']
-        ]);
-
-        /** @var \App\Models\Users\Customer $user */
-        $user = Auth::guard('customer')->user();
-        
-        $action->execute($user, (string) $request->input('avatar_source'));
-
-        return back()->with('success', 'Avatar actualizado.');
+        return array_map(fn (int $i) => [
+            'id'  => "avatar_{$i}.png",
+            'url' => "/assets/avatars/avatar_{$i}.png",
+        ], range(1, 8));
     }
 }

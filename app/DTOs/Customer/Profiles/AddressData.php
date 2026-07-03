@@ -9,10 +9,10 @@ final readonly class AddressData
     private function __construct(
         public string $alias,
         public string $address,
+        public ?string $reference,
         public float $latitude,
         public float $longitude,
-        public ?string $branchId,
-        public ?string $details
+        public ?string $branchId
     ) {}
 
     /**
@@ -23,10 +23,10 @@ final readonly class AddressData
         return new static(
             (string) ($validatedData['alias'] ?? ''),
             (string) ($validatedData['address'] ?? ''),
+            isset($validatedData['reference']) ? (string) $validatedData['reference'] : null,
             (float) ($validatedData['latitude'] ?? 0.0),
             (float) ($validatedData['longitude'] ?? 0.0),
-            isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null,
-            isset($validatedData['details']) ? (string) $validatedData['details'] : null
+            isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null
         );
     }
 }
