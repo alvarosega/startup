@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models\Operations;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,23 +13,27 @@ use App\Models\Admin;
 use App\Models\Users\Customer;
 use App\Models\Users\Driver;
 
+use App\Exceptions\Customer\Auth\ImmutableUuidException;
+use App\Exceptions\Customer\Auth\PhysicalDeletionProhibitedException;
+
+
 class Branch extends Model
 {
-    use HasUv7, SoftDeletes, HasFactory;
+    use HasUv7, HasFactory;
 
     protected $table = 'branches';
 
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     protected $fillable = [
-        'name', 'slug', 'city', 'phone', 'address', 'location', 'coverage_polygon',
+        'id', 'name', 'slug', 'city', 'phone', 'address', 'location', 'coverage_polygon',
         'delivery_base_fee', 'delivery_price_per_km', 'surge_multiplier',
         'min_order_amount', 'small_order_fee', 'base_service_fee_percentage',
         'is_default', 'is_active', 'deleted_epoch'
     ];
 
-    /**
-     * BLINDAJE DE SERIALIZACIÓN: Oculta los campos geométricos binarios crudos para prevenir
-     * el colapso de malformación UTF-8 al ejecutar toArray() o json_encode() en el sistema.
-     */
     protected $hidden = [
         'location',
         'coverage_polygon',
@@ -48,39 +51,40 @@ class Branch extends Model
         'base_service_fee_percentage' => 'decimal:2',
     ];
 
-    protected static function boot(): void
+    protected static function booted(): void
     {
-        parent::boot();
+        static::updating(function (Branch $branch) {
+            if ($branch->isDirty('id')) {
+                throw new ImmutableUuidException('id');
+            }
+        });
+
         static::deleting(function (Branch $branch) {
-            $branch->deleted_epoch = time();
-            $branch->saveQuietly();
+            throw new PhysicalDeletionProhibitedException('sucursales');
         });
     }
-
-    // =================================================================================
-    // RELACIONES
-    // =================================================================================
     public function admins(): HasMany
     {
-        return $this->hasMany(Admin::class);
+        return $this->hasMany(Admin::class, 'branch_id', 'id');
     }
 
     public function customers(): HasMany
     {
-        return $this->hasMany(Customer::class);
+        return $this->hasMany(Customer::class, 'branch_id', 'id');
     }
 
     public function drivers(): HasMany
     {
-        return $this->hasMany(Driver::class);
+        return $this->hasMany(Driver::class, 'branch_id', 'id');
     }
 
     // =================================================================================
-    // LOCAL SCOPES (ABSTRACCIÓN GEOSPACIAL)
+    // LOCAL SCOPES (CONVERGENCIA GEOSPACIAL)
     // =================================================================================
+
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('deleted_epoch', 0);
     }
 
     /**

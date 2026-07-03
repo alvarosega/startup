@@ -4,71 +4,69 @@ declare(strict_types=1);
 
 namespace App\Actions\Customer\Profiles;
 
-use App\Models\{Customer, CustomerAddress};
+use App\Architecture\ActionResult;
 use App\DTOs\Customer\Profiles\AddressData;
+use App\Models\Users\Customer;
 use App\Services\Geo\BranchCoverageService;
-use App\Services\ShopContextService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
-class UpsertAddressAction
+final class UpsertAddressAction
 {
-    public function __construct(
-        protected readonly BranchCoverageService $geoService,
-        protected readonly ShopContextService $shopContext
-    ) {}
+    public function __construct(protected BranchCoverageService $geoService) {}
 
-    /**
-     * Ejecuta la inserción o actualización atómica de una dirección de entrega.
-     */
-    public function execute(Customer $customer, AddressData $data, ?string $addressId = null): CustomerAddress
+    public function execute(Customer $customer, AddressData $dto, ?string $addressId = null): ActionResult
     {
-        return DB::transaction(function () use ($customer, $data, $addressId) {
-            // Bloqueo pesimista para evitar condiciones de carrera en ráfagas de red
-            $customer->lockForUpdate()->find($customer->id);
+        DB::transaction(function () use ($customer, $dto, $addressId): void {
+            $assignedBranchId = $dto->branchId ?? $this->geoService->identifyBranch($dto->latitude, $dto->longitude);
+            
+            $isFirstAddress = !$customer->addresses()->where('deleted_epoch', 0)->exists();
+            $shouldBeDefault = $isFirstAddress;
 
-            // El conteo ignora automáticamente las direcciones con Soft Delete
-            if (!$addressId && $customer->addresses()->count() >= 10) {
-                throw ValidationException::withMessages([
-                    'limit' => 'Se ha alcanzado el límite máximo de 10 ubicaciones permitidas en su cuenta.'
+            if ($addressId) {
+                $address = $customer->addresses()->where('deleted_epoch', 0)->findOrFail($addressId);
+                $shouldBeDefault = (bool) $address->is_default;
+
+                DB::table('customer_addresses')
+                    ->where('id', $addressId)
+                    ->update([
+                        'branch_id' => $assignedBranchId,
+                        'alias' => $dto->alias,
+                        'address' => $dto->address,
+                        'reference' => $dto->details,
+                        'position' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                $addressId = (string) Str::uuid7();
+                DB::table('customer_addresses')->insert([
+                    'id' => $addressId,
+                    'customer_id' => (string) $customer->id,
+                    'branch_id' => $assignedBranchId,
+                    'alias' => $dto->alias,
+                    'address' => $dto->address,
+                    'reference' => $dto->details,
+                    'position' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
+                    'is_default' => $shouldBeDefault,
+                    'deleted_epoch' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
 
-            // LEY: Si está fuera de cobertura devuelve NULL. Se elimina el fallback destructivo.
-            $identifiedBranchId = $this->geoService->identifyBranch($data->latitude, $data->longitude);
-
-            $shouldBeDefault = $customer->addresses()->count() === 0 || $data->isDefault;
-
             if ($shouldBeDefault) {
-                $customer->addresses()->update(['is_default' => false]);
-                // Obligatorio: Purga de sesión para forzar la actualización del layout e inventarios
-                session()->forget(['user_addr_alias', 'shop_branch_id']);
-            }
+                DB::table('customer_addresses')
+                    ->where('customer_id', $customer->id)
+                    ->where('id', '!=', $addressId)
+                    ->update(['is_default' => false, 'updated_at' => now()]);
 
-            /** @var CustomerAddress $address */
-            $address = $customer->addresses()->updateOrCreate(
-                ['id' => $addressId],
-                [
-                    'alias'      => $data->alias,
-                    'address'    => $data->address,
-                    'reference'  => $data->details,
-                    'latitude'   => $data->latitude,
-                    'longitude'  => $data->longitude,
-                    'branch_id'  => $identifiedBranchId, // UUID o NULL
-                    'is_default' => $shouldBeDefault
-                ]
-            );
-
-            // Replicación de estado logístico al perfil troncal del cliente
-            if ($shouldBeDefault) {
                 $customer->update([
-                    'branch_id' => $identifiedBranchId, // Sincroniza NULL si está fuera de zona
-                    'latitude'  => $data->latitude,
-                    'longitude' => $data->longitude,
+                    'branch_id' => $assignedBranchId,
+                    'last_known_location' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
                 ]);
             }
-
-            return $address;
         });
+
+        return ActionResult::success();
     }
 }

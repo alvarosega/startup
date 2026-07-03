@@ -1,40 +1,46 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customer\Profiles;
 
-use App\Models\{Customer, CustomerAddress};
+use App\Architecture\ActionResult;
+use App\Models\Users\Customer;
 use Illuminate\Support\Facades\DB;
 
-class DeleteAddressAction
+final class DeleteAddressAction
 {
-    public function __construct(protected \App\Services\ShopContextService $shopContext) {}
-    public function execute(Customer $customer, string $addressId): void
+    public function execute(Customer $customer, string $addressId): ActionResult
     {
-        $address = $customer->addresses()->findOrFail($addressId);
-    
-        DB::transaction(function () use ($customer, $address) {
-            $wasDefault = $address->is_default;
-            $address->delete();
-    
-            if ($wasDefault) {
-                $newDefault = $customer->addresses()->first();
-                
-                if ($newDefault) {
-                    $newDefault->update(['is_default' => true]);
-                    $customer->update([
-                        'branch_id' => $newDefault->branch_id,
-                        'latitude'  => $newDefault->latitude,
-                        'longitude' => $newDefault->longitude,
-                    ]);
-                } else {
-                    // CORRECCIÓN: Si no hay más direcciones, vuelve a la SUCURSAL POR DEFECTO
-                    $customer->update([
-                        'branch_id' => $this->shopContext->getDefaultBranchId(),
-                        'latitude'  => null,
-                        'longitude' => null,
-                    ]);
-                }
+        return DB::transaction(function () use ($customer, $addressId): ActionResult {
+            $address = $customer->addresses()
+                ->where('deleted_epoch', 0)
+                ->findOrFail($addressId);
+
+            if ($address->is_default) {
+                return ActionResult::failure('Restricción de Seguridad: No puede eliminar su ubicación predeterminada activa.');
             }
+
+            $timestamp = time();
+
+            DB::table('customer_addresses')
+                ->where('id', $addressId)
+                ->update([
+                    'deleted_epoch' => $timestamp,
+                    'updated_at' => now()
+                ]);
+
+            DB::table('audit_logs')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid7(),
+                'target_type' => 'App\Models\Users\CustomerAddress',
+                'target_id' => $addressId,
+                'action' => 'eliminacion',
+                'payload_before' => json_encode(['customer_id' => $customer->id, 'rejection_reason' => 'eliminacion']),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            return ActionResult::success();
         });
     }
 }

@@ -4,150 +4,143 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web\Customer\Profiles;
 
-use App\Http\Controllers\Controller;
-use App\Http\Requests\Customer\Profiles\AddressRequest;
-use App\DTOs\Customer\Profiles\AddressData;
-use App\Actions\Customer\Auth\GetActiveBranchesAction; 
+use App\Actions\Customer\Auth\GetActiveBranchesAction;
+use App\Actions\Customer\Auth\GetCollidingBranchesAction;
 use App\Actions\Customer\Profiles\UpsertAddressAction;
 use App\Actions\Customer\Profiles\SetDefaultAddressAction;
-use App\Http\Resources\Customer\Branch\BranchResource; 
-use App\Models\Customer;
-use Illuminate\Support\Facades\Auth;
+use App\Actions\Customer\Profiles\DeleteAddressAction;
+use App\DTOs\Customer\Profiles\AddressData;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Customer\Profiles\AddressRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Validation\ValidationException;
 
-class AddressController extends Controller
+final class AddressController extends Controller
 {
-    public function __construct(
-        protected readonly UpsertAddressAction $upsertAction,
-        protected readonly SetDefaultAddressAction $setDefaultAction
-    ) {}
-
-    /**
-     * Lista de direcciones activas del cliente.
-     */
     public function index(GetActiveBranchesAction $branchAction): Response
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
         
+        $addresses = $user->addresses()
+            ->where('deleted_epoch', 0)
+            ->orderBy('is_default', 'desc')
+            ->get()
+            ->map(fn($addr) => [
+                'id' => $addr->id,
+                'alias' => $addr->alias,
+                'address' => $addr->address,
+                'reference' => $addr->reference,
+                'is_default' => (bool) $addr->is_default,
+                'branch_id' => $addr->branch_id
+            ])->toArray();
+
+        $activeBranches = $branchAction->execute();
+        
         return Inertia::render('Customer/Profiles/AddressesPage', [
-            'addresses'      => $user->addresses()->orderBy('is_default', 'desc')->get(),
-            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
+            'addresses' => $addresses,
+            'activeBranches' => $activeBranches->data
         ]);
     }
 
-    /**
-     * Renderiza el formulario de creación controlando el límite de la cuenta.
-     */
-    public function create(GetActiveBranchesAction $branchAction): Response|RedirectResponse
+    public function create(Request $request, GetActiveBranchesAction $branchAction, GetCollidingBranchesAction $collidingAction): Response|RedirectResponse
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
         
-        if ($user->addresses()->count() >= 10) {
+        if ($user->addresses()->where('deleted_epoch', 0)->count() >= 10) {
             return redirect()->route('customer.profile.addresses')
                 ->withErrors(['limit' => 'Límite de 10 direcciones alcanzado. Elimine una ubicación para continuar.']);
         }
 
+        $lat = $request->filled('latitude') ? (float) $request->query('latitude') : null;
+        $lng = $request->filled('longitude') ? (float) $request->query('longitude') : null;
+
+        $activeBranches = $branchAction->execute();
+        $collidingBranches = $collidingAction->execute($lat, $lng);
+
         return Inertia::render('Customer/Profiles/AddressFormPage', [
-            'address'        => null, 
-            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
+            'address' => null, 
+            'activeBranches' => $activeBranches->data,
+            'collidingBranches' => $collidingBranches->data
         ]);
     }
 
-    /**
-     * Procesa e inserta una nueva ubicación a través del servicio transaccional.
-     */
-    public function store(AddressRequest $request): RedirectResponse
+    public function store(AddressRequest $request, UpsertAddressAction $action): RedirectResponse
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
 
-        try {
-            $this->upsertAction->execute(
-                $user,
-                AddressData::fromRequest($request)
-            );
+        $dto = AddressData::fromArray($request->validated());
+        $action->execute($user, $dto);
 
-            return redirect()->route('customer.profile.addresses')
-                ->with('success', 'Ubicación guardada de forma exitosa.');
-
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
+        return redirect()->route('customer.profile.addresses')
+            ->with('success', 'Ubicación guardada de forma exitosa.');
     }
 
-    /**
-     * Vista de edición de una dirección específica.
-     */
-    public function edit(string $id, GetActiveBranchesAction $branchAction): Response
+    public function edit(string $id, Request $request, GetActiveBranchesAction $branchAction, GetCollidingBranchesAction $collidingAction): Response
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
-        $address = $user->addresses()->findOrFail($id);
+        $addressModel = $user->addresses()->where('deleted_epoch', 0)->findOrFail($id);
+
+        $lat = $request->filled('latitude') ? (float) $request->query('latitude') : null;
+        $lng = $request->filled('longitude') ? (float) $request->query('longitude') : null;
+
+        $activeBranches = $branchAction->execute();
+        $collidingBranches = $collidingAction->execute($lat, $lng);
+
+        $address = [
+            'id' => $addressModel->id,
+            'alias' => $addressModel->alias,
+            'address' => $addressModel->address,
+            'reference' => $addressModel->reference,
+            'branch_id' => $addressModel->branch_id
+        ];
 
         return Inertia::render('Customer/Profiles/AddressFormPage', [
-            'address'        => $address, 
-            'activeBranches' => BranchResource::collection($branchAction->execute())->resolve()
+            'address' => $address, 
+            'activeBranches' => $activeBranches->data,
+            'collidingBranches' => $collidingBranches->data
         ]);
     }
 
-    /**
-     * Actualiza una ubicación existente delegando el cómputo logístico al Action.
-     */
-    public function update(string $id, AddressRequest $request): RedirectResponse
+    public function update(string $id, AddressRequest $request, UpsertAddressAction $action): RedirectResponse
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
 
-        try {
-            $this->upsertAction->execute(
-                $user,
-                AddressData::fromRequest($request),
-                $id
-            );
+        $dto = AddressData::fromArray($request->validated());
+        $action->execute($user, $dto, $id);
 
-            return redirect()->route('customer.profile.addresses')
-                ->with('success', 'Ubicación modificada de forma exitosa.');
-
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
+        return redirect()->route('customer.profile.addresses')
+            ->with('success', 'Ubicación modificada de forma exitosa.');
     }
 
-    /**
-     * Intercambia el puntero de la dirección predeterminada por ID.
-     */
-    public function makeDefault(string $id): RedirectResponse
+    public function makeDefault(string $id, SetDefaultAddressAction $action): RedirectResponse
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
 
-        $this->setDefaultAction->execute($user, $id);
+        $action->execute($user, $id);
 
         return redirect()->route('customer.profile.addresses')
             ->with('success', 'Dirección preferida actualizada.');
     }
 
-    /**
-     * Ejecuta el Soft Delete de una ubicación protegiendo la dirección por defecto.
-     */
-    public function destroy(string $id): RedirectResponse
+    public function destroy(string $id, DeleteAddressAction $action): RedirectResponse
     {
-        /** @var Customer $user */
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
         
-        $address = $user->addresses()->findOrFail($id);
+        $result = $action->execute($user, $id);
 
-        if ($address->is_default) {
-            return back()->withErrors(['delete' => 'Restricción de Seguridad: No puede eliminar su ubicación predeterminada activa.']);
+        if (!$result->isSuccess) {
+            return back()->withErrors(['delete' => $result->errorMessage]);
         }
-
-        // Ejecución de borrado lógico (Soft Delete nativo de Eloquent)
-        $address->delete();
 
         return redirect()->route('customer.profile.addresses')
             ->with('success', 'Dirección removida de la libreta.');

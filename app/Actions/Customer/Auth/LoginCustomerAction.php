@@ -6,24 +6,36 @@ namespace App\Actions\Customer\Auth;
 
 use App\Architecture\ActionResult;
 use App\DTOs\Customer\Auth\LoginCustomerData;
-use App\Services\Cart\CartService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 final class LoginCustomerAction
 {
-    public function __construct(protected CartService $cartService) {}
-
     public function execute(LoginCustomerData $dto): ActionResult
     {
+        $throttleKey = Str::transliterate(Str::lower($dto->phone) . '|' . request()->ip());
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            throw ValidationException::withMessages([
+                'phone' => __('auth.throttle', ['seconds' => $seconds]),
+            ]);
+        }
+
         $credentials = [
             'phone' => $dto->phone,
-            'password' => $dto->password
+            'password' => $dto->password,
         ];
 
         if (!Auth::guard('customer')->attempt($credentials, $dto->remember)) {
+            RateLimiter::hit($throttleKey, 60);
             return ActionResult::failure('Las credenciales proporcionadas no coinciden con nuestros registros.');
         }
+
+        RateLimiter::clear($throttleKey);
 
         /** @var \App\Models\Users\Customer $customer */
         $customer = Auth::guard('customer')->user();
@@ -33,11 +45,9 @@ final class LoginCustomerAction
             return ActionResult::failure('Acceso denegado: Su cuenta de cliente se encuentra inactiva o suspendida.');
         }
 
-        if ($dto->guestUuid) {
-            DB::transaction(function () use ($customer, $dto): void {
-                $this->cartService->fusionGuestCart((string) $customer->id, $dto->guestUuid);
-            });
-        }
+        DB::transaction(function () use ($customer): void {
+            $customer->update(['last_login_at' => now()]);
+        });
 
         return ActionResult::success($customer);
     }

@@ -1,30 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customer\Profiles;
 
-use App\Models\Customer;
+use App\Architecture\ActionResult;
 use App\DTOs\Customer\Profiles\ProfileUpdateData;
+use App\Models\Users\Customer;
 use Illuminate\Support\Facades\DB;
 
-class UpdatePersonalDataAction
+final class UpdatePersonalDataAction
 {
-    /**
-     * Ejecuta la actualización de datos complementarios del cliente.
-     * Solo birth_date y gender son mutables.
-     */
-    public function execute(Customer $customer, ProfileUpdateData $data): void
+    public function execute(Customer $customer, ProfileUpdateData $dto): ActionResult
     {
-        DB::transaction(function () use ($customer, $data) {
-            
-            // Actualizamos únicamente la tabla de perfiles
+        DB::transaction(function () use ($customer, $dto): void {
             $customer->profile()->update([
-                'birth_date' => $data->birthDate,
-                'gender'     => $data->gender,
+                'first_name' => mb_convert_encoding($dto->firstName, 'UTF-8'),
+                'last_name' => mb_convert_encoding($dto->lastName, 'UTF-8'),
+                'birth_date' => $dto->birthDate,
+                'gender' => $dto->gender,
             ]);
-
-            // Nota: El email y el teléfono son inmutables por diseño de seguridad.
-            // Si en el futuro se requiere cambiar el email, se debe crear un Action 
-            // separado con protocolo de verificación (OTP).
         });
+
+        return ActionResult::success();
     }
 }

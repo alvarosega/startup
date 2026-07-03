@@ -7,34 +7,39 @@ use App\Http\Controllers\Web\Customer\Auth\LoginController;
 use App\Http\Controllers\Web\Customer\Auth\RegisterController;
 use App\Http\Controllers\Web\Customer\Auth\LogoutController;
 use App\Http\Controllers\Web\Customer\Shop\ShopController;
+use App\Http\Controllers\Web\Customer\Profiles\ProfileController;
+use App\Http\Controllers\Web\Customer\Profiles\AddressController;
 
-/*
-|--------------------------------------------------------------------------
-| Silo Customer: Sistema de Rutas Convalidadas
-|--------------------------------------------------------------------------
-| Prefix 'customer.' y Name 'customer.' aplicados en bootstrap/app.php
-*/
-
-// --- NAVEGACIÓN HÍBRIDA / PÚBLICA (PÁGINA PRINCIPAL) ---
-// Resuelve el contexto geográfico para invitados (is_default) y autenticados (branch_id)
+// URL: / -> Name: customer.index
 Route::get('/', ShopController::class)->name('index');
 
-// --- PERÍMETRO EXCLUSIVO PARA INVITADOS (GUEST GUARD) ---
+// --- PERÍMETRO EXCLUSIVO PARA INVITADOS ---
 Route::middleware(['guest:customer'])->group(function (): void {
-    
-    // Autenticación de Cliente
     Route::get('login', [LoginController::class, 'show'])->name('login');
     Route::post('login', [LoginController::class, 'store'])->name('login.store');
 
-    // Registro de Cuenta & Orquestación de Cobertura Geográfica
-    // El método GET atiende tanto la carga inicial como los Partial Reloads de Inertia (latitude/longitude)
     Route::get('register', [RegisterController::class, 'create'])->name('register');
     Route::post('register', [RegisterController::class, 'store'])->name('register.store');
 });
 
-// --- PERÍMETRO PROTEGIDO (AUTH GUARD) ---
+// --- PERÍMETRO PROTEGIDO ---
 Route::middleware(['auth:customer'])->group(function (): void {
-    
-    // Cierre de Sesión Atómico (Recurso Singular Invocable)
-    Route::delete('logout', LogoutController::class)->name('login.destroy');
+    Route::post('logout', LogoutController::class)->name('logout');
+
+    Route::prefix('profile')->name('profile.')->group(function (): void {
+        Route::get('/', [ProfileController::class, 'index'])->name('index');
+        Route::put('/', [ProfileController::class, 'update'])->name('update');
+        Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('update-avatar');
+        Route::get('/security', [ProfileController::class, 'security'])->name('security');
+
+        Route::prefix('addresses')->name('addresses.')->group(function (): void {
+            Route::get('/', [AddressController::class, 'index'])->name('index');
+            Route::get('/create', [AddressController::class, 'create'])->name('create');
+            Route::post('/', [AddressController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [AddressController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [AddressController::class, 'update'])->name('update');
+            Route::post('/{id}/delete', [AddressController::class, 'destroy'])->name('destroy');
+            Route::patch('/{id}/default', [AddressController::class, 'makeDefault'])->name('set-default');
+        });
+    });
 });

@@ -1,23 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs\Customer\Profiles;
 
-use App\Http\Requests\Customer\Profiles\UpdateProfileRequest;
-
-readonly class ProfileUpdateData
+final readonly class ProfileUpdateData
 {
-    public function __construct(
+    private function __construct(
+        public string $firstName,
+        public string $lastName,
         public ?string $birthDate,
-        public ?string $gender,
+        public ?string $gender
     ) {}
 
-    public static function fromRequest(UpdateProfileRequest $request): self
+    /**
+     * @param array<string, mixed> $validatedData
+     */
+    public static function fromArray(array $validatedData): static
     {
-        $v = $request->validated();
-
-        return new self(
-            birthDate: $v['birth_date'] ?? null,
-            gender:    $v['gender'] ?? null,
+        return new static(
+            (string) ($validatedData['first_name'] ?? ''),
+            (string) ($validatedData['last_name'] ?? ''),
+            isset($validatedData['birth_date']) ? (string) $validatedData['birth_date'] : null,
+            isset($validatedData['gender']) ? (string) $validatedData['gender'] : null
         );
     }
 }

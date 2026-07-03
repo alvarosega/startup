@@ -20,8 +20,7 @@ final readonly class RegisterCustomerData
         public string $avatarSource,
         public string $alias,
         public string $address,
-        public ?string $details,
-        public ?string $guestUuid
+        public ?string $details
     ) {}
 
     /**
@@ -33,18 +32,17 @@ final readonly class RegisterCustomerData
             (string) ($validatedData['phone'] ?? ''),
             (string) ($validatedData['email'] ?? ''),
             (string) ($validatedData['password'] ?? ''),
-            (string) ($validatedData['country_code'] ?? 'BO'),
+            (string) ($validatedData['country_code'] ?? ''),
             (float) ($validatedData['latitude'] ?? 0.0),
             (float) ($validatedData['longitude'] ?? 0.0),
             isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null,
             (string) ($validatedData['first_name'] ?? ''),
             (string) ($validatedData['last_name'] ?? ''),
-            (string) ($validatedData['avatar_type'] ?? 'icon'),
-            (string) ($validatedData['avatar_source'] ?? 'avatar_1.svg'),
-            (string) ($validatedData['alias'] ?? 'Casa'),
+            (string) ($validatedData['avatar_type'] ?? ''),
+            (string) ($validatedData['avatar_source'] ?? ''),
+            (string) ($validatedData['alias'] ?? ''),
             (string) ($validatedData['address'] ?? ''),
-            isset($validatedData['details']) ? (string) $validatedData['details'] : null,
-            isset($validatedData['guest_client_uuid']) ? (string) $validatedData['guest_client_uuid'] : null
+            isset($validatedData['details']) ? (string) $validatedData['details'] : null
         );
     }
 }

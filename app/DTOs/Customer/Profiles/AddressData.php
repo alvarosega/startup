@@ -1,31 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs\Customer\Profiles;
 
-use Illuminate\Http\Request;
-
-readonly class AddressData
+final readonly class AddressData
 {
-    public function __construct(
+    private function __construct(
         public string $alias,
         public string $address,
-        public ?string $details,
         public float $latitude,
         public float $longitude,
         public ?string $branchId,
-        public bool $isDefault = false
+        public ?string $details
     ) {}
 
-    public static function fromRequest(Request $request): self
+    /**
+     * @param array<string, mixed> $validatedData
+     */
+    public static function fromArray(array $validatedData): static
     {
-        return new self(
-            alias:     $request->validated('alias'),
-            address:   $request->validated('address'),
-            details:   $request->validated('details'),
-            latitude:  (float) $request->validated('latitude'),
-            longitude: (float) $request->validated('longitude'),
-            branchId:  $request->validated('branch_id'),
-            isDefault: (bool) $request->validated('is_default', false)
+        return new static(
+            (string) ($validatedData['alias'] ?? ''),
+            (string) ($validatedData['address'] ?? ''),
+            (float) ($validatedData['latitude'] ?? 0.0),
+            (float) ($validatedData['longitude'] ?? 0.0),
+            isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null,
+            isset($validatedData['details']) ? (string) $validatedData['details'] : null
         );
     }
 }

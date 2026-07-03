@@ -4,21 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services\Geo;
 
-use App\Models\Operations\Branch;
+use App\Services\Customer\Queries\BranchQueryService;
+use App\Exceptions\Customer\Auth\OutOfCoverageException;
 
 final class BranchCoverageService
 {
+    public function __construct(
+        private readonly BranchQueryService $branchQueryService
+    ) {}
+
     /**
-     * Identifica el UUID de la sucursal que cubre las coordenadas GPS provistas.
+     * @throws OutOfCoverageException
      */
     public function identifyBranch(float $lat, float $lng): ?string
     {
-        /** @var string|null $branchId */
-        $branchId = Branch::query()
-            ->active()
-            ->withinCoverage($lat, $lng)
-            ->value('id');
+        $colliding = $this->branchQueryService->getCollidingBranches($lat, $lng);
 
-        return $branchId;
+        if (empty($colliding)) {
+            throw new OutOfCoverageException($lat, $lng);
+        }
+
+        return $colliding[0]['id'];
     }
 }

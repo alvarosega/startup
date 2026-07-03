@@ -4,16 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Customer\Auth;
 
-use App\Traits\ValidatesGlobalIdentity;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 final class LoginRequest extends FormRequest
 {
-    use ValidatesGlobalIdentity;
-
     public function authorize(): bool
     {
         return true;
@@ -21,46 +15,24 @@ final class LoginRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->normalizeIdentityData();
+        if ($this->has('phone') && !empty($this->input('phone'))) {
+            $cleanPhone = preg_replace('/[^\+0-9]/', '', (string) $this->input('phone'));
+            if (!str_starts_with($cleanPhone, '+')) {
+                $cleanPhone = '+' . $cleanPhone;
+            }
+            $this->merge(['phone' => $cleanPhone]);
+        }
     }
 
     /**
-     * @return array<string, array<int, mixed>>
+     * @return array<string, array<int, string>>
      */
     public function rules(): array
     {
         return [
-            'phone' => ['required', 'string'],
+            'phone' => ['required', 'string', 'min:8', 'max:20'],
             'password' => ['required', 'string'],
             'remember' => ['nullable', 'boolean'],
-            'guest_client_uuid' => ['nullable', 'uuid']
         ];
-    }
-
-    public function checkRateLimit(): void
-    {
-        $throttleKey = $this->getThrottleKey();
-
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'phone' => __('auth.throttle', ['seconds' => $seconds]),
-            ]);
-        }
-    }
-
-    public function hitRateLimiter(): void
-    {
-        RateLimiter::hit($this->getThrottleKey(), 60);
-    }
-
-    public function clearRateLimiter(): void
-    {
-        RateLimiter::clear($this->getThrottleKey());
-    }
-
-    private function getThrottleKey(): string
-    {
-        return Str::transliterate(Str::lower((string) $this->input('phone')) . '|' . $this->ip());
     }
 }

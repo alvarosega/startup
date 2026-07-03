@@ -1,22 +1,10 @@
 <?php
 
 return [
-
-
     'defaults' => [
         'guard' => 'customer',
         'passwords' => 'customers',
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication Guards
-    |--------------------------------------------------------------------------
-    |
-    | Definición de los 3 guards basados en sesiones tradicionales.
-    | Comparten el dominio físico pero actúan bajo identificadores lógicos independientes.
-    |
-    */
 
     'guards' => [
         'super_admin' => [
@@ -32,17 +20,6 @@ return [
             'provider' => 'customers',
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | User Providers
-    |--------------------------------------------------------------------------
-    |
-    | Mapeo directo a los modelos Eloquent de los tres silos independientes.
-    | All models implement Authenticatable y usan identificadores UUID.
-    |
-    */
-
     'providers' => [
         'admins' => [
             'driver' => 'eloquent',
@@ -57,8 +34,6 @@ return [
             'model' => App\Models\Users\Customer::class,
         ],
     ],
-
-
     'passwords' => [
         'customers' => [
             'provider' => 'customers',

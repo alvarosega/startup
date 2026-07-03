@@ -9,8 +9,7 @@ final readonly class LoginCustomerData
     private function __construct(
         public string $phone,
         public string $password,
-        public bool $remember,
-        public ?string $guestUuid
+        public bool $remember
     ) {}
 
     /**
@@ -21,8 +20,7 @@ final readonly class LoginCustomerData
         return new static(
             (string) ($validatedData['phone'] ?? ''),
             (string) ($validatedData['password'] ?? ''),
-            (bool) ($validatedData['remember'] ?? false),
-            isset($validatedData['guest_client_uuid']) ? (string) $validatedData['guest_client_uuid'] : null
+            (bool) ($validatedData['remember'] ?? false)
         );
     }
 }

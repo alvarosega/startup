@@ -2,33 +2,13 @@
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
-    LayoutDashboard,
     Compass,
     Gauge,
-    ShoppingBag,
-    Fingerprint,
-    Menu, X, LogOut, Bell, Tag, ChevronRight, Loader2, MessageCircle, 
-    Instagram, Facebook, Youtube, Twitter, Linkedin, Send, Disc, Tv, 
-    AtSign, Ghost, Music2, MapPin, Receipt, ShieldCheck,
-    Search, ShoppingCart, AlertTriangle // CORRECCIÓN: Importación de iconos faltantes para la barra superior
+    Menu, X, Tag, ShieldCheck, MapPin, AlertTriangle, Search
 } from 'lucide-vue-next';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
 
-const socialNetworks = [
-    { name: 'WhatsApp', icon: MessageCircle, link: '#' },
-    { name: 'Instagram', icon: Instagram, link: '#' },
-    { name: 'Facebook', icon: Facebook, link: '#' },
-    { name: 'TikTok', icon: Music2, link: '#' },
-    { name: 'YouTube', icon: Youtube, link: '#' },
-    { name: 'X / Twitter', icon: Twitter, link: '#' },
-    { name: 'LinkedIn', icon: Linkedin, link: '#' },
-    { name: 'Telegram', icon: Send, link: '#' },
-    { name: 'Discord', icon: Disc, link: '#' },
-    { name: 'Twitch', icon: Tv, link: '#' },
-    { name: 'Threads', icon: AtSign, link: '#' },
-    { name: 'Snapchat', icon: Ghost, link: '#' },
-];
 const page = usePage();
 const isSearchActive = ref(false);
 const searchQuery = ref('');
@@ -37,16 +17,15 @@ const isMobileMenuOpen = ref(false);
 
 const user = computed(() => page.props.auth?.customer);
 const location = computed(() => page.props.location_context || { label: 'LOCALIZANDO...', type: 'branch' });
-const cartCount = computed(() => page.props.cart?.total_items || 0);
 
-// RESOLUCIÓN DE COBERTURA DESDE BACKEND
+// RESOLUCIÓN DE COBERTURA DESDE BACKEND EN BASE A LA BASE DE DATOS
 const isOutOfCoverage = computed(() => page.props.shop_context?.is_out_of_coverage ?? false);
 
-// REGLA DE NEGOCIO: Mapeo de Etiquetas del Header por Escenarios
+// REGLA DE NEGOCIO: Mapeo de Etiquetas del Header por Escenarios Geográficos
 const locationText = computed(() => {
-    if (!user.value) return 'INVITADO'; // Escenario 1
-    if (isOutOfCoverage.value) return 'FUERA DE COBERTURA'; // Escenario 2
-    return location.value.label; // Escenario 3
+    if (!user.value) return 'INVITADO'; 
+    if (isOutOfCoverage.value) return 'FUERA DE COBERTURA'; 
+    return location.value.label; 
 });
 
 const locationSubtext = computed(() => {
@@ -55,17 +34,23 @@ const locationSubtext = computed(() => {
     return 'Entregar en';
 });
 
+// Re-mapeo reactivo del nombre completo basado en el perfil estructurado del middleware
+const userFullName = computed(() => {
+    const profile = user.value?.profile;
+    if (!profile) return 'Invitado';
+    return `${profile.first_name} ${profile.last_name}`.toUpperCase();
+});
+
 const userInitials = computed(() => {
-    const name = user.value?.name;
-    if (!name) return '??';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const profile = user.value?.profile;
+    if (!profile?.first_name) return '??';
+    return `${profile.first_name[0] ?? ''}${profile.last_name[0] ?? ''}`.toUpperCase();
 });
 
 const navigation = [
     { name: 'Inicio',       icon: Gauge,       route: 'customer.index' },
     { name: 'Promociones',  icon: Tag,         route: 'customer.index' },
-    //{ name: 'Pedidos',      icon: Receipt,     route: 'customer.order.index' },
-    { name: 'Direcciones',  icon: MapPin,      route: 'customer.profile.addresses' }, 
+    { name: 'Direcciones',  icon: MapPin,      route: 'customer.profile.addresses.index' }, 
     { name: 'Seguridad',    icon: ShieldCheck, route: 'customer.profile.security' },
 ];
 
@@ -73,7 +58,9 @@ const filteredNavigation = computed(() => {
     return navigation.filter(item => ['customer.index'].includes(item.route) || !!user.value);
 });
 
+// Invocación atómica del método DELETE alineada con LogoutController
 const logout = () => router.post(route('customer.logout'));
+
 const toggleSearch = () => {
     isSearchActive.value = !isSearchActive.value;
     if (isSearchActive.value) {
@@ -127,25 +114,21 @@ const toggleSearch = () => {
             <div class="p-3 border-t border-border bg-card">
                 <div class="flex items-center w-full h-12 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-150 overflow-hidden group cursor-pointer">
                     <div class="w-[52px] flex justify-center shrink-0">
-                        <div class="w-8 h-8 border border-border overflow-hidden bg-background flex items-center justify-center">
-                            <img v-if="user?.profile?.avatar_url" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
+                        <div class="w-8 h-8 border border-border overflow-hidden bg-background flex items-center justify-center rounded-none">
+                            <img v-if="user?.profile?.avatar_source" :src="`/assets/avatars/${user.profile.avatar_source}`" class="w-full h-full object-cover" />
                             <span v-else class="text-xs font-black text-foreground">{{ userInitials }}</span>
                         </div>
                     </div>
-                    <div class="flex flex-col items-start transition-opacity duration-150 ease-f1" :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
-                        <span class="text-xs font-extrabold truncate w-32 uppercase tracking-tighter text-foreground">{{ user?.name || 'Invitado' }}</span>
+                    <div class="ml-2 flex flex-col items-start transition-opacity duration-150 ease-f1" :class="isSidebarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'">
+                        <span class="text-xs font-extrabold truncate w-32 uppercase tracking-tighter text-foreground">{{ userFullName }}</span>
                         
-                        <div v-if="!user" class="flex gap-2 items-center leading-none">
-                            <Link :href="route('customer.login')" class="text-[10px] font-black text-primary uppercase hover:underline tracking-widest">
-                                Entrar
-                            </Link>
+                        <div v-if="!user" class="flex gap-2 items-center leading-none mt-0.5">
+                            <Link :href="route('customer.login')" class="text-[10px] font-black text-primary uppercase hover:underline tracking-widest">Entrar</Link>
                             <span class="text-[10px] text-neutral-500">|</span>
-                            <Link :href="route('customer.register')" class="text-[10px] font-black text-foreground uppercase hover:underline tracking-widest">
-                                Unirse
-                            </Link>
+                            <Link :href="route('customer.register')" class="text-[10px] font-black text-foreground uppercase hover:underline tracking-widest">Unirse</Link>
                         </div>
                         
-                        <button v-else @click="logout" class="text-[10px] font-black text-primary-aaa dark:text-primary hover:underline uppercase tracking-widest">
+                        <button v-else @click="logout" class="text-[10px] font-black text-primary-aaa dark:text-primary hover:underline uppercase tracking-widest mt-0.5">
                             Cerrar Sesión
                         </button>
                     </div>
@@ -165,7 +148,7 @@ const toggleSearch = () => {
                             <Menu :size="22" :stroke-width="1.5" />
                         </button>
 
-                        <button @click="router.visit(route('customer.profile.addresses'))" class="flex items-center gap-3 px-2 py-1.5 bg-transparent transition-colors duration-150 group focus:outline-none">
+                        <button @click="user ? router.visit(route('customer.profile.addresses.index')) : router.visit(route('customer.register'))" class="flex items-center gap-3 px-2 py-1.5 bg-transparent transition-colors duration-150 group focus:outline-none">
                             <div class="w-8 h-8 bg-transparent flex items-center justify-center">
                                 <AlertTriangle v-if="isOutOfCoverage && user" :size="16" :stroke-width="1.5" class="text-red-500 animate-pulse" />
                                 <MapPin v-else :size="16" :stroke-width="1.5" class="text-primary" />
@@ -204,17 +187,6 @@ const toggleSearch = () => {
                                 <ThemeToggler />
                                 <FullScreenToggler />
                             </div>
-                            
-                           <!-- {{/* <Link :href="route('customer.cart.index')" 
-                                  :disabled="isOutOfCoverage && !!user"
-                                  class="relative flex items-center justify-center p-2 bg-transparent transition-all duration-150 group focus:outline-none active:scale-95"
-                                  :class="isOutOfCoverage && user ? 'opacity-10 pointer-events-none select-none' : ''">
-                                <ShoppingCart :size="20" :stroke-width="1.5" class="text-foreground group-hover:text-primary transition-colors" />
-                                <span v-if="cartCount > 0 && !(isOutOfCoverage && user)" 
-                                        class="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-none animate-in zoom-in duration-150">
-                                    {{ cartCount }}
-                                </span>
-                            </Link>*/}}-->
                         </div>
                     </div>
                 </div>
@@ -225,23 +197,7 @@ const toggleSearch = () => {
             </section>
 
             <footer class="w-full border-t border-[#32323b] py-12 px-6 lg:px-8 bg-[#ffffff] dark:bg-[#15151f] mt-auto relative z-10 text-[#15151f] dark:text-white select-none">
-                <div class="max-w-7xl mx-auto space-y-12">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-y-8 gap-x-4">
-                        <a v-for="social in socialNetworks" :key="social.name" :href="social.link"
-                        class="group flex items-center gap-3 transition-colors duration-75 outline-none hover:text-primary text-[#15151f] dark:text-white">
-                            <div class="w-8 h-8 bg-transparent flex items-center justify-center border border-[#32323b] group-hover:border-primary transition-colors duration-75">
-                                <component :is="social.icon" :size="16" :stroke-width="2.5" class="text-[#15151f] dark:text-white group-hover:text-primary transition-colors" />
-                            </div>
-                            <div class="flex flex-col leading-none">
-                                <span class="text-[10px] font-black uppercase tracking-widest group-hover:text-primary transition-colors">
-                                    {{ social.name }}
-                                </span>
-                            </div>
-                        </a>
-                    </div>
-
-                    <div class="h-[1px] w-full bg-[#32323b]"></div>
-
+                <div class="max-w-7xl mx-auto space-y-6">
                     <div class="flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#15151f] dark:text-white">
                         <div class="flex items-center gap-3">
                             <div class="w-4 h-4 bg-primary flex items-center justify-center text-primary-foreground text-[8px] font-black leading-none">DU</div>
@@ -258,11 +214,6 @@ const toggleSearch = () => {
         </main>
 
         <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#ffffff] dark:bg-[#15151f] border-t border-[#32323b] z-[100] flex justify-around items-center px-1 pb-safe select-none">
-            <!--<Link :href="route('customer.order.index')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.order.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
-                <LayoutDashboard :size="20" :stroke-width="2.5" />
-                <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Pedidos</span>
-            </Link>-->
-
             <button @click="toggleSearch" class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white active:scale-95 duration-75">
                 <Compass :size="20" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Buscar</span>
@@ -272,28 +223,6 @@ const toggleSearch = () => {
                 <Gauge :size="22" :stroke-width="2.5" />
                 <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Inicio</span>
             </Link>
-
-            <!-- <Link :href="route('customer.cart.index')" 
-                  :disabled="isOutOfCoverage && !!user"
-                  class="flex flex-col items-center justify-center w-16 h-full text-[#15151f] dark:text-white relative transition-all duration-75" 
-                  :class="[route().current('customer.cart.*') ? 'text-primary' : '', isOutOfCoverage && user ? 'opacity-10 pointer-events-none select-none' : '']">
-                <div class="relative">
-                    <ShoppingBag :size="20" :stroke-width="2.5" />
-                    <span v-if="cartCount > 0 && !(isOutOfCoverage && user)" class="absolute -top-1.5 -right-2 bg-primary text-primary-foreground text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#15151f] dark:border-white">
-                        {{ cartCount }}
-                    </span>
-                </div>
-                <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">Carrito</span>
-            </Link>-->
-
-            <!--<Link :href="user ? route('customer.profile.index') : route('customer.login')" class="flex flex-col items-center justify-center w-16 h-full transition-colors duration-75" :class="route().current('customer.profile.*') ? 'text-primary' : 'text-[#15151f] dark:text-white'">
-                <div v-if="user" class="w-5 h-5 border-2 overflow-hidden bg-background" :class="route().current('customer.profile.*') ? 'border-primary' : 'border-[#15151f] dark:border-white'">
-                    <img v-if="user?.profile?.avatar_url" :src="user.profile.avatar_url" class="w-full h-full object-cover" />
-                    <span v-else class="text-[9px] font-black h-full flex items-center justify-center text-foreground">{{ userInitials }}</span>
-                </div>
-                <Fingerprint v-else :size="20" :stroke-width="2.5" />
-                <span class="text-[9px] font-black uppercase tracking-tight mt-0.5">{{ user ? 'Perfil' : 'Entrar' }}</span>
-            </Link>-->
         </nav>
 
         <Transition name="drawer">
@@ -335,10 +264,10 @@ const toggleSearch = () => {
                             </button>
                         </div>
                         <div v-else class="grid grid-cols-2 gap-2">
-                            <Link :href="route('customer.login')" class="flex items-center justify-center h-10 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 active:scale-95 transition-all duration-75">
+                            <Link :href="route('customer.login')" class="flex items-center justify-center h-10 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all duration-75">
                                 Entrar
                             </Link>
-                            <Link :href="route('customer.register')" class="flex items-center justify-center h-10 border border-border text-foreground text-[10px] font-black uppercase tracking-widest hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-95 transition-all duration-75">
+                            <Link :href="route('customer.register')" class="flex items-center justify-center h-10 border border-border text-foreground text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all duration-75">
                                 Registro
                             </Link>
                         </div>

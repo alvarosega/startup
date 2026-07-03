@@ -1,32 +1,35 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Web\Customer\Profiles;
 
+use App\Actions\Customer\Profiles\UpdatePersonalDataAction;
+use App\Actions\Customer\Profiles\UpdateAvatarAction;
+use App\DTOs\Customer\Profiles\ProfileUpdateData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Profiles\UpdateProfileRequest;
-use App\Actions\Customer\Profiles\UpdatePersonalDataAction;
-use App\DTOs\Customer\Profiles\ProfileUpdateData;
 use App\Http\Resources\Customer\Auth\CustomerResource;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Facades\Auth;
 
-class ProfileController extends Controller
+final class ProfileController extends Controller
 {
     public function index(): Response
     {
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
         $user->load('profile');
     
-        $availableAvatars = collect(range(1, 8))->map(fn($i) => [
+        $availableAvatars = collect(range(1, 8))->map(fn(int $i) => [
             'id' => "avatar_{$i}.png",
             'url' => asset("assets/avatars/avatar_{$i}.png")
-        ]);
+        ])->toArray();
     
         return Inertia::render('Customer/Profiles/PersonalInfoPage', [
-            // CORRECCIÓN: resolve() elimina el envoltorio 'data'
             'user' => (new CustomerResource($user))->resolve(), 
             'availableAvatars' => $availableAvatars,
             'config' => [
@@ -35,10 +38,6 @@ class ProfileController extends Controller
         ]);
     }
 
-    /**
-     * VISTA: Seguridad
-     * Gestión de credenciales y acceso.
-     */
     public function security(): Response
     {
         return Inertia::render('Customer/Profiles/SecurityPage');
@@ -46,31 +45,26 @@ class ProfileController extends Controller
 
     public function update(UpdateProfileRequest $request, UpdatePersonalDataAction $action): RedirectResponse
     {
-        // El DTO captura birth_date y gender del Request Validado
-        $action->execute(
-            Auth::guard('customer')->user(),
-            ProfileUpdateData::fromRequest($request)
-        );
+        $dto = ProfileUpdateData::fromArray($request->validated());
+        
+        /** @var \App\Models\Users\Customer $user */
+        $user = Auth::guard('customer')->user();
+        
+        $action->execute($user, $dto);
     
         return back()->with('success', 'Perfil actualizado.');
     }
 
-    /**
-     * ACCIÓN: Cambiar Icono de Perfil
-     * Actualiza el avatar_source basándose en los 8 iconos predefinidos.
-     */
-    public function updateAvatar(Request $request): RedirectResponse
+    public function updateAvatar(Request $request, UpdateAvatarAction $action): RedirectResponse
     {
         $request->validate([
             'avatar_source' => ['required', 'string', 'regex:/^avatar_[1-8]\.png$/']
         ]);
 
+        /** @var \App\Models\Users\Customer $user */
         $user = Auth::guard('customer')->user();
         
-        $user->profile->update([
-            'avatar_type'   => 'icon',
-            'avatar_source' => $request->avatar_source
-        ]);
+        $action->execute($user, (string) $request->input('avatar_source'));
 
         return back()->with('success', 'Avatar actualizado.');
     }

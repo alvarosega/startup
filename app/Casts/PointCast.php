@@ -8,10 +8,10 @@ use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
-class PointCast implements CastsAttributes
+final class PointCast implements CastsAttributes
 {
     /**
-     * Desempaqueta el formato binario interno de MySQL Geometry (SRID 4 bytes + WKB)
+     * @return array{lat: float, lng: float}|null
      */
     public function get(Model $model, string $key, mixed $value, array $attributes): ?array
     {
@@ -19,7 +19,6 @@ class PointCast implements CastsAttributes
             return null;
         }
 
-        // Estructura MySQL: 4 bytes SRID, 1 byte Endian, 4 bytes Tipo (1 = Point), 8 bytes X, 8 bytes Y
         $unpacked = unpack('VSRID/CByteOrder/VType/dLongitude/dLatitude', $value);
 
         if (!$unpacked) {
@@ -27,13 +26,13 @@ class PointCast implements CastsAttributes
         }
 
         return [
-            'latitude'  => $unpacked['Latitude'],
-            'longitude' => $unpacked['Longitude'],
+            'lat' => $unpacked['Latitude'],
+            'lng' => $unpacked['Longitude'],
         ];
     }
 
     /**
-     * Serializa un array de coordenadas a una expresión espacial nativa de MySQL
+     * @param array{lat: float, lng: float}|null $value
      */
     public function set(Model $model, string $key, mixed $value, array $attributes): mixed
     {
@@ -41,10 +40,13 @@ class PointCast implements CastsAttributes
             return null;
         }
 
-        if (!is_array($value) || !isset($value['latitude'], $value['longitude'])) {
-            throw new \InvalidArgumentException('El formato geospacial debe contener "latitude" y "longitude".');
+        if (!is_array($value) || !isset($value['lat'], $value['lng'])) {
+            throw new \InvalidArgumentException('El formato geoespacial debe contener las claves "lat" y "lng".');
         }
 
-        return DB::raw("ST_GeomFromText('POINT({$value['longitude']} {$value['latitude']})')");
+        $lat = (float) $value['lat'];
+        $lng = (float) $value['lng'];
+
+        return DB::raw("ST_GeomFromText('POINT({$lng} {$lat})')");
     }
 }

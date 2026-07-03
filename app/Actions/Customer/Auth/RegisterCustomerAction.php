@@ -7,35 +7,36 @@ namespace App\Actions\Customer\Auth;
 use App\Architecture\ActionResult;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
 use App\Models\Users\Customer;
-use App\Services\Cart\CartService;
-use App\Services\Geo\BranchCoverageService;
+use App\Models\Users\CustomerAddress;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 final class RegisterCustomerAction
 {
-    public function __construct(
-        protected BranchCoverageService $geoService,
-        protected CartService $cartService
-    ) {}
-
-    public function execute(RegisterCustomerData $dto, ?string $idempotencyKey = null): ActionResult
+    /**
+     * @param string|array<int, string>|null $idempotencyKey
+     */
+    public function execute(RegisterCustomerData $dto, string|array|null $idempotencyKey = null): ActionResult
     {
-        return DB::transaction(function () use ($dto, $idempotencyKey): ActionResult {
-            if ($idempotencyKey) {
+        $cleanedKey = is_array($idempotencyKey) ? ($idempotencyKey[0] ?? null) : $idempotencyKey;
+
+        return DB::transaction(function () use ($dto, $cleanedKey): ActionResult {
+            if ($cleanedKey !== null) {
                 /** @var Customer|null $duplicate */
                 $duplicate = Customer::query()
-                    ->where('idempotency_key', $idempotencyKey)
-                    ->lockForUpdate()
+                    ->where('idempotency_key', $cleanedKey)
                     ->first();
 
-                if ($duplicate) {
+                if ($duplicate !== null) {
+                    Customer::query()
+                        ->where('id', $duplicate->id)
+                        ->lockForUpdate()
+                        ->first();
+
                     return ActionResult::success($duplicate);
                 }
             }
-
-            $assignedBranchId = $dto->branchId ?? $this->geoService->identifyBranch($dto->latitude, $dto->longitude);
 
             /** @var Customer $customer */
             $customer = Customer::query()->create([
@@ -44,10 +45,9 @@ final class RegisterCustomerAction
                 'email' => $dto->email,
                 'password' => Hash::make($dto->password),
                 'country_code' => $dto->countryCode,
-                'branch_id' => $assignedBranchId,
-                'last_known_location' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
+                'branch_id' => $dto->branchId,
                 'is_active' => true,
-                'idempotency_key' => $idempotencyKey,
+                'idempotency_key' => $cleanedKey,
             ]);
 
             $customer->profile()->create([
@@ -57,23 +57,19 @@ final class RegisterCustomerAction
                 'avatar_source' => $dto->avatarSource,
             ]);
 
-            DB::table('customer_addresses')->insert([
+            CustomerAddress::query()->create([
                 'id' => (string) Str::uuid7(),
                 'customer_id' => (string) $customer->id,
-                'branch_id' => $assignedBranchId,
+                'branch_id' => $dto->branchId,
                 'alias' => $dto->alias,
                 'address' => $dto->address,
                 'reference' => $dto->details,
-                'position' => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})')"),
+                'position' => [
+                    'lat' => $dto->latitude,
+                    'lng' => $dto->longitude,
+                ],
                 'is_default' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
-
-            if ($dto->guestUuid) {
-                $this->cartService->fusionGuestCart((string) $customer->id, $dto->guestUuid);
-            }
-
             return ActionResult::success($customer);
         });
     }

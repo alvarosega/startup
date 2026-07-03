@@ -18,21 +18,22 @@ const emit = defineEmits([
 ]);
 
 const mapRef = ref(null);
-const center = ref([-16.499691, -68.121544]); 
+const center = ref([-16.49969, -68.12154]); // Coordenadas de centrado por defecto
 
 onMounted(() => {
     if (props.modelValueLat && props.modelValueLng) {
         center.value = [parseFloat(props.modelValueLat), parseFloat(props.modelValueLng)];
     }
-    // Geolocation automática eliminada para forzar decisión explícita.
 });
 
+/**
+ * Intercepta el término de arrastre del visor y emite las coordenadas netas hacia el orquestador.
+ */
 const onMapMoveEnd = (e) => {
     const newCenter = e.target.getCenter();
     emit('update:modelValueLat', newCenter.lat);
     emit('update:modelValueLng', newCenter.lng);
     
-    // Solo sobrescribimos la dirección si el usuario no ha escrito nada personalizado
     if (!props.modelValueAddress || props.modelValueAddress.startsWith('Coordenadas:')) {
          emit('update:modelValueAddress', `Coordenadas: ${newCenter.lat.toFixed(5)}, ${newCenter.lng.toFixed(5)}`);
     }
@@ -56,10 +57,11 @@ defineExpose({ invalidateMap, setCenter });
 
 <template>
     <div class="w-full h-full relative bg-[#15151e]">
-        <l-map ref="mapRef" :zoom="16" :center="center" @moveend="onMapMoveEnd" :options="{ zoomControl: false }" class="h-full w-full dark-map-filter z-0">
+        <l-map ref="mapRef" :zoom="16" :center="center" @moveend="onMapMoveEnd" :options="{ zoomControl: false, attributionControl: false }" class="h-full w-full dark-map-filter z-0">
             <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
         </l-map>
 
+        <!-- Retícula Pin Central Fija de Visor (Crosshair UI) -->
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none flex flex-col items-center pb-8">
             <div class="bg-primary text-white p-2 rounded-full shadow-f1-glow border-2 border-white">
                 <LocateFixed :size="18" />

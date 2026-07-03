@@ -12,33 +12,37 @@ trait ValidatesGlobalIdentity
     {
         if ($this->has('phone') && !empty($this->input('phone'))) {
             $cleanPhone = preg_replace('/[^\+0-9]/', '', (string) $this->input('phone'));
-            
             if (!str_starts_with($cleanPhone, '+')) {
                 $cleanPhone = '+' . $cleanPhone;
             }
-
             $this->merge(['phone' => $cleanPhone]);
         }
     }
 
-    protected function globalPhoneRules($ignoreId = null): array
+    /**
+     * @return array<int, mixed>
+     */
+    protected function globalPhoneRules(string $table, ?string $ignoreId = null): array
     {
         return [
-            'required', 
-            'string', 
-            'min:8', 
-            'max:20', 
-            new GlobalUniqueIdentity($ignoreId)
+            'required',
+            'string',
+            'min:8',
+            'max:20',
+            new GlobalUniqueIdentity($table, 'phone', $ignoreId),
         ];
     }
 
-    protected function globalEmailRules($ignoreId = null): array
+    /**
+     * @return array<int, mixed>
+     */
+    protected function globalEmailRules(string $table, ?string $ignoreId = null): array
     {
         return [
-            'required', 
-            'email', 
-            'max:255', 
-            new GlobalUniqueIdentity($ignoreId)
+            'required',
+            'email',
+            'max:255',
+            new GlobalUniqueIdentity($table, 'email', $ignoreId),
         ];
     }
 }
