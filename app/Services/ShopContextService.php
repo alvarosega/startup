@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Operations\Branch;
 use Illuminate\Support\Facades\Auth;
+use DomainException;
 
 final class ShopContextService
 {
@@ -17,7 +18,7 @@ final class ShopContextService
         /** @var \App\Models\Users\Customer|null $user */
         $user = Auth::guard('customer')->user();
 
-        if ($user) {
+        if ($user !== null) {
             return $user->branch_id ?? $this->getDefaultBranchId();
         }
 
@@ -26,17 +27,18 @@ final class ShopContextService
 
     /**
      * Recupera la sucursal por defecto directo de la base de datos (Sin Caché).
+     * Utiliza el local scope operativo formalizado del modelo Branch.
      */
     public function getDefaultBranchId(): string
     {
         /** @var string|null $branchId */
         $branchId = Branch::query()
-            ->where('is_active', true)
+            ->active()
             ->where('is_default', true)
             ->value('id');
 
         if (!$branchId) {
-            throw new \DomainException("Error Crítico: No existe una sucursal activa por defecto configurada en el sistema.");
+            throw new DomainException("Error Crítico: No existe una sucursal activa por defecto configurada en el sistema.");
         }
 
         return $branchId;
@@ -50,7 +52,7 @@ final class ShopContextService
         /** @var \App\Models\Users\Customer|null $user */
         $user = Auth::guard('customer')->user();
 
-        if (!$user) {
+        if ($user === null) {
             return false;
         }
 

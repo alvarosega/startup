@@ -1,53 +1,38 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import { Head, usePage, Link, router } from '@inertiajs/vue3'; 
+import { computed, onMounted, ref } from 'vue';
+import { Head, usePage, Link } from '@inertiajs/vue3'; 
 import { 
     ChevronRight, Sparkles, Tag, Star, 
-    LayoutGrid, Zap, Bookmark, PackageSearch
+    LayoutGrid
 } from 'lucide-vue-next';
 
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 import CategoryCarousel from '@/Components/Customer/Category/CategoryCarousel.vue';
 import FeaturedProductCarousel from '@/Components/Customer/Featured/FeaturedProductCarousel.vue'; 
 import BrandHeroWidget from '@/Components/Customer/Brand/BrandHeroWidget.vue';
-import BundleCarousel from '@/Components/Customer/Bundle/BundleCarousel.vue';
 import FavoritesSection from '@/Components/Customer/Favorites/FavoriteCarousel.vue';
 import EditableBundleCarousel from '@/Components/Customer/Bundle/EditableBundleCarousel.vue';
 
+// El contrato ahora recibe las categorías directamente como un prop diferido local
 const props = defineProps({ 
+    categories: { type: Array, default: null },
     featuredProducts: Object,
     brandBanners: Object,
     bundleBanners: Object, 
     templateBundles: Object, 
     atomicBundles: Object,
-    favorites: Array,
+    favorites: { type: Array, default: () => [] }
 });
-const page = usePage();
 
-const categories = computed(() => {
-    const menu = page.props.categories_menu;
-    return menu?.data ? menu.data : (Array.isArray(menu) ? menu : []);
-});
 const isMounted = ref(false);
+
 onMounted(() => {
     isMounted.value = true;
 });
+
 const featuredList = computed(() => props.featuredProducts?.data || []); 
 const brandAds = computed(() => props.brandBanners?.data || []);
-const bundlesList = computed(() => props.atomicBundles?.data || []);
 const editablePacks = computed(() => props.templateBundles?.data || []);
-
-watch(() => props.brandBanners, (newBanners) => {
-    console.group('▼ DEFER: BANNERS DE MARCA RECIBIDOS');
-    console.log('Estado:', newBanners === undefined ? 'PENDING' : 'RESOLVED');
-    console.groupEnd();
-}, { deep: true, immediate: true });
-
-watch(() => props.featuredProducts, (newFeatured) => {
-    console.group('▼ DEFER: PRODUCTOS DESTACADOS RECIBIDOS');
-    console.log('Cantidad:', newFeatured?.data?.length || newFeatured?.length || 0);
-    console.groupEnd();
-}, { deep: true, immediate: true });
 </script>
 
 <template>
@@ -58,6 +43,7 @@ watch(() => props.featuredProducts, (newFeatured) => {
 
             <div class="relative space-y-10 pt-4"> 
                 
+                <!-- SECCIÓN: PACKS EDITABLES -->
                 <section v-show="editablePacks.length > 0 || !isMounted" class="section-reveal">
                     <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
@@ -75,7 +61,8 @@ watch(() => props.featuredProducts, (newFeatured) => {
                     </div>
                 </section>
 
-                <section v-show="categories.length > 0 || !isMounted" class="section-reveal" style="animation-delay: 50ms;">
+                <!-- SECCIÓN: CATEGORÍAS RAÍZ (Acoplada al prop diferido local) -->
+                <section class="section-reveal" style="animation-delay: 50ms;">
                     <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
                             <div class="title-block-wrapper">
@@ -84,11 +71,16 @@ watch(() => props.featuredProducts, (newFeatured) => {
                             </div>
                         </div>
                         <div class="w-full">
-                            <CategoryCarousel :categories="categories" :loading="page.props.categories_menu === undefined" />
+                            <!-- loading evalúa true mientras el prop diferido sea nulo -->
+                            <CategoryCarousel 
+                                :categories="props.categories || []" 
+                                :loading="props.categories === null" 
+                            />
                         </div>
                     </div>
                 </section>
 
+                <!-- SECCIÓN: PRODUCTOS DESTACADOS -->
                 <section v-show="featuredList.length > 0 || !isMounted" class="section-reveal" style="animation-delay: 100ms;">
                     <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
@@ -103,6 +95,7 @@ watch(() => props.featuredProducts, (newFeatured) => {
                     </div>
                 </section>
 
+                <!-- SECCIÓN: BANNERS DE MARCA -->
                 <section v-show="props.brandBanners === undefined || brandAds.length > 0" class="section-reveal" style="animation-delay: 150ms;">
                     <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <div class="header-standard">
@@ -117,7 +110,8 @@ watch(() => props.featuredProducts, (newFeatured) => {
                     </div>
                 </section>
 
-                <section v-if="isMounted" class="section-reveal py-4" style="animation-delay: 200ms;">
+                <!-- SECCIÓN: FAVORITOS -->
+                <section v-if="isMounted && favorites.length > 0" class="section-reveal py-4" style="animation-delay: 200ms;">
                     <div class="px-4 lg:px-8 max-w-7xl mx-auto">
                         <FavoritesSection :favorites="favorites" />
                     </div>
@@ -158,7 +152,6 @@ watch(() => props.featuredProducts, (newFeatured) => {
     text-overflow: ellipsis;
 }
 
-/* Subrayado técnico sólido (rojo F1 o neutral) sin neones */
 .title-block-wrapper::after {
     content: '';
     position: absolute;
@@ -197,7 +190,6 @@ watch(() => props.featuredProducts, (newFeatured) => {
     color: hsl(var(--primary));
 }
 
-/* Animación rápida y mecánica */
 .section-reveal {
     animation: reveal 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

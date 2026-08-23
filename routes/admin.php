@@ -2,40 +2,41 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\Admin\Auth\LoginController;
-use App\Http\Controllers\Web\Admin\User\CustomerController;
-use App\Http\Controllers\Web\Admin\User\DriverController;
+use App\Http\Controllers\Web\Admin\Bundle\BundleController;
+use App\Http\Controllers\Web\Admin\Catalog\BrandController;
+use App\Http\Controllers\Web\Admin\Catalog\CategoryController;
 use App\Http\Controllers\Web\Admin\Catalog\ProductController;
 use App\Http\Controllers\Web\Admin\Catalog\SkuController;
-use App\Http\Controllers\Web\Admin\Catalog\CategoryController;
-use App\Http\Controllers\Web\Admin\Catalog\BrandController;
+use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
+use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
+use App\Http\Controllers\Web\Admin\Inventory\PriceController;
+use App\Http\Controllers\Web\Admin\Inventory\PurchaseController;
+use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
+use App\Http\Controllers\Web\Admin\MarketZone\MarketZoneController;
 use App\Http\Controllers\Web\Admin\Operations\BranchController;
 use App\Http\Controllers\Web\Admin\Operations\ProviderController;
-use App\Http\Controllers\Web\Admin\MarketZone\MarketZoneController;
-use App\Http\Controllers\Web\Admin\Bundle\BundleController;
-use App\Http\Controllers\Web\Admin\Logistics\MonitorController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
+use App\Http\Controllers\Web\Admin\Removal\RemovalController;
+use App\Http\Controllers\Web\Admin\RetailMedia\AdCampaignController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdPlacementController;
-use App\Http\Controllers\Web\Admin\RetailMedia\AdCampaignController;
-use App\Http\Controllers\Web\Admin\Dashboard\DashboardController;
+use App\Http\Controllers\Web\Admin\User\CustomerController;
+use App\Http\Controllers\Web\Admin\User\DriverController;
+use Illuminate\Support\Facades\Route;
 
-// Sincronización de namespaces del Silo de Inventarios y Precios
-use App\Http\Controllers\Web\Admin\Inventory\InventoryController;
-use App\Http\Controllers\Web\Admin\Inventory\PurchaseController;
-use App\Http\Controllers\Web\Admin\Inventory\PriceController;
+// Rutas de invitados (No autenticados)
+Route::middleware(['guest:super_admin'])->group(function () {
+    Route::get('/login', [LoginController::class, 'showLogin'])->name('admin.login');
+    Route::post('/login', [LoginController::class, 'login'])->name('admin.login.store');
+});
 
-// Rutas de autenticación planas para cumplimiento estricto del Test de QA
-Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
-Route::post('/login', [LoginController::class, 'login'])->name('login.store');
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
+// Rutas autenticadas bajo el guard super_admin
 Route::middleware(['auth:super_admin'])->group(function () {
     
+    Route::post('/logout', [LoginController::class, 'logout'])->name('admin.logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
-    // GRUPOS DE COMPATIBILIDAD PLANA PROTEGIDOS CON CONTROL DE ROL ESTRICTO PARA QA
     Route::middleware('role:super_admin,super_admin')->group(function () {
         
         Route::group(['prefix' => 'users/customers', 'as' => 'customers.'], function () {
@@ -57,12 +58,8 @@ Route::middleware(['auth:super_admin'])->group(function () {
         });
     });
 
-    // El prefijo 'admin.' se inyecta aquí para blindar la compatibilidad con Sidebar.vue y controladores internos
     Route::middleware('role:super_admin,super_admin')->name('admin.')->group(function () {
 
-        // =================================================================================
-        // SILO: CATALOGO
-        // =================================================================================
         Route::prefix('catalog')->name('catalog.')->group(function () {
             Route::prefix('products')->name('products.')->group(function () {
                 Route::get('reorder', [ProductController::class, 'reorder'])->name('reorder');
@@ -71,7 +68,6 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::get('products/check-name', [ProductController::class, 'checkName'])->name('products.check-name');
             Route::resource('products', ProductController::class);
 
-            // SKUs vinculados
             Route::get('products/{product}/skus/create', [SkuController::class, 'create'])->name('products.skus.create');
             Route::post('products/{product}/skus', [SkuController::class, 'store'])->name('products.skus.store');
             Route::get('skus/{sku}/edit', [SkuController::class, 'edit'])->name('skus.edit');
@@ -91,9 +87,6 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::resource('providers', ProviderController::class);
         });
 
-        // =================================================================================
-        // SILO: INVENTARIOS Y ABASTECIMIENTO
-        // =================================================================================
         Route::prefix('inventory')->name('inventory.')->group(function () {
             Route::get('/', [InventoryController::class, 'index'])->name('index');
             Route::get('/search', [InventoryController::class, 'search'])->name('search');
@@ -119,9 +112,7 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::post('/', [PriceController::class, 'store'])->name('store');
             Route::delete('/{price}', [PriceController::class, 'destroy'])->name('destroy');
         });
-        // =================================================================================
-        // OTROS DOMINIOS OPERATIVOS / COMERCIALES
-        // =================================================================================
+
         Route::resource('market-zones', MarketZoneController::class)->parameters(['market-zones' => 'market_zone']);
         
         Route::get('bundles/{id}/items', [BundleController::class, 'items'])->name('bundles.items');
@@ -131,7 +122,6 @@ Route::middleware(['auth:super_admin'])->group(function () {
         Route::get('transfers/{id}/receive', fn() => 'Formulario de recepción en desarrollo')->name('transfers.receive');
         Route::post('transfers/{id}/reception', fn() => 'Procesamiento de recepción en desarrollo')->name('transfers.reception');
 
-        // RECTIFICACIÓN: Enrutamiento expandido para el flujo independiente de mermas y bajas sin modales
         Route::prefix('removals')->name('removals.')->group(function () {
             Route::get('/', [RemovalController::class, 'index'])->name('index');
             Route::get('/create', [RemovalController::class, 'create'])->name('create');
@@ -149,6 +139,5 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::post('/{order:code}/ready', [OrderController::class, 'markAsReady'])->name('mark-as-ready');
             Route::post('/{order:code}/dispatch', [OrderController::class, 'dispatchOrder'])->name('dispatch');
         });
-        
     });
 });

@@ -15,10 +15,6 @@ use Tighten\Ziggy\Ziggy;
 
 final class HandleCustomerInertiaRequests extends Middleware
 {
-    /**
-     * Se direcciona estrictamente a resources/views/customer.blade.php
-     * @var string
-     */
     protected $rootView = 'customer';
 
     public function __construct(
@@ -28,9 +24,8 @@ final class HandleCustomerInertiaRequests extends Middleware
     ) {}
 
     /**
-     * Determina las propiedades compartidas globalmente con la interfaz de Inertia.
+     * Determina las propiedades compartidas globalmente.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function share(Request $request): array
@@ -47,25 +42,24 @@ final class HandleCustomerInertiaRequests extends Middleware
                 ]);
             },
             
-            'cart' => null,
-            'categories_menu' => [],
+            'cart'         => null,
             'active_order' => null,
             
             'auth' => [
                 'customer' => $user ? [
-                    'id' => $user->id,
+                    'id'    => $user->id,
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'profile' => $user->profile ? [
-                        'first_name' => $user->profile->first_name,
-                        'last_name' => $user->profile->last_name,
-                        'avatar_type' => $user->profile->avatar_type,
+                        'first_name'    => $user->profile->first_name,
+                        'last_name'     => $user->profile->last_name,
+                        'avatar_type'   => $user->profile->avatar_type,
                         'avatar_source' => $user->profile->avatar_source,
                     ] : null,
                 ] : null,
             ],
             
-            'shop_context' => $this->resolveShopContext($branchId),
+            'shop_context'     => $this->resolveShopContext($branchId),
             'location_context' => $this->resolveLocationContext($user, $branchId),
         
             'flash' => [
@@ -85,11 +79,11 @@ final class HandleCustomerInertiaRequests extends Middleware
      */
     private function resolveLocationContext(?Customer $user, string $branchId): array
     {
-        if (!$user) {
+        if ($user === null) {
             $branchName = $this->branchQueryService->getBranchNameById($branchId);
             return [
-                'label' => $branchName ?? 'Sucursal', 
-                'type' => 'branch'
+                'label' => $branchName ?? 'Sucursal Central', 
+                'type'  => 'branch'
             ];
         }
     
@@ -97,7 +91,7 @@ final class HandleCustomerInertiaRequests extends Middleware
     
         return [
             'label' => $alias ?? 'Mi Ubicación', 
-            'type' => 'address'
+            'type'  => 'address'
         ];
     }
     
@@ -110,9 +104,9 @@ final class HandleCustomerInertiaRequests extends Middleware
         $branchData = $this->branchQueryService->getBranchContextData($activeId);
 
         return [
-            'branch_id'          => $branchData['id'] ?? $activeId,
-            'branch_name'        => $branchData['name'] ?? 'Sucursal Central',
-            'is_fallback'        => $branchData['is_default'] ?? true,
+            'branch_id'          => (string) ($branchData['id'] ?? $activeId),
+            'branch_name'        => (string) ($branchData['name'] ?? 'Sucursal Central'),
+            'is_fallback'        => (bool) ($branchData['is_default'] ?? true),
             'is_out_of_coverage' => $isOutOfCoverage,
         ];
     }

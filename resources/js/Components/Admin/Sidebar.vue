@@ -173,7 +173,7 @@ const isMobileGroupActive = (groupKey) => {
             </div>
 
             <Link 
-                :href="route('logout')" 
+                :href="route('admin.logout')" 
                 method="post" 
                 as="button" 
                 @mouseenter="showTooltip($event, 'Cerrar Sesión')"
@@ -222,7 +222,7 @@ const isMobileGroupActive = (groupKey) => {
                     <span class="text-xs text-center leading-none">{{ subItem.name }}</span>
                 </Link>
 
-                <Link :href="route('logout')" method="post" as="button" class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75">
+                <Link :href="route('admin.logout')" method="post" as="button" class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75">
                     <span class="material-symbols-rounded text-[20px]">logout</span>
                     <span class="text-xs font-medium text-center leading-none">Cerrar Sesión</span>
                 </Link>

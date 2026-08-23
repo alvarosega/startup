@@ -15,9 +15,6 @@ readonly class LoginAdminData
         public string $userAgent,
     ) {}
 
-    /**
-     * Factoría estática acoplada por tipo al FormRequest validado.
-     */
     public static function fromRequest(LoginAdminRequest $request): self
     {
         $validated = $request->validated();

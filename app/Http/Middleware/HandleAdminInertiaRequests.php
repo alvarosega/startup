@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
-use Inertia\Middleware;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Middleware;
 
 class HandleAdminInertiaRequests extends Middleware
 {
-    /**
-     * @var string
-     */
     protected $rootView = 'admin'; 
 
     public function share(Request $request): array
@@ -28,7 +25,6 @@ class HandleAdminInertiaRequests extends Middleware
             }
         }
 
-        // Mapeo manual directo para preservar la inmutabilidad y pureza de Inertia sin dependencias REST API
         $userData = $admin ? [
             'id'          => (string) $admin->id,
             'first_name'  => (string) $admin->first_name,
@@ -51,9 +47,6 @@ class HandleAdminInertiaRequests extends Middleware
                 'message' => fn () => $request->session()->get('message'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
-            'errors' => fn () => $request->session()->get('error')
-                ? $request->session()->get('errors')->getBag('default')->getMessages()
-                : (object) [],
         ]);
     }
 }

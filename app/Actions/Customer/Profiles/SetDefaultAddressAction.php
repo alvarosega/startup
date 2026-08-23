@@ -28,6 +28,11 @@ final class SetDefaultAddressAction
                 ->findOrFail($addressId);
 
             $address->update(['is_default' => true]);
+
+            // Sincronización estricta con la tabla core Customers (Regla de negocio 3)
+            DB::table('customers')
+                ->where('id', $customerId)
+                ->update(['branch_id' => $address->branch_id]);
         });
     }
 }

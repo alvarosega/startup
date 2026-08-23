@@ -18,7 +18,7 @@ const flashError = computed(() => pageProps.value.flash?.error);
  * Mapea la ruta exacta definida en el archivo de rutas (login.store).
  */
 const submit = () => {
-    form.post(route('login.store'), {
+    form.post(route('admin.login.store'), {
         onFinish: () => {
             // Purga obligatoria de datos sensibles del DOM inmediatamente al finalizar la ejecución
             form.reset('password');

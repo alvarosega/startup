@@ -25,10 +25,20 @@ return new class extends Migration {
 
             $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
         });
+        Schema::create('admin_access_logs', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('admin_id')->nullable()->constrained('admins')->nullOnDelete();
+            $table->string('email_attempted')->index();
+            $table->string('ip_address', 45);
+            $table->text('user_agent')->nullable();
+            $table->string('status', 30); // success, failed_credentials, failed_inactive, failed_role, blocked_rate_limit
+            $table->timestamp('created_at')->useCurrent();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('admin_access_logs');
         Schema::dropIfExists('admins');
     }
 };

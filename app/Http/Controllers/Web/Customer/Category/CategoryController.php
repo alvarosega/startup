@@ -6,59 +6,31 @@ namespace App\Http\Controllers\Web\Customer\Category;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Customer\Category\GetCategoryDetailsAction;
-use App\Actions\Customer\Sku\ListSkusAction; 
-use App\Http\Resources\Customer\Category\CategoryResource;
 use App\Services\ShopContextService;
 use Illuminate\Http\Request;
-use Inertia\{Inertia, Response};
-use App\Http\Resources\Customer\Category\CategoryBannerResource;
-use App\Http\Resources\Customer\Sku\SkuStateResource;
-use App\Http\Resources\Customer\Sku\SkuResource;
+use Inertia\Inertia;
+use Inertia\Response;
 
-class CategoryController extends Controller
+final class CategoryController extends Controller
 {
     public function __construct(
-        private ShopContextService $contextService
+        private readonly ShopContextService $contextService,
+        private readonly GetCategoryDetailsAction $getCategoryDetailsAction
     ) {}
 
-// app/Http/Controllers/Web/Customer/Category/CategoryController.php
+    public function __invoke(string $category, Request $request): Response
+    {
+        // Fijación perimetral del contexto logístico de la sucursal
+        $this->contextService->getActiveBranchId();
 
-public function __invoke(
-    string $category, 
-    Request $request, 
-    GetCategoryDetailsAction $action, 
-    ListSkusAction $listAction
-    ): Response {
-        $deviceType = $request->header('X-Device-Type', 'desktop');
-        $branchId = $this->contextService->getActiveBranchId();
-        $customerId = \Illuminate\Support\Facades\Auth::guard('customer')->id();
-
-        // 1. OBTENCIÓN DE METADATOS (Sincrónico)
-        // Esto es rápido y nos da el ID necesario para las promesas posteriores.
-        $categoryDTO = $action->execute($category, $deviceType);
+        // Obtención síncrona de metadatos de identidad de la categoría
+        $categoryDTO = $this->getCategoryDetailsAction->execute($category);
 
         return Inertia::render('Customer/Category/Show', [
-            // Metadatos rápidos: se envían de inmediato.
-            'categoryData' => new CategoryResource($categoryDTO),
-            
-            // DEFER: Los banners se cargan en segundo plano.
-            'banners' => Inertia::defer(fn() => 
-                CategoryBannerResource::collection($categoryDTO->banners ?? [])
-            ),
-            
-            // DEFER: El listado de productos (lo más pesado) activa el Skeleton Grid.
-            'products' => Inertia::defer(fn() => 
-                SkuResource::collection(
-                    $listAction->execute(
-                        $categoryDTO->id, 
-                        $branchId, 
-                        $customerId, 
-                        $request->only(['search', 'sort'])
-                    )
-                )
-            ),
-            
-            'filters' => $request->only(['search', 'sort'])
+            'categoryData' => $categoryDTO->toArray(),
+            'products'     => [], // Alcance postergado por instrucción de negocio
+            'banners'      => [], // Alcance postergado por instrucción de negocio
+            'filters'      => $request->only(['search', 'sort']),
         ]);
     }
 }

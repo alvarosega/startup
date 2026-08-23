@@ -17,8 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             // SILO: ADMIN
-            // Se remueve el ->name('admin.') global para evitar la sobrescritura y destrucción
-            // de las rutas planas exigidas por el test inmutable de QA.
             Route::middleware(['web', 'inertia.admin'])
                 ->prefix(env('ADMIN_PATH', 'adm'))
                 ->group(base_path('routes/admin.php'));
@@ -41,7 +39,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \Illuminate\Session\Middleware\AuthenticateSession::class,
         ]);
 
         $middleware->alias([
@@ -53,14 +50,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'inertia.admin'      => \App\Http\Middleware\HandleAdminInertiaRequests::class,
             'inertia.driver'     => \App\Http\Middleware\HandleDriverInertiaRequests::class, 
             
-            'auth.admin'         => \App\Http\Middleware\Auth\AuthenticateAdmin::class,
             'auth.driver'        => \App\Http\Middleware\Auth\AuthenticateDriver::class,
             'auth.customer'      => \App\Http\Middleware\Auth\AuthenticateCustomer::class,
 
             'idempotency'        => \App\Http\Middleware\CheckIdempotency::class,
         ]);
 
-        // --- REDIRECCIÓN DE USUARIOS LOGUEADOS ---
+        // --- REDIRECCIÓN DE USUARIOS AUTENTICADOS ---
         $middleware->redirectUsersTo(function (Request $request) {
             $adminPath = env('ADMIN_PATH', 'adm');
         
@@ -75,19 +71,19 @@ return Application::configure(basePath: dirname(__DIR__))
             return '/';
         });
 
-        // --- REDIRECCIÓN DE INVITADOS (NO LOGUEADOS) ---
+        // --- REDIRECCIÓN DE INVITADOS (NO AUTENTICADOS) ---
         $middleware->redirectGuestsTo(function (Request $request) {
             $adminPath = env('ADMIN_PATH', 'adm');
 
             if ($request->is($adminPath . '/*') || $request->is($adminPath)) {
-                return route('login'); 
+                return route('admin.login'); 
             }
 
             if ($request->is('driver/*') || $request->is('driver')) {
                 return route('driver.login');
             }
 
-            return route('login'); 
+            return route('customer.login'); 
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {

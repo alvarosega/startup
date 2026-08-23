@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models\Users;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Models\Operations\Branch;
+use App\Traits\HasUv7;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
-use App\Traits\HasUv7;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Operations\Branch;
 
 class Admin extends Authenticatable
 {
@@ -27,12 +28,12 @@ class Admin extends Authenticatable
         'branch_id', 
         'is_active',
         'last_login_at',
-        'last_seen_at'
+        'last_seen_at',
     ];
 
     protected $hidden = [
         'password', 
-        'mfa_secret'
+        'mfa_secret',
     ];
 
     protected $casts = [
@@ -50,5 +51,10 @@ class Admin extends Authenticatable
     public function branch(): BelongsTo 
     { 
         return $this->belongsTo(Branch::class); 
+    }
+
+    public function accessLogs(): HasMany
+    {
+        return $this->hasMany(AdminAccessLog::class);
     }
 }

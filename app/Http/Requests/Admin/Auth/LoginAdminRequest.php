@@ -31,12 +31,14 @@ class LoginAdminRequest extends FormRequest
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
 
-            // Adaptación técnica al test inmutable de QA: 
-            // Si el límite se acaba de activar, el sistema devuelve 59 segundos debido al sutil pasaje del tiempo.
-            // Forzamos la sincronización a 60 segundos para satisfacer la aserción exacta del test.
-            if ($seconds === 59) {
-                $seconds = 60;
-            }
+            \App\Models\Users\AdminAccessLog::create([
+                'admin_id'        => \App\Models\Users\Admin::where('email', (string) $this->input('email'))->value('id'),
+                'email_attempted' => (string) $this->input('email'),
+                'ip_address'      => (string) ($this->ip() ?? '127.0.0.1'),
+                'user_agent'      => (string) ($this->userAgent() ?? 'Unknown'),
+                'status'          => 'blocked_rate_limit',
+                'created_at'      => now(),
+            ]);
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.throttle', [
@@ -46,7 +48,6 @@ class LoginAdminRequest extends FormRequest
             ]);
         }
     }
-
     public function hitRateLimiter(): void
     {
         RateLimiter::hit($this->getThrottleKey(), 60);
