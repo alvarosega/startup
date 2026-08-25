@@ -18,6 +18,7 @@ readonly class BranchData
         public ?string $coveragePolygonWkt,
         public bool $isDefault,
         public bool $isActive,
+        public bool $isOperationalPaused,
         public float $deliveryBaseFee,
         public float $deliveryPricePerKm,
         public float $surgeMultiplier,
@@ -26,9 +27,6 @@ readonly class BranchData
         public float $baseServiceFeePercentage
     ) {}
 
-    /**
-     * Factoría estática acoplada a los FormRequests validados para operaciones de creación y actualización.
-     */
     public static function fromRequest(FormRequest $request): self
     {
         $validated = $request->validated();
@@ -36,20 +34,22 @@ readonly class BranchData
         $lat = (float) $validated['latitude'];
         $lng = (float) $validated['longitude'];
 
-        // Construcción segura del WKT para el punto espacial (POINT: longitud latitud)
         $locationWkt = "POINT({$lng} {$lat})";
 
-        // Mapeo directo y ordenamiento de coordenadas espaciales nativas basadas en [longitud, latitud]
         $coveragePolygonWkt = null;
         if (!empty($validated['coverage_polygon']) && is_array($validated['coverage_polygon'])) {
             $points = [];
             foreach ($validated['coverage_polygon'] as $coord) {
                 if (isset($coord[0], $coord[1])) {
-                    // QA envía directamente [longitud, latitud], se concatena de forma nativa para MySQL
                     $points[] = "{$coord[0]} {$coord[1]}";
                 }
             }
-            if (!empty($points)) {
+
+            if (count($points) >= 3) {
+                // Forzar cierre de polígono OGC (primer punto = último punto)
+                if ($points[0] !== $points[count($points) - 1]) {
+                    $points[] = $points[0];
+                }
                 $polygonString = implode(',', $points);
                 $coveragePolygonWkt = "POLYGON(({$polygonString}))";
             }
@@ -65,6 +65,7 @@ readonly class BranchData
             coveragePolygonWkt: $coveragePolygonWkt,
             isDefault: (bool) $request->boolean('is_default'),
             isActive: (bool) $request->boolean('is_active', true),
+            isOperationalPaused: (bool) $request->boolean('is_operational_paused', false),
             deliveryBaseFee: (float) ($validated['delivery_base_fee'] ?? 0.00),
             deliveryPricePerKm: (float) ($validated['delivery_price_per_km'] ?? 0.00),
             surgeMultiplier: (float) ($validated['surge_multiplier'] ?? 1.00),

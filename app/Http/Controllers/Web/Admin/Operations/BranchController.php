@@ -56,6 +56,10 @@ class BranchController extends Controller
 
     public function destroy(Branch $branch): RedirectResponse
     {
+        if ($branch->is_default) {
+            return redirect()->back()->with('error', 'No se puede eliminar la sucursal predeterminada del sistema.');
+        }
+
         $branch->delete();
         
         return redirect()->back()->with('success', 'Nodo de sucursal extraído de circulación (Soft Delete).');

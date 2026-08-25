@@ -33,6 +33,7 @@ class StoreBranchRequest extends FormRequest
             'is_default' => ['required', 'boolean'],
             'delivery_base_fee' => ['required', 'numeric', 'min:0'],
             'delivery_price_per_km' => ['required', 'numeric', 'min:0'],
+            'is_operational_paused' => ['sometimes', 'boolean'],
             'surge_multiplier' => ['required', 'numeric', 'min:1'],
             'min_order_amount' => ['required', 'numeric', 'min:0'],
             'small_order_fee' => ['required', 'numeric', 'min:0'],

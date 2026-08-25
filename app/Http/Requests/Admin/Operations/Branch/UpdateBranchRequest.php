@@ -38,6 +38,7 @@ class UpdateBranchRequest extends FormRequest
             'coverage_polygon' => ['required', 'array', 'min:3'],
             'coverage_polygon.*' => ['required', 'array', 'min:2'],
             'coverage_polygon.*.*' => ['required', 'numeric'],
+            'is_operational_paused' => ['sometimes', 'boolean'],
             'is_active' => ['required', 'boolean'],
             'is_default' => ['required', 'boolean'],
             'delivery_base_fee' => ['required', 'numeric', 'min:0'],

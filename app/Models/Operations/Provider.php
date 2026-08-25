@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Models\Operations;
 
 use App\Traits\HasUv7;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Provider extends Model
 {
@@ -34,15 +35,15 @@ class Provider extends Model
         'credit_limit',
         'is_active',
         'notes',
-        'deleted_epoch'
+        'deleted_epoch',
     ];
 
     protected $casts = [
         'is_active'       => 'boolean',
         'lead_time_days'  => 'integer',
-        'min_order_value' => 'float',
+        'min_order_value' => 'decimal:2',
         'credit_days'     => 'integer',
-        'credit_limit'    => 'float',
+        'credit_limit'    => 'decimal:2',
         'deleted_epoch'   => 'integer',
     ];
 
@@ -50,7 +51,6 @@ class Provider extends Model
     {
         static::deleting(function (self $model) {
             $model->deleted_epoch = time();
-            // Ejecución silenciosa para evitar efectos secundarios o disparos en cadena de eventos intermedios
             $model->saveQuietly();
         });
 
@@ -62,6 +62,11 @@ class Provider extends Model
     public function brands(): HasMany
     {
         return $this->hasMany(\App\Models\Catalog\Brand::class);
+    }
+
+    public function branches(): BelongsToMany
+    {
+        return $this->belongsToMany(Branch::class, 'branch_providers', 'provider_id', 'branch_id');
     }
 
     public function scopeActive($query)

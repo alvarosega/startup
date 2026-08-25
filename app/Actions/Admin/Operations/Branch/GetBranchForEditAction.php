@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 class GetBranchForEditAction
 {
-    /**
-     * Extrae de forma aislada los datos espaciales en texto plano (WKT) y los unifica con los atributos de la sucursal.
-     */
     public function execute(Branch $branch): array
     {
         $spatialData = Branch::select([
@@ -28,19 +25,19 @@ class GetBranchForEditAction
 
         $coveragePolygon = [];
         if ($spatialData && preg_match('/POLYGON\(\((.+)\)\)/i', (string) $spatialData->polygon_wkt, $polyMatches)) {
-            $coordPairs = explode(', ', $polyMatches[1]);
+            $cleaned = str_replace(', ', ',', trim($polyMatches[1]));
+            $coordPairs = explode(',', $cleaned);
             foreach ($coordPairs as $pair) {
-                $coords = explode(' ', $pair);
+                $coords = explode(' ', trim($pair));
                 if (count($coords) === 2) {
                     $coveragePolygon[] = [(float) $coords[0], (float) $coords[1]];
                 }
             }
         }
 
-        // Al estar 'location' y 'coverage_polygon' en $hidden, array_merge inyecta de forma segura los datos limpios y legibles
         return array_merge($branch->toArray(), [
-            'latitude' => $latitude,
-            'longitude' => $longitude,
+            'latitude'         => $latitude,
+            'longitude'        => $longitude,
             'coverage_polygon' => $coveragePolygon
         ]);
     }
