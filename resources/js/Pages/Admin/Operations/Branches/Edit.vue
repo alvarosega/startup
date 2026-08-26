@@ -21,6 +21,7 @@ const form = useForm({
     coverage_polygon: props.branch.coverage_polygon || [],
     is_active: Boolean(props.branch.is_active),
     is_default: Boolean(props.branch.is_default),
+    max_active_orders: props.branch.max_active_orders !== null ? Number(props.branch.max_active_orders) : null, 
     delivery_base_fee: Number(props.branch.delivery_base_fee),
     delivery_price_per_km: Number(props.branch.delivery_price_per_km),
     surge_multiplier: Number(props.branch.surge_multiplier),

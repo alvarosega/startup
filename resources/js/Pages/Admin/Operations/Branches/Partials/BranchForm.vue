@@ -1,8 +1,16 @@
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// Corrección de iconos estándar de Leaflet en empaquetadores modernos (Vite)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 const props = defineProps({
     form: {
@@ -22,25 +30,26 @@ let mapInstance = null;
 let markerInstance = null;
 let polygonInstance = null;
 
-// Coordenadas iniciales por defecto para el encuadre del mapa en altas limpias
-const DEFAULT_LAT = -16.5000;
-const DEFAULT_LNG = -68.1500;
+// Coordenadas por defecto (La Paz, Bolivia)
+const DEFAULT_LAT = -16.50836;
+const DEFAULT_LNG = -68.12628;
 
 /**
- * Sincroniza y redibuja la capa geométrica del polígono de cobertura en el canvas de Leaflet.
+ * Sincroniza y redibuja la capa geométrica del polígono de cobertura en Leaflet.
  */
 const drawPolygonLayer = () => {
-    if (polygonInstance) {
+    if (polygonInstance && mapInstance) {
         mapInstance.removeLayer(polygonInstance);
+        polygonInstance = null;
     }
 
-    if (props.form.coverage_polygon && props.form.coverage_polygon.length > 0) {
-        // Mapeo inverso: Leaflet exige [latitud, longitud] para renderizar, el DTO usa [longitud, latitud]
-        const leafletCoords = props.form.coverage_polygon.map(coord => [coord[1], coord[0]]);
+    if (props.form.coverage_polygon && props.form.coverage_polygon.length > 0 && mapInstance) {
+        // Formato interno: [longitud, latitud] -> Leaflet: [latitud, longitud]
+        const leafletCoords = props.form.coverage_polygon.map(coord => [Number(coord[1]), Number(coord[0])]);
         polygonInstance = L.polygon(leafletCoords, {
-            color: 'hsl(var(--primary))',
-            fillColor: 'hsl(var(--primary))',
-            fillOpacity: 0.15,
+            color: '#2563eb',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.2,
             weight: 2
         }).addTo(mapInstance);
     }
@@ -50,7 +59,7 @@ const drawPolygonLayer = () => {
  * Remueve el último vértice añadido al polígono.
  */
 const removeLastVertex = () => {
-    if (props.form.coverage_polygon.length > 0) {
+    if (props.form.coverage_polygon && props.form.coverage_polygon.length > 0) {
         props.form.coverage_polygon.pop();
         drawPolygonLayer();
     }
@@ -64,63 +73,73 @@ const clearPolygon = () => {
     drawPolygonLayer();
 };
 
-onMounted(() => {
-    // Configuración del punto de vista inicial basado en la existencia de coordenadas
-    const initLat = props.form.latitude ? props.form.latitude : DEFAULT_LAT;
-    const initLng = props.form.longitude ? props.form.longitude : DEFAULT_LNG;
+onMounted(async () => {
+    await nextTick();
 
-    // Inicialización del contenedor Leaflet suprimiendo controles innecesarios
+    if (!mapContainer.value) {
+        return;
+    }
+
+    const initLat = (props.form.latitude !== null && props.form.latitude !== undefined && props.form.latitude !== 0)
+        ? Number(props.form.latitude)
+        : DEFAULT_LAT;
+
+    const initLng = (props.form.longitude !== null && props.form.longitude !== undefined && props.form.longitude !== 0)
+        ? Number(props.form.longitude)
+        : DEFAULT_LNG;
+
     mapInstance = L.map(mapContainer.value, {
         zoomControl: true,
         attributionControl: false
     }).setView([initLat, initLng], 13);
 
-    // Inyección de capa de mosaicos OpenStreetMap estándar
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
     }).addTo(mapInstance);
 
-    // Inicialización o renderizado condicional del marcador operacional de la sucursal
     markerInstance = L.marker([initLat, initLng], {
         draggable: true
     }).addTo(mapInstance);
 
-    // Si es una creación limpia, forzamos las coordenadas iniciales del marcador al form
     if (!props.form.latitude || !props.form.longitude) {
         props.form.latitude = initLat;
         props.form.longitude = initLng;
     }
 
-    // Escucha de eventos de arrastre del marcador (Dragend) para actualizar la ubicación base
     markerInstance.on('dragend', (e) => {
         const position = e.target.getLatLng();
         props.form.latitude = Number(position.lat.toFixed(6));
         props.form.longitude = Number(position.lng.toFixed(6));
     });
 
-    // Escucha de eventos de clic en el canvas del mapa para capturar vértices del polígono de geofencing
     mapInstance.on('click', (e) => {
-        // Inyección simétrica en el arreglo: [longitud, latitud] conforme al DTO de MySQL
-        props.form.coverage_polygon.push([Number(e.latlng.lng.toFixed(6)), Number(e.latlng.lat.toFixed(6))]);
+        // Almacenar en formato [longitud, latitud] para MySQL GIS
+        props.form.coverage_polygon.push([
+            Number(e.latlng.lng.toFixed(6)),
+            Number(e.latlng.lat.toFixed(6))
+        ]);
         drawPolygonLayer();
     });
 
-    // Renderizado inicial del polígono en caso de edición
-    if (props.isEdit) {
+    if (props.form.coverage_polygon && props.form.coverage_polygon.length > 0) {
         drawPolygonLayer();
-        // Ajuste de encuadre automático si existen vértices guardados
-        if (props.form.coverage_polygon.length > 0) {
-            const leafletCoords = props.form.coverage_polygon.map(coord => [coord[1], coord[0]]);
-            mapInstance.fitBounds(L.polygon(leafletCoords).getBounds());
-        }
+        const leafletCoords = props.form.coverage_polygon.map(coord => [Number(coord[1]), Number(coord[0])]);
+        mapInstance.fitBounds(L.polygon(leafletCoords).getBounds());
     }
+
+    // Forzar recalculo de dimensiones del mapa tras renderizado
+    setTimeout(() => {
+        if (mapInstance) {
+            mapInstance.invalidateSize();
+        }
+    }, 200);
 });
 
 onUnmounted(() => {
-    // Purga total de instancias y listeners del motor GIS para mitigar fugas de memoria
     if (mapInstance) {
         mapInstance.off();
         mapInstance.remove();
+        mapInstance = null;
     }
 });
 </script>
@@ -150,7 +169,7 @@ onUnmounted(() => {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-1.5">
                     <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Teléfono Operativo</label>
-                    <input v-model="form.phone" type="text" class="admin-input font-mono" :class="{ 'border-error': form.errors.phone }" placeholder="+51999888777" />
+                    <input v-model="form.phone" type="text" class="admin-input font-mono" :class="{ 'border-error': form.errors.phone }" placeholder="22445566" />
                     <p v-if="form.errors.phone" class="text-error text-xs font-medium mt-1">{{ form.errors.phone }}</p>
                 </div>
                 <div class="space-y-1.5">
@@ -161,7 +180,22 @@ onUnmounted(() => {
             </div>
 
             <div class="border-b border-border pb-2 pt-2">
-                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Configuración de Tarifas Logísticas</h3>
+                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Configuración de Tarifas y Capacidad</h3>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Límite de Pedidos Concurrentes (Kill Switch Automático)</label>
+                <input 
+                    v-model.number="form.max_active_orders" 
+                    type="number" 
+                    step="1" 
+                    min="1" 
+                    max="1000" 
+                    class="admin-input font-mono" 
+                    :class="{ 'border-error': form.errors.max_active_orders }" 
+                    placeholder="Dejar vacío para capacidad ilimitada" 
+                />
+                <p v-if="form.errors.max_active_orders" class="text-error text-xs font-medium mt-1">{{ form.errors.max_active_orders }}</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -176,7 +210,7 @@ onUnmounted(() => {
                     <p v-if="form.errors.delivery_price_per_km" class="text-error text-xs font-medium mt-1">{{ form.errors.delivery_price_per_km }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Multiplicador Alta Demanda *</label>
+                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Multiplicador Surge *</label>
                     <input v-model.number="form.surge_multiplier" type="number" step="0.01" min="1" required class="admin-input font-mono" :class="{ 'border-error': form.errors.surge_multiplier }" />
                     <p v-if="form.errors.surge_multiplier" class="text-error text-xs font-medium mt-1">{{ form.errors.surge_multiplier }}</p>
                 </div>
@@ -184,17 +218,17 @@ onUnmounted(() => {
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monto Mínimo Orden *</label>
+                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monto Mínimo *</label>
                     <input v-model.number="form.min_order_amount" type="number" step="0.01" min="0" required class="admin-input font-mono" :class="{ 'border-error': form.errors.min_order_amount }" />
                     <p v-if="form.errors.min_order_amount" class="text-error text-xs font-medium mt-1">{{ form.errors.min_order_amount }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cargo Orden Pequeña *</label>
+                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Orden Pequeña *</label>
                     <input v-model.number="form.small_order_fee" type="number" step="0.01" min="0" required class="admin-input font-mono" :class="{ 'border-error': form.errors.small_order_fee }" />
                     <p v-if="form.errors.small_order_fee" class="text-error text-xs font-medium mt-1">{{ form.errors.small_order_fee }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">% Comisión de Servicio *</label>
+                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">% Fee Servicio *</label>
                     <input v-model.number="form.base_service_fee_percentage" type="number" step="0.01" min="0" max="100" required class="admin-input font-mono" :class="{ 'border-error': form.errors.base_service_fee_percentage }" />
                     <p v-if="form.errors.base_service_fee_percentage" class="text-error text-xs font-medium mt-1">{{ form.errors.base_service_fee_percentage }}</p>
                 </div>
@@ -203,11 +237,11 @@ onUnmounted(() => {
             <div class="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
                 <label class="inline-flex items-center gap-2 cursor-pointer select-none">
                     <input v-model="form.is_active" type="checkbox" class="rounded border-input text-primary focus:ring-ring bg-card w-4 h-4" />
-                    <span class="text-xs font-bold text-foreground uppercase tracking-wide">Nodo Activo / Operativo</span>
+                    <span class="text-xs font-bold text-foreground uppercase tracking-wide">Nodo Activo</span>
                 </label>
                 <label class="inline-flex items-center gap-2 cursor-pointer select-none">
                     <input v-model="form.is_default" type="checkbox" class="rounded border-input text-primary focus:ring-ring bg-card w-4 h-4" />
-                    <span class="text-xs font-bold text-foreground uppercase tracking-wide">Establecer como Nodo Principal</span>
+                    <span class="text-xs font-bold text-foreground uppercase tracking-wide">Nodo Principal</span>
                 </label>
             </div>
 
@@ -217,7 +251,7 @@ onUnmounted(() => {
                 </Link>
                 <button type="submit" :disabled="form.processing" class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider">
                     <span class="material-symbols-rounded text-base">save</span>
-                    <span>{{ form.processing ? 'Sincronizando Nodo...' : 'Guardar Parámetros' }}</span>
+                    <span>{{ form.processing ? 'Guardando Nodo...' : 'Guardar Parámetros' }}</span>
                 </button>
             </div>
         </div>
@@ -250,7 +284,7 @@ onUnmounted(() => {
                     <span class="text-foreground font-semibold">{{ form.longitude || 'Sin fijar' }}</span>
                 </div>
                 <div class="col-span-2 border-t border-border/60 pt-2">
-                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold mb-1">Vértices Capturados en Polígono (Mínimo 3 requerido)</span>
+                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold mb-1">Vértices Capturados en Polígono (Mínimo 3)</span>
                     <span :class="form.coverage_polygon.length >= 3 ? 'text-success font-bold' : 'text-warning font-bold'">
                         {{ form.coverage_polygon.length }} puntos registrados.
                     </span>

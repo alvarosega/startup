@@ -14,6 +14,7 @@ const form = useForm({
     coverage_polygon: [],
     is_active: true,
     is_default: false,
+    max_active_orders: null,
     delivery_base_fee: 0.00,
     delivery_price_per_km: 0.00,
     surge_multiplier: 1.00,

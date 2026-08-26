@@ -38,7 +38,6 @@ class BranchSeeder extends Seeder
         try {
             while (($data = fgetcsv($file, 0, ',')) !== false) {
                 $rowNumber++;
-                
                 if (empty(array_filter($data))) continue;
 
                 if (count($headers) !== count($data)) {
@@ -62,10 +61,10 @@ class BranchSeeder extends Seeder
                 $latitude = (float) $cleanRow['latitude'];
                 $longitude = (float) $cleanRow['longitude'];
 
-                // Geometría POINT con SRID 4326 y orden explícito (Longitud Latitud)
+                // WKT POINT con orden explícito: Longitud Latitud
                 $locationExpression = DB::raw("ST_GeomFromText('POINT({$longitude} {$latitude})', 4326, 'axis-order=long-lat')");
 
-                // Geometría POLYGON con SRID 4326 y cierre OGC garantizado
+                // CSV contiene [[lat, lng], ...] -> WKT POLYGON exige "longitud latitud"
                 $coveragePolygonExpression = null;
                 if (!empty($cleanRow['coverage_polygon'])) {
                     $polyData = json_decode($cleanRow['coverage_polygon'], true);
@@ -73,7 +72,6 @@ class BranchSeeder extends Seeder
                         throw new Exception("Fila {$rowNumber}: JSON inválido en 'coverage_polygon'.");
                     }
 
-                    // CSV tiene [latitud, longitud] -> WKT requiere "longitud latitud"
                     $wktPoints = array_map(fn($point) => "{$point[1]} {$point[0]}", $polyData);
 
                     if (reset($wktPoints) !== end($wktPoints)) {
@@ -83,7 +81,7 @@ class BranchSeeder extends Seeder
                     $wktPolygonString = "POLYGON((" . implode(',', $wktPoints) . "))";
                     $coveragePolygonExpression = DB::raw("ST_GeomFromText('{$wktPolygonString}', 4326, 'axis-order=long-lat')");
                 } else {
-                    throw new Exception("Fila {$rowNumber}: El campo 'coverage_polygon' es obligatorio para el índice espacial.");
+                    throw new Exception("Fila {$rowNumber}: El campo 'coverage_polygon' es obligatorio.");
                 }
 
                 $branch = Branch::create([
@@ -103,11 +101,10 @@ class BranchSeeder extends Seeder
                     'is_default'                  => (bool) ($cleanRow['is_default'] ?? false),
                     'is_active'                   => (bool) ($cleanRow['is_active'] ?? true),
                     'is_operational_paused'       => false,
-                    'max_active_orders'           => isset($cleanRow['max_active_orders']) ? (int) $cleanRow['max_active_orders'] : null,
+                    'max_active_orders'           => isset($cleanRow['max_active_orders']) && $cleanRow['max_active_orders'] !== '' ? (int) $cleanRow['max_active_orders'] : null,
                     'deleted_epoch'               => 0,
                 ]);
 
-                // Sembrar automáticamente matriz de 7 días (0 = Domingo a 6 = Sábado) de 08:00 a 23:00
                 for ($day = 0; $day <= 6; $day++) {
                     BranchSchedule::create([
                         'branch_id'    => $branch->id,
@@ -125,8 +122,7 @@ class BranchSeeder extends Seeder
             Cache::forget('active_branch_polygons');
             Cache::forget('shop_default_branch_id');
 
-            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales sembradas con sus 7 horarios base compilados.");
-
+            $this->command->info("ÉXITO: Sucursales y geometrías sembradas correctamente.");
         } catch (Throwable $e) {
             DB::rollBack();
             if (is_resource($file)) fclose($file);

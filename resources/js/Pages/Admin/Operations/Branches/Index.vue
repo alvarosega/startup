@@ -9,10 +9,12 @@ defineProps({
     }
 });
 
-/**
- * Despacha la extracción física lógica del nodo de sucursal.
- * Utiliza el método DELETE nativo del enrutador de Inertia.
- */
+const togglePause = (id) => {
+    router.patch(route('admin.operations.branches.toggle-pause', id), {}, {
+        preserveScroll: true
+    });
+};
+
 const deleteBranch = (id) => {
     if (window.confirm('¿Está seguro de extraer este nodo de sucursal de la circulación logística?')) {
         router.delete(route('admin.operations.branches.destroy', id), {
@@ -45,39 +47,38 @@ const deleteBranch = (id) => {
                         <tr>
                             <th class="admin-table-th">Sucursal / Nodo</th>
                             <th class="admin-table-th">Ciudad</th>
-                            <th class="admin-table-th">Teléfono</th>
-                            <th class="admin-table-th">Tarifa Base</th>
-                            <th class="admin-table-th">Precio por KM</th>
-                            <th class="admin-table-th text-center">Por Defecto</th>
+                            <th class="admin-table-th text-center">Capacidad</th>
+                            <th class="admin-table-th text-center">Recepción Online</th>
                             <th class="admin-table-th text-center">Estado</th>
-                            <th class="admin-table-th text-right">Acciones</th>
+                            <th class="admin-table-th text-right">Operaciones y Ajustes</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="branches.length === 0">
-                            <td colspan="8" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
+                            <td colspan="6" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
                                 No existen sucursales operativas materializadas en el sistema.
                             </td>
                         </tr>
                         <tr v-for="branch in branches" :key="branch.id" class="admin-table-tr">
                             <td class="admin-table-td font-bold">
-                                {{ branch.name }}
+                                <div>{{ branch.name }}</div>
+                                <span v-if="branch.is_default" class="badge-info text-[10px] mt-0.5">Principal</span>
                             </td>
-                            <td class="admin-table-td">
+                            <td class="admin-table-td text-xs">
                                 {{ branch.city }}
                             </td>
-                            <td class="admin-table-td font-mono text-xs">
-                                {{ branch.phone || 'N/A' }}
-                            </td>
-                            <td class="admin-table-td font-mono text-xs">
-                                {{ Number(branch.delivery_base_fee).toFixed(2) }}
-                            </td>
-                            <td class="admin-table-td font-mono text-xs">
-                                {{ Number(branch.delivery_price_per_km).toFixed(2) }}
+                            <td class="admin-table-td text-center font-mono text-xs">
+                                {{ branch.max_active_orders ? `${branch.max_active_orders} pedidos` : 'Ilimitada' }}
                             </td>
                             <td class="admin-table-td text-center">
-                                <span v-if="branch.is_default" class="badge-info">Principal</span>
-                                <span v-else class="text-muted-foreground/40 text-xs">—</span>
+                                <button
+                                    type="button"
+                                    @click="togglePause(branch.id)"
+                                    class="px-2 py-0.5 text-xs font-bold rounded cursor-pointer transition-colors"
+                                    :class="branch.is_operational_paused ? 'bg-warning/10 text-warning border border-warning/30 hover:bg-warning/20' : 'bg-success/10 text-success border border-success/30 hover:bg-success/20'"
+                                >
+                                    {{ branch.is_operational_paused ? 'Pausado' : 'Recibiendo' }}
+                                </button>
                             </td>
                             <td class="admin-table-td text-center">
                                 <span :class="branch.is_active ? 'badge-success' : 'badge-error'">
@@ -85,17 +86,38 @@ const deleteBranch = (id) => {
                                 </span>
                             </td>
                             <td class="admin-table-td text-right">
-                                <div class="inline-flex items-center gap-2">
+                                <div class="inline-flex items-center gap-1.5">
+                                    <Link
+                                        :href="route('admin.operations.branches.cash.index', branch.id)"
+                                        title="Control de Caja Diaria"
+                                        class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded border border-border hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                                    >
+                                        Caja
+                                    </Link>
+                                    <Link
+                                        :href="route('admin.operations.branches.schedules.index', branch.id)"
+                                        title="Horarios Semanales"
+                                        class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded border border-border hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                                    >
+                                        Horarios
+                                    </Link>
+                                    <Link
+                                        :href="route('admin.operations.branches.schedule-exceptions.index', branch.id)"
+                                        title="Excepciones y Feriados"
+                                        class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded border border-border hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                                    >
+                                        Feriados
+                                    </Link>
                                     <Link
                                         :href="route('admin.operations.branches.edit', branch.id)"
-                                        class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded border border-border hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+                                        class="px-2 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded hover:bg-primary/90"
                                     >
                                         Configurar
                                     </Link>
                                     <button
                                         type="button"
                                         @click="deleteBranch(branch.id)"
-                                        class="px-2 py-1 bg-destructive/5 text-destructive border border-destructive/20 text-xs font-semibold rounded hover:bg-destructive/10 transition-colors"
+                                        class="px-2 py-1 bg-destructive/5 text-destructive border border-destructive/20 text-xs font-semibold rounded hover:bg-destructive/10"
                                     >
                                         Eliminar
                                     </button>

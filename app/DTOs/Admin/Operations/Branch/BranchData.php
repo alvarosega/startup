@@ -36,8 +36,7 @@ readonly class BranchData
         $lng = (float) $validated['longitude'];
 
         $locationWkt = "POINT({$lng} {$lat})";
-        
-        maxActiveOrders: isset($validated['max_active_orders']) && $validated['max_active_orders'] !== null ? (int) $validated['max_active_orders'] : null,
+
         $coveragePolygonWkt = null;
         if (!empty($validated['coverage_polygon']) && is_array($validated['coverage_polygon'])) {
             $points = [];
@@ -48,7 +47,6 @@ readonly class BranchData
             }
 
             if (count($points) >= 3) {
-                // Forzar cierre de polígono OGC (primer punto = último punto)
                 if ($points[0] !== $points[count($points) - 1]) {
                     $points[] = $points[0];
                 }
@@ -68,6 +66,7 @@ readonly class BranchData
             isDefault: (bool) $request->boolean('is_default'),
             isActive: (bool) $request->boolean('is_active', true),
             isOperationalPaused: (bool) $request->boolean('is_operational_paused', false),
+            maxActiveOrders: isset($validated['max_active_orders']) && $validated['max_active_orders'] !== null ? (int) $validated['max_active_orders'] : null,
             deliveryBaseFee: (float) ($validated['delivery_base_fee'] ?? 0.00),
             deliveryPricePerKm: (float) ($validated['delivery_price_per_km'] ?? 0.00),
             surgeMultiplier: (float) ($validated['surge_multiplier'] ?? 1.00),
