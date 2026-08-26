@@ -18,14 +18,23 @@ class UpdateBranch
                 Branch::where('id', '!=', $branch->id)->where('is_default', true)->update(['is_default' => false]);
             }
 
+            // Resolución de colisiones en slug ignorando el registro actual
+            $baseSlug = Str::slug($data->name);
+            $slug = $baseSlug;
+            $count = 1;
+            while (Branch::where('slug', $slug)->where('deleted_epoch', 0)->where('id', '!=', $branch->id)->exists()) {
+                $slug = "{$baseSlug}-{$count}";
+                $count++;
+            }
+
             return $branch->update([
                 'name'                        => $data->name,
-                'slug'                        => Str::slug($data->name),
+                'slug'                        => $slug,
                 'city'                        => $data->city,
                 'phone'                       => $data->phone,
                 'address'                     => $data->address,
-                'location'                    => DB::raw("ST_GeomFromText('{$data->locationWkt}', 4326)"),
-                'coverage_polygon'            => $data->coveragePolygonWkt ? DB::raw("ST_GeomFromText('{$data->coveragePolygonWkt}', 4326)") : $branch->coverage_polygon,
+                'location'                    => DB::raw("ST_GeomFromText('{$data->locationWkt}', 4326, 'axis-order=long-lat')"),
+                'coverage_polygon'            => $data->coveragePolygonWkt ? DB::raw("ST_GeomFromText('{$data->coveragePolygonWkt}', 4326, 'axis-order=long-lat')") : $branch->coverage_polygon,
                 'is_default'                  => $data->isDefault,
                 'is_active'                   => $data->isActive,
                 'is_operational_paused'       => $data->isOperationalPaused,

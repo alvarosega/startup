@@ -60,6 +60,10 @@ class BranchController extends Controller
             return redirect()->back()->with('error', 'No se puede eliminar la sucursal predeterminada del sistema.');
         }
 
+        if ($branch->dailyCashes()->where('status', 'open')->exists()) {
+            return redirect()->back()->with('error', 'No se puede eliminar la sucursal mientras tenga una caja diaria abierta.');
+        }
+
         $branch->delete();
         
         return redirect()->back()->with('success', 'Nodo de sucursal extraído de circulación (Soft Delete).');
