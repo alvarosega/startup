@@ -17,22 +17,22 @@ class LoginController extends Controller
         return Inertia::render('Driver/Auth/Login'); 
     }
 
-    public function store(LoginRequest $request, LoginDriverAction $action)
+    public function store(LoginRequest $request, LoginDriverAction $action): \Illuminate\Http\RedirectResponse
     {
-        // 1. Transformación a DTO (Validación ya ocurrió en LoginRequest)
         $data = LoginDriverData::fromRequest($request);
+        $driver = $action->execute($data);
 
-        // 2. Ejecución Atómica. 
-        // Si las credenciales fallan, la Action lanza ValidationException y Laravel redirige solo.
-        // La Action también se encarga de revocar sesiones previas (Single Session Policy).
-        $action->execute($data); 
-            
-        // 3. Orquestación HTTP
         $request->session()->regenerate();
-        
-        return redirect()->intended(route('driver.dashboard'));
-    }
 
+        $statusValue = is_object($driver->status) ? $driver->status->value : (string) $driver->status;
+
+        // Si está aprobado, va a la operación de órdenes; si está pendiente/rechazado, a su perfil informativo
+        if ($statusValue === 'approved') {
+            return redirect()->intended(route('driver.dashboard'));
+        }
+
+        return redirect()->route('driver.profile.index');
+    }
     public function destroy(Request $request)
     {
         Auth::guard('driver')->logout();

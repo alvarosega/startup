@@ -11,6 +11,7 @@ import {
     User
 } from 'lucide-vue-next';
 import ThemeToggler from '@/Components/Base/ThemeToggler.vue';
+import { X } from 'lucide-vue-next';
 import FullScreenToggler from '@/Components/Base/FullScreenToggler.vue';
 
 const page = usePage();

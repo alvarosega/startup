@@ -13,10 +13,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\HasUv7;
 use App\Models\Operations\Branch;
 use App\Enums\Users\DriverStatus;
+use Spatie\Permission\Traits\HasRoles;
 
 class Driver extends Authenticatable
 {
-    use HasUv7, SoftDeletes, Notifiable, HasFactory;
+    use HasUv7, HasRoles, SoftDeletes, Notifiable, HasFactory;
 
     protected $table = 'drivers';
 
@@ -116,5 +117,17 @@ class Driver extends Authenticatable
                 ];
             }
         };
+    }
+    public function accessLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DriverAccessLog::class, 'driver_id', 'id');
+    }
+
+    public function recordSuccessfulLogin(): void
+    {
+        $this->updateQuietly([
+            'last_login_at' => now(),
+            'last_seen_at'  => now(),
+        ]);
     }
 }

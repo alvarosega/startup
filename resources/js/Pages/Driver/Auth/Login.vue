@@ -2,9 +2,7 @@
 import { useForm, Link, Head } from '@inertiajs/vue3';
 import { VueTelInput } from 'vue-tel-input';
 import 'vue-tel-input/vue-tel-input.css';
-//import BaseCheckbox from '@/Components/Base/BaseCheckbox.vue'; 
-//import BaseInput from '@/Components/Base/BaseInput.vue'; 
-import { LogIn, Lock, Smartphone, ArrowRight, Truck } from 'lucide-vue-next';
+import { Lock, Smartphone, ArrowRight, Truck } from 'lucide-vue-next';
 import ShopLayout from '@/Layouts/ShopLayout.vue';
 
 const form = useForm({
@@ -13,7 +11,6 @@ const form = useForm({
     remember: false,
 });
 
-// REGLA ESTRICTA: Solo Bolivia
 const telOptions = { 
     mode: 'international', 
     defaultCountry: 'BO', 
@@ -23,19 +20,21 @@ const telOptions = {
 };
 
 const onInput = (phone, obj) => { 
-    // Garantiza que el frontend entregue el formato internacional (+591...)
     if (obj?.number) {
         form.phone = obj.number; 
+    } else if (phone) {
+        form.phone = phone.startsWith('+') ? phone : `+591${phone}`;
     }
 };
 
 const submit = () => {
-    form.post(route('driver.login'), {
+    form.post(route('driver.login.store'), {
         preserveScroll: true,
         onFinish: () => form.reset('password'),
     });
 };
 </script>
+
 <template>
     <Head title="Terminal de Mando - Driver Access" />
     <ShopLayout> 
@@ -69,9 +68,9 @@ const submit = () => {
                                     @on-input="onInput"
                                     v-bind="telOptions"
                                     class="driver-tel-input"
-                                    :class="{ '!border-error': form.errors.phone }"
+                                    :class="{ '!border-red-500': form.errors.phone }"
                                 />
-                                <p v-if="form.errors.phone" class="text-[10px] text-error font-black mt-1 ml-1 uppercase">{{ form.errors.phone }}</p>
+                                <p v-if="form.errors.phone" class="text-[10px] text-red-500 font-black mt-1 ml-1 uppercase">{{ form.errors.phone }}</p>
                             </div>
 
                             <div class="space-y-2">
@@ -81,13 +80,29 @@ const submit = () => {
                                     </label>
                                     <Link :href="route('driver.password.request')" class="text-[10px] font-black text-amber-600 hover:text-amber-500 uppercase">Recuperar</Link>
                                 </div>
-                                <BaseInput v-model="form.password" type="password" placeholder="••••••••" class="h-[56px] font-mono" :error="form.errors.password" />
+                                <input 
+                                    v-model="form.password" 
+                                    type="password" 
+                                    placeholder="••••••••" 
+                                    class="w-full h-14 bg-transparent border border-border rounded-2xl px-4 text-sm font-mono font-bold text-foreground focus:border-amber-500 transition-all outline-none"
+                                    :class="{ '!border-red-500': form.errors.password }"
+                                />
+                                <p v-if="form.errors.password" class="text-[10px] text-red-500 font-black mt-1 ml-1 uppercase">{{ form.errors.password }}</p>
                             </div>
 
-                            <BaseCheckbox v-model="form.remember" label="Mantener sesión iniciada" />
+                            <label class="flex items-center gap-3 cursor-pointer group select-none ml-1">
+                                <input 
+                                    type="checkbox" 
+                                    v-model="form.remember"
+                                    class="w-5 h-5 rounded-lg border-2 border-border bg-transparent text-amber-500 focus:ring-0 focus:ring-offset-0 transition-colors cursor-pointer accent-amber-500"
+                                />
+                                <span class="text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors">
+                                    Mantener sesión iniciada
+                                </span>
+                            </label>
 
-                            <button type="submit" :disabled="form.processing" class="w-full h-16 shadow-lg shadow-amber-500/20 group bg-amber-500 hover:bg-amber-600 text-white border-none rounded-2xl transition-all active:scale-95 flex items-center justify-center">
-                                <span v-if="form.processing" class="loading loading-spinner"></span>
+                            <button type="submit" :disabled="form.processing" class="w-full h-16 shadow-lg shadow-amber-500/20 group bg-amber-500 hover:bg-amber-600 text-white border-none rounded-2xl transition-all active:scale-95 flex items-center justify-center disabled:opacity-50">
+                                <span v-if="form.processing" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                                 <span v-else class="flex items-center justify-center gap-3 font-black uppercase tracking-widest text-base italic">
                                     Iniciar Turno <ArrowRight :size="20" class="group-hover:translate-x-2 transition-transform" />
                                 </span>
@@ -109,3 +124,25 @@ const submit = () => {
     </ShopLayout>
 </template>
 
+<style scoped>
+:deep(.driver-tel-input) {
+    height: 56px !important;
+    background: transparent !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 1rem !important;
+    transition: all 0.3s ease;
+}
+:deep(.driver-tel-input:focus-within) {
+    border-color: hsl(var(--amber-500)) !important;
+}
+:deep(.driver-tel-input .vti__input) {
+    background: transparent !important;
+    color: currentColor !important;
+    font-weight: 700 !important;
+}
+:deep(.driver-tel-input .vti__dropdown-list) {
+    background-color: #15151e !important;
+    border: 1px solid #32323b !important;
+    color: #ffffff !important;
+}
+</style>

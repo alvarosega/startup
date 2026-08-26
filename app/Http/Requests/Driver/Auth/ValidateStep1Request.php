@@ -20,10 +20,9 @@ class ValidateStep1Request extends FormRequest
     public function rules(): array
     {
         return [
-            // SOLO VALIDAMOS LO DEL PASO 1
-            'phone'      => $this->globalPhoneRules(), 
-            'email'      => $this->globalEmailRules(), 
-            'password'   => ['required', 'confirmed', Password::defaults()],
+            'phone'    => $this->globalPhoneRules('drivers'), 
+            'email'    => $this->globalEmailRules('drivers'), 
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }
 }
