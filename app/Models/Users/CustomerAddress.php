@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
 use App\Traits\HasUv7;
-use App\Casts\PointCast;
 use App\Models\Operations\Branch;
 use App\Exceptions\Customer\Auth\ImmutableUuidException;
 use App\Exceptions\Customer\Auth\PhysicalDeletionProhibitedException;
@@ -45,9 +44,8 @@ class CustomerAddress extends Model
     ];
 
     protected $casts = [
-        'is_default' => 'boolean',
+        'is_default'    => 'boolean',
         'deleted_epoch' => 'integer',
-        'position' => PointCast::class,
     ];
 
     protected static function booted(): void

@@ -29,23 +29,25 @@ final class RegisterCustomerAction
                     ->first();
 
                 if ($duplicate !== null) {
-                    Customer::query()
-                        ->where('id', $duplicate->id)
-                        ->lockForUpdate()
-                        ->first();
-
                     return ActionResult::success($duplicate);
                 }
             }
 
+            // Resolución de Branch: Asignada o Fallback a Default si está fuera de cobertura
+            $assignedBranchId = $dto->branchId;
+            if (!$assignedBranchId) {
+                $defaultBranch = \App\Models\Operations\Branch::active()->where('is_default', true)->first()
+                    ?? \App\Models\Operations\Branch::active()->first();
+                $assignedBranchId = $defaultBranch?->id;
+            }
+
             /** @var Customer $customer */
             $customer = Customer::query()->create([
-                'id'                     => (string) Str::uuid7(),
                 'phone'                  => $dto->phone,
-                'email'                  => $dto->email,
-                'password'               => Hash::make($dto->password),
-                'country_code'           => $dto->countryCode,
-                'branch_id'              => $dto->branchId, // Puede ser null si está fuera de cobertura
+                'email'                  => strtolower($dto->email),
+                'password'               => $dto->password, // Sin Hash::make() manual (gestionado por cast)
+                'country_code'           => $dto->countryCode ?? 'BO',
+                'branch_id'              => $assignedBranchId,
                 'is_active'              => true,
                 'deleted_epoch'          => 0,
                 'was_previously_deleted' => false,
@@ -53,27 +55,22 @@ final class RegisterCustomerAction
                 'idempotency_key'        => $cleanedKey,
             ]);
 
-            // Se inyecta ID explícito y deleted_epoch conforme al nuevo diseño de tablas
+            // Opción A: customer_id es PK y FK (no se envía 'id')
             $customer->profile()->create([
-                'id'            => (string) Str::uuid7(),
                 'first_name'    => mb_convert_encoding(mb_strtoupper($dto->firstName), 'UTF-8'),
                 'last_name'     => mb_convert_encoding(mb_strtoupper($dto->lastName), 'UTF-8'),
-                'avatar_type'   => $dto->avatarType,
+                'avatar_type'   => $dto->avatarType ?? 'icon',
                 'avatar_source' => $dto->avatarSource,
                 'deleted_epoch' => 0,
             ]);
 
             CustomerAddress::query()->create([
-                'id'            => (string) Str::uuid7(),
                 'customer_id'   => (string) $customer->id,
-                'branch_id'     => $dto->branchId, // Almacena null si no intersecta con ninguna sucursal
-                'alias'         => mb_strtoupper($dto->alias),
+                'branch_id'     => $assignedBranchId,
+                'alias'         => $dto->alias ? mb_strtoupper($dto->alias) : 'PRINCIPAL',
                 'address'       => mb_strtoupper($dto->address),
                 'reference'     => $dto->details !== null ? mb_strtoupper($dto->details) : null,
-                'position'      => [
-                    'lat' => $dto->latitude,
-                    'lng' => $dto->longitude,
-                ],
+                'position'      => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})', 4326, 'axis-order=long-lat')"),
                 'is_default'    => true,
                 'deleted_epoch' => 0,
             ]);

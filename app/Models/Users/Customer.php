@@ -114,4 +114,16 @@ class Customer extends Authenticatable
     {
         return $query->where('branch_id', $branchId);
     }
+    public function accessLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CustomerAccessLog::class, 'customer_id', 'id');
+    }
+
+    public function recordSuccessfulLogin(): void
+    {
+        $this->updateQuietly([
+            'last_login_at' => now(),
+            'last_seen_at'  => now(),
+        ]);
+    }
 }

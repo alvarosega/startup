@@ -23,26 +23,23 @@ final readonly class RegisterCustomerData
         public ?string $details
     ) {}
 
-    /**
-     * @param array<string, mixed> $validatedData
-     */
     public static function fromArray(array $validatedData): static
     {
         return new static(
-            (string) ($validatedData['phone'] ?? ''),
-            (string) ($validatedData['email'] ?? ''),
-            (string) ($validatedData['password'] ?? ''),
-            (string) ($validatedData['country_code'] ?? ''),
-            (float) ($validatedData['latitude'] ?? 0.0),
-            (float) ($validatedData['longitude'] ?? 0.0),
-            isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null,
-            (string) ($validatedData['first_name'] ?? ''),
-            (string) ($validatedData['last_name'] ?? ''),
-            (string) ($validatedData['avatar_type'] ?? ''),
-            (string) ($validatedData['avatar_source'] ?? ''),
-            (string) ($validatedData['alias'] ?? ''),
-            (string) ($validatedData['address'] ?? ''),
-            isset($validatedData['details']) ? (string) $validatedData['details'] : null
+            phone: (string) ($validatedData['phone'] ?? ''),
+            email: (string) ($validatedData['email'] ?? ''),
+            password: (string) ($validatedData['password'] ?? ''),
+            countryCode: !empty($validatedData['country_code']) ? (string) $validatedData['country_code'] : 'BO',
+            latitude: (float) ($validatedData['latitude'] ?? 0.0),
+            longitude: (float) ($validatedData['longitude'] ?? 0.0),
+            branchId: !empty($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null,
+            firstName: (string) ($validatedData['first_name'] ?? ''),
+            lastName: (string) ($validatedData['last_name'] ?? ''),
+            avatarType: !empty($validatedData['avatar_type']) ? (string) $validatedData['avatar_type'] : 'icon',
+            avatarSource: (string) ($validatedData['avatar_source'] ?? 'avatar_1.png'),
+            alias: !empty($validatedData['alias']) ? (string) $validatedData['alias'] : 'Principal',
+            address: (string) ($validatedData['address'] ?? ''),
+            details: !empty($validatedData['details']) ? (string) $validatedData['details'] : null
         );
     }
 }

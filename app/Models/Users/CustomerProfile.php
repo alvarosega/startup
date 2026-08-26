@@ -29,7 +29,6 @@ class CustomerProfile extends Model
 
     protected $casts = [
         'birth_date' => 'date',
-        'avatar_type' => AvatarType::class, // Cast estructural al Backed Enum
     ];
 
     public function customer(): BelongsTo

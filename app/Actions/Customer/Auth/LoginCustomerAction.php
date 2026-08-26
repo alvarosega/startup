@@ -4,50 +4,89 @@ declare(strict_types=1);
 
 namespace App\Actions\Customer\Auth;
 
+use App\Models\Users\Customer;
 use App\Architecture\ActionResult;
 use App\DTOs\Customer\Auth\LoginCustomerData;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+
+use App\Models\Users\CustomerAccessLog;
+
 
 final class LoginCustomerAction
 {
     public function execute(LoginCustomerData $dto): ActionResult
     {
-        $throttleKey = Str::transliterate(Str::lower($dto->phone) . '|' . request()->ip());
+        $ip = request()->ip() ?? '127.0.0.1';
+        $userAgent = request()->userAgent();
+        $throttleKey = Str::transliterate(Str::lower($dto->phone) . '|' . $ip);
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'phone' => __('auth.throttle', ['seconds' => $seconds]),
+
+            \App\Models\Users\CustomerAccessLog::create([
+                'customer_id'     => null,
+                'phone_attempted' => $dto->phone,
+                'ip_address'      => $ip,
+                'user_agent'      => $userAgent,
+                'status'          => 'RATE_LIMITED',
+                'failure_reason'  => "Bloqueo por exceso de intentos. Reintente en {$seconds}s.",
             ]);
+
+            return ActionResult::failure("Demasiados intentos de acceso fallidos. Reintente en {$seconds} segundos.");
         }
 
-        $credentials = [
-            'phone' => $dto->phone,
-            'password' => $dto->password,
-        ];
+        // Comprobar existencia activa de la cuenta antes de validar hash
+        /** @var Customer|null $customer */
+        $customer = Customer::where('phone', $dto->phone)
+            ->where('deleted_epoch', 0)
+            ->first();
 
-        if (!Auth::guard('customer')->attempt($credentials, $dto->remember)) {
+        if (!$customer || !Hash::check($dto->password, $customer->password)) {
             RateLimiter::hit($throttleKey, 60);
+
+            \App\Models\Users\CustomerAccessLog::create([
+                'customer_id'     => $customer?->id,
+                'phone_attempted' => $dto->phone,
+                'ip_address'      => $ip,
+                'user_agent'      => $userAgent,
+                'status'          => 'INVALID_CREDENTIALS',
+                'failure_reason'  => 'Contraseña incorrecta o usuario no registrado.',
+            ]);
+
             return ActionResult::failure('Las credenciales proporcionadas no coinciden con nuestros registros.');
+        }
+
+        if (!$customer->is_active) {
+            \App\Models\Users\CustomerAccessLog::create([
+                'customer_id'     => $customer->id,
+                'phone_attempted' => $dto->phone,
+                'ip_address'      => $ip,
+                'user_agent'      => $userAgent,
+                'status'          => 'INACTIVE_ACCOUNT',
+                'failure_reason'  => 'Cuenta inactiva o suspendida.',
+            ]);
+
+            return ActionResult::failure('Acceso denegado: Su cuenta de cliente se encuentra inactiva o suspendida.');
         }
 
         RateLimiter::clear($throttleKey);
 
-        /** @var \App\Models\Users\Customer $customer */
-        $customer = Auth::guard('customer')->user();
+        \App\Models\Users\CustomerAccessLog::create([
+            'customer_id'     => $customer->id,
+            'phone_attempted' => $dto->phone,
+            'ip_address'      => $ip,
+            'user_agent'      => $userAgent,
+            'status'          => 'SUCCESS',
+            'failure_reason'  => null,
+        ]);
 
-        if (!$customer->is_active) {
-            Auth::guard('customer')->logout();
-            return ActionResult::failure('Acceso denegado: Su cuenta de cliente se encuentra inactiva o suspendida.');
-        }
-
-        DB::transaction(function () use ($customer): void {
-            $customer->update(['last_login_at' => now()]);
-        });
+        $customer->recordSuccessfulLogin();
+        Auth::guard('customer')->login($customer, $dto->remember);
 
         return ActionResult::success($customer);
     }

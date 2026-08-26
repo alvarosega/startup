@@ -41,25 +41,18 @@ return new class extends Migration {
         });
 
         Schema::create('customer_profiles', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->uuid('customer_id');
+            $table->foreignUuid('customer_id')->primary()->constrained('customers')->cascadeOnDelete();
             $table->string('first_name');
             $table->string('last_name');
             $table->date('birth_date')->nullable();
-            $table->string('gender', 20)->nullable(); // Valores permitidos: MALE, FEMALE, OTHER
+            $table->string('gender', 20)->nullable();
             $table->string('avatar_type')->default('icon'); 
-            $table->string('avatar_source')->default('avatar_1.svg');
+            $table->string('avatar_source')->default('avatar_1.png');
             
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();
 
             $table->unique(['customer_id', 'deleted_epoch']);
-            
-            $table->foreign('customer_id')
-                ->references('id')
-                ->on('customers')
-                ->onDelete('restrict')
-                ->onUpdate('restrict');
         });
 
         Schema::create('customer_addresses', function (Blueprint $table) {
