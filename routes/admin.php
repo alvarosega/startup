@@ -83,6 +83,25 @@ Route::middleware(['auth:super_admin'])->group(function () {
         });
 
         Route::prefix('operations')->name('operations.')->group(function () {
+
+            // 1. Control Atómico de Kill Switch
+            Route::patch('branches/{branch}/toggle-pause', [BranchController::class, 'togglePause'])->name('branches.toggle-pause');
+
+            // 2. Horarios Semanales (0 a 6)
+            Route::get('branches/{branch}/schedules', [BranchScheduleController::class, 'index'])->name('branches.schedules.index');
+            Route::put('branches/{branch}/schedules', [BranchScheduleController::class, 'update'])->name('branches.schedules.update');
+
+            // 3. Excepciones de Horario y Feriados
+            Route::get('branches/{branch}/schedule-exceptions', [BranchScheduleExceptionController::class, 'index'])->name('branches.schedule-exceptions.index');
+            Route::post('branches/{branch}/schedule-exceptions', [BranchScheduleExceptionController::class, 'store'])->name('branches.schedule-exceptions.store');
+            Route::delete('branches/{branch}/schedule-exceptions/{exception}', [BranchScheduleExceptionController::class, 'destroy'])->name('branches.schedule-exceptions.destroy');
+
+            // 4. Control y Arqueo de Caja Diaria
+            Route::get('branches/{branch}/cash', [BranchDailyCashController::class, 'index'])->name('branches.cash.index');
+            Route::post('branches/{branch}/cash/open', [BranchDailyCashController::class, 'open'])->name('branches.cash.open');
+            Route::post('branches/{branch}/cash/close', [BranchDailyCashController::class, 'close'])->name('branches.cash.close');
+
+            // 5. CRUD Principal de Sucursales y Proveedores
             Route::resource('branches', BranchController::class)->except(['show']);
             Route::resource('providers', ProviderController::class);
         });

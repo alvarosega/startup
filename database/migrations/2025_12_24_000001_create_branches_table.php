@@ -31,6 +31,7 @@ return new class extends Migration {
             $table->boolean('is_default')->default(false)->index();
             $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_operational_paused')->default(false)->index(); // Kill Switch
+            $table->unsignedSmallInteger('max_active_orders')->nullable(); // null = sin límite de capacidad
             
             $table->unsignedBigInteger('deleted_epoch')->default(0);
             $table->timestamps();

@@ -58,6 +58,7 @@ class ListBranches
                 'surge_multiplier'            => (float) $branch->surge_multiplier,
                 'min_order_amount'            => (float) $branch->min_order_amount,
                 'small_order_fee'             => (float) $branch->small_order_fee,
+                'max_active_orders' => $branch->max_active_orders !== null ? (int) $branch->max_active_orders : null,
                 'base_service_fee_percentage' => (float) $branch->base_service_fee_percentage,
             ];
         }, $branches->all());

@@ -19,6 +19,7 @@ readonly class BranchData
         public bool $isDefault,
         public bool $isActive,
         public bool $isOperationalPaused,
+        public ?int $maxActiveOrders,
         public float $deliveryBaseFee,
         public float $deliveryPricePerKm,
         public float $surgeMultiplier,
@@ -35,7 +36,8 @@ readonly class BranchData
         $lng = (float) $validated['longitude'];
 
         $locationWkt = "POINT({$lng} {$lat})";
-
+        
+        maxActiveOrders: isset($validated['max_active_orders']) && $validated['max_active_orders'] !== null ? (int) $validated['max_active_orders'] : null,
         $coveragePolygonWkt = null;
         if (!empty($validated['coverage_polygon']) && is_array($validated['coverage_polygon'])) {
             $points = [];

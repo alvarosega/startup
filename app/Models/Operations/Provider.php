@@ -64,10 +64,7 @@ class Provider extends Model
         return $this->hasMany(\App\Models\Catalog\Brand::class);
     }
 
-    public function branches(): BelongsToMany
-    {
-        return $this->belongsToMany(Branch::class, 'branch_providers', 'provider_id', 'branch_id');
-    }
+
 
     public function scopeActive($query)
     {

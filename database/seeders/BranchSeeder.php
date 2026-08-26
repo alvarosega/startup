@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Operations\Branch;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Operations\BranchSchedule;
 use Exception;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class BranchSeeder extends Seeder
@@ -54,15 +55,17 @@ class BranchSeeder extends Seeder
                     throw new Exception("Fila {$rowNumber}: Campos 'name' y 'slug' son obligatorios.");
                 }
 
-                // PROCESAMIENTO GEOSPACIAL: Generación de POINT nativo (WKT usa: Longitud Latitud)
-                if (!isset($cleanRow['latitude']) || !isset($cleanRow['longitude'])) {
+                if (!isset($cleanRow['latitude'], $cleanRow['longitude'])) {
                     throw new Exception("Fila {$rowNumber}: Coordenadas 'latitude' y 'longitude' son obligatorias.");
                 }
+
                 $latitude = (float) $cleanRow['latitude'];
                 $longitude = (float) $cleanRow['longitude'];
-                $locationExpression = DB::raw("ST_GeomFromText('POINT({$longitude} {$latitude})')");
 
-                // PROCESAMIENTO GEOSPACIAL: Conversión y cierre estructurado de POLYGON
+                // Geometría POINT con SRID 4326 y orden explícito (Longitud Latitud)
+                $locationExpression = DB::raw("ST_GeomFromText('POINT({$longitude} {$latitude})', 4326, 'axis-order=long-lat')");
+
+                // Geometría POLYGON con SRID 4326 y cierre OGC garantizado
                 $coveragePolygonExpression = null;
                 if (!empty($cleanRow['coverage_polygon'])) {
                     $polyData = json_decode($cleanRow['coverage_polygon'], true);
@@ -70,37 +73,50 @@ class BranchSeeder extends Seeder
                         throw new Exception("Fila {$rowNumber}: JSON inválido en 'coverage_polygon'.");
                     }
 
-                    // Inversión de coordenadas a estándar espacial (Longitud Latitud)
+                    // CSV tiene [latitud, longitud] -> WKT requiere "longitud latitud"
                     $wktPoints = array_map(fn($point) => "{$point[1]} {$point[0]}", $polyData);
 
-                    // Regla de cierre GIS: El primer y último punto deben coincidir estrictamente
                     if (reset($wktPoints) !== end($wktPoints)) {
                         $wktPoints[] = reset($wktPoints);
                     }
 
                     $wktPolygonString = "POLYGON((" . implode(',', $wktPoints) . "))";
-                    $coveragePolygonExpression = DB::raw("ST_GeomFromText('{$wktPolygonString}')");
+                    $coveragePolygonExpression = DB::raw("ST_GeomFromText('{$wktPolygonString}', 4326, 'axis-order=long-lat')");
                 } else {
-                    throw new Exception("Fila {$rowNumber}: El campo 'coverage_polygon' es mandatorio para el índice espacial.");
+                    throw new Exception("Fila {$rowNumber}: El campo 'coverage_polygon' es obligatorio para el índice espacial.");
                 }
 
-                Branch::create([
-                    'name'                          => $cleanRow['name'],
-                    'slug'                          => strtolower($cleanRow['slug']),
-                    'city'                          => $cleanRow['city'] ?? 'La Paz',
-                    'phone'                         => $cleanRow['phone'] ?? null,
-                    'address'                       => $cleanRow['address'] ?? null,
-                    'location'                      => $locationExpression,
-                    'coverage_polygon'              => $coveragePolygonExpression,
-                    'delivery_base_fee'             => (float) ($cleanRow['delivery_base_fee'] ?? 0.00),
-                    'delivery_price_per_km'         => (float) ($cleanRow['delivery_price_per_km'] ?? 0.00),
-                    'surge_multiplier'              => (float) ($cleanRow['surge_multiplier'] ?? 1.00),
-                    'min_order_amount'              => (float) ($cleanRow['min_order_amount'] ?? 0.00),
-                    'small_order_fee'               => (float) ($cleanRow['small_order_fee'] ?? 0.00),
-                    'base_service_fee_percentage'   => (float) ($cleanRow['base_service_fee_percentage'] ?? 0.00),
-                    'is_default'                    => (bool) ($cleanRow['is_default'] ?? false),
-                    'is_active'                     => (bool) ($cleanRow['is_active'] ?? true),
+                $branch = Branch::create([
+                    'name'                        => $cleanRow['name'],
+                    'slug'                        => strtolower($cleanRow['slug']),
+                    'city'                        => $cleanRow['city'] ?? 'La Paz',
+                    'phone'                       => $cleanRow['phone'] ?? null,
+                    'address'                     => $cleanRow['address'] ?? null,
+                    'location'                    => $locationExpression,
+                    'coverage_polygon'            => $coveragePolygonExpression,
+                    'delivery_base_fee'           => (float) ($cleanRow['delivery_base_fee'] ?? 0.00),
+                    'delivery_price_per_km'       => (float) ($cleanRow['delivery_price_per_km'] ?? 0.00),
+                    'surge_multiplier'            => (float) ($cleanRow['surge_multiplier'] ?? 1.00),
+                    'min_order_amount'            => (float) ($cleanRow['min_order_amount'] ?? 0.00),
+                    'small_order_fee'             => (float) ($cleanRow['small_order_fee'] ?? 0.00),
+                    'base_service_fee_percentage' => (float) ($cleanRow['base_service_fee_percentage'] ?? 0.00),
+                    'is_default'                  => (bool) ($cleanRow['is_default'] ?? false),
+                    'is_active'                   => (bool) ($cleanRow['is_active'] ?? true),
+                    'is_operational_paused'       => false,
+                    'max_active_orders'           => isset($cleanRow['max_active_orders']) ? (int) $cleanRow['max_active_orders'] : null,
+                    'deleted_epoch'               => 0,
                 ]);
+
+                // Sembrar automáticamente matriz de 7 días (0 = Domingo a 6 = Sábado) de 08:00 a 23:00
+                for ($day = 0; $day <= 6; $day++) {
+                    BranchSchedule::create([
+                        'branch_id'    => $branch->id,
+                        'day_of_week'  => $day,
+                        'opening_time' => '08:00:00',
+                        'closing_time' => '23:00:00',
+                        'is_closed'    => false,
+                    ]);
+                }
             }
 
             DB::commit();
@@ -109,7 +125,7 @@ class BranchSeeder extends Seeder
             Cache::forget('active_branch_polygons');
             Cache::forget('shop_default_branch_id');
 
-            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales sembradas. Estructuras espaciales compiladas e invalidación de caché ejecutada.");
+            $this->command->info("ÉXITO: " . ($rowNumber - 1) . " sucursales sembradas con sus 7 horarios base compilados.");
 
         } catch (Throwable $e) {
             DB::rollBack();

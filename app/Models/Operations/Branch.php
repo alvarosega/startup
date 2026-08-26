@@ -42,6 +42,7 @@ class Branch extends Model
         'is_default',
         'is_active',
         'is_operational_paused',
+        'max_active_orders',
         'deleted_epoch',
     ];
 
@@ -60,8 +61,13 @@ class Branch extends Model
         'surge_multiplier'            => 'decimal:2',
         'min_order_amount'            => 'decimal:2',
         'small_order_fee'             => 'decimal:2',
+        'max_active_orders' => 'integer',
         'base_service_fee_percentage' => 'decimal:2',
     ];
+    public function scheduleExceptions(): HasMany
+    {
+        return $this->hasMany(BranchScheduleException::class, 'branch_id');
+    }
 
     protected static function booted(): void
     {
@@ -106,10 +112,6 @@ class Branch extends Model
         return $this->hasMany(BranchDailyCash::class, 'branch_id');
     }
 
-    public function providers(): BelongsToMany
-    {
-        return $this->belongsToMany(Provider::class, 'branch_providers', 'branch_id', 'provider_id');
-    }
 
     public function scopeActive(Builder $query): Builder
     {

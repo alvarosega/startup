@@ -38,6 +38,7 @@ class StoreBranchRequest extends FormRequest
             'min_order_amount' => ['required', 'numeric', 'min:0'],
             'small_order_fee' => ['required', 'numeric', 'min:0'],
             'base_service_fee_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'max_active_orders' => ['nullable', 'integer', 'min:1', 'max:1000'],
         ];
     }
 }

@@ -43,6 +43,7 @@ class UpdateBranch
                 'surge_multiplier'            => $data->surgeMultiplier,
                 'min_order_amount'            => $data->minOrderAmount,
                 'small_order_fee'             => $data->smallOrderFee,
+                'max_active_orders' => $data->maxActiveOrders,
                 'base_service_fee_percentage' => $data->baseServiceFeePercentage,
             ]);
         });

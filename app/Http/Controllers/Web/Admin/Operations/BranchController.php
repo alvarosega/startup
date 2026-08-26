@@ -68,4 +68,11 @@ class BranchController extends Controller
         
         return redirect()->back()->with('success', 'Nodo de sucursal extraído de circulación (Soft Delete).');
     }
+    public function togglePause(Branch $branch, \App\Actions\Admin\Operations\Branch\ToggleBranchPauseAction$action): \Illuminate\Http\RedirectResponse
+    {
+        $isPaused = $action->execute($branch);
+        $message = $isPaused ? 'Recepción de pedidos digitales pausada.' : 'Recepción de pedidos digitales reactivada.';
+
+        return redirect()->back()->with('success', $message);
+    }
 }
