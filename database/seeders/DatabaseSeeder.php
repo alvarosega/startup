@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             SkuSeeder::class,
             PriceSeeder::class,
             InventorySeeder::class,
+            DriverSeeder::class,
             BundleSeeder::class,
             AdPlacementSeeder::class,  
             AdCampaignSeeder::class,

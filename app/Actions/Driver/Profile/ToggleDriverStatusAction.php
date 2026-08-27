@@ -1,8 +1,7 @@
 <?php
 
 namespace App\Actions\Driver\Profile;
-
-use App\Models\Driver;
+use App\Models\Users\Driver;
 
 class ToggleDriverStatusAction
 {

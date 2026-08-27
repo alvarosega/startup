@@ -39,12 +39,13 @@ final class AddressRequest extends FormRequest
         $lng = $this->filled('longitude') ? (float) $this->input('longitude') : null;
 
         return [
-            'alias'     => ['required', 'string', 'max:255'],
-            'address'   => ['required', 'string', 'max:255'],
-            'reference' => ['nullable', 'string', 'max:255'],
-            'latitude'  => ['required', 'numeric', 'between:-90,90'],
-            'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'branch_id' => ['nullable', 'uuid', new ValidBranchCoverage($branchQueryService, $lat, $lng)],
+            'alias'       => ['required', 'string', 'max:50'],
+            'address'     => ['required', 'string', 'max:255'],
+            'reference'   => ['nullable', 'string', 'max:255'],
+            'latitude'    => ['required', 'numeric', 'between:-90,90'],
+            'longitude'   => ['required', 'numeric', 'between:-180,180'],
+            'branch_id'   => ['nullable', 'string', 'exists:branches,id'],
+            'is_default'  => ['sometimes', 'boolean'],
         ];
     }
 }

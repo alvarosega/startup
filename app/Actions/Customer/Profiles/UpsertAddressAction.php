@@ -7,7 +7,7 @@ namespace App\Actions\Customer\Profiles;
 use App\DTOs\Customer\Profiles\AddressData;
 use App\Models\Users\CustomerAddress;
 use App\Services\Customer\Queries\CustomerQueryService;
-use App\Exceptions\Customer\Auth\DomainException; // Asegurar herencia de base DomainException
+use App\Exceptions\Customer\Auth\DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -27,8 +27,7 @@ final class UpsertAddressAction
                     throw new DomainException('No es posible registrar la ubicación: Se ha excedido el límite estricto de 10 direcciones activas.');
                 }
                 
-                // Si es la primera dirección del cliente, se fuerza como predeterminada
-                $isDefault = $activeCount === 0;
+                $isDefault = $activeCount === 0 || $dto->isDefault;
 
                 CustomerAddress::query()->create([
                     'id'            => (string) Str::uuid7(),
@@ -37,7 +36,7 @@ final class UpsertAddressAction
                     'alias'         => mb_convert_encoding($dto->alias, 'UTF-8'),
                     'address'       => mb_convert_encoding($dto->address, 'UTF-8'),
                     'reference'     => $dto->reference !== null ? mb_convert_encoding($dto->reference, 'UTF-8') : null,
-                    'position'      => ['lat' => $dto->latitude, 'lng' => $dto->longitude],
+                    'position'      => DB::raw("ST_SRID(ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})'), 4326)"),
                     'is_default'    => $isDefault,
                     'deleted_epoch' => 0,
                 ]);
@@ -52,11 +51,12 @@ final class UpsertAddressAction
                 ->findOrFail($addressId);
 
             $address->update([
-                'branch_id' => $dto->branchId,
-                'alias'     => mb_convert_encoding($dto->alias, 'UTF-8'),
-                'address'   => mb_convert_encoding($dto->address, 'UTF-8'),
-                'reference' => $dto->reference !== null ? mb_convert_encoding($dto->reference, 'UTF-8') : null,
-                'position'  => ['lat' => $dto->latitude, 'lng' => $dto->longitude],
+                'branch_id'  => $dto->branchId,
+                'alias'      => mb_convert_encoding($dto->alias, 'UTF-8'),
+                'address'    => mb_convert_encoding($dto->address, 'UTF-8'),
+                'reference'  => $dto->reference !== null ? mb_convert_encoding($dto->reference, 'UTF-8') : null,
+                'position'   => DB::raw("ST_SRID(ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})'), 4326)"),
+                'is_default' => $dto->isDefault,
             ]);
         });
     }

@@ -30,7 +30,7 @@ class LoginAdminAction
                 'email_attempted' => $data->email,
                 'ip_address'      => $data->ip,
                 'user_agent'      => $data->userAgent,
-                'status'          => $adminAttempted && !$adminAttempted->is_active ? 'failed_inactive' : 'failed_credentials',
+                'status'          => $adminAttempted && !$adminAttempted->is_active ? 'FAILED_INACTIVE' : 'INVALID_CREDENTIALS',
                 'created_at'      => $now,
             ]);
 
@@ -51,7 +51,7 @@ class LoginAdminAction
                 'email_attempted' => $data->email,
                 'ip_address'      => $data->ip,
                 'user_agent'      => $data->userAgent,
-                'status'          => 'failed_role',
+                'status'          => 'FAILED_ROLE',
                 'created_at'      => $now,
             ]);
 
@@ -60,7 +60,7 @@ class LoginAdminAction
             ]);
         }
 
-        // 3. Sesión Única (Purga de sesiones previas concurrentes)
+        // 3. Sesión Única (Purga de sesiones concurrentes)
         if (config('session.driver') === 'database') {
             DB::table(config('session.table', 'sessions'))
                 ->where('user_id', $admin->id)
@@ -79,7 +79,7 @@ class LoginAdminAction
             'email_attempted' => $data->email,
             'ip_address'      => $data->ip,
             'user_agent'      => $data->userAgent,
-            'status'          => 'success',
+            'status'          => 'SUCCESS',
             'created_at'      => $now,
         ]);
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin\Auth;
 
+use App\Models\Users\Admin;
+use App\Models\Users\AdminAccessLog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -31,12 +33,12 @@ class LoginAdminRequest extends FormRequest
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
 
-            \App\Models\Users\AdminAccessLog::create([
-                'admin_id'        => \App\Models\Users\Admin::where('email', (string) $this->input('email'))->value('id'),
+            AdminAccessLog::create([
+                'admin_id'        => Admin::where('email', (string) $this->input('email'))->value('id'),
                 'email_attempted' => (string) $this->input('email'),
                 'ip_address'      => (string) ($this->ip() ?? '127.0.0.1'),
                 'user_agent'      => (string) ($this->userAgent() ?? 'Unknown'),
-                'status'          => 'blocked_rate_limit',
+                'status'          => 'RATE_LIMITED',
                 'created_at'      => now(),
             ]);
 
@@ -48,6 +50,7 @@ class LoginAdminRequest extends FormRequest
             ]);
         }
     }
+
     public function hitRateLimiter(): void
     {
         RateLimiter::hit($this->getThrottleKey(), 60);
@@ -58,8 +61,8 @@ class LoginAdminRequest extends FormRequest
         RateLimiter::clear($this->getThrottleKey());
     }
 
-    protected function getThrottleKey(): string
-    {
-        return Str::transliterate(Str::lower((string) $this->input('email')) . '|' . $this->ip());
-    }
+protected function getThrottleKey(): string
+{
+    return Str::transliterate(Str::lower((string) $this->input('email')));
+}
 }

@@ -12,7 +12,8 @@ final readonly class AddressData
         public ?string $reference,
         public float $latitude,
         public float $longitude,
-        public ?string $branchId
+        public ?string $branchId,
+        public bool $isDefault = false
     ) {}
 
     /**
@@ -26,7 +27,8 @@ final readonly class AddressData
             isset($validatedData['reference']) ? (string) $validatedData['reference'] : null,
             (float) ($validatedData['latitude'] ?? 0.0),
             (float) ($validatedData['longitude'] ?? 0.0),
-            isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null
+            isset($validatedData['branch_id']) ? (string) $validatedData['branch_id'] : null,
+            (bool) ($validatedData['is_default'] ?? false)
         );
     }
 }

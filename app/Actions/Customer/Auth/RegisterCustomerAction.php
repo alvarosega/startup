@@ -6,14 +6,18 @@ namespace App\Actions\Customer\Auth;
 
 use App\Architecture\ActionResult;
 use App\DTOs\Customer\Auth\RegisterCustomerData;
+use App\Models\Operations\Branch;
 use App\Models\Users\Customer;
 use App\Models\Users\CustomerAddress;
+use App\Services\Customer\Queries\BranchQueryService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 final class RegisterCustomerAction
 {
+    public function __construct(
+        private readonly BranchQueryService $branchQueryService
+    ) {}
+
     /**
      * @param string|array<int, string>|null $idempotencyKey
      */
@@ -33,19 +37,25 @@ final class RegisterCustomerAction
                 }
             }
 
-            // Resolución de Branch: Asignada o Fallback a Default si está fuera de cobertura
+            // Resolución de Sucursal: Asignada explícitamente, por cobertura espacial, o Fallback a Default
             $assignedBranchId = $dto->branchId;
             if (!$assignedBranchId) {
-                $defaultBranch = \App\Models\Operations\Branch::active()->where('is_default', true)->first()
-                    ?? \App\Models\Operations\Branch::active()->first();
-                $assignedBranchId = $defaultBranch?->id;
+                $collidingBranches = $this->branchQueryService->getCollidingBranches($dto->latitude, $dto->longitude);
+
+                if (count($collidingBranches) === 1) {
+                    $assignedBranchId = $collidingBranches[0]['id'];
+                } else {
+                    $defaultBranch = Branch::active()->where('is_default', true)->first()
+                        ?? Branch::active()->first();
+                    $assignedBranchId = $defaultBranch?->id;
+                }
             }
 
             /** @var Customer $customer */
             $customer = Customer::query()->create([
                 'phone'                  => $dto->phone,
                 'email'                  => strtolower($dto->email),
-                'password'               => $dto->password, // Sin Hash::make() manual (gestionado por cast)
+                'password'               => $dto->password,
                 'country_code'           => $dto->countryCode ?? 'BO',
                 'branch_id'              => $assignedBranchId,
                 'is_active'              => true,
@@ -55,7 +65,6 @@ final class RegisterCustomerAction
                 'idempotency_key'        => $cleanedKey,
             ]);
 
-            // Opción A: customer_id es PK y FK (no se envía 'id')
             $customer->profile()->create([
                 'first_name'    => mb_convert_encoding(mb_strtoupper($dto->firstName), 'UTF-8'),
                 'last_name'     => mb_convert_encoding(mb_strtoupper($dto->lastName), 'UTF-8'),

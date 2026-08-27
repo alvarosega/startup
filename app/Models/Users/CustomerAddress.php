@@ -35,10 +35,6 @@ class CustomerAddress extends Model
         'deleted_epoch',
     ];
 
-    /**
-     * BLINDAJE DE SERIALIZACIÓN: Oculta el campo geométrico binario crudo
-     * para mitigar colapsos de codificación UTF-8 en llamadas de tipo array/json.
-     */
     protected $hidden = [
         'position',
     ];
@@ -50,19 +46,26 @@ class CustomerAddress extends Model
 
     protected static function booted(): void
     {
-        static::updating(function (CustomerAddress $address) {
+        static::saving(function (CustomerAddress $address): void {
+            if ($address->is_default) {
+                static::query()
+                    ->where('customer_id', $address->customer_id)
+                    ->when($address->id, fn ($query) => $query->where('id', '!=', $address->id))
+                    ->where('deleted_epoch', 0)
+                    ->update(['is_default' => false]);
+            }
+        });
+
+        static::updating(function (CustomerAddress $address): void {
             if ($address->isDirty('id') || $address->isDirty('customer_id')) {
                 throw new ImmutableUuidException($address->isDirty('id') ? 'id' : 'customer_id');
             }
         });
 
-        static::deleting(function (CustomerAddress $address) {
+        static::deleting(function (CustomerAddress $address): void {
             throw new PhysicalDeletionProhibitedException('direcciones');
         });
     }
-    // =================================================================================
-    // RELACIONES MAPEADAS
-    // =================================================================================
 
     public function customer(): BelongsTo
     {
