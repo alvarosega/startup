@@ -26,6 +26,7 @@ use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdPlacementController;
 use App\Http\Controllers\Web\Admin\User\CustomerController;
 use App\Http\Controllers\Web\Admin\User\DriverController;
+use App\Http\Controllers\Web\Admin\User\StaffController;
 use Illuminate\Support\Facades\Route;
 
 // Redirección de la raíz del subdominio admin
@@ -65,6 +66,15 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
             Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
             Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
+        });
+
+        Route::group(['prefix' => 'users/staff', 'as' => 'staff.'], function () {
+            Route::get('/', [StaffController::class, 'index'])->name('index');
+            Route::get('/create', [StaffController::class, 'create'])->name('create');
+            Route::post('/', [StaffController::class, 'store'])->name('store');
+            Route::get('/{admin}/edit', [StaffController::class, 'edit'])->name('edit');
+            Route::put('/{admin}', [StaffController::class, 'update'])->name('update');
+            Route::patch('/{admin}/toggle-status', [StaffController::class, 'toggleStatus'])->name('toggle-status');
         });
     });
 

@@ -199,5 +199,57 @@ Configurar el silo administrativo para que opere a través de un subdominio dedi
 5. [x] **Ruta raíz de subdominio**: Añadir redirección inteligente de `/` hacia `/dashboard` o `/login` en `routes/admin.php`.
 6. [x] **Validación y Pruebas**: Verificación de sintaxis, consistencia de rutas y preparación para Laravel Herd.
 
+---
+
+## 10. Plan de Implementación Actual: Módulo Dinámico de Personal / Operadores y Sucursales
+
+### Objetivo
+Construir el módulo integral de administración de operadores (`users/staff`), permitiendo al SuperAdmin dar de alta, editar, suspender y asignar roles y permisos dinámicos a cada usuario en la tabla `admins`, con vinculación directa y reactiva hacia sus sucursales correspondientes.
+
+### Arquitectura Funcional
+1. **Asignación Granular de Roles**:
+   - Cada operador puede poseer uno o varios roles (`super_admin`, `branch_manager`, `branch_warehouse`, `branch_logistics`, `branch_cashier`).
+   - Si se asigna el rol `super_admin`, el campo de sucursal es nulo/global.
+   - Si se asignan roles de sucursal, el selector dinámico exige vincular la sucursal activa.
+   - Múltiples gerentes por sucursal soportados.
+2. **Tabla Densa de Alta Productividad**:
+   - Búsqueda en tiempo real por nombre, email y teléfono.
+   - Filtros instantáneos por Sucursal, Rol y Estado (Activo/Suspendido).
+   - Interruptor rápido de activación/suspensión inline (`toggle-status`).
+   - Indicador visual de última conexión (`last_login_at`) y estado en vivo (`last_seen_at`).
+3. **Interconexión con Sucursales**:
+   - En el listado y edición de sucursales, visualización de los gerentes asignados y contador de operadores activos.
+
+### Pasos de la Tarea
+1. [x] **Registrar plan en blueprint.md**: Documentar arquitectura, flujos y directrices UX.
+2. [x] **Crear DTO y FormRequests**: `StaffData`, `StoreStaffRequest`, `UpdateStaffRequest`.
+3. [x] **Crear Action Classes de Dominio**: `ListStaffAction`, `CreateStaffAction`, `UpdateStaffAction`, `ToggleStaffStatusAction`, `GetStaffFormOptionsAction`.
+4. [x] **Crear StaffController y Rutas**: Controlador lean y rutas bajo `users/staff`.
+5. [x] **Construir Vistas Vue (Inertia)**: `Index.vue` (tabla densa con filtros y métricas), `Create.vue` y `Edit.vue`.
+6. [x] **Actualizar Sidebar.vue**: Agregar ícono y enlace a Personal en grupo Operativa.
+7. [x] **Vincular en Sucursales**: Agregar conteo de personal y gerentes en la tabla de sucursales (`ListBranches` + `Branches/Index.vue`).
+8. [x] **Compilación y Formato de Commits**: Validar build Vite y entregar los comandos de commit en texto.
+
+### Resumen de Cambios Realizados
+- **Dominio Admin / Staff**:
+  - DTO tipado `App\DTOs\Admin\User\StaffData` con validación estricta y sincronización de roles/permisos.
+  - FormRequests `StoreStaffRequest` y `UpdateStaffRequest` con reglas condicionales para obligatoriedad de `branch_id` cuando no es `super_admin`.
+  - Actions desacopladas bajo `App\Actions\Admin\Users\Staff\`:
+    - `ListStaffAction`: Listado con métricas (`total`, `active`, `suspended`, `unassigned`), búsqueda debounce por nombre/email/teléfono, y filtros por sucursal, rol y estado.
+    - `CreateStaffAction`: Creación segura de administradores con bcrypt y asignación Spatie.
+    - `UpdateStaffAction`: Actualización de datos y contraseña opcional.
+    - `ToggleStaffStatusAction`: Inversión de estado activo/suspendido con guardia contra auto-desactivación.
+    - `GetStaffFormOptionsAction`: Proveedor de datos para selectores de sucursales, roles y permisos directos.
+  - Controlador `App\Http\Controllers\Web\Admin\User\StaffController` con respuestas estandarizadas Inertia y redirecciones fluidas con mensajes flash.
+- **Frontend Inertia / Vue 3**:
+  - `Admin/Users/Staff/Index.vue`: Tabla densa con métricas superiores, filtros rápidos, badges semánticos de roles, switch inline de estado y paginación.
+  - `Admin/Users/Staff/Create.vue`: Formulario reactivo con selector de roles por tarjetas interactivas, vinculación condicional de sucursal y permisos directos.
+  - `Admin/Users/Staff/Edit.vue`: Edición integral de operador con prellenado reactivo.
+  - `Components/Admin/Sidebar.vue`: Acceso directo a Personal (`staff.index`) bajo la categoría operativa.
+- **Interconexión Dinámica con Sucursales**:
+  - `ListBranches.php`: Eager-loading de operadores activos (`admins`) y filtrado de gerentes asignados (`hasRole('branch_manager')`).
+  - `Admin/Operations/Branches/Index.vue`: Nueva columna de "Personal Asignado" que muestra los gerentes en badges interactivos y el total de operadores, con hipervínculo directo a `route('staff.index', { branch_id: branch.id })` para filtrar el personal al instante.
+
+
 
 

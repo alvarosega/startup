@@ -19,7 +19,12 @@ class ListBranches
             DB::raw('ST_Latitude(location) as lat'),
             DB::raw('ST_Longitude(location) as lng'),
             DB::raw('ST_AsGeoJSON(coverage_polygon) as polygon_geojson')
-        ])->orderBy('name', 'asc')->get();
+        ])
+        ->with(['admins' => function ($query) {
+            $query->where('is_active', true)->with('roles');
+        }])
+        ->orderBy('name', 'asc')
+        ->get();
 
         return array_map(function ($branch) {
             $coveragePolygon = [];
@@ -27,6 +32,13 @@ class ListBranches
                 $geo = json_decode((string) $branch->polygon_geojson, true);
                 $coveragePolygon = $geo['coordinates'][0] ?? [];
             }
+
+            $activeAdmins = $branch->admins ?? collect();
+            $managers = $activeAdmins->filter(function ($admin) {
+                return $admin->hasRole('branch_manager');
+            })->map(function ($admin) {
+                return "{$admin->first_name} {$admin->last_name}";
+            })->values()->all();
 
             return [
                 'id'                          => (string) $branch->id,
@@ -48,6 +60,8 @@ class ListBranches
                 'min_order_amount'            => (float) $branch->min_order_amount,
                 'small_order_fee'             => (float) $branch->small_order_fee,
                 'base_service_fee_percentage' => (float) $branch->base_service_fee_percentage,
+                'staff_count'                 => $activeAdmins->count(),
+                'managers'                    => $managers,
             ];
         }, $branches->all());
     }

@@ -47,6 +47,7 @@ const deleteBranch = (id) => {
                         <tr>
                             <th class="admin-table-th">Sucursal / Nodo</th>
                             <th class="admin-table-th">Ciudad</th>
+                            <th class="admin-table-th">Personal Asignado</th>
                             <th class="admin-table-th text-center">Capacidad</th>
                             <th class="admin-table-th text-center">Recepción Online</th>
                             <th class="admin-table-th text-center">Estado</th>
@@ -55,7 +56,7 @@ const deleteBranch = (id) => {
                     </thead>
                     <tbody>
                         <tr v-if="branches.length === 0">
-                            <td colspan="6" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
+                            <td colspan="7" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
                                 No existen sucursales operativas materializadas en el sistema.
                             </td>
                         </tr>
@@ -66,6 +67,31 @@ const deleteBranch = (id) => {
                             </td>
                             <td class="admin-table-td text-xs">
                                 {{ branch.city }}
+                            </td>
+                            <td class="admin-table-td">
+                                <Link 
+                                    :href="route('staff.index', { branch_id: branch.id })"
+                                    class="group flex flex-col hover:opacity-80 transition-opacity"
+                                    title="Ver personal asignado a esta sucursal"
+                                >
+                                    <div class="flex items-center gap-1.5 font-semibold text-xs text-foreground group-hover:text-primary">
+                                        <span class="material-symbols-rounded text-base text-muted-foreground group-hover:text-primary">badge</span>
+                                        <span>{{ branch.staff_count }} {{ branch.staff_count === 1 ? 'operador' : 'operadores' }}</span>
+                                    </div>
+                                    <div v-if="branch.managers && branch.managers.length > 0" class="mt-1 flex flex-wrap gap-1">
+                                        <span 
+                                            v-for="(manager, idx) in branch.managers" 
+                                            :key="idx" 
+                                            class="inline-flex items-center text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded"
+                                        >
+                                            <span class="material-symbols-rounded text-[12px] mr-1">manage_accounts</span>
+                                            {{ manager }}
+                                        </span>
+                                    </div>
+                                    <div v-else class="text-[10px] text-muted-foreground italic mt-0.5">
+                                        Sin gerente asignado
+                                    </div>
+                                </Link>
                             </td>
                             <td class="admin-table-td text-center font-mono text-xs">
                                 {{ branch.max_active_orders ? `${branch.max_active_orders} pedidos` : 'Ilimitada' }}
