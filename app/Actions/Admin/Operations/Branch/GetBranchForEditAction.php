@@ -1,3 +1,6 @@
+
+
+
 <?php
 
 declare(strict_types=1);
@@ -12,8 +15,8 @@ class GetBranchForEditAction
     public function execute(Branch $branch): array
     {
         $spatialData = Branch::select([
-            DB::raw('ST_Latitude(location) as lat'),
-            DB::raw('ST_Longitude(location) as lng'),
+            DB::raw('ST_Y(location) as lat'),
+            DB::raw('ST_X(location) as lng'),
             DB::raw('ST_AsGeoJSON(coverage_polygon) as polygon_geojson')
         ])->where('id', $branch->id)->first();
 

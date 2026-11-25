@@ -269,6 +269,7 @@ Corregir los fallos identificados en la auditoría del módulo de Sucursales (`o
 ### Resumen de Remediaciones Aplicadas
 - **Compatibilidad Espacial 100% MariaDB**:
   - Estandarización a 2 parámetros `ST_GeomFromText(wkt, 4326)` en `CreateBranch`, `UpdateBranch`, `Branch::scopeWithinCoverage`, `BranchQueryService::getCollidingBranches` y `RegisterCustomerAction`. Se eliminó por completo `'axis-order=long-lat'`.
+  - Reemplazo de funciones propietarias de MySQL 8 `ST_Latitude` y `ST_Longitude` por los estándares universales OGC/SQL-MM `ST_Y(location) as lat` y `ST_X(location) as lng` en `ListBranches` y `GetBranchForEditAction`, resolviendo el error `FUNCTION ST_Latitude does not exist` en MariaDB.
 - **Alineación de Seguridad y RBAC**:
   - Los 6 FormRequests (`StoreBranchRequest`, `UpdateBranchRequest`, `UpdateBranchSchedulesRequest`, `StoreBranchScheduleExceptionRequest`, `OpenDailyCashRequest`, `CloseDailyCashRequest`) ahora permiten operar a usuarios con roles operativos y permisos asignados (`manage_branches`, `manage_branch_schedules`, `manage_branch_cash`).
   - Para usuarios no `super_admin`, se valida estrictamente que solo puedan ejecutar operaciones sobre su propia sucursal asignada (`$user->branch_id === $branchId`).

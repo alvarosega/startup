@@ -16,8 +16,8 @@ class ListBranches
             'delivery_base_fee', 'delivery_price_per_km', 'surge_multiplier',
             'min_order_amount', 'small_order_fee', 'base_service_fee_percentage',
             'is_default', 'is_active', 'is_operational_paused', 'max_active_orders',
-            DB::raw('ST_Latitude(location) as lat'),
-            DB::raw('ST_Longitude(location) as lng'),
+            DB::raw('ST_Y(location) as lat'),
+            DB::raw('ST_X(location) as lng'),
             DB::raw('ST_AsGeoJSON(coverage_polygon) as polygon_geojson')
         ])
         ->with(['admins' => function ($query) {
