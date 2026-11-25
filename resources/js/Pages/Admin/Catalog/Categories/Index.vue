@@ -2,6 +2,8 @@
 import { ref, watch } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CatalogNavTabs from '@/Components/Admin/Catalog/CatalogNavTabs.vue';
+import Pagination from '@/Components/Admin/Pagination.vue';
 
 const props = defineProps({
     categories: {
@@ -31,6 +33,12 @@ const expandedRows = ref([]);
 const activeCategoryForSkus = ref(null);
 const showSkuModal = ref(false);
 const localSkus = ref([]);
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilter, 300);
+};
 
 // Formulario síncrono para despachar el reordenamiento de la góndola de SKUs
 const orderForm = useForm({
@@ -128,6 +136,8 @@ const deleteCategory = (id) => {
         </template>
 
         <div class="space-y-4">
+            <CatalogNavTabs />
+
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
                 <div class="flex items-center gap-2 max-w-md w-full">
                     <input 
@@ -135,6 +145,7 @@ const deleteCategory = (id) => {
                         type="text"
                         placeholder="Buscar por nombre o código externo..."
                         class="admin-input"
+                        @input="handleSearchInput"
                         @keyup.enter="applyFilter"
                     />
                     <button type="button" @click="applyFilter" class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm hover:bg-neutral-200">
@@ -268,6 +279,8 @@ const deleteCategory = (id) => {
                     </tbody>
                 </table>
             </div>
+
+            <Pagination :meta="categories" />
         </div>
 
         <div v-if="showSkuModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">

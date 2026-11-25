@@ -75,6 +75,7 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::get('/create', [DriverController::class, 'create'])->name('create');
             Route::post('/', [DriverController::class, 'store'])->name('store');
             Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
+            Route::get('/{id}/document/{type}', [DriverController::class, 'viewDocument'])->name('document');
             Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
             Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
         });

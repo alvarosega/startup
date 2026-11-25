@@ -74,12 +74,23 @@ const isSearching = ref(false);
 const statusForm = useForm({
     status: '',
     rejection_reason: '',
+    branch_id: '',
 });
+
+// Estado de previsualización de documentos fotográficos
+const previewImage = ref(null);
+const openPreview = (url, title) => {
+    previewImage.value = { url, title };
+};
+const closePreview = () => {
+    previewImage.value = null;
+};
 
 const openStatusDrawer = (driver) => {
     selectedDriver.value = driver;
     statusForm.status = driver.status;
     statusForm.rejection_reason = driver.profile?.rejection_reason || '';
+    statusForm.branch_id = driver.branch_id || driver.branch?.id || '';
     isStatusOpen.value = true;
 };
 
@@ -349,7 +360,7 @@ const statusLabels = {
             leave-from-class="translate-x-0"
             leave-to-class="translate-x-full"
         >
-            <div v-if="isStatusOpen" class="fixed inset-y-0 right-0 max-w-md w-full bg-card border-l border-border shadow-2xl z-50 p-5 flex flex-col justify-between">
+            <div v-if="isStatusOpen" class="fixed inset-y-0 right-0 max-w-md w-full bg-card border-l border-border shadow-2xl z-50 p-5 flex flex-col justify-between overflow-y-auto">
                 <form @submit.prevent="updateDriverStatus" class="space-y-5 flex-1 flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-center border-b border-border pb-3 mb-4">
@@ -369,6 +380,21 @@ const statusLabels = {
                                 <p v-if="selectedDriver?.profile?.license_number" class="text-[10px] text-muted-foreground font-mono">
                                     Licencia: {{ selectedDriver.profile.license_number }}
                                 </p>
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Base Operativa (Sucursal Asignada)
+                                </label>
+                                <select v-model="statusForm.branch_id" class="admin-input py-2 text-xs w-full">
+                                    <option value="">Seleccione Sucursal</option>
+                                    <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                                        {{ branch.name }} {{ branch.city ? `(${branch.city})` : '' }}
+                                    </option>
+                                </select>
+                                <span v-if="statusForm.errors.branch_id" class="text-[10px] text-rose-600 block font-medium">
+                                    {{ statusForm.errors.branch_id }}
+                                </span>
                             </div>
 
                             <div class="space-y-1">
@@ -401,6 +427,64 @@ const statusLabels = {
                                 </div>
                                 <p>Al suspender esta cuenta, el servidor invalidará inmediatamente todas las sesiones y tokens móviles activos.</p>
                             </div>
+
+                            <!-- Inspección de Documentación Fotográfica -->
+                            <div class="space-y-2 pt-2 border-t border-border">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                    <span>Expediente de Documentos</span>
+                                    <span class="text-[9px] font-normal text-muted-foreground/70">Click para ampliar</span>
+                                </label>
+
+                                <div class="grid grid-cols-3 gap-2">
+                                    <!-- CI -->
+                                    <div class="border border-border rounded p-2 bg-neutral-50 dark:bg-neutral-900/40 flex flex-col items-center justify-between text-center gap-1.5">
+                                        <span class="text-[10px] font-bold text-foreground truncate w-full">Cédula (CI)</span>
+                                        <div v-if="selectedDriver?.profile?.ci_url" class="relative group cursor-pointer w-full" @click="openPreview(selectedDriver.profile.ci_url, 'Cédula de Identidad')">
+                                            <img :src="selectedDriver.profile.ci_url" class="w-full h-14 object-cover rounded border border-border" alt="CI" />
+                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white">
+                                                <span class="material-symbols-rounded text-sm">visibility</span>
+                                            </div>
+                                        </div>
+                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded text-[9px]">
+                                            <span class="material-symbols-rounded text-sm">badge</span>
+                                            <span>Sin cargar</span>
+                                        </div>
+                                        <a v-if="selectedDriver?.profile?.ci_url" :href="selectedDriver.profile.ci_url" target="_blank" class="text-[9px] text-primary hover:underline font-mono">Abrir</a>
+                                    </div>
+
+                                    <!-- Licencia -->
+                                    <div class="border border-border rounded p-2 bg-neutral-50 dark:bg-neutral-900/40 flex flex-col items-center justify-between text-center gap-1.5">
+                                        <span class="text-[10px] font-bold text-foreground truncate w-full">Licencia</span>
+                                        <div v-if="selectedDriver?.profile?.license_url" class="relative group cursor-pointer w-full" @click="openPreview(selectedDriver.profile.license_url, 'Licencia de Conducir')">
+                                            <img :src="selectedDriver.profile.license_url" class="w-full h-14 object-cover rounded border border-border" alt="Licencia" />
+                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white">
+                                                <span class="material-symbols-rounded text-sm">visibility</span>
+                                            </div>
+                                        </div>
+                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded text-[9px]">
+                                            <span class="material-symbols-rounded text-sm">id_card</span>
+                                            <span>Sin cargar</span>
+                                        </div>
+                                        <a v-if="selectedDriver?.profile?.license_url" :href="selectedDriver.profile.license_url" target="_blank" class="text-[9px] text-primary hover:underline font-mono">Abrir</a>
+                                    </div>
+
+                                    <!-- Vehículo -->
+                                    <div class="border border-border rounded p-2 bg-neutral-50 dark:bg-neutral-900/40 flex flex-col items-center justify-between text-center gap-1.5">
+                                        <span class="text-[10px] font-bold text-foreground truncate w-full">Vehículo</span>
+                                        <div v-if="selectedDriver?.profile?.vehicle_url" class="relative group cursor-pointer w-full" @click="openPreview(selectedDriver.profile.vehicle_url, 'Fotografía del Vehículo')">
+                                            <img :src="selectedDriver.profile.vehicle_url" class="w-full h-14 object-cover rounded border border-border" alt="Vehículo" />
+                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white">
+                                                <span class="material-symbols-rounded text-sm">visibility</span>
+                                            </div>
+                                        </div>
+                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded text-[9px]">
+                                            <span class="material-symbols-rounded text-sm">directions_car</span>
+                                            <span>Sin cargar</span>
+                                        </div>
+                                        <a v-if="selectedDriver?.profile?.vehicle_url" :href="selectedDriver.profile.vehicle_url" target="_blank" class="text-[9px] text-primary hover:underline font-mono">Abrir</a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -423,6 +507,31 @@ const statusLabels = {
                 </form>
             </div>
         </Transition>
+
+        <!-- Modal Flotante de Previsualización de Documento -->
+        <div v-if="previewImage" class="fixed inset-0 z-[250] flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm" @click="closePreview"></div>
+            <div class="relative max-w-2xl w-full bg-card border border-border rounded-lg shadow-2xl p-4 z-10 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-border pb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-base text-primary">image</span>
+                        <span>{{ previewImage.title }}</span>
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <a :href="previewImage.url" target="_blank" class="text-xs text-primary hover:underline flex items-center gap-1 font-mono">
+                            <span class="material-symbols-rounded text-sm">open_in_new</span>
+                            <span>Nueva pestaña</span>
+                        </a>
+                        <button @click="closePreview" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground">
+                            <span class="material-symbols-rounded text-base block">close</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-center bg-neutral-950/50 rounded overflow-hidden max-h-[70vh]">
+                    <img :src="previewImage.url" :alt="previewImage.title" class="max-h-[68vh] w-auto object-contain rounded" />
+                </div>
+            </div>
+        </div>
 
         <!-- Drawer / Modal de Recuperación de Conductor Eliminado -->
         <Transition

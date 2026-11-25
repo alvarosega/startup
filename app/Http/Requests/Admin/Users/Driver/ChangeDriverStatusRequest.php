@@ -16,8 +16,9 @@ class ChangeDriverStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status'           => ['required', 'string', 'in:approved,rejected,suspended'],
-            'rejection_reason' => ['required_if:status,rejected', 'nullable', 'string', 'max:1000']
+            'status'           => ['required', 'string', 'in:pending,approved,rejected,suspended'],
+            'rejection_reason' => ['required_if:status,rejected', 'nullable', 'string', 'max:1000'],
+            'branch_id'        => ['nullable', 'string', 'exists:branches,id'],
         ];
     }
 }

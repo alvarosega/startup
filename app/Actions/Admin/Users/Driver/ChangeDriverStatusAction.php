@@ -19,6 +19,7 @@ class ChangeDriverStatusAction
 
         $oldState = [
             'status' => $driver->status,
+            'branch_id' => $driver->branch_id,
             'is_online' => $driver->is_online,
             'is_available' => $driver->is_available
         ];
@@ -28,6 +29,10 @@ class ChangeDriverStatusAction
             'is_online' => $driver->is_online,
             'is_available' => $driver->is_available
         ];
+
+        if (!empty($dto->branchId)) {
+            $newState['branch_id'] = $dto->branchId;
+        }
 
         // Lógica de desconexión forzada bajo suspensión
         if ($dto->status === 'suspended') {

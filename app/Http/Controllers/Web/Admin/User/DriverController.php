@@ -11,6 +11,8 @@ use Inertia\Response as InertiaResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use App\Models\Operations\Branch;
+use App\Models\Users\Driver;
+use Illuminate\Support\Facades\Storage;
 
 use App\Http\Requests\Admin\Users\Driver\StoreDriverRequest;
 use App\Http\Requests\Admin\Users\Driver\ChangeDriverStatusRequest;
@@ -66,6 +68,41 @@ class DriverController extends Controller
 
         return redirect()->route('drivers.index')
             ->with('message', 'Estado del repartidor e integridad de sesión actualizados.');
+    }
+
+    public function viewDocument(string $id, string $type)
+    {
+        $driver = Driver::with('profile')->findOrFail($id);
+        $profile = $driver->profile;
+
+        if (!$profile) {
+            abort(404, 'Perfil de conductor no encontrado.');
+        }
+
+        $path = match ($type) {
+            'ci'      => $profile->ci_front_path,
+            'license' => $profile->license_photo_path,
+            'vehicle' => $profile->vehicle_photo_path,
+            default   => abort(400, 'Tipo de documento no válido.')
+        };
+
+        if (!$path) {
+            abort(404, 'Documento no cargado.');
+        }
+
+        if (Storage::disk('local')->exists($path)) {
+            return Storage::disk('local')->response($path);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->response($path);
+        }
+
+        if (file_exists(storage_path('app/' . $path))) {
+            return response()->file(storage_path('app/' . $path));
+        }
+
+        abort(404, 'Archivo físico no encontrado en almacenamiento.');
     }
 
     public function searchDeleted(Request $request, SearchDeletedDriverAction $action): JsonResponse

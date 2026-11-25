@@ -75,9 +75,7 @@ const navigationMenu = [
     { name: 'Transferencias', route: 'admin.transfers.index', pattern: 'admin.transfers.*', icon: 'local_shipping', group: 'logistica', permission: computed(() => can('manage_inventory')) },
     { name: 'Bajas', route: 'admin.removals.index', pattern: 'admin.removals.*', icon: 'delete_forever', group: 'logistica', permission: computed(() => can('manage_removals')) },
     
-    { name: 'Productos', route: 'admin.catalog.products.index', pattern: 'admin.catalog.products.*', icon: 'label', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
-    { name: 'Categorías', route: 'admin.catalog.categories.index', pattern: 'admin.catalog.categories.*', icon: 'account_tree', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
-    { name: 'Marcas', route: 'admin.catalog.brands.index', pattern: 'admin.catalog.brands.*', icon: 'branding_watermark', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
+    { name: 'Catálogo', route: 'admin.catalog.products.index', pattern: ['admin.catalog.products.*', 'admin.catalog.categories.*', 'admin.catalog.brands.*'], icon: 'category', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
     { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
     
     { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: computed(() => can('manage_branches')) },

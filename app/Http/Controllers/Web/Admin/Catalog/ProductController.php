@@ -25,12 +25,11 @@ class ProductController extends Controller
      * RECTIFICACIÓN: Se erradica de forma definitiva el uso de transformadores REST.
      * Toda la hidratación cruzada externa de Branches se delega a GetProductFormOptionsAction.
      */
-    public function index(Request $request, ListProductsAction $listAction, GetProductStatsAction $statsAction, GetProductFormOptionsAction $optionsAction): InertiaResponse
+    public function index(Request $request, ListProductsAction $listAction, GetProductFormOptionsAction $optionsAction): InertiaResponse
     {
         return Inertia::render('Admin/Catalog/Products/Index', [
             'products'   => $listAction->execute($request),
             'filters'    => $request->only(['search', 'category', 'brand', 'status']),
-            'stats'      => $statsAction->execute(),
             'options'    => $optionsAction->execute(),
             'can_manage' => true,
         ]);

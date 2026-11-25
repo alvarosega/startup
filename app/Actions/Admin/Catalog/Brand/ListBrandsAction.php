@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Actions\Admin\Catalog\Brand;
 
 use App\Models\Catalog\Brand;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ListBrandsAction
 {
     /**
-     * RECTIFICACIÓN: Transforma y sirve datos nativos planos erradicando el anidamiento intrusivo de JsonResources.
+     * Transforma y sirve datos nativos planos con paginación canónica LengthAwarePaginator.
      */
-    public function execute(array $filters = []): array
+    public function execute(array $filters = []): LengthAwarePaginator
     {
         $search = isset($filters['search']) && is_string($filters['search']) ? trim($filters['search']) : null;
         $providerId = isset($filters['provider_id']) && is_string($filters['provider_id']) ? trim($filters['provider_id']) : null;
@@ -35,9 +36,10 @@ class ListBrandsAction
                 $q->whereHas('marketZones', fn($sq) => $sq->where('market_zones.id', $id));
             })
             ->orderBy('sort_order')
-            ->paginate(30);
+            ->paginate(30)
+            ->withQueryString();
 
-        $mappedItems = array_map(function ($brand) {
+        $paginator->through(function ($brand) {
             return [
                 'id'          => (string) $brand->id,
                 'name'        => (string) $brand->name,
@@ -59,20 +61,8 @@ class ListBrandsAction
                     'name' => (string) $zone->name
                 ])->toArray()
             ];
-        }, $paginator->items());
+        });
 
-        return [
-            'data' => $mappedItems,
-            'links' => [
-                'next' => $paginator->nextPageUrl(),
-                'prev' => $paginator->previousPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page'    => $paginator->lastPage(),
-                'per_page'     => $paginator->perPage(),
-                'total'        => $paginator->total(),
-            ]
-        ];
+        return $paginator;
     }
 }

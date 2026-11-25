@@ -1,14 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CatalogNavTabs from '@/Components/Admin/Catalog/CatalogNavTabs.vue';
 
 const props = defineProps({
     products: {
-        type: Object,
-        required: true
-    },
-    stats: {
         type: Object,
         required: true
     },
@@ -32,12 +29,21 @@ const brandFilter = ref(props.filters.brand || '');
 const statusFilter = ref(props.filters.status || '');
 const expandedProducts = ref([]);
 
+const prev = computed(() => props.products?.prev);
+const next = computed(() => props.products?.next);
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 300);
+};
+
 /**
- * Commuta la visibilidad inline de las variantes (SKUs) del producto maestro.
+ * Conmuta la visibilidad inline de las variantes (SKUs) del producto maestro.
  */
 const toggleProductSkus = (id) => {
     if (expandedProducts.value.includes(id)) {
-        expandedProducts.value = expandedProducts.value.filter(prodId => rowId !== id);
+        expandedProducts.value = expandedProducts.value.filter(prodId => prodId !== id);
     } else {
         expandedProducts.value.push(id);
     }
@@ -88,29 +94,12 @@ const deleteProduct = (id) => {
         </template>
 
         <div class="space-y-5">
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div class="bg-card border border-border p-4 rounded-md shadow-flat">
-                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Productos Maestros</span>
-                    <span class="text-2xl font-black text-foreground">{{ stats.total }}</span>
-                </div>
-                <div class="bg-card border border-border p-4 rounded-md shadow-flat">
-                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Nodos Activos</span>
-                    <span class="text-2xl font-black text-success">{{ stats.active }}</span>
-                </div>
-                <div class="bg-card border border-border p-4 rounded-md shadow-flat">
-                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Variantes Comerciales (SKUs)</span>
-                    <span class="text-2xl font-black text-info">{{ stats.total_skus }}</span>
-                </div>
-                <div class="bg-card border border-border p-4 rounded-md shadow-flat">
-                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Productos Incompletos (Sin SKU)</span>
-                    <span class="text-2xl font-black text-error">{{ stats.incomplete }}</span>
-                </div>
-            </div>
+            <CatalogNavTabs />
 
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 flex-1">
                     <div>
-                        <input v-model="searchFilter" type="text" placeholder="Buscar por producto, EAN..." class="admin-input" @keyup.enter="applyFilters" />
+                        <input v-model="searchFilter" type="text" placeholder="Buscar por producto, EAN..." class="admin-input" @input="handleSearchInput" @keyup.enter="applyFilters" />
                     </div>
                     <div>
                         <select v-model="categoryFilter" class="admin-input" @change="applyFilters">

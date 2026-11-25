@@ -20,6 +20,12 @@ const props = defineProps({
 
 const searchFilter = ref(props.filters.search || '');
 
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilter, 300);
+};
+
 /**
  * Despacha la consulta de búsqueda al backend preservando el estado de la interfaz.
  */
@@ -66,6 +72,7 @@ const deleteProvider = (id) => {
                         type="text"
                         placeholder="Buscar por Razón Social, Nombre Comercial o NIT..."
                         class="admin-input"
+                        @input="handleSearchInput"
                         @keyup.enter="applyFilter"
                     />
                     <button 

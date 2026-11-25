@@ -2,13 +2,11 @@
 import { ref, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CatalogNavTabs from '@/Components/Admin/Catalog/CatalogNavTabs.vue';
+import Pagination from '@/Components/Admin/Pagination.vue';
 
 const props = defineProps({
     brands: {
-        type: Object,
-        required: true
-    },
-    stats: {
         type: Object,
         required: true
     },
@@ -25,6 +23,12 @@ const props = defineProps({
 const searchFilter = ref(props.filters.search || '');
 const providerFilter = ref(props.filters.provider_id || '');
 const categoryFilter = ref(props.filters.category_id || '');
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 300);
+};
 
 /**
  * Despacha el filtrado de marcas al backend manteniendo el estado de los inputs.
@@ -74,6 +78,8 @@ const deleteBrand = (id) => {
         </template>
 
         <div class="space-y-4">
+            <CatalogNavTabs />
+
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
                     <div>
@@ -82,6 +88,7 @@ const deleteBrand = (id) => {
                             type="text"
                             placeholder="Buscar marca..."
                             class="admin-input"
+                            @input="handleSearchInput"
                             @keyup.enter="applyFilters"
                         />
                     </div>
@@ -200,27 +207,7 @@ const deleteBrand = (id) => {
                 </table>
             </div>
 
-            <div v-if="brands.meta && brands.meta.last_page > 1" class="flex items-center justify-between bg-card p-4 border border-border rounded-md shadow-flat">
-                <div class="text-xs text-muted-foreground font-medium">
-                    Mostrando registros de marcas. Página {{ brands.meta.current_page }} de {{ brands.meta.last_page }} (Total: {{ brands.meta.total }})
-                </div>
-                <div class="flex items-center gap-1">
-                    <template v-for="(link, index) in brands.links" :key="index">
-                        <div 
-                            v-if="link.url === null" 
-                            class="px-2.5 py-1 text-xs text-muted-foreground/40 border border-border/50 rounded-sm cursor-not-allowed select-none"
-                            v-html="link.label"
-                        />
-                        <Link
-                            v-else
-                            :href="link.url"
-                            class="px-2.5 py-1 text-xs font-semibold rounded-sm border transition-colors"
-                            :class="[link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-foreground border-border hover:bg-secondary']"
-                            v-html="link.label"
-                        />
-                    </template>
-                </div>
-            </div>
+            <Pagination :meta="brands" />
         </div>
     </AdminLayout>
 </template>

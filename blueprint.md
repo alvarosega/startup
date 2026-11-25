@@ -321,7 +321,54 @@ Auditar exhaustivamente y modernizar los submódulos de **Clientes B2C** (`/user
 - **Verificación**:
   - Build de Vite exitoso (`2544 modules transformed`, `built in 7.10s`) sin errores ni advertencias de sintaxis.
 
+---
 
+## 13. Plan de Implementación: Auditoría, Saneamiento y Unificación del Ecosistema de Catálogo y Proveedores
 
+### Objetivo
+Auditar exhaustivamente, sanear y unificar la experiencia de usuario y arquitectura del módulo de **Catálogo** (`/catalog/products`, `/catalog/categories`, `/catalog/brands`) y **Proveedores** (`/operations/providers`). Consolidar el catálogo bajo una navegación transversal por pestañas (`CatalogNavTabs`) y una sola entrada unificada en la barra lateral; preservar Proveedores como módulo operativo independiente; erradicar la sobrecarga de consultas SQL de KPIs innecesarios (`GetProductStatsAction`, `GetBrandStatsAction`); subsanar errores en JavaScript en el acordeón de SKUs de productos; y estandarizar la paginación con `LengthAwarePaginator` y `<Pagination :meta="..." />` en Marcas y Categorías.
 
+### Pasos de la Tarea
+1. [x] **Arquitectura y Navegación Transversal (`CatalogNavTabs.vue`)**:
+   - Crear componente de navegación de pestañas superiores para **Productos y SKUs** (`admin.catalog.products.*`), **Categorías** (`admin.catalog.categories.*`) y **Marcas Comerciales** (`admin.catalog.brands.*`).
+   - Mantener **Proveedores** (`admin.operations.providers.*`) separado como acceso autónomo en el grupo "Operaciones" de la barra lateral con ícono `factory`.
+   - Unificar la entrada de Catálogo en `Sidebar.vue` con ícono `category` y soporte para coincidencia de rutas agrupadas (`['admin.catalog.products.*', 'admin.catalog.categories.*', 'admin.catalog.brands.*']`).
+2. [x] **Saneamiento y Optimización de Productos (`Products/Index.vue` & `ProductController.php`)**:
+   - Eliminar `GetProductStatsAction` y las 4 consultas agregadas `COUNT(*)` en cada carga de listado.
+   - Purgar los 4 bloques KPI superiores de `Products/Index.vue` manteniendo un diseño denso, sobrio y operativo.
+   - Corregir el bug de `ReferenceError` en `toggleProductSkus`: `expandedProducts.value.filter(prodId => prodId !== id)` en lugar del identificador no definido `rowId`.
+   - Declarar cursores computados `prev` y `next` para la navegación por cursor.
+   - Incorporar búsqueda reactiva con debounce de 300ms (`handleSearchInput`).
+3. [x] **Refactorización de Marcas (`BrandController.php`, `ListBrandsAction.php` & `Brands/Index.vue`)**:
+   - Eliminar `GetBrandStatsAction` del controlador y purgar `stats` de las props en frontend.
+   - Refactorizar `ListBrandsAction` para retornar directamente `LengthAwarePaginator` mediante `$paginator->through(...)`, exponiendo datos planos y links canónicos.
+   - Integrar `<CatalogNavTabs />` y sustituir el bloque defectuoso de paginación por el componente estándar `<Pagination :meta="brands" />`.
+   - Incorporar búsqueda reactiva con debounce de 300ms.
+4. [x] **Refactorización de Categorías (`ListCategoriesAction.php` & `Categories/Index.vue`)**:
+   - Adaptar `ListCategoriesAction` para usar `$paginator->through(...)` en la colección de categorías.
+   - Integrar `<CatalogNavTabs />` en el encabezado de `Categories/Index.vue`.
+   - Incorporar el componente de paginación `<Pagination :meta="categories" />` bajo la tabla de categorías.
+   - Incorporar búsqueda reactiva con debounce de 300ms.
+5. [x] **Auditoría y Afinado de Proveedores (`Providers/Index.vue`)**:
+   - Confirmar preservación como módulo independiente y autónomo.
+   - Agregar búsqueda reactiva con debounce de 300ms (`handleSearchInput`).
+   - Mantener tabla densa con códigos, NIT, datos de contacto, condiciones comerciales y paginación por cursores.
+6. [x] **Compilación y Verificación**:
+   - Ejecutar `npm run build` confirmando 0 errores de compilación y empaquetado Vite.
+
+### Resumen de Cambios Realizados
+- **Backend (PHP / Laravel)**:
+  - `app/Http/Controllers/Web/Admin/Catalog/ProductController.php`: Eliminada inyección y ejecución de `GetProductStatsAction`. Se ahorran 4 consultas pesadas por petición HTTP.
+  - `app/Http/Controllers/Web/Admin/Catalog/BrandController.php`: Eliminada inyección y ejecución de `GetBrandStatsAction`.
+  - `app/Actions/Admin/Catalog/Brand/ListBrandsAction.php`: Tipado de retorno `LengthAwarePaginator`, usando `$paginator->through(...)` con mapeo de proveedores, categorías y zonas de mercado, asegurando compatibilidad total con la estructura esperada por `Pagination.vue`.
+  - `app/Actions/Admin/Catalog/Category/ListCategoriesAction.php`: Paginación mediante `$paginator->through(...)` manteniendo la evaluación diferida (`closure`) de SKUs por góndola sin sobrecargar el listado inicial.
+- **Frontend (Vue 3 / Inertia)**:
+  - `resources/js/Components/Admin/Catalog/CatalogNavTabs.vue`: Creado con diseño sobrio y navegación fluida entre Productos, Categorías y Marcas.
+  - `resources/js/Components/Admin/Sidebar.vue`: Acceso unificado "Catálogo" con coincidencia multifactorial de rutas y enlace directo a Productos; Proveedores conservado con acceso directo bajo Operaciones.
+  - `resources/js/Pages/Admin/Catalog/Products/Index.vue`: KPIs purgados, pestañas transversales añadidas, acordeón de SKUs corregido (`prodId !== id`), cursores `prev`/`next` declarados y búsqueda reactiva con debounce.
+  - `resources/js/Pages/Admin/Catalog/Brands/Index.vue`: Pestañas transversales, props limpias sin `stats`, debounce en búsqueda y paginación estandarizada `<Pagination :meta="brands" />`.
+  - `resources/js/Pages/Admin/Catalog/Categories/Index.vue`: Pestañas transversales, debounce en búsqueda y paginación estandarizada `<Pagination :meta="categories" />`.
+  - `resources/js/Pages/Admin/Operations/Providers/Index.vue`: Búsqueda reactiva con debounce de 300ms y tabla densa operativa.
+- **Verificación**:
+  - Compilación exitosa en Vite (`2545 modules transformed`, `built in 7.27s`) sin advertencias ni errores.
 

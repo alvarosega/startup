@@ -29,9 +29,9 @@ class ListCategoriesAction
             $query->whereNull('parent_id')->with(['children']);
         }
     
-        $paginator = $query->orderBy('sort_order')->paginate(20);
+        $paginator = $query->orderBy('sort_order')->paginate(20)->withQueryString();
 
-        $mappedCategories = array_map(function ($category) {
+        $paginator->through(function ($category) {
             return [
                 'id'            => (string) $category->id,
                 'parent_id'     => $category->parent_id ? (string) $category->parent_id : null,
@@ -56,7 +56,7 @@ class ListCategoriesAction
                     'external_code' => $child->external_code ? (string) $child->external_code : null,
                 ])->toArray()
             ];
-        }, $paginator->items());
+        });
 
         $parents = Category::whereNull('parent_id')
             ->orderBy('name')
@@ -65,19 +65,7 @@ class ListCategoriesAction
             ->toArray();
 
         return [
-            'categories' => [
-                'data' => $mappedCategories,
-                'links' => [
-                    'next' => $paginator->nextPageUrl(),
-                    'prev' => $paginator->previousPageUrl(),
-                ],
-                'meta' => [
-                    'current_page' => $paginator->currentPage(),
-                    'last_page'    => $paginator->lastPage(),
-                    'per_page'     => $paginator->perPage(),
-                    'total'        => $paginator->total(),
-                ]
-            ],
+            'categories' => $paginator,
             'parents' => $parents,
             'filters' => [
                 'search'            => $search,

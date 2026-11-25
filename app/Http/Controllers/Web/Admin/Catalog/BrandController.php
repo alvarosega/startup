@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Catalog\Brand;
 use App\Actions\Admin\Catalog\Brand\ListBrandsAction;
 use App\Actions\Admin\Catalog\Brand\GetBrandFormOptionsAction;
-use App\Actions\Admin\Catalog\Brand\GetBrandStatsAction;
 use App\Actions\Admin\Catalog\Brand\GetBrandForEditAction;
 use App\Actions\Admin\Catalog\Brand\UpsertBrandAction;
 use App\Actions\Admin\Catalog\Brand\DeleteBrandAction;
@@ -26,11 +25,10 @@ class BrandController extends Controller
      * RECTIFICACIÓN: Se elimina por completo la inyección redundante de 'options' en el índice general,
      * liberando procesamiento en la base de datos de consultas no solicitadas en el listado.
      */
-    public function index(Request $request, ListBrandsAction $listAction, GetBrandStatsAction $statsAction): Response
+    public function index(Request $request, ListBrandsAction $listAction): Response
     {
         return Inertia::render('Admin/Catalog/Brands/Index', [
             'brands'     => $listAction->execute($request->all()),
-            'stats'      => $statsAction->execute(),
             'filters'    => $request->only(['search', 'provider_id', 'category_id', 'market_zone_id']),
             'can_manage' => true
         ]);
