@@ -304,7 +304,8 @@ Auditar exhaustivamente y modernizar los submódulos de **Clientes B2C** (`/user
 
 ### Resumen de Cambios Realizados
 - **Dominio y Backend**:
-  - `App\Actions\Admin\Users\Driver\RestoreDriverAction`: Creada para restaurar conductores con soft delete y `deleted_epoch = 0`, marcando `was_previously_deleted = true` y estatus `pending`.
+  - `App\Actions\Admin\Users\Driver\RestoreDriverAction`: Creada para restaurar conductores con soft delete y `deleted_epoch = 0`, marcando `was_previously_deleted = true` y estatus `pending`. Corregido byte inicial (eliminado newline antes de `<?php`), resolviendo el error `FatalError: strict_types declaration must be the very first statement`.
+  - Escaneo exhaustivo a nivel de bytes en todos los archivos `.php` de `app/`, `routes/`, `config/`, `bootstrap/` y `database/` confirmando 0 archivos con bytes espurios o previos a `<?php`.
   - `App\Actions\Admin\Users\Driver\GetDriversListAction`: Reescrito para usar `$paginator->through(...)` exponiendo `full_name`, `license_plate`, `vehicle_type`, `branch`, `is_online`, `last_seen_at` y fechas formateadas, eliminando la dependencia inexistente de `DriverResource`.
   - `App\Actions\Admin\Users\Customer\GetCustomersListAction`: Estandarizado a `LengthAwarePaginator` mediante `$paginator->through(...)`, exponiendo `full_name`, sucursal asignada, scoring y estado.
   - `App\Http\Controllers\Web\Admin\User\DriverController`: Limpieza de imports, retorno tipado del paginador directo y respuesta JSON limpia en `searchDeleted`.
