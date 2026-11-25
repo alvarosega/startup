@@ -83,7 +83,7 @@ class DriverController extends Controller
                 'id'            => (string) $driver->id,
                 'email'         => (string) $driver->email,
                 'phone'         => (string) $driver->phone,
-                'status'        => (string) $driver->status,
+                'status'        => is_object($driver->status) ? $driver->status->value : (string) $driver->status,
                 'full_name'     => trim(($profile?->first_name ?? '') . ' ' . ($profile?->last_name ?? '')) ?: 'Sin nombre',
                 'license_plate' => $profile?->license_plate,
                 'vehicle_type'  => $profile?->vehicle_type,

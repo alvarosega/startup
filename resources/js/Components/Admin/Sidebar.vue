@@ -81,9 +81,7 @@ const navigationMenu = [
     { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
     
     { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: computed(() => can('manage_branches')) },
-    { name: 'Personal', route: 'staff.index', pattern: 'staff.*', icon: 'shield_person', group: 'operativa', permission: computed(() => can('manage_users')) },
-    { name: 'Clientes', route: 'customers.index', pattern: 'customers.*', icon: 'group', group: 'operativa', permission: computed(() => can('manage_users')) },
-    { name: 'Repartidores', route: 'drivers.index', pattern: 'drivers.*', icon: 'two_wheeler', group: 'operativa', permission: computed(() => can('manage_drivers')) },
+    { name: 'Usuarios', route: 'staff.index', pattern: ['staff.*', 'customers.*', 'drivers.*'], icon: 'manage_accounts', group: 'operativa', permission: computed(() => can('manage_users') || can('manage_drivers')) },
 
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: computed(() => can('manage_catalog')) },
    // { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'marketing', permission: isSuperAdmin }
@@ -111,7 +109,12 @@ const closeMobileMenu = () => {
     activeMobileMenu.value = null;
 };
 
-const isActiveRoute = (pattern) => route().current(pattern);
+const isActiveRoute = (pattern) => {
+    if (Array.isArray(pattern)) {
+        return pattern.some(p => route().current(p));
+    }
+    return route().current(pattern);
+};
 
 const isGroupActive = (groupKey) => {
     return filteredMenu.value.some(item => item.group === groupKey && isActiveRoute(item.pattern));

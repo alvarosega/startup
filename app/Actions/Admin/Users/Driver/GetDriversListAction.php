@@ -50,7 +50,7 @@ class GetDriversListAction
                 'id'                     => (string) $driver->id,
                 'email'                  => (string) $driver->email,
                 'phone'                  => (string) $driver->phone,
-                'status'                 => (string) $driver->status,
+                'status'                 => is_object($driver->status) ? $driver->status->value : (string) $driver->status,
                 'is_online'              => (bool) $driver->is_online,
                 'is_available'           => (bool) $driver->is_available,
                 'branch_id'              => $driver->branch_id,

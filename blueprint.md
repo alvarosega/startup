@@ -306,16 +306,20 @@ Auditar exhaustivamente y modernizar los submódulos de **Clientes B2C** (`/user
 - **Dominio y Backend**:
   - `App\Actions\Admin\Users\Driver\RestoreDriverAction`: Creada para restaurar conductores con soft delete y `deleted_epoch = 0`, marcando `was_previously_deleted = true` y estatus `pending`. Corregido byte inicial (eliminado newline antes de `<?php`), resolviendo el error `FatalError: strict_types declaration must be the very first statement`.
   - Escaneo exhaustivo a nivel de bytes en todos los archivos `.php` de `app/`, `routes/`, `config/`, `bootstrap/` y `database/` confirmando 0 archivos con bytes espurios o previos a `<?php`.
-  - `App\Actions\Admin\Users\Driver\GetDriversListAction`: Reescrito para usar `$paginator->through(...)` exponiendo `full_name`, `license_plate`, `vehicle_type`, `branch`, `is_online`, `last_seen_at` y fechas formateadas, eliminando la dependencia inexistente de `DriverResource`.
+  - `App\Actions\Admin\Users\Driver\GetDriversListAction`: Reescrito para usar `$paginator->through(...)` exponiendo `full_name`, `license_plate`, `vehicle_type`, `branch`, `is_online`, `last_seen_at` y fechas formateadas, eliminando la dependencia inexistente de `DriverResource`. Corregida conversión del enum respaldado `DriverStatus` a string mediante `is_object($driver->status) ? $driver->status->value : (string) $driver->status`, resolviendo el error de casteo en PHP 8.4.
+  - Salvaguarda preventiva en `ChangeDriverStatusAction`, `StoreDriverAction`, `ChangeCustomerStatusAction` y `StoreCustomerAction` con verificación `Schema::hasTable('audit_logs')` para evitar excepciones si la tabla no existe en la base de datos remota.
   - `App\Actions\Admin\Users\Customer\GetCustomersListAction`: Estandarizado a `LengthAwarePaginator` mediante `$paginator->through(...)`, exponiendo `full_name`, sucursal asignada, scoring y estado.
   - `App\Http\Controllers\Web\Admin\User\DriverController`: Limpieza de imports, retorno tipado del paginador directo y respuesta JSON limpia en `searchDeleted`.
   - `App\Http\Controllers\Web\Admin\User\CustomerController`: Retorno de `customers` paginado y listado de sucursales activas ordenadas.
-- **Frontend Inertia / Vue 3**:
+- **Frontend Inertia / Vue 3 y Unificación Modular de Usuarios**:
+  - **Unificación Modular en Barra Lateral (`Sidebar.vue`)**: Se condensaron los enlaces dispersos de Personal, Clientes y Repartidores en un único acceso unificado: **"Usuarios"** (`icon: 'manage_accounts'`), con coincidencia de patrones reactiva `['staff.*', 'customers.*', 'drivers.*']`.
+  - **Componente de Navegación por Pestañas (`UserNavTabs.vue`)**: Creado componente transversal con soporte para RBAC, permitiendo alternar instantáneamente entre **Personal y Operadores**, **Clientes (B2C)** y **Repartidores** dentro de la misma interfaz.
+  - Integración de `<UserNavTabs />` en `Staff/Index.vue`, `Customers/Index.vue` y `Drivers/Index.vue`.
   - `Customers/Index.vue`: Estilo sobrio y denso sin KPIs. Input de búsqueda con debounce de 300ms, badges de scoring de confianza y estado, paginación con `<Pagination :meta="customers" />` y modal de restauración.
   - `Drivers/Index.vue`: Estilo sobrio y denso sin KPIs. Rutas corregidas a `drivers.*`, filtros combinables, badges semánticos, indicador de conexión en línea/desconectado, drawer de gobernanza de estatus y drawer de recuperación.
   - `Drivers/Create.vue`: Rutas corregidas a `drivers.store` y `drivers.index`, interfaz dividida en 2 bloques (Credenciales y Datos Logísticos) con validaciones directas.
 - **Verificación**:
-  - Build de Vite exitoso (`2543 modules transformed`, `built in 7.92s`) sin errores ni advertencias de sintaxis.
+  - Build de Vite exitoso (`2544 modules transformed`, `built in 7.10s`) sin errores ni advertencias de sintaxis.
 
 
 

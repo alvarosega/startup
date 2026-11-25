@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Pagination from '@/Components/Admin/Pagination.vue';
+import UserNavTabs from '@/Components/Admin/Users/UserNavTabs.vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -169,6 +170,9 @@ const statusLabels = {
                 </div>
             </div>
         </template>
+
+        <!-- Navegación Unificada del Ecosistema de Usuarios -->
+        <UserNavTabs />
 
         <!-- Barra de Filtros Operativos -->
         <div class="bg-card border border-border p-3 rounded-md shadow-flat mb-4">

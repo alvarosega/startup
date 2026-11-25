@@ -9,6 +9,7 @@ use App\DTOs\Admin\Users\Customer\StoreCustomerDTO;
 use App\DTOs\Admin\Users\AuditContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
@@ -47,24 +48,26 @@ class StoreCustomerAction
             $customer->assignRole('customer');
 
             // 4. Registro inmutable en la tabla física de auditoría
-            DB::table('audit_logs')->insert([
-                'id' => (string) Str::uuid7(),
-                'causer_type' => $context->causerType,
-                'causer_id' => $context->causerId,
-                'target_type' => Customer::class,
-                'target_id' => $customer->id,
-                'action' => 'customer_created_by_admin',
-                'payload_before' => null,
-                'payload_after' => json_encode([
-                    'email' => $dto->email, 
-                    'is_active' => $dto->isActive,
-                    'avatar_initialized' => true,
-                    'role_assigned' => 'customer'
-                ]),
-                'ip_address' => $context->ipAddress,
-                'user_agent' => $context->userAgent,
-                'created_at' => now()
-            ]);
+            if (Schema::hasTable('audit_logs')) {
+                DB::table('audit_logs')->insert([
+                    'id' => (string) Str::uuid7(),
+                    'causer_type' => $context->causerType,
+                    'causer_id' => $context->causerId,
+                    'target_type' => Customer::class,
+                    'target_id' => $customer->id,
+                    'action' => 'customer_created_by_admin',
+                    'payload_before' => null,
+                    'payload_after' => json_encode([
+                        'email' => $dto->email, 
+                        'is_active' => $dto->isActive,
+                        'avatar_initialized' => true,
+                        'role_assigned' => 'customer'
+                    ]),
+                    'ip_address' => $context->ipAddress,
+                    'user_agent' => $context->userAgent,
+                    'created_at' => now()
+                ]);
+            }
 
             return $customer;
         });
