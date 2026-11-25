@@ -78,7 +78,7 @@ final class CustomerSeeder extends Seeder
                 $lat = (float) $row['latitude'];
                 $lng = (float) $row['longitude'];
 
-                $locationExpression = DB::raw("ST_GeomFromText('POINT({$lng} {$lat})', 4326, 'axis-order=long-lat')");
+                $locationExpression = DB::raw("ST_GeomFromText('POINT({$lng} {$lat})', 4326)");
 
                 // 1. Inserción en Tabla Core (Customers)
                 DB::table('customers')->insert([

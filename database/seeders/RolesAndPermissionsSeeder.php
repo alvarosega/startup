@@ -20,17 +20,68 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_users',
             'manage_drivers',
             'manage_catalog',
+            'manage_branches',
+            'manage_branch_schedules',
+            'manage_branch_cash',
             'manage_inventory',
-            'manage_branches'
+            'manage_prices',
+            'manage_purchases',
+            'manage_removals',
+            'manage_orders',
+            'manage_dispatch',
+            'view_logistics_radar',
         ];
 
         foreach ($adminPerms as $p) {
             Permission::firstOrCreate(['name' => $p, 'guard_name' => 'super_admin']);
         }
 
-        // Crear Rol y asignar SOLO estos permisos iniciales
+        // 1. Rol: Administrador Maestro (Super Admin - Alcance Global)
         $roleSuper = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'super_admin']);
         $roleSuper->syncPermissions($adminPerms);
+
+        // 2. Rol: Administrador de Sucursal (Branch Manager)
+        $roleBranchManager = Role::firstOrCreate(['name' => 'branch_manager', 'guard_name' => 'super_admin']);
+        $roleBranchManager->syncPermissions([
+            'view_admin_dashboard',
+            'manage_catalog',
+            'manage_branch_schedules',
+            'manage_branch_cash',
+            'manage_inventory',
+            'manage_prices',
+            'manage_purchases',
+            'manage_removals',
+            'manage_orders',
+            'manage_dispatch',
+            'view_logistics_radar',
+            'manage_drivers',
+        ]);
+
+        // 3. Rol: Operador de Almacén / Stock (Branch Warehouse)
+        $roleBranchWarehouse = Role::firstOrCreate(['name' => 'branch_warehouse', 'guard_name' => 'super_admin']);
+        $roleBranchWarehouse->syncPermissions([
+            'view_admin_dashboard',
+            'manage_inventory',
+            'manage_purchases',
+            'manage_removals',
+        ]);
+
+        // 4. Rol: Operador de Despacho / Logística (Branch Logistics)
+        $roleBranchLogistics = Role::firstOrCreate(['name' => 'branch_logistics', 'guard_name' => 'super_admin']);
+        $roleBranchLogistics->syncPermissions([
+            'view_admin_dashboard',
+            'manage_orders',
+            'manage_dispatch',
+            'view_logistics_radar',
+            'manage_drivers',
+        ]);
+
+        // 5. Rol: Operador de Caja (Branch Cashier)
+        $roleBranchCashier = Role::firstOrCreate(['name' => 'branch_cashier', 'guard_name' => 'super_admin']);
+        $roleBranchCashier->syncPermissions([
+            'view_admin_dashboard',
+            'manage_branch_cash',
+        ]);
 
 
         // --- SILO 2: LOGÍSTICA (Guard: driver) ---

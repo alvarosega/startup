@@ -1,0 +1,8 @@
+/vendor
+/node_modules
+/storage
+/public/build
+/public/hot
+/.git
+*.lock
+*.log

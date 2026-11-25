@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             // SILO: ADMIN
             Route::middleware(['web', 'inertia.admin'])
-                ->prefix(env('ADMIN_PATH', 'adm'))
+                ->domain(env('ADMIN_DOMAIN', 'admin.startup.test'))
                 ->group(base_path('routes/admin.php'));
 
             // SILO: CUSTOMER
@@ -58,10 +58,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // --- REDIRECCIÓN DE USUARIOS AUTENTICADOS ---
         $middleware->redirectUsersTo(function (Request $request) {
-            $adminPath = env('ADMIN_PATH', 'adm');
-        
             if (Auth::guard('super_admin')->check()) {
-                return "/{$adminPath}/dashboard"; 
+                return route('dashboard.index'); 
             }
             
             if (Auth::guard('driver')->check()) {
@@ -73,9 +71,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // --- REDIRECCIÓN DE INVITADOS (NO AUTENTICADOS) ---
         $middleware->redirectGuestsTo(function (Request $request) {
-            $adminPath = env('ADMIN_PATH', 'adm');
+            $adminDomain = env('ADMIN_DOMAIN', 'admin.startup.test');
 
-            if ($request->is($adminPath . '/*') || $request->is($adminPath)) {
+            if ($request->getHost() === $adminDomain || $request->is('adm/*') || $request->is('adm')) {
                 return route('admin.login'); 
             }
 

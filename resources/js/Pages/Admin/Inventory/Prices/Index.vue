@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'react';
+import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 

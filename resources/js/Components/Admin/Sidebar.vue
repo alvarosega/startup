@@ -8,7 +8,10 @@ const activeMobileMenu = ref(null);
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
-const isSuperAdmin = computed(() => roles.value.includes('super_admin'));
+const isSuperAdmin = computed(() => user.value?.is_super_admin || roles.value.includes('super_admin'));
+const permissions = computed(() => user.value?.permissions || {});
+
+const can = (perm) => isSuperAdmin.value || !!permissions.value[perm];
 
 // Motor de Telemetría para Tooltips Centralizados (Fijados al Viewport)
 const hoveredTitle = ref(null);
@@ -63,25 +66,25 @@ onUnmounted(() => {
 
 // Estructura inmutable del árbol de navegación operacional
 const navigationMenu = [
-    { name: 'Stock Base', route: 'admin.inventory.index', pattern: 'admin.inventory.*', icon: 'warehouse', group: 'stock', permission: isSuperAdmin },
-    { name: 'Precios Masivos', route: 'admin.prices.index', pattern: 'admin.prices.*', icon: 'payments', group: 'stock', permission: isSuperAdmin },
-    { name: 'Ingresos', route: 'admin.purchases.index', pattern: 'admin.purchases.*', icon: 'move_to_inbox', group: 'stock', permission: isSuperAdmin },
+    { name: 'Stock Base', route: 'admin.inventory.index', pattern: 'admin.inventory.*', icon: 'warehouse', group: 'stock', permission: computed(() => can('manage_inventory')) },
+    { name: 'Precios Masivos', route: 'admin.prices.index', pattern: 'admin.prices.*', icon: 'payments', group: 'stock', permission: computed(() => can('manage_prices')) },
+    { name: 'Ingresos', route: 'admin.purchases.index', pattern: 'admin.purchases.*', icon: 'move_to_inbox', group: 'stock', permission: computed(() => can('manage_purchases')) },
     
-    { name: 'Órdenes', route: 'admin.orders.index', pattern: 'admin.orders.*', icon: 'receipt_long', group: 'logistica', permission: isSuperAdmin },
-    { name: 'Radar (Vivo)', route: 'admin.logistics.monitor', pattern: 'admin.logistics.*', icon: 'radar', group: 'logistica', permission: isSuperAdmin },
-    { name: 'Transferencias', route: 'admin.transfers.index', pattern: 'admin.transfers.*', icon: 'local_shipping', group: 'logistica', permission: isSuperAdmin },
-    { name: 'Bajas', route: 'admin.removals.index', pattern: 'admin.removals.*', icon: 'delete_forever', group: 'logistica', permission: isSuperAdmin },
+    { name: 'Órdenes', route: 'admin.orders.index', pattern: 'admin.orders.*', icon: 'receipt_long', group: 'logistica', permission: computed(() => can('manage_orders')) },
+    { name: 'Radar (Vivo)', route: 'admin.logistics.monitor', pattern: 'admin.logistics.*', icon: 'radar', group: 'logistica', permission: computed(() => can('view_logistics_radar')) },
+    { name: 'Transferencias', route: 'admin.transfers.index', pattern: 'admin.transfers.*', icon: 'local_shipping', group: 'logistica', permission: computed(() => can('manage_inventory')) },
+    { name: 'Bajas', route: 'admin.removals.index', pattern: 'admin.removals.*', icon: 'delete_forever', group: 'logistica', permission: computed(() => can('manage_removals')) },
     
-    { name: 'Productos', route: 'admin.catalog.products.index', pattern: 'admin.catalog.products.*', icon: 'label', group: 'catalogo', permission: isSuperAdmin },
-    { name: 'Categorías', route: 'admin.catalog.categories.index', pattern: 'admin.catalog.categories.*', icon: 'account_tree', group: 'catalogo', permission: isSuperAdmin },
-    { name: 'Marcas', route: 'admin.catalog.brands.index', pattern: 'admin.catalog.brands.*', icon: 'branding_watermark', group: 'catalogo', permission: isSuperAdmin },
-    { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'catalogo', permission: isSuperAdmin },
+    { name: 'Productos', route: 'admin.catalog.products.index', pattern: 'admin.catalog.products.*', icon: 'label', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
+    { name: 'Categorías', route: 'admin.catalog.categories.index', pattern: 'admin.catalog.categories.*', icon: 'account_tree', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
+    { name: 'Marcas', route: 'admin.catalog.brands.index', pattern: 'admin.catalog.brands.*', icon: 'branding_watermark', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
+    { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
     
-    { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: isSuperAdmin },
-    { name: 'Clientes', route: 'customers.index', pattern: 'customers.*', icon: 'group', group: 'operativa', permission: isSuperAdmin },
-    { name: 'Repartidores', route: 'drivers.index', pattern: 'drivers.*', icon: 'badge', group: 'operativa', permission: isSuperAdmin },
+    { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: computed(() => can('manage_branches')) },
+    { name: 'Clientes', route: 'customers.index', pattern: 'customers.*', icon: 'group', group: 'operativa', permission: computed(() => can('manage_users')) },
+    { name: 'Repartidores', route: 'drivers.index', pattern: 'drivers.*', icon: 'badge', group: 'operativa', permission: computed(() => can('manage_drivers')) },
 
-    { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: isSuperAdmin },
+    { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: computed(() => can('manage_catalog')) },
    // { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'marketing', permission: isSuperAdmin }
 ];
 
@@ -138,12 +141,16 @@ const isMobileGroupActive = (groupKey) => {
                     <span>{{ user?.first_name?.[0]?.toUpperCase() || 'U' }}</span>
                 </div>
                 
-                <div class="fixed left-[76px] hidden group-hover:flex flex-col p-2.5 bg-card border border-border rounded-md shadow-flat z-50 pointer-events-none min-w-[140px]">
+                <div class="fixed left-[76px] hidden group-hover:flex flex-col p-2.5 bg-card border border-border rounded-md shadow-flat z-50 pointer-events-none min-w-[150px]">
                     <span class="text-xs font-semibold text-foreground leading-tight">
                         {{ user?.full_name }}
                     </span>
                     <span class="text-[10px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
-                        {{ user?.roles?.[0]?.replace('_', ' ') || 'Staff' }}
+                        {{ user?.is_super_admin ? 'Administrador Maestro' : (user?.roles?.[0]?.replace(/_/g, ' ') || 'Staff') }}
+                    </span>
+                    <span v-if="user?.branch" class="text-[10px] font-medium text-muted-foreground mt-1 leading-none flex items-center gap-1">
+                        <span class="material-symbols-rounded text-[12px]">store</span>
+                        {{ user.branch.name }}
                     </span>
                 </div>
             </div>
@@ -230,29 +237,29 @@ const isMobileGroupActive = (groupKey) => {
         </div>
     </div>
 
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card border-t border-border z-40 grid grid-cols-5 px-1 items-center shadow-flat select-none">
-        <button @click="toggleMobileMenu('stock')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'stock' || isMobileGroupActive('stock') ? 'text-primary' : 'text-muted-foreground']">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card border-t border-border z-40 flex items-center justify-around px-1 shadow-flat select-none">
+        <button v-if="mobileGroups['stock']?.items.length" @click="toggleMobileMenu('stock')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'stock' || isMobileGroupActive('stock') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'stock' || isMobileGroupActive('stock')) ? { fontVariationSettings: `'FILL' 1` } : {}">inventory</span>
             <span class="text-[9px] font-medium mt-1">Stock</span>
         </button>
         
-        <button @click="toggleMobileMenu('logistica')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'logistica' || isMobileGroupActive('logistica') ? 'text-primary' : 'text-muted-foreground']">
+        <button v-if="mobileGroups['logistica']?.items.length" @click="toggleMobileMenu('logistica')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'logistica' || isMobileGroupActive('logistica') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'logistica' || isMobileGroupActive('logistica')) ? { fontVariationSettings: `'FILL' 1` } : {}">local_shipping</span>
             <span class="text-[9px] font-medium mt-1">Logística</span>
         </button>
         
-        <div class="flex items-center justify-center -mt-3">
+        <div class="flex items-center justify-center -mt-3 px-2">
             <Link :href="route('dashboard.index')" @click="closeMobileMenu" :class="[isActiveRoute('dashboard.*') ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300']" class="w-11 h-11 rounded-md flex items-center justify-center shadow-flat transition-transform duration-75 active:scale-95">
                 <span class="material-symbols-rounded text-[20px]" :style="isActiveRoute('dashboard.*') ? { fontVariationSettings: `'FILL' 1` } : {}">home</span>
             </Link>
         </div>
 
-        <button @click="toggleMobileMenu('catalogo')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'catalogo' || isMobileGroupActive('catalogo') ? 'text-primary' : 'text-muted-foreground']">
+        <button v-if="mobileGroups['catalogo']?.items.length" @click="toggleMobileMenu('catalogo')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'catalogo' || isMobileGroupActive('catalogo') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'catalogo' || isMobileGroupActive('catalogo')) ? { fontVariationSettings: `'FILL' 1` } : {}">storefront</span>
             <span class="text-[9px] font-medium mt-1">Catálogo</span>
         </button>
         
-        <button @click="toggleMobileMenu('operativa')" class="flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'operativa' || isMobileGroupActive('operativa') ? 'text-primary' : 'text-muted-foreground']">
+        <button v-if="mobileGroups['operativa']?.items.length" @click="toggleMobileMenu('operativa')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'operativa' || isMobileGroupActive('operativa') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'operativa' || isMobileGroupActive('operativa')) ? { fontVariationSettings: `'FILL' 1` } : {}">settings</span>
             <span class="text-[9px] font-medium mt-1">Operativa</span>
         </button>

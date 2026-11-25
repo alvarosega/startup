@@ -42,8 +42,9 @@ class LoginAdminAction
         /** @var Admin $admin */
         $admin = Auth::guard('super_admin')->user();
 
-        // 2. Control de rol
-        if (!$admin->hasRole('super_admin')) {
+        // 2. Control de rol administrativo
+        $validRoles = ['super_admin', 'branch_manager', 'branch_warehouse', 'branch_logistics', 'branch_cashier'];
+        if (!$admin->hasAnyRole($validRoles)) {
             Auth::guard('super_admin')->logout();
 
             AdminAccessLog::create([
@@ -60,7 +61,28 @@ class LoginAdminAction
             ]);
         }
 
-        // 3. Sesión Única (Purga de sesiones concurrentes)
+        // 3. Control de alcance por sucursal:
+        // Si no es super_admin, DEBE tener una sucursal asignada y activa
+        if (!$admin->hasRole('super_admin')) {
+            if (!$admin->branch_id || !$admin->branch || !$admin->branch->is_active) {
+                Auth::guard('super_admin')->logout();
+
+                AdminAccessLog::create([
+                    'admin_id'        => $admin->id,
+                    'email_attempted' => $data->email,
+                    'ip_address'      => $data->ip,
+                    'user_agent'      => $data->userAgent,
+                    'status'          => 'FAILED_BRANCH_INACTIVE',
+                    'created_at'      => $now,
+                ]);
+
+                throw ValidationException::withMessages([
+                    'email' => 'El administrador no tiene una sucursal activa asignada.',
+                ]);
+            }
+        }
+
+        // 4. Sesión Única (Purga de sesiones concurrentes)
         if (config('session.driver') === 'database') {
             DB::table(config('session.table', 'sessions'))
                 ->where('user_id', $admin->id)

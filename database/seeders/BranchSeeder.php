@@ -62,7 +62,7 @@ class BranchSeeder extends Seeder
                 $longitude = (float) $cleanRow['longitude'];
 
                 // WKT POINT con orden explícito: Longitud Latitud
-                $locationExpression = DB::raw("ST_GeomFromText('POINT({$longitude} {$latitude})', 4326, 'axis-order=long-lat')");
+                $locationExpression = DB::raw("ST_GeomFromText('POINT({$longitude} {$latitude})', 4326)");
 
                 // CSV contiene [[lat, lng], ...] -> WKT POLYGON exige "longitud latitud"
                 $coveragePolygonExpression = null;
@@ -79,7 +79,7 @@ class BranchSeeder extends Seeder
                     }
 
                     $wktPolygonString = "POLYGON((" . implode(',', $wktPoints) . "))";
-                    $coveragePolygonExpression = DB::raw("ST_GeomFromText('{$wktPolygonString}', 4326, 'axis-order=long-lat')");
+                    $coveragePolygonExpression = DB::raw("ST_GeomFromText('{$wktPolygonString}', 4326)");
                 } else {
                     throw new Exception("Fila {$rowNumber}: El campo 'coverage_polygon' es obligatorio.");
                 }
