@@ -24,12 +24,11 @@ final class StaffController extends Controller
     public function index(Request $request, ListStaffAction $action, GetStaffFormOptionsAction $optionsAction): InertiaResponse
     {
         $filters = $request->only(['search', 'branch_id', 'role', 'is_active']);
-        $result = $action->execute($filters);
+        $staff = $action->execute($filters);
         $options = $optionsAction->execute();
 
         return Inertia::render('Admin/Users/Staff/Index', [
-            'staff'    => $result['staff'],
-            'metrics'  => $result['metrics'],
+            'staff'    => $staff,
             'branches' => $options['branches'],
             'roles'    => $options['roles'],
             'filters'  => $filters,

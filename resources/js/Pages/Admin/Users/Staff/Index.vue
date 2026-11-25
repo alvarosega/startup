@@ -9,10 +9,6 @@ const props = defineProps({
         type: Object,
         required: true,
     },
-    metrics: {
-        type: Object,
-        required: true,
-    },
     branches: {
         type: Array,
         required: true,
@@ -112,26 +108,6 @@ const roleBadges = {
                 </div>
             </div>
         </template>
-
-        <!-- Métricas Rápidas -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 select-none">
-            <div class="bg-card border border-border p-3.5 rounded-md shadow-flat">
-                <span class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Total Personal</span>
-                <span class="text-2xl font-black text-foreground font-mono mt-1 block">{{ metrics.total }}</span>
-            </div>
-            <div class="bg-card border border-border p-3.5 rounded-md shadow-flat">
-                <span class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Activos</span>
-                <span class="text-2xl font-black text-emerald-500 font-mono mt-1 block">{{ metrics.active }}</span>
-            </div>
-            <div class="bg-card border border-border p-3.5 rounded-md shadow-flat">
-                <span class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Gerentes de Sucursal</span>
-                <span class="text-2xl font-black text-amber-500 font-mono mt-1 block">{{ metrics.branch_managers }}</span>
-            </div>
-            <div class="bg-card border border-border p-3.5 rounded-md shadow-flat">
-                <span class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Operadores de Área</span>
-                <span class="text-2xl font-black text-blue-500 font-mono mt-1 block">{{ metrics.operators }}</span>
-            </div>
-        </div>
 
         <!-- Barra de Filtros de Alta Productividad -->
         <div class="bg-card border border-border p-3 rounded-md shadow-flat mb-4">

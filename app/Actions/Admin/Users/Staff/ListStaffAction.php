@@ -12,9 +12,8 @@ final class ListStaffAction
 {
     /**
      * @param array<string, mixed> $filters
-     * @return array{staff: LengthAwarePaginator, metrics: array<string, int>}
      */
-    public function execute(array $filters = []): array
+    public function execute(array $filters = []): LengthAwarePaginator
     {
         $query = Admin::query()->with(['branch', 'roles', 'permissions']);
 
@@ -73,18 +72,6 @@ final class ListStaffAction
             ];
         });
 
-        $metrics = [
-            'total'           => Admin::count(),
-            'active'          => Admin::where('is_active', true)->count(),
-            'branch_managers' => Admin::role('branch_manager', 'super_admin')->count(),
-            'operators'       => Admin::whereHas('roles', fn ($q) => $q->whereIn('name', [
-                'branch_warehouse', 'branch_logistics', 'branch_cashier'
-            ]))->count(),
-        ];
-
-        return [
-            'staff'   => $paginated,
-            'metrics' => $metrics,
-        ];
+        return $paginated;
     }
 }

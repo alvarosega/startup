@@ -14,7 +14,8 @@ class StoreBranchRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
+        $user = $this->user('super_admin');
+        return $user?->hasRole('super_admin') || ($user?->can('manage_branches') ?? false);
     }
 
     public function rules(): array

@@ -10,7 +10,21 @@ class OpenDailyCashRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
+        $user = $this->user('super_admin');
+        if (!$user) {
+            return false;
+        }
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+        if (!$user->can('manage_branch_cash')) {
+            return false;
+        }
+
+        $branch = $this->route('branch');
+        $branchId = $branch instanceof \App\Models\Operations\Branch ? $branch->id : $branch;
+
+        return $user->branch_id === $branchId;
     }
 
     public function rules(): array

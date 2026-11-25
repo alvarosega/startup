@@ -231,24 +231,49 @@ Construir el módulo integral de administración de operadores (`users/staff`), 
 8. [x] **Compilación y Formato de Commits**: Validar build Vite y entregar los comandos de commit en texto.
 
 ### Resumen de Cambios Realizados
+- **Regla Estricta de Diseño UX: Sobriedad Operativa (Sin KPIs)**:
+  - Se prohíben las tarjetas de métricas o KPIs en la parte superior de las vistas. Todo el diseño debe ser sobrio, compacto y directo, optimizando el espacio vertical para visualización de registros y eliminando queries innecesarias de conteo en la base de datos.
 - **Dominio Admin / Staff**:
   - DTO tipado `App\DTOs\Admin\User\StaffData` con validación estricta y sincronización de roles/permisos.
   - FormRequests `StoreStaffRequest` y `UpdateStaffRequest` con reglas condicionales para obligatoriedad de `branch_id` cuando no es `super_admin`.
   - Actions desacopladas bajo `App\Actions\Admin\Users\Staff\`:
-    - `ListStaffAction`: Listado con métricas (`total`, `active`, `suspended`, `unassigned`), búsqueda debounce por nombre/email/teléfono, y filtros por sucursal, rol y estado.
+    - `ListStaffAction`: Listado paginado de alto rendimiento con búsqueda debounce por nombre/email/teléfono, y filtros combinables por sucursal, rol y estado (sin overhead de KPIs).
     - `CreateStaffAction`: Creación segura de administradores con bcrypt y asignación Spatie.
     - `UpdateStaffAction`: Actualización de datos y contraseña opcional.
     - `ToggleStaffStatusAction`: Inversión de estado activo/suspendido con guardia contra auto-desactivación.
     - `GetStaffFormOptionsAction`: Proveedor de datos para selectores de sucursales, roles y permisos directos.
   - Controlador `App\Http\Controllers\Web\Admin\User\StaffController` con respuestas estandarizadas Inertia y redirecciones fluidas con mensajes flash.
 - **Frontend Inertia / Vue 3**:
-  - `Admin/Users/Staff/Index.vue`: Tabla densa con métricas superiores, filtros rápidos, badges semánticos de roles, switch inline de estado y paginación.
+  - `Admin/Users/Staff/Index.vue`: Tabla densa y sobria con filtros rápidos, badges semánticos de roles, switch inline de estado y paginación (completamente libre de KPIs).
   - `Admin/Users/Staff/Create.vue`: Formulario reactivo con selector de roles por tarjetas interactivas, vinculación condicional de sucursal y permisos directos.
   - `Admin/Users/Staff/Edit.vue`: Edición integral de operador con prellenado reactivo.
   - `Components/Admin/Sidebar.vue`: Acceso directo a Personal (`staff.index`) bajo la categoría operativa.
 - **Interconexión Dinámica con Sucursales**:
   - `ListBranches.php`: Eager-loading de operadores activos (`admins`) y filtrado de gerentes asignados (`hasRole('branch_manager')`).
-  - `Admin/Operations/Branches/Index.vue`: Nueva columna de "Personal Asignado" que muestra los gerentes en badges interactivos y el total de operadores, con hipervínculo directo a `route('staff.index', { branch_id: branch.id })` para filtrar el personal al instante.
+  - `Admin/Operations/Branches/Index.vue`: Columna de "Personal Asignado" que muestra gerentes y conteo con enlace para prefiltrar en `staff.index`.
+
+---
+
+## 11. Plan de Implementación Actual: Auditoría y Correcciones del Módulo de Sucursales
+
+### Objetivo
+Corregir los fallos identificados en la auditoría del módulo de Sucursales (`operations/branches`), garantizando compatibilidad total con MariaDB en consultas espaciales GIS, sincronización rigurosa de autorización RBAC en FormRequests y robustez en la configuración inicial de horarios para nuevas sucursales.
+
+### Pasos de la Tarea
+1. [x] **Registrar auditoría en blueprint.md**: Documentar hallazgos de compatibilidad MariaDB, permisos RBAC y edge cases de horarios.
+2. [x] **Compatibilidad Espacial MariaDB**: Eliminar el parámetro `'axis-order=long-lat'` en `CreateBranch.php`, `UpdateBranch.php`, `Branch.php`, `BranchQueryService.php` y `RegisterCustomerAction.php`, limitando `ST_GeomFromText` a 2 argumentos.
+3. [x] **Armonización de Autorización RBAC en FormRequests**: Actualizar `authorize()` en `StoreBranchRequest`, `UpdateBranchRequest`, `UpdateBranchSchedulesRequest`, `StoreBranchScheduleExceptionRequest`, `OpenDailyCashRequest` y `CloseDailyCashRequest` para soportar permisos granulares (`manage_branches`, `manage_branch_schedules`, `manage_branch_cash`) y validar aislamiento por sucursal para operadores locales.
+4. [x] **Hidratación de Horarios Semanales (7 días)**: Garantizar que `BranchScheduleController@index` entregue siempre la colección completa de 7 días (0 a 6), evitando bloqueos en la vista y errores de validación en sucursales nuevas.
+5. [x] **Compilación y Verificación**: Ejecutar `npm run build` y entregar comandos de commit en texto.
+
+### Resumen de Remediaciones Aplicadas
+- **Compatibilidad Espacial 100% MariaDB**:
+  - Estandarización a 2 parámetros `ST_GeomFromText(wkt, 4326)` en `CreateBranch`, `UpdateBranch`, `Branch::scopeWithinCoverage`, `BranchQueryService::getCollidingBranches` y `RegisterCustomerAction`. Se eliminó por completo `'axis-order=long-lat'`.
+- **Alineación de Seguridad y RBAC**:
+  - Los 6 FormRequests (`StoreBranchRequest`, `UpdateBranchRequest`, `UpdateBranchSchedulesRequest`, `StoreBranchScheduleExceptionRequest`, `OpenDailyCashRequest`, `CloseDailyCashRequest`) ahora permiten operar a usuarios con roles operativos y permisos asignados (`manage_branches`, `manage_branch_schedules`, `manage_branch_cash`).
+  - Para usuarios no `super_admin`, se valida estrictamente que solo puedan ejecutar operaciones sobre su propia sucursal asignada (`$user->branch_id === $branchId`).
+- **Resiliencia de Horarios Semanales**:
+  - `BranchScheduleController@index` hidrata en memoria los 7 días de la semana (0 a 6) si no existiesen en base de datos, garantizando que sucursales recién creadas puedan configurar sus horarios sin errores de validación.
 
 
 

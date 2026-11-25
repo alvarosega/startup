@@ -121,7 +121,7 @@ class Branch extends Model
     public function scopeWithinCoverage(Builder $query, float $latitude, float $longitude): Builder
     {
         return $query->whereRaw(
-            "ST_Contains(coverage_polygon, ST_GeomFromText(?, 4326, 'axis-order=long-lat'))",
+            "ST_Contains(coverage_polygon, ST_GeomFromText(?, 4326))",
             ["POINT({$longitude} {$latitude})"]
         );
     }

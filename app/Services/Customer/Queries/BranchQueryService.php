@@ -68,7 +68,7 @@ final class BranchQueryService
             ->where('is_active', true)
             ->where('deleted_epoch', 0)
             ->whereRaw(
-                "ST_Contains(coverage_polygon, ST_GeomFromText(?, 4326, 'axis-order=long-lat'))",
+                "ST_Contains(coverage_polygon, ST_GeomFromText(?, 4326))",
                 ["POINT({$lng} {$lat})"]
             )
             ->select('id', 'name', 'slug', 'city')

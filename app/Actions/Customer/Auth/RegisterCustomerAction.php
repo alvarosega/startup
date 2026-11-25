@@ -79,7 +79,7 @@ final class RegisterCustomerAction
                 'alias'         => $dto->alias ? mb_strtoupper($dto->alias) : 'PRINCIPAL',
                 'address'       => mb_strtoupper($dto->address),
                 'reference'     => $dto->details !== null ? mb_strtoupper($dto->details) : null,
-                'position'      => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})', 4326, 'axis-order=long-lat')"),
+                'position'      => DB::raw("ST_GeomFromText('POINT({$dto->longitude} {$dto->latitude})', 4326)"),
                 'is_default'    => true,
                 'deleted_epoch' => 0,
             ]);
