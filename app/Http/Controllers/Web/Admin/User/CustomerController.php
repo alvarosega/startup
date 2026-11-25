@@ -30,13 +30,12 @@ class CustomerController extends Controller
     public function index(Request $request, GetCustomersListAction $action): InertiaResponse
     {
         $payload = $request->only(['search', 'branch_id', 'is_active']);
-        $result = $action->execute($payload);
+        $customers = $action->execute($payload);
 
         return Inertia::render('Admin/Users/Customers/Index', [
-            'users' => $result['users'],
-            'pagination' => $result['pagination'],
-            'branches' => Branch::where('is_active', true)->get(['id', 'name']),
-            'filters' => $payload
+            'customers' => $customers,
+            'branches'  => Branch::where('is_active', true)->where('deleted_epoch', 0)->orderBy('name')->get(['id', 'name', 'city']),
+            'filters'   => $payload,
         ]);
     }
 

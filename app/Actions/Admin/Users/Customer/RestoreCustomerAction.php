@@ -24,19 +24,21 @@ class RestoreCustomerAction
                 'was_previously_deleted' => true
             ]);
 
-            DB::table('audit_logs')->insert([
-                'id' => (string) Str::uuid7(),
-                'causer_type' => $context->causerType,
-                'causerId' => $context->causerId,
-                'target_type' => Customer::class,
-                'target_id' => $customer->id,
-                'action' => 'customer_restored_by_admin',
-                'payload_before' => json_encode(['deleted_at' => $customer->deleted_at]),
-                'payload_after' => json_encode(['is_active' => false, 'was_previously_deleted' => true]),
-                'ip_address' => $context->ipAddress,
-                'user_agent' => $context->userAgent,
-                'created_at' => now()
-            ]);
+            if (\Illuminate\Support\Facades\Schema::hasTable('audit_logs')) {
+                DB::table('audit_logs')->insert([
+                    'id' => (string) Str::uuid7(),
+                    'causer_type' => $context->causerType,
+                    'causer_id' => $context->causerId,
+                    'target_type' => Customer::class,
+                    'target_id' => $customer->id,
+                    'action' => 'customer_restored_by_admin',
+                    'payload_before' => json_encode(['deleted_at' => $customer->deleted_at]),
+                    'payload_after' => json_encode(['is_active' => false, 'was_previously_deleted' => true]),
+                    'ip_address' => $context->ipAddress,
+                    'user_agent' => $context->userAgent,
+                    'created_at' => now()
+                ]);
+            }
         });
     }
 }

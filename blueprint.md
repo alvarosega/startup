@@ -276,6 +276,47 @@ Corregir los fallos identificados en la auditoría del módulo de Sucursales (`o
 - **Resiliencia de Horarios Semanales**:
   - `BranchScheduleController@index` hidrata en memoria los 7 días de la semana (0 a 6) si no existiesen en base de datos, garantizando que sucursales recién creadas puedan configurar sus horarios sin errores de validación.
 
+---
+
+## 12. Plan de Implementación Actual: Auditoría, Reparación y Modernización del Ecosistema de Usuarios (Clientes y Repartidores)
+
+### Objetivo
+Auditar exhaustivamente y modernizar los submódulos de **Clientes B2C** (`/users/customers`) y **Repartidores / Drivers** (`/users/drivers`), eliminando dependencias inexistentes (`DriverResource`), corrigiendo nombres de rutas Ziggy rotas, implementando acciones ausentes (`RestoreDriverAction`), garantizando compatibilidad de paginación (`LengthAwarePaginator` con `$paginator->through()`) e implementando interfaces sobrias, densas y de alta productividad completamente libres de bloques KPI.
+
+### Pasos de la Tarea
+1. [x] **Auditoría de Dominio y Controladores**: Detección de fallos en rutas (`admin.users.drivers.*` vs `drivers.*`), recursos no existentes (`DriverResource`) y acciones faltantes (`RestoreDriverAction`).
+2. [x] **Creación de Acción de Restauración de Repartidores**: Implementar `RestoreDriverAction` con sincronización de `deleted_epoch = 0`, reactivación en estado `pending` y registro en logs de auditoría si la tabla existe.
+3. [x] **Refactorización de Actions de Listado**: Modernizar `GetCustomersListAction` y `GetDriversListAction` para retornar `LengthAwarePaginator` con transformaciones nativas (`through`), entregando `full_name`, contactos, sucursales y estatus sin romper la paginación ni requerir Resources externos.
+4. [x] **Armonización de Controladores**: Actualizar `CustomerController` y `DriverController` para consumir las nuevas acciones, limpiar imports y manejar respuestas JSON y redirecciones con mensajes flash.
+5. [x] **Modernización Frontend Customers (`Customers/Index.vue`)**:
+   - Tabla densa y sobria sin métricas ni KPIs superiores.
+   - Búsqueda reactiva con debounce de 300ms, filtros por sucursal y estado activo/inactivo con botón de limpieza.
+   - Paginación estandarizada mediante `<Pagination :meta="customers" />`.
+   - Visualización de avatar con iniciales, score de confianza dinámico y switch rápido inline de estado.
+   - Modal de recuperación de cuentas eliminadas por teléfono.
+6. [x] **Modernización Frontend Drivers (`Drivers/Index.vue` y `Drivers/Create.vue`)**:
+   - Corrección total de llamadas de rutas a `drivers.*`.
+   - Tabla densa con estatus operativo, vehículo/placa monospace, conexión en tiempo real y paginación con `<Pagination :meta="drivers" />`.
+   - Drawer lateral derecho para gobernanza de estatus (aprobación, rechazo con justificación documental obligatoria y suspensión preventiva con invalidación de sesiones).
+   - Drawer de recuperación de conductores dados de baja por teléfono.
+   - Formulario de alta corporativa en `Create.vue` con diseño sobrio y validaciones integradas.
+7. [x] **Compilación y Verificación**: Ejecutar `npm run build` confirmando 0 errores de compilación en Vue 3 y Vite.
+
+### Resumen de Cambios Realizados
+- **Dominio y Backend**:
+  - `App\Actions\Admin\Users\Driver\RestoreDriverAction`: Creada para restaurar conductores con soft delete y `deleted_epoch = 0`, marcando `was_previously_deleted = true` y estatus `pending`.
+  - `App\Actions\Admin\Users\Driver\GetDriversListAction`: Reescrito para usar `$paginator->through(...)` exponiendo `full_name`, `license_plate`, `vehicle_type`, `branch`, `is_online`, `last_seen_at` y fechas formateadas, eliminando la dependencia inexistente de `DriverResource`.
+  - `App\Actions\Admin\Users\Customer\GetCustomersListAction`: Estandarizado a `LengthAwarePaginator` mediante `$paginator->through(...)`, exponiendo `full_name`, sucursal asignada, scoring y estado.
+  - `App\Http\Controllers\Web\Admin\User\DriverController`: Limpieza de imports, retorno tipado del paginador directo y respuesta JSON limpia en `searchDeleted`.
+  - `App\Http\Controllers\Web\Admin\User\CustomerController`: Retorno de `customers` paginado y listado de sucursales activas ordenadas.
+- **Frontend Inertia / Vue 3**:
+  - `Customers/Index.vue`: Estilo sobrio y denso sin KPIs. Input de búsqueda con debounce de 300ms, badges de scoring de confianza y estado, paginación con `<Pagination :meta="customers" />` y modal de restauración.
+  - `Drivers/Index.vue`: Estilo sobrio y denso sin KPIs. Rutas corregidas a `drivers.*`, filtros combinables, badges semánticos, indicador de conexión en línea/desconectado, drawer de gobernanza de estatus y drawer de recuperación.
+  - `Drivers/Create.vue`: Rutas corregidas a `drivers.store` y `drivers.index`, interfaz dividida en 2 bloques (Credenciales y Datos Logísticos) con validaciones directas.
+- **Verificación**:
+  - Build de Vite exitoso (`2543 modules transformed`, `built in 7.92s`) sin errores ni advertencias de sintaxis.
+
+
 
 
 

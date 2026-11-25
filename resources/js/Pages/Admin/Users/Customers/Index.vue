@@ -1,79 +1,87 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { router, useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import Pagination from '@/Components/Admin/Pagination.vue';
 
 const props = defineProps({
-    users: {
-        type: Array,
-        required: true
-    },
-    pagination: {
+    customers: {
         type: Object,
-        required: true
+        required: true,
     },
     branches: {
         type: Array,
-        required: true
+        required: true,
     },
     filters: {
         type: Object,
-        required: true
-    }
+        required: true,
+    },
 });
 
-// Inicialización de filtros reactivos basados en las props del servidor
 const searchFilter = ref(props.filters.search || '');
 const branchFilter = ref(props.filters.branch_id || '');
-const statusFilter = ref(props.filters.is_active !== undefined && props.filters.is_active !== null ? String(props.filters.is_active) : '');
+const statusFilter = ref(
+    props.filters.is_active !== undefined && props.filters.is_active !== null
+        ? String(props.filters.is_active)
+        : ''
+);
 
-// Instancia de formulario para la mutación de estado inline (Status Toggle)
-const statusForm = useForm({
-    is_active: false
+let debounceTimeout = null;
+
+const applyFilters = () => {
+    router.get(
+        route('customers.index'),
+        {
+            search: searchFilter.value || undefined,
+            branch_id: branchFilter.value || undefined,
+            is_active: statusFilter.value !== '' ? statusFilter.value : undefined,
+        },
+        {
+            preserveState: true,
+            replace: true,
+        }
+    );
+};
+
+const handleSearchInput = () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+        applyFilters();
+    }, 300);
+};
+
+watch([branchFilter, statusFilter], () => {
+    applyFilters();
 });
 
-// Instancia de formulario para el procesamiento de restauración de cuentas
-const restoreForm = useForm({});
+const resetFilters = () => {
+    searchFilter.value = '';
+    branchFilter.value = '';
+    statusFilter.value = '';
+    applyFilters();
+};
 
-// Estado del modal de recuperación de cuentas eliminadas
+// Formulario reactivo para conmutación de estado
+const statusForm = useForm({
+    is_active: false,
+});
+
+const toggleStatus = (user) => {
+    statusForm.is_active = !user.is_active;
+    statusForm.patch(route('customers.change-status', user.id), {
+        preserveScroll: true,
+    });
+};
+
+// Formulario y estado modal de recuperación de cuentas eliminadas
+const restoreForm = useForm({});
 const isModalOpen = ref(false);
 const searchPhone = ref('');
 const foundUser = ref(null);
 const searchError = ref('');
 const isSearching = ref(false);
 
-/**
- * Ejecuta el re-fetch de datos aplicando los filtros reactivos seleccionados.
- */
-const applyFilters = () => {
-    router.get(route('customers.index'), {
-        search: searchFilter.value || undefined,
-        branch_id: branchFilter.value || undefined,
-        is_active: statusFilter.value !== '' ? statusFilter.value : undefined
-    }, {
-        preserveState: true,
-        replace: true
-    });
-};
-
-// Observadores para la ejecución automática de filtros ante cambios de estado
-watch([branchFilter, statusFilter], () => {
-    applyFilters();
-});
-
-/**
- * Conmuta el estado de actividad de un cliente utilizando useForm nativo.
- */
-const toggleStatus = (user) => {
-    statusForm.is_active = !user.is_active;
-    statusForm.patch(route('customers.change-status', user.id), {
-        preserveScroll: true
-    });
-};
-
-/**
- * Realiza una consulta asíncrona al endpoint de borrados para validar existencia por teléfono.
- */
 const searchDeletedCustomer = async () => {
     if (!searchPhone.value) {
         searchError.value = 'El número de teléfono es obligatorio.';
@@ -92,9 +100,9 @@ const searchDeletedCustomer = async () => {
                 'Content-Type': 'application/json',
                 'X-Inertia': 'true',
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': token
+                'X-CSRF-TOKEN': token,
             },
-            body: JSON.stringify({ phone: searchPhone.value })
+            body: JSON.stringify({ phone: searchPhone.value }),
         });
 
         const data = await response.json();
@@ -102,20 +110,17 @@ const searchDeletedCustomer = async () => {
         if (response.status === 404) {
             searchError.value = data.message;
         } else if (!response.ok) {
-            searchError.value = 'Ocurrió un error inesperado en la terminal.';
+            searchError.value = 'Ocurrió un error inesperado al consultar la cuenta.';
         } else {
             foundUser.value = data.user;
         }
-    } catch (error) {
+    } catch {
         searchError.value = 'Fallo de conexión con el servidor.';
     } finally {
         isSearching.value = false;
     }
 };
 
-/**
- * Despacha la petición POST de restauración e invalida el estado local del modal.
- */
 const submitRestore = () => {
     if (!foundUser.value) return;
 
@@ -125,13 +130,10 @@ const submitRestore = () => {
             searchPhone.value = '';
             foundUser.value = null;
             searchError.value = '';
-        }
+        },
     });
 };
 
-/**
- * Resetea por completo los campos operativos al cerrar el modal de recuperación.
- */
 const closeRestoreModal = () => {
     isModalOpen.value = false;
     searchPhone.value = '';
@@ -143,101 +145,174 @@ const closeRestoreModal = () => {
 <template>
     <AdminLayout>
         <template #header>
-            Gestión de Clientes (B2C)
-        </template>
-
-        <div class="space-y-4">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
-                    <div>
-                        <input 
-                            v-model="searchFilter"
-                            type="text"
-                            placeholder="Buscar por nombre, correo..."
-                            class="admin-input"
-                            @keyup.enter="applyFilters"
-                        />
-                    </div>
-                    <div>
-                        <select v-model="branchFilter" class="admin-input">
-                            <option value="">Todas las sucursales</option>
-                            <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                                {{ branch.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div>
-                        <select v-model="statusFilter" class="admin-input">
-                            <option value="">Todos los estados</option>
-                            <option value="1">Activos</option>
-                            <option value="0">Inactivos</option>
-                        </select>
-                    </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
+                        Gestión de Clientes (B2C)
+                    </h1>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                        Cartera de clientes, control de acceso, scoring y recuperación de cuentas
+                    </p>
                 </div>
-
-                <div class="flex items-center gap-2 shrink-0">
-                    <button 
-                        type="button" 
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
                         @click="isModalOpen = true"
-                        class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm transition-colors duration-100 hover:bg-neutral-200 dark:hover:bg-neutral-800 inline-flex items-center gap-1.5"
+                        class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-xs transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-800 inline-flex items-center gap-1.5 border border-border"
                     >
-                        <span class="material-symbols-rounded text-lg">history</span>
+                        <span class="material-symbols-rounded text-[18px]">history</span>
                         <span>Restaurar Cuenta</span>
                     </button>
 
-                    <Link 
+                    <Link
                         :href="route('customers.create')"
-                        class="admin-btn-primary inline-flex items-center gap-1.5"
+                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-3.5"
                     >
-                        <span class="material-symbols-rounded text-lg">person_add</span>
+                        <span class="material-symbols-rounded text-[18px]">person_add</span>
                         <span>Nuevo Cliente</span>
                     </Link>
                 </div>
             </div>
+        </template>
 
-            <div class="bg-card border border-border rounded-md shadow-flat overflow-x-auto">
-                <table class="admin-table">
+        <!-- Barra de Filtros Operativos -->
+        <div class="bg-card border border-border p-3 rounded-md shadow-flat mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-center">
+                <!-- Buscador de Texto -->
+                <div class="relative lg:col-span-2">
+                    <span class="material-symbols-rounded absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[18px]">search</span>
+                    <input
+                        v-model="searchFilter"
+                        @input="handleSearchInput"
+                        type="text"
+                        placeholder="Buscar por nombre, correo o teléfono..."
+                        class="admin-input pl-8 py-1.5 text-xs w-full"
+                    />
+                </div>
+
+                <!-- Filtro Sucursal -->
+                <div>
+                    <select v-model="branchFilter" class="admin-input py-1.5 text-xs w-full">
+                        <option value="">Todas las Sucursales</option>
+                        <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                            {{ branch.name }} {{ branch.city ? `(${branch.city})` : '' }}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Filtro Estado & Reset -->
+                <div class="flex items-center gap-2">
+                    <select v-model="statusFilter" class="admin-input py-1.5 text-xs w-full">
+                        <option value="">Todos los Estados</option>
+                        <option value="1">Activos</option>
+                        <option value="0">Inactivos</option>
+                    </select>
+
+                    <button
+                        v-if="searchFilter || branchFilter || statusFilter !== ''"
+                        @click="resetFilters"
+                        title="Limpiar filtros"
+                        class="p-1.5 text-muted-foreground hover:text-foreground border border-border rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
+                    >
+                        <span class="material-symbols-rounded text-[18px] block">filter_alt_off</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla Densa de Clientes -->
+        <div class="bg-card border border-border rounded-md shadow-flat overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
                     <thead>
-                        <tr>
-                            <th class="admin-table-th">Cliente</th>
-                            <th class="admin-table-th">Identificador (Email)</th>
-                            <th class="admin-table-th">Teléfono</th>
-                            <th class="admin-table-th">Sucursal Asignada</th>
-                            <th class="admin-table-th text-center">Estado</th>
-                            <th class="admin-table-th text-right">Acciones</th>
+                        <tr class="border-b border-border bg-neutral-100/60 dark:bg-neutral-900/60 select-none">
+                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Cliente</th>
+                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Teléfono</th>
+                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Sucursal Asignada</th>
+                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-center">Score Confianza</th>
+                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-center">Estado</th>
+                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-right">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr v-if="users.length === 0">
-                            <td colspan="6" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
+                    <tbody class="divide-y divide-border/60">
+                        <tr v-if="!customers.data || customers.data.length === 0">
+                            <td colspan="6" class="py-8 text-center text-muted-foreground text-xs font-normal">
                                 No se encontraron registros de clientes bajo los parámetros seleccionados.
                             </td>
                         </tr>
-                        <tr v-for="user in users" :key="user.id" class="admin-table-tr">
-                            <td class="admin-table-td">
-                                {{ user.first_name }} {{ user.last_name }}
+                        <tr
+                            v-for="user in customers.data"
+                            :key="user.id"
+                            class="hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors"
+                        >
+                            <!-- Cliente -->
+                            <td class="py-2.5 px-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                                        {{ user.first_name?.[0]?.toUpperCase() || 'C' }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-foreground block truncate">{{ user.full_name }}</span>
+                                        <span class="text-[11px] font-mono text-muted-foreground block truncate">{{ user.email }}</span>
+                                        <span class="text-[10px] text-muted-foreground/70 block">Registrado: {{ user.created_at || 'Reciente' }}</span>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="admin-table-td">
-                                {{ user.email }}
-                            </td>
-                            <td class="admin-table-td font-mono text-xs">
-                                {{ user.phone }}
-                            </td>
-                            <td class="admin-table-td">
-                                <span v-if="user.branch">{{ user.branch.name }}</span>
-                                <span v-else class="text-muted-foreground/60 italic font-normal text-xs">Sin asignar</span>
-                            </td>
-                            <td class="admin-table-td text-center">
-                                <span :class="user.is_active ? 'badge-success' : 'badge-error'">
-                                    {{ user.is_active ? 'Activo' : 'Inactivo' }}
+
+                            <!-- Teléfono -->
+                            <td class="py-2.5 px-3.5 font-mono text-xs">
+                                <span class="bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-border text-[11px] text-foreground font-mono">
+                                    {{ user.phone }}
                                 </span>
                             </td>
-                            <td class="admin-table-td text-right">
-                                <button 
+
+                            <!-- Sucursal Asignada -->
+                            <td class="py-2.5 px-3.5">
+                                <div v-if="user.branch">
+                                    <span class="font-semibold text-foreground block">{{ user.branch.name }}</span>
+                                    <span v-if="user.branch.city" class="text-[10px] text-muted-foreground block">{{ user.branch.city }}</span>
+                                </div>
+                                <span v-else class="text-muted-foreground/60 italic text-xs">Sin asignar (Global)</span>
+                            </td>
+
+                            <!-- Score Confianza -->
+                            <td class="py-2.5 px-3.5 text-center">
+                                <span
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border"
+                                    :class="(user.trust_score ?? 100) >= 80 
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                                        : (user.trust_score ?? 100) >= 50 
+                                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+                                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'"
+                                >
+                                    <span class="material-symbols-rounded text-[13px]">verified_user</span>
+                                    <span>{{ user.trust_score ?? 100 }} pts</span>
+                                </span>
+                            </td>
+
+                            <!-- Estado -->
+                            <td class="py-2.5 px-3.5 text-center">
+                                <span
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border"
+                                    :class="user.is_active 
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'"
+                                >
+                                    <span class="w-1.5 h-1.5 rounded-full" :class="user.is_active ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                                    <span>{{ user.is_active ? 'Activo' : 'Inactivo' }}</span>
+                                </span>
+                            </td>
+
+                            <!-- Acciones -->
+                            <td class="py-2.5 px-3.5 text-right">
+                                <button
                                     type="button"
                                     @click="toggleStatus(user)"
                                     :disabled="statusForm.processing"
-                                    class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded border border-border hover:bg-neutral-200 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+                                    class="px-2.5 py-1 text-xs font-semibold rounded border transition-colors disabled:opacity-50"
+                                    :class="user.is_active 
+                                        ? 'border-rose-500/30 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400' 
+                                        : 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400'"
                                 >
                                     {{ user.is_active ? 'Desactivar' : 'Activar' }}
                                 </button>
@@ -247,32 +322,14 @@ const closeRestoreModal = () => {
                 </table>
             </div>
 
-            <div v-if="pagination.links && pagination.links.length > 3" class="flex items-center justify-between bg-card p-4 border border-border rounded-md shadow-flat">
-                <div class="text-xs text-muted-foreground font-medium">
-                    Página {{ pagination.current_page }} de {{ pagination.last_page }}
-                </div>
-                <div class="flex items-center gap-1">
-                    <template v-for="(link, index) in pagination.links" :key="index">
-                        <div 
-                            v-if="link.url === null" 
-                            class="px-2.5 py-1 text-xs text-muted-foreground/40 border border-border/50 rounded-sm cursor-not-allowed select-none"
-                            v-html="link.label"
-                        />
-                        <Link
-                            v-else
-                            :href="link.url"
-                            class="px-2.5 py-1 text-xs font-semibold rounded-sm border transition-colors"
-                            :class="[link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-foreground border-border hover:bg-secondary']"
-                            v-html="link.label"
-                        />
-                    </template>
-                </div>
-            </div>
+            <!-- Paginación -->
+            <Pagination :meta="customers" />
         </div>
 
+        <!-- Modal de Recuperación de Cuenta Eliminada -->
         <div v-if="isModalOpen" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <div class="fixed inset-0 bg-neutral-950/50 backdrop-blur-sm" @click="closeRestoreModal"></div>
-            
+
             <div class="relative w-full max-w-md bg-card border border-border rounded-md shadow-flat p-6 z-10 animate-in fade-in zoom-in-95 duration-100">
                 <div class="flex items-center justify-between mb-4 pb-2 border-b border-border">
                     <h2 class="text-sm font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
@@ -290,15 +347,15 @@ const closeRestoreModal = () => {
                             Teléfono de la cuenta a buscar
                         </label>
                         <div class="flex gap-2">
-                            <input 
+                            <input
                                 v-model="searchPhone"
                                 type="text"
-                                placeholder="+51999888777"
-                                class="admin-input flex-1 font-mono"
+                                placeholder="+591XXXXXXXX"
+                                class="admin-input flex-1 font-mono text-xs"
                                 :disabled="isSearching || restoreForm.processing"
                                 @keyup.enter="searchDeletedCustomer"
                             />
-                            <button 
+                            <button
                                 type="button"
                                 @click="searchDeletedCustomer"
                                 :disabled="isSearching || restoreForm.processing"
@@ -307,7 +364,7 @@ const closeRestoreModal = () => {
                                 {{ isSearching ? 'Buscando...' : 'Buscar' }}
                             </button>
                         </div>
-                        <p v-if="searchError" class="text-xs text-error font-medium mt-1 flex items-center gap-1">
+                        <p v-if="searchError" class="text-xs text-rose-600 font-medium mt-1 flex items-center gap-1">
                             <span class="material-symbols-rounded text-sm shrink-0">error</span>
                             <span>{{ searchError }}</span>
                         </p>
@@ -316,8 +373,9 @@ const closeRestoreModal = () => {
                     <div v-if="foundUser" class="p-3 bg-neutral-100 dark:bg-neutral-800/50 border border-border rounded-md space-y-3 animate-in fade-in duration-75">
                         <div class="text-xs space-y-1">
                             <div class="text-muted-foreground uppercase tracking-wider font-semibold text-[10px]">Registro Localizado</div>
-                            <div class="text-foreground font-bold text-sm">{{ foundUser.first_name }} {{ foundUser.last_name }}</div>
+                            <div class="text-foreground font-bold text-sm">{{ foundUser.full_name || `${foundUser.first_name || ''} ${foundUser.last_name || ''}` }}</div>
                             <div class="text-muted-foreground font-medium font-mono text-[11px]">{{ foundUser.email }}</div>
+                            <div class="text-muted-foreground font-mono text-[11px]">{{ foundUser.phone }}</div>
                         </div>
 
                         <div class="pt-2 border-t border-border/60">
@@ -325,7 +383,7 @@ const closeRestoreModal = () => {
                                 type="button"
                                 @click="submitRestore"
                                 :disabled="restoreForm.processing"
-                                class="w-full admin-btn-primary inline-flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+                                class="w-full admin-btn-primary inline-flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2"
                             >
                                 <span class="material-symbols-rounded text-base shrink-0">settings_backup_restore</span>
                                 <span>{{ restoreForm.processing ? 'Restaurando...' : 'Confirmar Restauración' }}</span>

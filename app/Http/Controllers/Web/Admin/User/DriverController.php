@@ -25,31 +25,24 @@ use App\Actions\Admin\Users\Driver\ChangeDriverStatusAction;
 use App\Actions\Admin\Users\Driver\SearchDeletedDriverAction;
 use App\Actions\Admin\Users\Driver\RestoreDriverAction;
 
-use App\Http\Resources\Admin\Users\Driver\DriverResource;
-
 class DriverController extends Controller
 {
     public function index(Request $request, GetDriversListAction $action): InertiaResponse
     {
         $payload = $request->only(['search', 'branch_id', 'status']);
-        $paginator = $action->execute($payload);
+        $drivers = $action->execute($payload);
 
         return Inertia::render('Admin/Users/Drivers/Index', [
-            'users' => DriverResource::collection($paginator->items()),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'total' => $paginator->total(),
-            ],
-            'branches' => Branch::where('is_active', true)->get(['id', 'name']),
-            'filters' => $payload
+            'drivers'  => $drivers,
+            'branches' => Branch::where('is_active', true)->where('deleted_epoch', 0)->orderBy('name')->get(['id', 'name']),
+            'filters'  => $payload,
         ]);
     }
 
     public function create(): InertiaResponse
     {
         return Inertia::render('Admin/Users/Drivers/Create', [
-            'branches' => Branch::where('is_active', true)->get(['id', 'name'])
+            'branches' => Branch::where('is_active', true)->where('deleted_epoch', 0)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -84,7 +77,18 @@ class DriverController extends Controller
             return response()->json(['message' => 'No se encontró ningún repartidor eliminado con ese teléfono.'], 404);
         }
 
-        return response()->json(['user' => new DriverResource($driver)]);
+        $profile = $driver->profile;
+        return response()->json([
+            'user' => [
+                'id'            => (string) $driver->id,
+                'email'         => (string) $driver->email,
+                'phone'         => (string) $driver->phone,
+                'status'        => (string) $driver->status,
+                'full_name'     => trim(($profile?->first_name ?? '') . ' ' . ($profile?->last_name ?? '')) ?: 'Sin nombre',
+                'license_plate' => $profile?->license_plate,
+                'vehicle_type'  => $profile?->vehicle_type,
+            ]
+        ]);
     }
 
     public function restoreDeleted(Request $request, string $id, RestoreDriverAction $action): RedirectResponse

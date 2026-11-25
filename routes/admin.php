@@ -48,7 +48,7 @@ Route::middleware(['auth:super_admin'])->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('admin.logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
-    // Gestión de Usuarios (Clientes y Repartidores)
+    // Gestión de Usuarios (Clientes, Repartidores y Personal)
     Route::middleware('role_or_permission:super_admin|manage_users,super_admin')->group(function () {
         Route::group(['prefix' => 'users/customers', 'as' => 'customers.'], function () {
             Route::get('/', [CustomerController::class, 'index'])->name('index');
@@ -59,15 +59,6 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::post('/{id}/restore', [CustomerController::class, 'restoreDeleted'])->name('restore');
         });
 
-        Route::group(['prefix' => 'users/drivers', 'as' => 'drivers.'], function () {
-            Route::get('/', [DriverController::class, 'index'])->name('index');
-            Route::get('/create', [DriverController::class, 'create'])->name('create');
-            Route::post('/', [DriverController::class, 'store'])->name('store');
-            Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
-            Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
-            Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
-        });
-
         Route::group(['prefix' => 'users/staff', 'as' => 'staff.'], function () {
             Route::get('/', [StaffController::class, 'index'])->name('index');
             Route::get('/create', [StaffController::class, 'create'])->name('create');
@@ -75,6 +66,17 @@ Route::middleware(['auth:super_admin'])->group(function () {
             Route::get('/{admin}/edit', [StaffController::class, 'edit'])->name('edit');
             Route::put('/{admin}', [StaffController::class, 'update'])->name('update');
             Route::patch('/{admin}/toggle-status', [StaffController::class, 'toggleStatus'])->name('toggle-status');
+        });
+    });
+
+    Route::middleware('role_or_permission:super_admin|manage_drivers|manage_users,super_admin')->group(function () {
+        Route::group(['prefix' => 'users/drivers', 'as' => 'drivers.'], function () {
+            Route::get('/', [DriverController::class, 'index'])->name('index');
+            Route::get('/create', [DriverController::class, 'create'])->name('create');
+            Route::post('/', [DriverController::class, 'store'])->name('store');
+            Route::patch('/{id}/status', [DriverController::class, 'changeStatus'])->name('change-status');
+            Route::post('/search-deleted', [DriverController::class, 'searchDeleted'])->name('search-deleted');
+            Route::post('/{id}/restore', [DriverController::class, 'restoreDeleted'])->name('restore');
         });
     });
 
