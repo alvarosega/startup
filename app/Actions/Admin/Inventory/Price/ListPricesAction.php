@@ -11,8 +11,22 @@ class ListPricesAction
 {
     public function execute(Request $request): array
     {
+        $search = $request->query('search') ? trim((string) $request->query('search')) : null;
+
         $prices = Price::with(['sku.product', 'branch'])
             ->where('deleted_epoch', 0)
+            ->when($search, function ($query, $term) {
+                $query->where(function ($q) use ($term) {
+                    $q->whereHas('sku', function ($sq) use ($term) {
+                        $sq->where('code', 'like', "%{$term}%")
+                           ->orWhereHas('product', function ($pq) use ($term) {
+                               $pq->where('name', 'like', "%{$term}%");
+                           });
+                    })->orWhereHas('branch', function ($bq) use ($term) {
+                        $bq->where('name', 'like', "%{$term}%");
+                    });
+                });
+            })
             ->orderBy('id', 'desc')
             ->cursorPaginate(15)
             ->withQueryString();

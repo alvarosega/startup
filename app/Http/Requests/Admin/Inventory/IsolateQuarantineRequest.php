@@ -11,7 +11,8 @@ class IsolateQuarantineRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user('super_admin')?->hasRole('super_admin') ?? false;
+        $user = $this->user('super_admin');
+        return $user && ($user->hasRole('super_admin') || $user->hasPermissionTo('manage_inventory', 'super_admin'));
     }
 
     public function rules(): array

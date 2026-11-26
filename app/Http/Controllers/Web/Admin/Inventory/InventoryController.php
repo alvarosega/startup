@@ -14,6 +14,7 @@ use App\Actions\Admin\Inventory\Stock\GetSkuKardexAction;
 use App\Actions\Admin\Inventory\Stock\GetSkuLotsAction;
 use App\Actions\Admin\Inventory\Stock\TransferToSafetyAction;
 use App\Actions\Admin\Inventory\Stock\IsolateToQuarantineAction;
+use App\Models\Operations\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -29,7 +30,8 @@ class InventoryController extends Controller
     {
         return Inertia::render('Admin/Inventory/Stock/Index', [
             'balances' => $action->execute($request),
-            'filters'  => $request->only(['search']),
+            'filters'  => $request->only(['search', 'branch_id']),
+            'branches' => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

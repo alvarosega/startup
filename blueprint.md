@@ -372,3 +372,94 @@ Auditar exhaustivamente, sanear y unificar la experiencia de usuario y arquitect
 - **Verificación**:
   - Compilación exitosa en Vite (`2545 modules transformed`, `built in 7.27s`) sin advertencias ni errores.
 
+---
+
+## 14. Plan de Implementación: Auditoría, Corrección y Navegación del Ecosistema de Inventarios y Stock
+
+### Objetivo
+Auditar exhaustivamente, corregir errores fatales latentes en lógica de contingencia de lotes (reserva de seguridad y aislamiento a cuarentena), reactivar las búsquedas deshabilitadas en backend (Precios, Compras y Bajas), dotar de filtrado por sucursales a los balances globales de stock y dotar al ecosistema de una barra de navegación transversal por pestañas (`InventoryNavTabs`) con inputs de búsqueda reactivos con debounce de 300ms, preservando los accesos directos independientes en la barra lateral conforme a las directivas del usuario.
+
+### Pasos de la Tarea
+1. [x] **Subsanación de Errores Fatales en Acciones de Lotes**:
+   - `TransferToSafetyAction`: Corregir lectura de `branch_id` y `sku_id` directamente del modelo `$lot` en lugar de propiedades inexistentes en `$dto`.
+   - `IsolateToQuarantineAction`: Reescribir la lógica de aislamiento y liberación para alternar el flag `is_quarantine`, registrar el movimiento respectivo (`BLOCK_QUARANTINE` o `RELEASE_QUARANTINE`) y actualizar el acumulador `total_quarantine` en `InventoryBalance` sin descontar erróneamente la existencia del lote ni llamar a campos inexistentes en `$dto`.
+   - `TransferSafetyRequest` e `IsolateQuarantineRequest`: Armonizar autorización RBAC admitiendo permisos `manage_inventory` además de `super_admin`.
+2. [x] **Activación de Búsquedas en Backend**:
+   - `ListPricesAction`: Implementar filtro de búsqueda por coincidencia de SKU, producto o nombre de sucursal.
+   - `ListPurchasesAction`: Implementar filtro por número de documento, razón social/comercial de proveedor, sucursal o SKU/producto.
+   - `ListRemovalsAction`: Implementar filtro por código de acta de baja, motivo, notas, sucursal o SKU/producto.
+3. [x] **Filtrado por Sucursal en Balances de Existencias**:
+   - `InventoryController@index`: Exponer colección de sucursales activas ordenadas por nombre e inyectar `branch_id` en los filtros de Inertia.
+   - `ListInventoryBalancesAction`: Añadir discriminador `when($branchId, fn($q, $id) => $q->where('branch_id', $id))` y búsqueda compuesta por nombre de sucursal.
+   - `Stock/Index.vue`: Incorporar selector de sucursales con reactividad inmediata y preservación de cursores de paginación.
+4. [x] **Navegación Unificada por Pestañas y Debounce Reactivo**:
+   - Crear componente [InventoryNavTabs.vue](file:///c:/Users/SEGA/Desktop/startup/resources/js/Components/Admin/Inventory/InventoryNavTabs.vue) integrando:
+     - **Balances y Stock** (`admin.inventory.*`)
+     - **Ingresos y Compras** (`admin.purchases.*`)
+     - **Mermas y Bajas** (`admin.removals.*`)
+     - **Tarifas y Precios** (`admin.prices.*`)
+   - Integrar `<InventoryNavTabs />` en las cuatro vistas maestras de inventario.
+   - Implementar debounce de 300ms (`handleSearchInput`) en todos los inputs de búsqueda de los 4 módulos.
+5. [x] **Compilación y Verificación**:
+   - Verificar integridad de cabeceras en todos los archivos `.php` modificados.
+   - Ejecutar `npm run build` confirmando 0 errores de compilación (`2546 modules transformed`, `built in 6.92s`).
+
+### Resumen de Cambios Realizados
+- **Backend (PHP / Laravel)**:
+  - `app/Http/Requests/Admin/Inventory/TransferSafetyRequest.php`: Autorización para `super_admin` o permiso `manage_inventory`.
+  - `app/Http/Requests/Admin/Inventory/IsolateQuarantineRequest.php`: Autorización para `super_admin` o permiso `manage_inventory`.
+  - `app/Actions/Admin/Inventory/Stock/TransferToSafetyAction.php`: Corregido acceso a `$lot->branch_id` y `$lot->sku_id`.
+  - `app/Actions/Admin/Inventory/Stock/IsolateToQuarantineAction.php`: Lógica completa de aislamiento (`BLOCK_QUARANTINE`) y liberación (`RELEASE_QUARANTINE`) con ajuste de `total_quarantine` en `InventoryBalance`.
+  - `app/Actions/Admin/Inventory/Price/ListPricesAction.php`: Búsqueda reactiva activada.
+  - `app/Actions/Admin/Inventory/Purchase/ListPurchasesAction.php`: Búsqueda reactiva activada.
+  - `app/Actions/Admin/Inventory/Removal/ListRemovalsAction.php`: Búsqueda reactiva activada.
+  - `app/Actions/Admin/Inventory/Stock/ListInventoryBalancesAction.php`: Filtro por `branch_id` integrado.
+  - `app/Http/Controllers/Web/Admin/Inventory/InventoryController.php`: Suministro de `branches` y filtro `branch_id`.
+- **Frontend (Vue 3 / Inertia)**:
+  - `resources/js/Components/Admin/Inventory/InventoryNavTabs.vue`: Componente creado con permisos RBAC y navegación fluida entre los 4 submódulos de stock.
+  - `resources/js/Pages/Admin/Inventory/Stock/Index.vue`: Pestañas superiores, selector de sucursales, búsqueda con debounce de 300ms y cursor pagination con sucursal.
+  - `resources/js/Pages/Admin/Inventory/Prices/Index.vue`: Pestañas superiores, búsqueda con debounce de 300ms y disposición sobria.
+  - `resources/js/Pages/Admin/Inventory/Purchases/Index.vue`: Pestañas superiores y búsqueda con debounce de 300ms.
+  - `resources/js/Pages/Admin/Inventory/Removals/Index.vue`: Pestañas superiores y búsqueda con debounce de 300ms.
+- **Verificación**:
+  - Compilación exitosa en Vite (`2546 modules transformed`, `built in 6.92s`) sin advertencias ni errores.
+
+---
+
+## 15. Rediseño Root Apple Glass Minimalista y Aislamiento Estricto de Admin
+
+### Objetivo y Contexto
+Auditar, aislar físicamente y rediseñar por completo la raíz visual del silo administrativo (`admin.startup.test`) bajo la estética Apple Minimalist con efecto Glassmorphism auténtico (`backdrop-blur`, bordes translúcidos con micro-relieve, radios squircle y lienzo ambiental difuso), garantizando un desacople total entre el módulo Admin y los módulos de Clientes (B2C) y Repartidores (Driver).
+
+### Decisiones Arquitectónicas y Estilísticas
+1. **Aislamiento Físico de Estilos (`resources/css/admin.css`)**:
+   - Se creó un archivo CSS exclusivo para la administración, compilado por separado en `vite.config.js` y consumido únicamente por `resources/views/admin.blade.php`.
+   - Se removieron todas las definiciones de `[data-context="admin"]` y estilos de tablas/inputs administrativos de `resources/css/app.css` para evitar colisiones con el front B2C o el app de conductores.
+2. **Sistema de Diseño Apple Glass (`admin.css`)**:
+   - **Tipografía**: Pila nativa Apple (`-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, sans-serif`) con tracking refinado (`letter-spacing: -0.015em`).
+   - **Squircles**: Radios curvados Apple de 8px a 22px (`--radius-sm: 8px`, `--radius-md: 12px`, `--radius-lg: 16px`, `--radius-xl: 22px`).
+   - **Efecto Glassmorphism**: Utilidades `.glass-panel`, `.glass-card`, `.glass-dock`, `.glass-header` con `backdrop-blur-xl/2xl`, fondos translúcidos al 70-80% y bordes finos `rgba(255,255,255,0.4)` / `rgba(255,255,255,0.08)`.
+   - **Sombras Multicapa Apple**: `--shadow-glass` y `--shadow-glass-elevated` para generar elevación táctil limpia sin saturación oscura.
+3. **Lienzo Ambiental Refractivo (`AdminLayout.vue`)**:
+   - Inyección de orbes de gradiente ambiental fijas (`blur-[150px]` a `blur-[170px]`) detrás del contenido, permitiendo que el `backdrop-blur` tenga contraste lumínico real para refractar tanto en tema claro como oscuro.
+   - Header flotante `.glass-header` con acento sutil, insignia de sucursal en squircle y slot de acciones.
+4. **Dock Lateral Apple Squircle (`Sidebar.vue` y `SidebarLink.vue`)**:
+   - Dock de navegación flotante translúcido con desenfoque de 28px (`backdrop-blur-28px`), isotipo "DU" en contenedor squircle con borde brillante y micro-glare.
+   - Íconos de navegación en squircles de 40x40px (`rounded-xl`), con estado activo de fondo suave (`bg-primary/12`), micro-borde (`border-primary/25`) y píldora luminosa indicadora vertical.
+   - Tooltips flotantes estilo cápsula Apple (`rounded-full`) y soporte móvil en barra inferior con modal glass bottom sheet.
+
+### Resumen de Cambios Realizados
+- **Configuración y Vistas Base**:
+  - `vite.config.js`: Incorporado `'resources/css/admin.css'` a la matriz de inputs.
+  - `resources/views/admin.blade.php`: Reemplazado `app.css` por `admin.css`.
+  - `resources/css/app.css`: Eliminadas 145 líneas de tokens y utilidades de admin.
+  - `resources/css/admin.css`: Creada hoja de estilo dedicada con tokens y utilidades Apple Glass.
+- **Componentes Vue**:
+  - `resources/js/Layouts/AdminLayout.vue`: Rediseño completo con orbes ambientales y header translúcido.
+  - `resources/js/Components/Admin/Sidebar.vue`: Rediseño a Apple Dock translúcido con squircles y cápsula tooltip.
+  - `resources/js/Components/Admin/SidebarLink.vue`: Squircles Apple, glifos rellenos al activar e indicador luminoso.
+- **Verificación**:
+  - Compilación exitosa en Vite (`admin.css: 159.03 kB`, `app.css: 149.59 kB`, `2547 modules transformed`).
+
+
+

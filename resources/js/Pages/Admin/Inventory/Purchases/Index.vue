@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import InventoryNavTabs from '@/Components/Admin/Inventory/InventoryNavTabs.vue';
 
 const props = defineProps({
     purchases: {
@@ -16,6 +17,12 @@ const props = defineProps({
 
 const searchFilter = ref(props.filters.search || '');
 const showCancelledAndDeleted = ref(false);
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilter, 300);
+};
 
 /**
  * Filtra el listado local basándose en el estado de revocación u ocultamiento lógico.
@@ -75,6 +82,8 @@ const cancelPurchase = (id) => {
         </template>
 
         <div class="space-y-4">
+            <InventoryNavTabs />
+
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
                 <div class="flex flex-wrap items-center gap-4 flex-1">
                     <div class="flex items-center gap-2 max-w-xs w-full">
@@ -83,6 +92,7 @@ const cancelPurchase = (id) => {
                             type="text"
                             placeholder="Buscar por nro. documento..."
                             class="admin-input"
+                            @input="handleSearchInput"
                             @keyup.enter="applyFilter"
                         />
                         <button type="button" @click="applyFilter" class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm hover:bg-neutral-200">

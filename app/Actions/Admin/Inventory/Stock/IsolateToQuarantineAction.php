@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 class IsolateToQuarantineAction
 {
     /**
-     * Contiene y bloquea stock ordinario desviándolo hacia el estado preventivo de cuarentena.
+     * Contiene o libera stock de lote desviándolo hacia o desde el estado preventivo de cuarentena.
      */
     public function execute(IsolateQuarantineDataDTO $dto, string $adminId): void
     {
@@ -23,40 +23,63 @@ class IsolateToQuarantineAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ((float) $lot->quantity < $dto->quantity) {
-                throw new \InvalidArgumentException('Conflicto operativo: Stock ordinario remanente insuficiente en lote.');
-            }
+            $qty = (float) $lot->quantity;
 
-            $lot->quantity = DB::raw("quantity - {$dto->quantity}");
-            
-            // Si todo el saldo disponible se agota, marcamos el flag de cuarentena del lote completo
-            if (abs((float)$lot->quantity - $dto->quantity) < 0.0001 || (float)$lot->quantity <= $dto->quantity) {
+            if ($dto->isQuarantine) {
+                if ($lot->is_quarantine) {
+                    return;
+                }
+
                 $lot->is_quarantine = true;
-            }
-            
-            $lot->saveQuietly();
+                $lot->saveQuietly();
 
-            $refLot = InventoryLot::find($lot->id);
-
-            InventoryMovement::insert([
-                'id'               => (string) Str::uuid(),
-                'branch_id'        => $dto->branchId,
-                'sku_id'           => $dto->skuId,
-                'inventory_lot_id' => $lot->id,
-                'admin_id'         => $adminId,
-                'type'             => 'BLOCK_QUARANTINE',
-                'quantity'         => $dto->quantity,
-                'balance_after'    => (float) $refLot->quantity,
-                'reference'        => "Retención Preventiva",
-                'reason'           => $dto->reason,
-                'created_at'       => now(),
-            ]);
-
-            InventoryBalance::where('branch_id', $dto->branchId)
-                ->where('sku_id', $dto->skuId)
-                ->update([
-                    'total_quarantine' => DB::raw("total_quarantine + {$dto->quantity}")
+                InventoryMovement::insert([
+                    'id'               => (string) Str::uuid(),
+                    'branch_id'        => (string) $lot->branch_id,
+                    'sku_id'           => (string) $lot->sku_id,
+                    'inventory_lot_id' => $lot->id,
+                    'admin_id'         => $adminId,
+                    'type'             => 'BLOCK_QUARANTINE',
+                    'quantity'         => $qty,
+                    'balance_after'    => $qty,
+                    'reference'        => "Retención Preventiva",
+                    'reason'           => "Aislamiento preventivo y bloqueo de lote en cuarentena.",
+                    'created_at'       => now(),
                 ]);
+
+                InventoryBalance::where('branch_id', $lot->branch_id)
+                    ->where('sku_id', $lot->sku_id)
+                    ->update([
+                        'total_quarantine' => DB::raw("total_quarantine + {$qty}")
+                    ]);
+            } else {
+                if (!$lot->is_quarantine) {
+                    return;
+                }
+
+                $lot->is_quarantine = false;
+                $lot->saveQuietly();
+
+                InventoryMovement::insert([
+                    'id'               => (string) Str::uuid(),
+                    'branch_id'        => (string) $lot->branch_id,
+                    'sku_id'           => (string) $lot->sku_id,
+                    'inventory_lot_id' => $lot->id,
+                    'admin_id'         => $adminId,
+                    'type'             => 'RELEASE_QUARANTINE',
+                    'quantity'         => $qty,
+                    'balance_after'    => $qty,
+                    'reference'        => "Liberación de Cuarentena",
+                    'reason'           => "Retorno de lote a disponibilidad operativa regular.",
+                    'created_at'       => now(),
+                ]);
+
+                InventoryBalance::where('branch_id', $lot->branch_id)
+                    ->where('sku_id', $lot->sku_id)
+                    ->update([
+                        'total_quarantine' => DB::raw("GREATEST(0, total_quarantine - {$qty})")
+                    ]);
+            }
         });
     }
 }

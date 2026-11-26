@@ -35,20 +35,20 @@ class TransferToSafetyAction
 
             InventoryMovement::insert([
                 'id'               => (string) Str::uuid(),
-                'branch_id'        => $dto->branchId,
-                'sku_id'           => $dto->skuId,
+                'branch_id'        => (string) $lot->branch_id,
+                'sku_id'           => (string) $lot->sku_id,
                 'inventory_lot_id' => $lot->id,
                 'admin_id'         => $adminId,
                 'type'             => 'BLOCK_SAFETY',
                 'quantity'         => $dto->quantity,
                 'balance_after'    => (float) $refLot->quantity,
                 'reference'        => "Reserva de Seguridad Interna",
-                'reason'           => "Asignación de colchón manual de contingencia logisítica.",
+                'reason'           => "Asignación de colchón manual de contingencia logística.",
                 'created_at'       => now(),
             ]);
 
-            InventoryBalance::where('branch_id', $dto->branchId)
-                ->where('sku_id', $dto->skuId)
+            InventoryBalance::where('branch_id', $lot->branch_id)
+                ->where('sku_id', $lot->sku_id)
                 ->update([
                     'total_safety' => DB::raw("total_safety + {$dto->quantity}")
                 ]);

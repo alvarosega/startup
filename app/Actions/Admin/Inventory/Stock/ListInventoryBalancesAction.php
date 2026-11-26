@@ -12,14 +12,20 @@ class ListInventoryBalancesAction
     public function execute(Request $request): array
     {
         $search = $request->query('search') ? trim((string) $request->query('search')) : null;
+        $branchId = $request->query('branch_id') ? trim((string) $request->query('branch_id')) : null;
 
         $balances = InventoryBalance::with(['sku.product', 'branch'])
+            ->when($branchId, fn($q, $id) => $q->where('branch_id', $id))
             ->when($search, function ($query, $s) {
-                $query->whereHas('sku', function ($q) use ($s) {
-                    $q->where('code', 'like', "%{$s}%")
-                      ->orWhereHas('product', function ($p) use ($s) {
-                          $p->where('name', 'like', "%{$s}%");
-                      });
+                $query->where(function ($sub) use ($s) {
+                    $sub->whereHas('sku', function ($q) use ($s) {
+                        $q->where('code', 'like', "%{$s}%")
+                          ->orWhereHas('product', function ($p) use ($s) {
+                              $p->where('name', 'like', "%{$s}%");
+                          });
+                    })->orWhereHas('branch', function ($b) use ($s) {
+                        $b->where('name', 'like', "%{$s}%");
+                    });
                 });
             })
             ->orderBy('branch_id')

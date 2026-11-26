@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import InventoryNavTabs from '@/Components/Admin/Inventory/InventoryNavTabs.vue';
 
 const props = defineProps({
     prices: {
@@ -15,6 +16,12 @@ const props = defineProps({
 });
 
 const searchFilter = ref(props.filters.search || '');
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilter, 300);
+};
 
 /**
  * Despacha la query de búsqueda hacia la acción del backend.
@@ -55,24 +62,32 @@ const removePrice = (id) => {
         </template>
 
         <div class="space-y-4">
-            <div class="flex items-center gap-2 bg-card p-4 border border-border rounded-md shadow-flat max-w-md">
-                <input 
-                    v-model="searchFilter"
-                    type="text"
-                    placeholder="Buscar por SKU, producto o sucursal..."
-                    class="admin-input"
-                    @keyup.enter="applyFilter"
-                />
-                <button type="button" @click="applyFilter" class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm hover:bg-neutral-200 shrink-0">
-                    Buscar
-                </button>
-                <button type="button" @click="clearFilter" class="px-3 py-2 bg-neutral-100 text-muted-foreground text-xs font-medium rounded-md border border-border hover:bg-neutral-200 shrink-0">
-                    Limpiar
-                </button>
-                <Link :href="route('admin.prices.create')" class="admin-btn-primary inline-flex items-center gap-1.5 shrink-0 ml-2">
-                    <span class="material-symbols-rounded text-lg">sell</span>
-                    <span>Asignar Tarifa</span>
-                </Link>
+            <InventoryNavTabs />
+
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
+                <div class="flex items-center gap-2 max-w-md w-full">
+                    <input 
+                        v-model="searchFilter"
+                        type="text"
+                        placeholder="Buscar por SKU, producto o sucursal..."
+                        class="admin-input"
+                        @input="handleSearchInput"
+                        @keyup.enter="applyFilter"
+                    />
+                    <button type="button" @click="applyFilter" class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm hover:bg-neutral-200 shrink-0">
+                        Buscar
+                    </button>
+                    <button type="button" @click="clearFilter" class="px-3 py-2 bg-neutral-100 text-muted-foreground text-xs font-medium rounded-md border border-border hover:bg-neutral-200 shrink-0">
+                        Limpiar
+                    </button>
+                </div>
+
+                <div class="shrink-0">
+                    <Link :href="route('admin.prices.create')" class="admin-btn-primary inline-flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-lg">sell</span>
+                        <span>Asignar Tarifa</span>
+                    </Link>
+                </div>
             </div>
 
             <div class="bg-card border border-border rounded-md shadow-flat overflow-x-auto">

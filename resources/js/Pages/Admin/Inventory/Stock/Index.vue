@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import InventoryNavTabs from '@/Components/Admin/Inventory/InventoryNavTabs.vue';
 
 const props = defineProps({
     balances: {
@@ -11,17 +12,29 @@ const props = defineProps({
     filters: {
         type: Object,
         required: true
+    },
+    branches: {
+        type: Array,
+        default: () => []
     }
 });
 
 const searchFilter = ref(props.filters.search || '');
+const branchFilter = ref(props.filters.branch_id || '');
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilter, 300);
+};
 
 /**
- * Despacha los filtros de búsqueda por coincidencia de texto a la API de saldos.
+ * Despacha los filtros de búsqueda por coincidencia de texto y sucursal.
  */
 const applyFilter = () => {
     router.get(route('admin.inventory.index'), {
-        search: searchFilter.value || undefined
+        search: searchFilter.value || undefined,
+        branch_id: branchFilter.value || undefined
     }, {
         preserveState: true,
         replace: true
@@ -33,8 +46,13 @@ const applyFilter = () => {
  */
 const clearFilter = () => {
     searchFilter.value = '';
+    branchFilter.value = '';
     applyFilter();
 };
+
+watch(branchFilter, () => {
+    applyFilter();
+});
 </script>
 
 <template>
@@ -44,20 +62,35 @@ const clearFilter = () => {
         </template>
 
         <div class="space-y-4">
-            <div class="flex items-center gap-2 bg-card p-4 border border-border rounded-md shadow-flat max-w-md">
-                <input 
-                    v-model="searchFilter"
-                    type="text"
-                    placeholder="Buscar por SKU o variante de producto..."
-                    class="admin-input"
-                    @keyup.enter="applyFilter"
-                />
-                <button type="button" @click="applyFilter" class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm hover:bg-neutral-200 shrink-0">
-                    Filtrar
-                </button>
-                <button type="button" @click="clearFilter" class="px-3 py-2 bg-neutral-100 text-muted-foreground text-xs font-medium rounded-md border border-border hover:bg-neutral-200 shrink-0">
-                    Limpiar
-                </button>
+            <InventoryNavTabs />
+
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 border border-border rounded-md shadow-flat">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 max-w-xl">
+                    <div>
+                        <input 
+                            v-model="searchFilter"
+                            type="text"
+                            placeholder="Buscar por SKU o variante de producto..."
+                            class="admin-input"
+                            @input="handleSearchInput"
+                            @keyup.enter="applyFilter"
+                        />
+                    </div>
+                    <div>
+                        <select v-model="branchFilter" class="admin-input">
+                            <option value="">Todas las sucursales</option>
+                            <option v-for="b in branches" :key="b.id" :value="b.id">
+                                {{ b.name }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" @click="clearFilter" class="px-3 py-2 bg-neutral-100 text-muted-foreground text-xs font-medium rounded-md border border-border hover:bg-neutral-200 shrink-0">
+                        Limpiar Filtros
+                    </button>
+                </div>
             </div>
 
             <div class="bg-card border border-border rounded-md shadow-flat overflow-x-auto">
@@ -130,14 +163,14 @@ const clearFilter = () => {
             </div>
 
             <div v-if="balances.prev || balances.next" class="flex items-center justify-end bg-card p-4 border border-border rounded-md shadow-flat gap-2">
-                <Link v-if="balances.prev" :href="route('admin.inventory.index')" :data="{ cursor: balances.prev, search: searchFilter || undefined }" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-secondary transition-colors">
+                <Link v-if="balances.prev" :href="route('admin.inventory.index')" :data="{ cursor: balances.prev, search: searchFilter || undefined, branch_id: branchFilter || undefined }" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-secondary transition-colors">
                     Anteriores
                 </Link>
                 <div v-else class="px-3 py-1.5 text-xs text-muted-foreground/40 border border-border/50 bg-card rounded-md cursor-not-allowed select-none">
                     Anteriores
                 </div>
 
-                <Link v-if="balances.next" :href="route('admin.inventory.index')" :data="{ cursor: balances.next, search: searchFilter || undefined }" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-secondary transition-colors">
+                <Link v-if="balances.next" :href="route('admin.inventory.index')" :data="{ cursor: balances.next, search: searchFilter || undefined, branch_id: branchFilter || undefined }" class="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:bg-secondary transition-colors">
                     Siguientes
                 </Link>
                 <div v-else class="px-3 py-1.5 text-xs text-muted-foreground/40 border border-border/50 bg-card rounded-md cursor-not-allowed select-none">

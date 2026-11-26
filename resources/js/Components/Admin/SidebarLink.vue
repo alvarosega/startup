@@ -10,31 +10,28 @@ const props = defineProps({
 });
 
 const classes = computed(() => {
-    const base = 'group relative flex items-center justify-center w-full h-10 transition-colors duration-75 ease-linear select-none shrink-0 mb-1 rounded-md';
+    const base = 'group relative flex items-center justify-center w-10 h-10 mx-auto transition-all duration-150 ease-out select-none shrink-0 mb-1 rounded-xl';
     const state = props.active
-        ? 'bg-neutral-100 text-foreground dark:bg-neutral-800 font-bold'
-        : 'text-muted-foreground hover:bg-neutral-50 hover:text-foreground dark:hover:bg-neutral-900/60';
+        ? 'bg-primary/12 text-primary border border-primary/25 shadow-sm font-bold scale-[1.04]'
+        : 'text-muted-foreground/80 hover:text-foreground hover:bg-neutral-500/[0.08] dark:hover:bg-white/[0.08]';
 
     return `${base} ${state}`;
 });
 </script>
 
 <template>
-    <Link :href="href" :class="classes" class="w-11 mx-auto">
+    <Link :href="href" :class="classes">
+        <!-- Indicador de luz sutil en el lateral Apple Dock -->
         <div 
             v-if="active" 
-            class="absolute left-0 top-2 bottom-2 w-[3px] bg-primary rounded-r-sm"
+            class="absolute -left-1.5 top-2.5 bottom-2.5 w-1 bg-primary rounded-full shadow-sm"
         ></div>
         
         <span 
-            class="material-symbols-rounded text-[20px] shrink-0 pointer-events-none"
+            class="material-symbols-rounded text-[21px] shrink-0 pointer-events-none transition-transform duration-150 group-active:scale-95"
             :style="{ fontVariationSettings: active ? `'FILL' 1` : `'FILL' 0` }"
         >
             {{ icon }}
-        </span>
-        
-        <span class="fixed left-[76px] hidden group-hover:block px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none uppercase font-mono tracking-wide">
-            {{ title }}
         </span>
     </Link>
 </template>

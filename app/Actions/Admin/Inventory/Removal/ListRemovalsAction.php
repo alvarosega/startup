@@ -11,7 +11,25 @@ class ListRemovalsAction
 {
     public function execute(Request $request): array
     {
+        $search = $request->query('search') ? trim((string) $request->query('search')) : null;
+
         $removals = RemovalRequest::with(['branch:id,name', 'admin:id,first_name,last_name', 'items.lot.sku.product'])
+            ->when($search, function ($query, $term) {
+                $query->where(function ($q) use ($term) {
+                    $q->where('code', 'like', "%{$term}%")
+                      ->orWhere('reason', 'like', "%{$term}%")
+                      ->orWhere('notes', 'like', "%{$term}%")
+                      ->orWhereHas('branch', function ($bq) use ($term) {
+                          $bq->where('name', 'like', "%{$term}%");
+                      })
+                      ->orWhereHas('items.lot.sku', function ($sq) use ($term) {
+                          $sq->where('code', 'like', "%{$term}%")
+                             ->orWhereHas('product', function ($pq) use ($term) {
+                                 $pq->where('name', 'like', "%{$term}%");
+                             });
+                      });
+                });
+            })
             ->orderBy('id', 'desc')
             ->cursorPaginate(15)
             ->withQueryString();

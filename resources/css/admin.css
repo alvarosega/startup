@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   SISTEMA DE DISEÑO APPLE MINIMALISTA GLASS - CONTEXTO ADMINISTRADOR (B2B)
+   Completamente desacoplado de las vistas de cliente B2C y conductores.
+   ========================================================================== */
+
+[data-context="admin"] {
+  /* Tipografía Apple San Francisco / System UI */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.011em;
+
+  /* Escala Cromática Minimalista (Luz Pura / Cristal Suave) */
+  --neutral-50: 240 10% 99%;
+  --neutral-100: 240 8% 96%;
+  --neutral-200: 240 6% 92%;
+  --neutral-300: 240 5% 86%;
+  --neutral-400: 240 4% 64%;
+  --neutral-500: 240 4% 45%;
+  --neutral-600: 240 5% 32%;
+  --neutral-700: 240 5% 24%;
+  --neutral-800: 240 5% 15%;
+  --neutral-900: 240 6% 9%;
+  --neutral-950: 240 10% 4%;
+
+  /* Acento Apple Moderno */
+  --primary-50: 4 90% 97%;
+  --primary-100: 4 88% 92%;
+  --primary-500: 4 75% 48%;
+  --primary-600: 4 78% 42%;
+  --primary-900: 4 80% 20%;
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+  --primary-text-aaa: 4 80% 35%;
+
+  /* Semántica Apple UI */
+  --success: 142 72% 38%;
+  --info: 211 96% 45%;
+  --warning: 38 92% 44%;
+  --error: 358 84% 48%;
+  --destructive: var(--error);
+  --destructive-foreground: 0 0% 100%;
+  --destructive-text-aaa: 358 84% 35%;
+
+  /* Superficies Apple Glass - Modo Claro */
+  --background: 240 12% 98%;
+  --foreground: 240 8% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 8% 12%;
+  --card-border: 240 6% 90%;
+  
+  --secondary: 240 6% 94%;
+  --secondary-foreground: 240 8% 14%;
+  --muted: 240 6% 95%;
+  --muted-foreground: 240 4% 48%;
+  
+  --border: 240 6% 89%;
+  --input: 240 6% 91%;
+  --ring: var(--primary-500);
+
+  /* Curvaturas Orgánicas Apple (Squircles) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 9999px;
+
+  /* Elevaciones Etnéreas Apple Glass */
+  --shadow-flat: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  --shadow-glass: 0 10px 30px -4px rgba(0, 0, 0, 0.04), 0 2px 8px -2px rgba(0, 0, 0, 0.02);
+  --shadow-glass-elevated: 0 20px 45px -10px rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+/* ==========================================================================
+   MODO OSCURO - APPLE GLASS GRAPHITE / DEEP SPACE
+   ========================================================================== */
+
+.dark[data-context="admin"] {
+  --neutral-50: 240 5% 98%;
+  --neutral-100: 240 5% 92%;
+  --neutral-200: 240 4% 84%;
+  --neutral-300: 240 4% 68%;
+  --neutral-400: 240 4% 50%;
+  --neutral-500: 240 4% 38%;
+  --neutral-600: 240 5% 26%;
+  --neutral-700: 240 6% 18%;
+  --neutral-800: 240 7% 13%;
+  --neutral-900: 240 8% 8%;
+  --neutral-950: 240 10% 4%;
+
+  --background: 240 10% 4.5%;
+  --foreground: 240 5% 95%;
+  --card: 240 7% 10%;
+  --card-foreground: 240 5% 95%;
+  --card-border: 240 6% 18%;
+
+  --secondary: 240 6% 14%;
+  --secondary-foreground: 240 5% 95%;
+  --muted: 240 6% 13%;
+  --muted-foreground: 240 4% 60%;
+
+  --border: 240 6% 16%;
+  --input: 240 6% 18%;
+  --ring: var(--primary-500);
+
+  --primary-text-aaa: 4 80% 65%;
+  --destructive-text-aaa: 358 84% 75%;
+
+  /* Elevaciones Modo Oscuro */
+  --shadow-flat: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --shadow-glass: 0 14px 40px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --shadow-glass-elevated: 0 25px 60px -15px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+/* ==========================================================================
+   REGLAS BASE EXCLUSIVAS DEL PANEL ADMINISTRATIVO
+   ========================================================================== */
+
+@layer base {
+  html[data-context="admin"] {
+    font-size: 13.5px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ==========================================================================
+   COMPONENTES DE VIDRIO ESMERILADO (APPLE GLASSMORPHISM)
+   ========================================================================== */
+
+@layer components {
+  /* Paneles Glass Flotantes */
+  [data-context="admin"] .glass-panel {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: var(--shadow-glass);
+    border-radius: var(--radius-xl);
+  }
+
+  .dark[data-context="admin"] .glass-panel {
+    background: rgba(18, 18, 22, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Paneles Glass Sutiles / Tarjetas */
+  [data-context="admin"] .glass-card {
+    background: rgba(255, 255, 255, 0.80);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-flat);
+    border-radius: var(--radius-lg);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .dark[data-context="admin"] .glass-card {
+    background: rgba(22, 22, 27, 0.70);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: var(--shadow-flat);
+  }
+
+  /* Barra Lateral Glass Dock */
+  [data-context="admin"] .glass-dock {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .dark[data-context="admin"] .glass-dock {
+    background: rgba(14, 14, 17, 0.75);
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  /* Barra Superior Glass Header */
+  [data-context="admin"] .glass-header {
+    background: rgba(255, 255, 255, 0.70);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .dark[data-context="admin"] .glass-header {
+    background: rgba(12, 12, 15, 0.70);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Tablas Minimalistas de Alto Rendimiento */
+  [data-context="admin"] .admin-table {
+    @apply w-full border-collapse;
+  }
+
+  [data-context="admin"] .admin-table-th {
+    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 bg-muted/30 backdrop-blur-sm border-b border-border/50 first:pl-5 last:pr-5;
+  }
+
+  [data-context="admin"] .admin-table-tr {
+    @apply hover:bg-neutral-500/[0.035] transition-colors duration-150 border-b border-border/30 last:border-b-0;
+  }
+
+  [data-context="admin"] .admin-table-td {
+    @apply px-4 py-3 text-xs text-foreground/90 font-medium first:pl-5 last:pr-5;
+  }
+
+  /* Inputs Minimalistas Estilo Apple */
+  [data-context="admin"] .admin-input {
+    @apply w-full px-3.5 py-2 bg-card/60 backdrop-blur-md border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-150 shadow-sm;
+  }
+
+  [data-context="admin"] .admin-input::placeholder {
+    @apply text-muted-foreground/50;
+  }
+
+  /* Botón Principal Estilo Apple */
+  [data-context="admin"] .admin-btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-primary text-primary-foreground shadow-sm hover:shadow hover:brightness-105 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 select-none cursor-pointer;
+  }
+
+  /* Badges Translúcidos en Cápsula (Apple Pills) */
+  [data-context="admin"] .badge-success {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/20 backdrop-blur-sm;
+  }
+  
+  [data-context="admin"] .badge-warning {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-warning/10 text-warning border border-warning/20 backdrop-blur-sm;
+  }
+  
+  [data-context="admin"] .badge-error {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-error/10 text-error border border-error/20 backdrop-blur-sm;
+  }
+  
+  [data-context="admin"] .badge-info {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-info/10 text-info border border-info/20 backdrop-blur-sm;
+  }
+}

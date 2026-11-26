@@ -13,30 +13,21 @@ const permissions = computed(() => user.value?.permissions || {});
 
 const can = (perm) => isSuperAdmin.value || !!permissions.value[perm];
 
-// Motor de Telemetría para Tooltips Centralizados (Fijados al Viewport)
+// Motor de Telemetría para Tooltips Flotantes Apple Glass
 const hoveredTitle = ref(null);
 const tooltipTop = ref(0);
 const navContainerRef = ref(null);
 
-/**
- * Calcula la posición del tooltip basándose en las coordenadas del elemento del DOM.
- */
 const showTooltip = (event, title) => {
     const rect = event.currentTarget.getBoundingClientRect();
     tooltipTop.value = rect.top + rect.height / 2;
     hoveredTitle.value = title;
 };
 
-/**
- * Destruye la visibilidad del tooltip activo.
- */
 const hideTooltip = () => {
     hoveredTitle.value = null;
 };
 
-/**
- * Handler síncrono para suprimir el desajuste visual de coordenadas fijas durante el scroll del panel.
- */
 const handleNavScroll = () => {
     if (hoveredTitle.value) {
         hideTooltip();
@@ -50,21 +41,19 @@ onMounted(() => {
         window.location.hostname.includes(host)
     );
     
-    // Vinculación del listener para evitar fugas de posición visual en scroll
     if (navContainerRef.value) {
         navContainerRef.value.addEventListener('scroll', handleNavScroll, { passive: true });
     }
 });
 
 onUnmounted(() => {
-    // Purga absoluta de listeners globales y estados reactivos para mitigar fugas de memoria (Memory Leaks)
     if (navContainerRef.value) {
         navContainerRef.value.removeEventListener('scroll', handleNavScroll);
     }
     hideTooltip();
 });
 
-// Estructura inmutable del árbol de navegación operacional
+// Estructura del menú de navegación
 const navigationMenu = [
     { name: 'Stock Base', route: 'admin.inventory.index', pattern: 'admin.inventory.*', icon: 'warehouse', group: 'stock', permission: computed(() => can('manage_inventory')) },
     { name: 'Precios Masivos', route: 'admin.prices.index', pattern: 'admin.prices.*', icon: 'payments', group: 'stock', permission: computed(() => can('manage_prices')) },
@@ -82,7 +71,6 @@ const navigationMenu = [
     { name: 'Usuarios', route: 'staff.index', pattern: ['staff.*', 'customers.*', 'drivers.*'], icon: 'manage_accounts', group: 'operativa', permission: computed(() => can('manage_users') || can('manage_drivers')) },
 
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: computed(() => can('manage_catalog')) },
-   // { name: 'Retail Media', route: 'admin.retail-media.ad-creatives.index', pattern: 'admin.retail-media.*', icon: 'campaign', group: 'marketing', permission: isSuperAdmin }
 ];
 
 const filteredMenu = computed(() => {
@@ -127,40 +115,44 @@ const isMobileGroupActive = (groupKey) => {
 </script>
 
 <template>
-    <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[72px] bg-card border-r border-border z-50 overflow-visible justify-between select-none">
+    <!-- Desktop Sidebar: Apple Glass Dock -->
+    <aside class="hidden md:flex flex-col fixed top-0 left-0 h-full w-[74px] glass-dock z-50 overflow-visible justify-between select-none">
         
         <div class="flex flex-col w-full items-center overflow-visible">
+            <!-- Brand Mark Minimalista Apple -->
             <Link :href="route('dashboard.index')" 
                   @mouseenter="showTooltip($event, 'Dashboard Central')"
                   @mouseleave="hideTooltip"
-                  :class="[isActiveRoute('dashboard.*') ? 'bg-neutral-100 dark:bg-neutral-800 text-primary border-b border-primary' : 'border-b border-border/60 hover:bg-neutral-100 dark:hover:bg-neutral-900']"
-                  class="w-full h-14 flex flex-col items-center justify-center shrink-0 mb-3 transition-colors duration-75 relative">
-                <span class="text-base font-black italic tracking-wider text-primary">DU</span>
+                  class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 my-3 transition-all duration-200 active:scale-95 shadow-sm group"
+                  :class="[isActiveRoute('dashboard.*') ? 'bg-primary text-primary-foreground shadow-primary/25' : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20']">
+                <span class="text-xs font-black tracking-widest group-hover:scale-105 transition-transform">DU</span>
             </Link>
 
-            <div v-if="user" class="relative group flex items-center justify-center w-full h-12 mb-2 shrink-0">
-                <div class="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-md flex items-center justify-center font-bold text-sm cursor-default">
+            <!-- Ficha de Usuario Minimalista -->
+            <div v-if="user" class="relative group flex items-center justify-center w-full h-11 mb-2 shrink-0">
+                <div class="w-9 h-9 bg-foreground/5 text-foreground border border-border/70 rounded-full flex items-center justify-center font-bold text-xs cursor-default backdrop-blur-sm group-hover:border-primary/40 transition-colors">
                     <span>{{ user?.first_name?.[0]?.toUpperCase() || 'U' }}</span>
                 </div>
                 
-                <div class="fixed left-[76px] hidden group-hover:flex flex-col p-2.5 bg-card border border-border rounded-md shadow-flat z-50 pointer-events-none min-w-[150px]">
-                    <span class="text-xs font-semibold text-foreground leading-tight">
+                <div class="fixed left-[82px] hidden group-hover:flex flex-col p-3 glass-card border border-white/60 dark:border-white/10 rounded-2xl shadow-xl z-50 pointer-events-none min-w-[170px] backdrop-blur-2xl">
+                    <span class="text-xs font-bold text-foreground leading-tight">
                         {{ user?.full_name }}
                     </span>
                     <span class="text-[10px] font-bold uppercase tracking-wider text-primary mt-1 leading-none">
                         {{ user?.is_super_admin ? 'Administrador Maestro' : (user?.roles?.[0]?.replace(/_/g, ' ') || 'Staff') }}
                     </span>
-                    <span v-if="user?.branch" class="text-[10px] font-medium text-muted-foreground mt-1 leading-none flex items-center gap-1">
-                        <span class="material-symbols-rounded text-[12px]">store</span>
+                    <span v-if="user?.branch" class="text-[10px] font-medium text-muted-foreground mt-1.5 leading-none flex items-center gap-1">
+                        <span class="material-symbols-rounded text-[13px] text-primary">store</span>
                         {{ user.branch.name }}
                     </span>
                 </div>
             </div>
 
-            <nav ref="navContainerRef" class="w-full h-[calc(100vh-210px)] overflow-y-auto overflow-x-visible no-scrollbar py-1 border-t border-border/40 flex flex-col items-center">
+            <!-- Navegación Apple Dock -->
+            <nav ref="navContainerRef" class="w-full h-[calc(100vh-215px)] overflow-y-auto overflow-x-visible no-scrollbar py-1 flex flex-col items-center">
                 <template v-for="(groupKey, gIndex) in ['stock', 'logistica', 'catalogo', 'operativa', 'marketing']" :key="groupKey">
                     
-                    <div v-if="gIndex > 0 && filteredMenu.some(i => i.group === groupKey)" class="w-8 border-t border-border/50 my-2 shrink-0"></div>
+                    <div v-if="gIndex > 0 && filteredMenu.some(i => i.group === groupKey)" class="w-6 h-[1px] bg-border/50 my-2 shrink-0"></div>
                     
                     <SidebarLink 
                         v-for="item in filteredMenu.filter(i => i.group === groupKey)" 
@@ -176,9 +168,10 @@ const isMobileGroupActive = (groupKey) => {
             </nav>
         </div>
 
-        <div class="flex flex-col w-full items-center border-t border-border shrink-0 bg-card z-10 pb-2">
-            <div class="w-full h-12 flex items-center justify-center text-foreground/80 hover:text-primary transition-colors duration-100">
-                <ThemeToggler class="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" />
+        <!-- Controles Inferiores Apple Dock -->
+        <div class="flex flex-col w-full items-center border-t border-border/40 shrink-0 z-10 pb-3 pt-2 gap-1.5">
+            <div class="w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150">
+                <ThemeToggler class="p-2 rounded-xl hover:bg-foreground/[0.06] transition-colors" />
             </div>
 
             <Link 
@@ -188,82 +181,87 @@ const isMobileGroupActive = (groupKey) => {
                 @mouseenter="showTooltip($event, 'Cerrar Sesión')"
                 @mouseleave="hideTooltip"
                 @click="hideTooltip"
-                class="relative flex items-center justify-center h-12 w-full text-destructive hover:bg-destructive/10 transition-colors duration-75"
+                class="relative flex items-center justify-center w-10 h-10 rounded-xl text-destructive hover:bg-destructive/10 transition-all duration-150 active:scale-95"
             >
                 <span class="material-symbols-rounded text-[20px]">logout</span>
             </Link>
 
-            <div v-if="isDevelopment" class="text-[8px] font-bold tracking-widest text-neutral-400 bg-neutral-100 dark:bg-neutral-800/60 border border-border px-1 rounded-sm mt-1 select-none">
+            <div v-if="isDevelopment" class="text-[8px] font-bold tracking-widest text-muted-foreground/70 bg-muted/60 border border-border/60 px-1.5 py-0.5 rounded-full mt-0.5 select-none font-mono">
                 DEV
             </div>
         </div>
 
+        <!-- Tooltip Flotante Estilo Apple Capsule -->
         <div v-if="hoveredTitle" 
              :style="{ top: tooltipTop + 'px' }"
-             class="fixed left-[76px] -translate-y-1/2 px-2.5 py-1 bg-card border border-border rounded-md text-xs font-medium text-foreground shadow-flat whitespace-nowrap z-50 pointer-events-none uppercase font-mono tracking-wide">
+             class="fixed left-[84px] -translate-y-1/2 px-3 py-1 rounded-full text-xs font-semibold text-foreground bg-card/90 border border-border/70 shadow-lg backdrop-blur-2xl whitespace-nowrap z-50 pointer-events-none select-none tracking-wide">
             {{ hoveredTitle }}
         </div>
     </aside>
 
+    <!-- Mobile Navigation: Glass Bottom Sheet & Bar -->
     <div class="md:hidden">
-        <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-neutral-950/40 z-40 cursor-pointer transition-opacity duration-75"></div>
+        <div v-if="activeMobileMenu" @click="closeMobileMenu" class="fixed inset-0 bg-neutral-950/40 backdrop-blur-sm z-40 cursor-pointer transition-opacity duration-150"></div>
 
-        <div v-if="activeMobileMenu" class="fixed bottom-[82px] left-3 right-3 bg-card z-50 p-4 flex flex-col max-h-[60vh] rounded-md border border-border shadow-flat">
-            <div class="flex justify-between items-center mb-3 pb-2 border-b border-border">
-                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">{{ mobileGroups[activeMobileMenu]?.label }}</h3>
-                <button @click="closeMobileMenu" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-75">
-                    <span class="material-symbols-rounded text-[18px] text-muted-foreground block">close</span>
+        <div v-if="activeMobileMenu" class="fixed bottom-[86px] left-3 right-3 glass-panel z-50 p-5 flex flex-col max-h-[60vh] animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-border/40">
+                <h3 class="text-xs font-bold text-foreground tracking-wide flex items-center gap-2">
+                    <span class="w-1.5 h-3.5 bg-primary rounded-full"></span>
+                    {{ mobileGroups[activeMobileMenu]?.label }}
+                </h3>
+                <button @click="closeMobileMenu" class="p-1.5 rounded-full hover:bg-foreground/[0.06] text-muted-foreground transition-colors">
+                    <span class="material-symbols-rounded text-[18px] block">close</span>
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2 no-scrollbar">
+            <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2.5 no-scrollbar">
                 <Link 
                     v-for="subItem in mobileGroups[activeMobileMenu]?.items"
                     :key="subItem.route"
                     @click="closeMobileMenu" 
                     :href="route(subItem.route)" 
-                    :class="[isActiveRoute(subItem.pattern) ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-border bg-background text-muted-foreground']"
-                    class="border p-3 rounded-md flex flex-col items-center justify-center gap-1.5 transition-colors duration-75"
+                    :class="[isActiveRoute(subItem.pattern) ? 'border-primary/40 bg-primary/10 text-primary font-bold shadow-sm' : 'border-border/60 bg-card/40 text-muted-foreground hover:text-foreground']"
+                    class="border p-3.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 backdrop-blur-sm"
                 >
-                    <span class="material-symbols-rounded text-[20px]" :style="{ fontVariationSettings: isActiveRoute(subItem.pattern) ? `'FILL' 1` : `'FILL' 0` }">
+                    <span class="material-symbols-rounded text-[21px]" :style="{ fontVariationSettings: isActiveRoute(subItem.pattern) ? `'FILL' 1` : `'FILL' 0` }">
                         {{ subItem.icon }}
                     </span>
-                    <span class="text-xs text-center leading-none">{{ subItem.name }}</span>
+                    <span class="text-xs text-center font-medium">{{ subItem.name }}</span>
                 </Link>
 
-                <Link :href="route('admin.logout')" method="post" as="button" class="border border-destructive/30 bg-destructive/5 text-destructive p-3 rounded-md flex flex-col items-center justify-center gap-1.5 col-span-2 transition-colors duration-75">
+                <Link :href="route('admin.logout')" method="post" as="button" class="border border-destructive/20 bg-destructive/5 text-destructive p-3 rounded-xl flex flex-col items-center justify-center gap-1 col-span-2 transition-colors active:scale-95">
                     <span class="material-symbols-rounded text-[20px]">logout</span>
-                    <span class="text-xs font-medium text-center leading-none">Cerrar Sesión</span>
+                    <span class="text-xs font-semibold text-center">Cerrar Sesión</span>
                 </Link>
             </div>
         </div>
     </div>
 
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-card border-t border-border z-40 flex items-center justify-around px-1 shadow-flat select-none">
-        <button v-if="mobileGroups['stock']?.items.length" @click="toggleMobileMenu('stock')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'stock' || isMobileGroupActive('stock') ? 'text-primary' : 'text-muted-foreground']">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-[74px] glass-header z-40 flex items-center justify-around px-2 select-none">
+        <button v-if="mobileGroups['stock']?.items.length" @click="toggleMobileMenu('stock')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors" :class="[activeMobileMenu === 'stock' || isMobileGroupActive('stock') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'stock' || isMobileGroupActive('stock')) ? { fontVariationSettings: `'FILL' 1` } : {}">inventory</span>
-            <span class="text-[9px] font-medium mt-1">Stock</span>
+            <span class="text-[9px] font-semibold mt-1">Stock</span>
         </button>
         
-        <button v-if="mobileGroups['logistica']?.items.length" @click="toggleMobileMenu('logistica')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'logistica' || isMobileGroupActive('logistica') ? 'text-primary' : 'text-muted-foreground']">
+        <button v-if="mobileGroups['logistica']?.items.length" @click="toggleMobileMenu('logistica')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors" :class="[activeMobileMenu === 'logistica' || isMobileGroupActive('logistica') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'logistica' || isMobileGroupActive('logistica')) ? { fontVariationSettings: `'FILL' 1` } : {}">local_shipping</span>
-            <span class="text-[9px] font-medium mt-1">Logística</span>
+            <span class="text-[9px] font-semibold mt-1">Logística</span>
         </button>
         
-        <div class="flex items-center justify-center -mt-3 px-2">
-            <Link :href="route('dashboard.index')" @click="closeMobileMenu" :class="[isActiveRoute('dashboard.*') ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300']" class="w-11 h-11 rounded-md flex items-center justify-center shadow-flat transition-transform duration-75 active:scale-95">
-                <span class="material-symbols-rounded text-[20px]" :style="isActiveRoute('dashboard.*') ? { fontVariationSettings: `'FILL' 1` } : {}">home</span>
+        <div class="flex items-center justify-center -mt-4 px-2">
+            <Link :href="route('dashboard.index')" @click="closeMobileMenu" :class="[isActiveRoute('dashboard.*') ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30' : 'bg-card text-foreground border border-border/80 shadow-md']" class="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform active:scale-90 backdrop-blur-xl">
+                <span class="material-symbols-rounded text-[22px]" :style="isActiveRoute('dashboard.*') ? { fontVariationSettings: `'FILL' 1` } : {}">home</span>
             </Link>
         </div>
 
-        <button v-if="mobileGroups['catalogo']?.items.length" @click="toggleMobileMenu('catalogo')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'catalogo' || isMobileGroupActive('catalogo') ? 'text-primary' : 'text-muted-foreground']">
+        <button v-if="mobileGroups['catalogo']?.items.length" @click="toggleMobileMenu('catalogo')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors" :class="[activeMobileMenu === 'catalogo' || isMobileGroupActive('catalogo') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'catalogo' || isMobileGroupActive('catalogo')) ? { fontVariationSettings: `'FILL' 1` } : {}">storefront</span>
-            <span class="text-[9px] font-medium mt-1">Catálogo</span>
+            <span class="text-[9px] font-semibold mt-1">Catálogo</span>
         </button>
         
-        <button v-if="mobileGroups['operativa']?.items.length" @click="toggleMobileMenu('operativa')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors duration-75" :class="[activeMobileMenu === 'operativa' || isMobileGroupActive('operativa') ? 'text-primary' : 'text-muted-foreground']">
+        <button v-if="mobileGroups['operativa']?.items.length" @click="toggleMobileMenu('operativa')" class="flex-1 flex flex-col items-center justify-center h-full transition-colors" :class="[activeMobileMenu === 'operativa' || isMobileGroupActive('operativa') ? 'text-primary' : 'text-muted-foreground']">
             <span class="material-symbols-rounded text-[20px]" :style="(activeMobileMenu === 'operativa' || isMobileGroupActive('operativa')) ? { fontVariationSettings: `'FILL' 1` } : {}">settings</span>
-            <span class="text-[9px] font-medium mt-1">Operativa</span>
+            <span class="text-[9px] font-semibold mt-1">Operativa</span>
         </button>
     </nav>
 </template>

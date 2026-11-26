@@ -25,7 +25,7 @@
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
         
         @routes
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/admin.css', 'resources/js/app.js'])
         @inertiaHead
     </head>
     <body class="font-sans antialiased bg-background text-foreground transition-colors duration-150">
