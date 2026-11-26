@@ -29,7 +29,7 @@ class BrandController extends Controller
     {
         return Inertia::render('Admin/Catalog/Brands/Index', [
             'brands'     => $listAction->execute($request->all()),
-            'filters'    => $request->only(['search', 'provider_id', 'category_id', 'market_zone_id']),
+            'filters'    => $request->only(['search', 'provider_id', 'category_id']),
             'can_manage' => true
         ]);
     }

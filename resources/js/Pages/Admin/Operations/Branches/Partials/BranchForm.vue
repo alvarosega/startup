@@ -47,9 +47,9 @@ const drawPolygonLayer = () => {
         // Formato interno: [longitud, latitud] -> Leaflet: [latitud, longitud]
         const leafletCoords = props.form.coverage_polygon.map(coord => [Number(coord[1]), Number(coord[0])]);
         polygonInstance = L.polygon(leafletCoords, {
-            color: '#2563eb',
-            fillColor: '#3b82f6',
-            fillOpacity: 0.2,
+            color: '#ef4444',
+            fillColor: '#ef4444',
+            fillOpacity: 0.18,
             weight: 2
         }).addTo(mapInstance);
     }
@@ -127,12 +127,12 @@ onMounted(async () => {
         mapInstance.fitBounds(L.polygon(leafletCoords).getBounds());
     }
 
-    // Forzar recalculo de dimensiones del mapa tras renderizado
+    // Recálculo de dimensiones tras montaje
     setTimeout(() => {
         if (mapInstance) {
             mapInstance.invalidateSize();
         }
-    }, 200);
+    }, 250);
 });
 
 onUnmounted(() => {
@@ -147,44 +147,54 @@ onUnmounted(() => {
 <template>
     <form @submit.prevent="$emit('submit')" class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         
-        <div class="space-y-5 bg-card border border-border p-5 rounded-md shadow-flat">
+        <!-- Columna Izquierda: Parámetros y Tarifas -->
+        <div class="glass-card p-5 md:p-6 rounded-2xl border border-white/60 dark:border-white/10 shadow-sm space-y-5">
             
-            <div class="border-b border-border pb-2">
-                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Identificación y Ubicación</h3>
+            <div class="border-b border-border/50 pb-2.5">
+                <h3 class="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="material-symbols-rounded text-primary text-[18px]">badge</span>
+                    <span>Identificación y Ubicación Física</span>
+                </h3>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nombre de Sucursal *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Nombre de Sucursal *</label>
                     <input v-model="form.name" type="text" required class="admin-input" :class="{ 'border-error': form.errors.name }" placeholder="Centro de Distribución Norte" />
-                    <p v-if="form.errors.name" class="text-error text-xs font-medium mt-1">{{ form.errors.name }}</p>
+                    <p v-if="form.errors.name" class="text-error text-[11px] font-medium">{{ form.errors.name }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ciudad / Jurisdicción *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ciudad / Jurisdicción *</label>
                     <input v-model="form.city" type="text" required class="admin-input" :class="{ 'border-error': form.errors.city }" placeholder="La Paz" />
-                    <p v-if="form.errors.city" class="text-error text-xs font-medium mt-1">{{ form.errors.city }}</p>
+                    <p v-if="form.errors.city" class="text-error text-[11px] font-medium">{{ form.errors.city }}</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Teléfono Operativo</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Teléfono Operativo</label>
                     <input v-model="form.phone" type="text" class="admin-input font-mono" :class="{ 'border-error': form.errors.phone }" placeholder="22445566" />
-                    <p v-if="form.errors.phone" class="text-error text-xs font-medium mt-1">{{ form.errors.phone }}</p>
+                    <p v-if="form.errors.phone" class="text-error text-[11px] font-medium">{{ form.errors.phone }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dirección Física</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Dirección Física</label>
                     <input v-model="form.address" type="text" class="admin-input" :class="{ 'border-error': form.errors.address }" placeholder="Av. Troncal Nro 450" />
-                    <p v-if="form.errors.address" class="text-error text-xs font-medium mt-1">{{ form.errors.address }}</p>
+                    <p v-if="form.errors.address" class="text-error text-[11px] font-medium">{{ form.errors.address }}</p>
                 </div>
             </div>
 
-            <div class="border-b border-border pb-2 pt-2">
-                <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Configuración de Tarifas y Capacidad</h3>
+            <div class="border-b border-border/50 pb-2.5 pt-1">
+                <h3 class="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="material-symbols-rounded text-primary text-[18px]">payments</span>
+                    <span>Tarifas, Capacidad y Reglas de Despacho</span>
+                </h3>
             </div>
 
             <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Límite de Pedidos Concurrentes (Kill Switch Automático)</label>
+                <div class="flex items-center justify-between">
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Límite de Pedidos Concurrentes</label>
+                    <span class="text-[10px] text-muted-foreground">Kill-switch automático por saturación</span>
+                </div>
                 <input 
                     v-model.number="form.max_active_orders" 
                     type="number" 
@@ -193,103 +203,132 @@ onUnmounted(() => {
                     max="1000" 
                     class="admin-input font-mono" 
                     :class="{ 'border-error': form.errors.max_active_orders }" 
-                    placeholder="Dejar vacío para capacidad ilimitada" 
+                    placeholder="Vacío para capacidad ilimitada" 
                 />
-                <p v-if="form.errors.max_active_orders" class="text-error text-xs font-medium mt-1">{{ form.errors.max_active_orders }}</p>
+                <p v-if="form.errors.max_active_orders" class="text-error text-[11px] font-medium">{{ form.errors.max_active_orders }}</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tarifa Base *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Tarifa Base (Bs) *</label>
                     <input v-model.number="form.delivery_base_fee" type="number" step="0.01" min="0" required class="admin-input font-mono" :class="{ 'border-error': form.errors.delivery_base_fee }" />
-                    <p v-if="form.errors.delivery_base_fee" class="text-error text-xs font-medium mt-1">{{ form.errors.delivery_base_fee }}</p>
+                    <p v-if="form.errors.delivery_base_fee" class="text-error text-[11px] font-medium">{{ form.errors.delivery_base_fee }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Precio por KM *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Precio / KM (Bs) *</label>
                     <input v-model.number="form.delivery_price_per_km" type="number" step="0.01" min="0" required class="admin-input font-mono" :class="{ 'border-error': form.errors.delivery_price_per_km }" />
-                    <p v-if="form.errors.delivery_price_per_km" class="text-error text-xs font-medium mt-1">{{ form.errors.delivery_price_per_km }}</p>
+                    <p v-if="form.errors.delivery_price_per_km" class="text-error text-[11px] font-medium">{{ form.errors.delivery_price_per_km }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Multiplicador Surge *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Surge Mult. *</label>
                     <input v-model.number="form.surge_multiplier" type="number" step="0.01" min="1" required class="admin-input font-mono" :class="{ 'border-error': form.errors.surge_multiplier }" />
-                    <p v-if="form.errors.surge_multiplier" class="text-error text-xs font-medium mt-1">{{ form.errors.surge_multiplier }}</p>
+                    <p v-if="form.errors.surge_multiplier" class="text-error text-[11px] font-medium">{{ form.errors.surge_multiplier }}</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monto Mínimo *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Monto Mínimo (Bs) *</label>
                     <input v-model.number="form.min_order_amount" type="number" step="0.01" min="0" required class="admin-input font-mono" :class="{ 'border-error': form.errors.min_order_amount }" />
-                    <p v-if="form.errors.min_order_amount" class="text-error text-xs font-medium mt-1">{{ form.errors.min_order_amount }}</p>
+                    <p v-if="form.errors.min_order_amount" class="text-error text-[11px] font-medium">{{ form.errors.min_order_amount }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Orden Pequeña *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Orden Pequeña (Bs) *</label>
                     <input v-model.number="form.small_order_fee" type="number" step="0.01" min="0" required class="admin-input font-mono" :class="{ 'border-error': form.errors.small_order_fee }" />
-                    <p v-if="form.errors.small_order_fee" class="text-error text-xs font-medium mt-1">{{ form.errors.small_order_fee }}</p>
+                    <p v-if="form.errors.small_order_fee" class="text-error text-[11px] font-medium">{{ form.errors.small_order_fee }}</p>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">% Fee Servicio *</label>
+                    <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">% Fee Servicio *</label>
                     <input v-model.number="form.base_service_fee_percentage" type="number" step="0.01" min="0" max="100" required class="admin-input font-mono" :class="{ 'border-error': form.errors.base_service_fee_percentage }" />
-                    <p v-if="form.errors.base_service_fee_percentage" class="text-error text-xs font-medium mt-1">{{ form.errors.base_service_fee_percentage }}</p>
+                    <p v-if="form.errors.base_service_fee_percentage" class="text-error text-[11px] font-medium">{{ form.errors.base_service_fee_percentage }}</p>
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
+            <!-- Flags Operativos -->
+            <div class="flex flex-col sm:flex-row sm:items-center gap-5 pt-2">
                 <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-                    <input v-model="form.is_active" type="checkbox" class="rounded border-input text-primary focus:ring-ring bg-card w-4 h-4" />
+                    <input v-model="form.is_active" type="checkbox" class="rounded-md border-border/80 text-primary focus:ring-primary/20 bg-card/60 w-4 h-4" />
                     <span class="text-xs font-bold text-foreground uppercase tracking-wide">Nodo Activo</span>
                 </label>
                 <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-                    <input v-model="form.is_default" type="checkbox" class="rounded border-input text-primary focus:ring-ring bg-card w-4 h-4" />
+                    <input v-model="form.is_default" type="checkbox" class="rounded-md border-border/80 text-primary focus:ring-primary/20 bg-card/60 w-4 h-4" />
                     <span class="text-xs font-bold text-foreground uppercase tracking-wide">Nodo Principal</span>
                 </label>
             </div>
 
-            <div class="pt-4 border-t border-border flex items-center justify-end gap-3">
-                <Link :href="route('admin.operations.branches.index')" class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm hover:bg-neutral-200 dark:hover:bg-neutral-800" :class="{ 'pointer-events-none opacity-50': form.processing }">
+            <div class="pt-4 border-t border-border/50 flex items-center justify-end gap-3">
+                <Link 
+                    :href="route('admin.operations.branches.index')" 
+                    class="px-4 py-2 rounded-xl border border-border/80 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-all"
+                    :class="{ 'pointer-events-none opacity-50': form.processing }"
+                >
                     Cancelar
                 </Link>
-                <button type="submit" :disabled="form.processing" class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider">
-                    <span class="material-symbols-rounded text-base">save</span>
-                    <span>{{ form.processing ? 'Guardando Nodo...' : 'Guardar Parámetros' }}</span>
+                <button 
+                    type="submit" 
+                    :disabled="form.processing" 
+                    class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-4 shadow-sm"
+                >
+                    <span class="material-symbols-rounded text-[18px]">save</span>
+                    <span>{{ form.processing ? 'Guardando...' : (isEdit ? 'Actualizar Parámetros' : 'Crear Sucursal') }}</span>
                 </button>
             </div>
         </div>
 
-        <div class="space-y-4 bg-card border border-border p-5 rounded-md shadow-flat">
-            <div class="border-b border-border pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <!-- Columna Derecha: Delimitación Geofencing con Leaflet -->
+        <div class="glass-card p-5 md:p-6 rounded-2xl border border-white/60 dark:border-white/10 shadow-sm space-y-4">
+            <div class="border-b border-border/50 pb-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
-                    <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Límites Geofencing de Cobertura</h3>
-                    <p class="text-[11px] text-muted-foreground mt-0.5">Arrastre el marcador para fijar la sucursal. Haga clics sobre el mapa para trazar el polígono.</p>
+                    <h3 class="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-primary text-[18px]">share_location</span>
+                        <span>Delimitación Geofencing de Cobertura</span>
+                    </h3>
+                    <p class="text-[11px] text-muted-foreground mt-0.5">
+                        Arrastra el pin para ubicar el centro. Haz clics en el mapa para trazar el polígono.
+                    </p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                    <button type="button" @click="removeLastVertex" class="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-medium rounded border border-border hover:bg-neutral-200" :disabled="form.coverage_polygon.length === 0">
-                        Deshacer
+                    <button 
+                        type="button" 
+                        @click="removeLastVertex" 
+                        class="px-2.5 py-1 text-[11px] font-semibold rounded-xl border border-border/80 hover:bg-foreground/[0.05] text-foreground transition-all disabled:opacity-40" 
+                        :disabled="form.coverage_polygon.length === 0"
+                    >
+                        Deshacer Vértice
                     </button>
-                    <button type="button" @click="clearPolygon" class="px-2 py-1 bg-destructive/5 text-destructive text-xs font-medium rounded border border-destructive/10 hover:bg-destructive/10" :disabled="form.coverage_polygon.length === 0">
+                    <button 
+                        type="button" 
+                        @click="clearPolygon" 
+                        class="px-2.5 py-1 text-[11px] font-semibold rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/10 transition-all disabled:opacity-40" 
+                        :disabled="form.coverage_polygon.length === 0"
+                    >
                         Limpiar Polígono
                     </button>
                 </div>
             </div>
 
-            <div ref="mapContainer" class="h-[360px] w-full rounded-md border border-input bg-muted z-10 relative"></div>
+            <!-- Contenedor del Mapa Leaflet -->
+            <div ref="mapContainer" class="h-[380px] w-full rounded-2xl border border-border/80 overflow-hidden shadow-inner z-10 relative"></div>
 
-            <div class="grid grid-cols-2 gap-4 bg-neutral-100 dark:bg-neutral-800/40 p-3 rounded-md text-xs font-mono">
+            <!-- Telemetría Geográfica -->
+            <div class="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-card/60 backdrop-blur-md border border-border/60 text-xs font-mono">
                 <div>
-                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold">Latitud Sucursal</span>
+                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold">Latitud Centro</span>
                     <span class="text-foreground font-semibold">{{ form.latitude || 'Sin fijar' }}</span>
                 </div>
                 <div>
-                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold">Longitud Sucursal</span>
+                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold">Longitud Centro</span>
                     <span class="text-foreground font-semibold">{{ form.longitude || 'Sin fijar' }}</span>
                 </div>
-                <div class="col-span-2 border-t border-border/60 pt-2">
-                    <span class="text-muted-foreground block text-[10px] uppercase font-sans font-bold mb-1">Vértices Capturados en Polígono (Mínimo 3)</span>
-                    <span :class="form.coverage_polygon.length >= 3 ? 'text-success font-bold' : 'text-warning font-bold'">
-                        {{ form.coverage_polygon.length }} puntos registrados.
+                <div class="col-span-2 border-t border-border/40 pt-2 flex items-center justify-between font-sans">
+                    <span class="text-muted-foreground text-[10px] uppercase font-bold">Vértices Geofence (Mín. 3):</span>
+                    <span :class="form.coverage_polygon.length >= 3 ? 'badge-success text-[10px]' : 'badge-warning text-[10px]'">
+                        {{ form.coverage_polygon.length }} vértices registrados
                     </span>
-                    <p v-if="form.errors.coverage_polygon" class="text-error text-xs font-medium mt-1 font-sans">{{ form.errors.coverage_polygon }}</p>
                 </div>
+                <p v-if="form.errors.coverage_polygon" class="col-span-2 text-error text-[11px] font-sans font-medium mt-1">
+                    {{ form.errors.coverage_polygon }}
+                </p>
             </div>
         </div>
 

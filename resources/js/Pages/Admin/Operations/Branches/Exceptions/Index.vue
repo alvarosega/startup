@@ -1,6 +1,7 @@
 <script setup>
 import { useForm, router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import BranchSubNavTabs from '@/Components/Admin/Operations/BranchSubNavTabs.vue';
 
 const props = defineProps({
     branch: {
@@ -37,96 +38,162 @@ const deleteException = (id) => {
 <template>
     <AdminLayout>
         <template #header>
-            Excepciones y Feriados — {{ branch.name }}
+            <div class="flex items-center gap-3">
+                <Link
+                    :href="route('admin.operations.branches.index')"
+                    class="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-all inline-flex items-center"
+                    title="Volver a Sucursales"
+                >
+                    <span class="material-symbols-rounded text-[20px]">arrow_back</span>
+                </Link>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
+                        Feriados y Excepciones — {{ branch.name }}
+                    </h1>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                        Programación de días festivos, mantenimientos y variaciones puntuales de horario
+                    </p>
+                </div>
+            </div>
         </template>
 
+        <!-- Barra Contextual de la Sucursal -->
+        <BranchSubNavTabs :branch="branch" />
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <!-- Formulario de Alta -->
-            <div class="bg-card border border-border p-5 rounded-md shadow-flat space-y-4">
-                <div class="border-b border-border pb-2">
-                    <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Programar Excepción</h3>
+            <!-- Formulario de Alta de Excepción -->
+            <div class="glass-card p-5 md:p-6 rounded-2xl border border-white/60 dark:border-white/10 shadow-sm space-y-4">
+                <div class="border-b border-border/50 pb-2.5">
+                    <h3 class="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-primary text-[18px]">add_circle</span>
+                        <span>Programar Excepción</span>
+                    </h3>
                 </div>
 
                 <form @submit.prevent="submit" class="space-y-4">
                     <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-muted-foreground uppercase">Fecha *</label>
-                        <input v-model="form.date" type="date" required class="admin-input font-mono" :class="{ 'border-error': form.errors.date }" />
-                        <p v-if="form.errors.date" class="text-error text-xs font-medium">{{ form.errors.date }}</p>
+                        <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Fecha *</label>
+                        <input 
+                            v-model="form.date" 
+                            type="date" 
+                            required 
+                            class="admin-input font-mono text-xs" 
+                            :class="{ 'border-error': form.errors.date }" 
+                        />
+                        <p v-if="form.errors.date" class="text-error text-[11px] font-medium">{{ form.errors.date }}</p>
                     </div>
 
                     <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-muted-foreground uppercase">Motivo</label>
-                        <input v-model="form.reason" type="text" placeholder="Feriado nacional, mantenimiento, etc." class="admin-input" :class="{ 'border-error': form.errors.reason }" />
-                        <p v-if="form.errors.reason" class="text-error text-xs font-medium">{{ form.errors.reason }}</p>
+                        <label class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Motivo / Descripción</label>
+                        <input 
+                            v-model="form.reason" 
+                            type="text" 
+                            placeholder="Feriado nacional, inventario anual, etc." 
+                            class="admin-input text-xs" 
+                            :class="{ 'border-error': form.errors.reason }" 
+                        />
+                        <p v-if="form.errors.reason" class="text-error text-[11px] font-medium">{{ form.errors.reason }}</p>
                     </div>
 
                     <div>
                         <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-                            <input v-model="form.is_closed" type="checkbox" class="rounded border-input text-primary focus:ring-ring bg-card w-4 h-4" />
-                            <span class="text-xs font-bold text-foreground uppercase">Cierre Completo (Sin Atención)</span>
+                            <input 
+                                v-model="form.is_closed" 
+                                type="checkbox" 
+                                class="rounded-md border-border/80 text-primary focus:ring-primary/20 bg-card/60 w-4 h-4" 
+                            />
+                            <span class="text-xs font-bold text-foreground uppercase tracking-wide">Cierre Completo (Sin Atención)</span>
                         </label>
                     </div>
 
                     <div v-if="!form.is_closed" class="grid grid-cols-2 gap-3 pt-2">
                         <div class="space-y-1">
-                            <label class="text-[10px] font-bold text-muted-foreground uppercase">Apertura</label>
-                            <input v-model="form.opening_time" type="time" class="admin-input font-mono text-xs" :class="{ 'border-error': form.errors.opening_time }" />
+                            <label class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Apertura</label>
+                            <input 
+                                v-model="form.opening_time" 
+                                type="time" 
+                                class="admin-input font-mono text-xs" 
+                                :class="{ 'border-error': form.errors.opening_time }" 
+                            />
                         </div>
                         <div class="space-y-1">
-                            <label class="text-[10px] font-bold text-muted-foreground uppercase">Cierre</label>
-                            <input v-model="form.closing_time" type="time" class="admin-input font-mono text-xs" :class="{ 'border-error': form.errors.closing_time }" />
+                            <label class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cierre</label>
+                            <input 
+                                v-model="form.closing_time" 
+                                type="time" 
+                                class="admin-input font-mono text-xs" 
+                                :class="{ 'border-error': form.errors.closing_time }" 
+                            />
                         </div>
                     </div>
 
                     <div class="pt-2">
-                        <button type="submit" :disabled="form.processing" class="admin-btn-primary w-full justify-center text-xs font-bold">
-                            {{ form.processing ? 'Registrando...' : 'Registrar Excepción' }}
+                        <button 
+                            type="submit" 
+                            :disabled="form.processing" 
+                            class="admin-btn-primary w-full justify-center text-xs font-bold uppercase tracking-wider py-2.5 px-4 rounded-xl shadow-sm"
+                        >
+                            <span class="material-symbols-rounded text-[18px]">event_available</span>
+                            <span>{{ form.processing ? 'Registrando...' : 'Registrar Excepción' }}</span>
                         </button>
                     </div>
                 </form>
             </div>
 
             <!-- Listado de Excepciones Futuras -->
-            <div class="lg:col-span-2 bg-card border border-border rounded-md shadow-flat overflow-hidden">
-                <div class="p-4 border-b border-border flex items-center justify-between">
-                    <h3 class="text-xs font-bold text-foreground uppercase tracking-wide">Excepciones Activas / Próximas</h3>
-                    <Link :href="route('admin.operations.branches.index')" class="text-xs font-semibold text-muted-foreground hover:text-foreground">
-                        ← Volver a Sucursales
-                    </Link>
+            <div class="lg:col-span-2 glass-panel rounded-2xl border border-white/60 dark:border-white/10 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-border/50 flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary text-[18px]">calendar_month</span>
+                        <span>Excepciones Activas & Próximas</span>
+                    </h3>
+                    <span class="text-[11px] text-muted-foreground font-mono">
+                        {{ exceptions.length }} programadas
+                    </span>
                 </div>
 
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th class="admin-table-th">Fecha</th>
-                            <th class="admin-table-th">Motivo</th>
-                            <th class="admin-table-th text-center">Régimen</th>
-                            <th class="admin-table-th text-right">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-if="exceptions.length === 0">
-                            <td colspan="4" class="admin-table-td text-center text-muted-foreground py-6 font-normal">
-                                No existen excepciones o feriados programados para esta sucursal.
-                            </td>
-                        </tr>
-                        <tr v-for="exc in exceptions" :key="exc.id" class="admin-table-tr">
-                            <td class="admin-table-td font-mono font-bold">{{ exc.date }}</td>
-                            <td class="admin-table-td text-xs">{{ exc.reason || 'Sin motivo especificado' }}</td>
-                            <td class="admin-table-td text-center">
-                                <span v-if="exc.is_closed" class="badge-error">Cerrado</span>
-                                <span v-else class="badge-info font-mono text-[11px]">
-                                    {{ exc.opening_time?.substring(0, 5) }} - {{ exc.closing_time?.substring(0, 5) }}
-                                </span>
-                            </td>
-                            <td class="admin-table-td text-right">
-                                <button @click="deleteException(exc.id)" class="text-destructive hover:underline text-xs font-semibold">
-                                    Eliminar
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th class="admin-table-th">Fecha</th>
+                                <th class="admin-table-th">Motivo</th>
+                                <th class="admin-table-th text-center">Horario Especial</th>
+                                <th class="admin-table-th text-center">Disponibilidad</th>
+                                <th class="admin-table-th text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="exceptions.length === 0">
+                                <td colspan="5" class="admin-table-td text-center text-muted-foreground py-8 font-normal">
+                                    No hay excepciones de horario programadas para fechas futuras.
+                                </td>
+                            </tr>
+                            <tr v-for="ex in exceptions" :key="ex.id" class="admin-table-tr">
+                                <td class="admin-table-td font-mono font-bold text-xs">{{ ex.date }}</td>
+                                <td class="admin-table-td text-xs">{{ ex.reason || 'Sin motivo especificado' }}</td>
+                                <td class="admin-table-td text-center font-mono text-xs">
+                                    {{ ex.is_closed ? '—' : `${ex.opening_time?.substring(0, 5)} - ${ex.closing_time?.substring(0, 5)}` }}
+                                </td>
+                                <td class="admin-table-td text-center">
+                                    <span :class="ex.is_closed ? 'badge-error' : 'badge-warning'">
+                                        {{ ex.is_closed ? 'Cerrado Total' : 'Horario Especial' }}
+                                    </span>
+                                </td>
+                                <td class="admin-table-td text-right">
+                                    <button 
+                                        type="button" 
+                                        @click="deleteException(ex.id)" 
+                                        class="p-1.5 rounded-xl text-destructive hover:bg-destructive/10 transition-all inline-flex items-center border border-destructive/20"
+                                        title="Eliminar excepción"
+                                    >
+                                        <span class="material-symbols-rounded text-[17px]">delete</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </AdminLayout>

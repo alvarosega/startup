@@ -66,11 +66,6 @@ class Brand extends Model
         return $this->hasMany(self::class, 'parent_id'); 
     }
 
-    public function marketZones(): BelongsToMany 
-    { 
-        return $this->belongsToMany(\App\Models\MarketZone::class, 'brand_market_zone'); 
-    }
-
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

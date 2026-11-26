@@ -1,5 +1,5 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import BranchForm from '@/Pages/Admin/Operations/Branches/Partials/BranchForm.vue';
 
@@ -50,7 +50,23 @@ const submit = () => {
 <template>
     <AdminLayout>
         <template #header>
-            Materializar Nodo de Sucursal
+            <div class="flex items-center gap-3">
+                <Link
+                    :href="route('admin.operations.branches.index')"
+                    class="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-all inline-flex items-center"
+                    title="Volver a Sucursales"
+                >
+                    <span class="material-symbols-rounded text-[20px]">arrow_back</span>
+                </Link>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
+                        Nueva Sucursal Logística
+                    </h1>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                        Definición de centro operativo, parámetros de despacho y geocerca poligonal
+                    </p>
+                </div>
+            </div>
         </template>
 
         <BranchForm 

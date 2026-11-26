@@ -1,7 +1,8 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import BranchForm from '@/Pages/Admin/Operations/Branches/Partials/BranchForm.vue';
+import BranchSubNavTabs from '@/Components/Admin/Operations/BranchSubNavTabs.vue';
 
 const props = defineProps({
     branch: {
@@ -57,8 +58,33 @@ const submit = () => {
 <template>
     <AdminLayout>
         <template #header>
-            Modificar Parámetros Logísticos
+            <div class="flex items-center gap-3">
+                <Link
+                    :href="route('admin.operations.branches.index')"
+                    class="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-all inline-flex items-center"
+                    title="Volver a Sucursales"
+                >
+                    <span class="material-symbols-rounded text-[20px]">arrow_back</span>
+                </Link>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
+                            {{ branch.name }}
+                        </h1>
+                        <span v-if="branch.is_default" class="badge-info text-[9px] py-0 px-1.5">Principal</span>
+                        <span :class="branch.is_active ? 'badge-success text-[9px] py-0 px-1.5' : 'badge-error text-[9px] py-0 px-1.5'">
+                            {{ branch.is_active ? 'Activa' : 'Inactiva' }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                        Jurisdicción: {{ branch.city }} — Configuración de geocerca y parámetros
+                    </p>
+                </div>
+            </div>
         </template>
+
+        <!-- Barra de Navegación Contextual de la Sucursal -->
+        <BranchSubNavTabs :branch="branch" />
 
         <BranchForm 
             :form="form" 

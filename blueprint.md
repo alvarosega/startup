@@ -544,6 +544,44 @@ Tras una auditoría exhaustiva de la tubería de estilos (Vite, Blade, CSS casca
   - Compilación exitosa en Vite (`admin.css: 159.18 kB`, `app.css: 148.50 kB`, `app.js: 323.78 kB`, 0 errores).
   - Verificado en `manifest.json` que `app.js` no arrastra estilos de cliente al silo admin.
 
+---
+
+## 18. Plan de Implementación: Auditoría, Unificación de Navegación y Armonización Apple Glass del Ecosistema de Operaciones y Sucursales
+
+### Objetivo y Alcance
+Auditar integralmente, reestructurar la navegación e implementar el estándar visual **Apple Glass Minimalist** en las vistas operativas de Sucursales (`admin.operations.branches.*`), purgando por completo el módulo obsoleto de Zonas de Mercado conforme a las directivas del usuario:
+1. **Purgado de Zonas de Mercado (`MarketZones`)**: Extracción total de rutas, controladores, acciones, DTOs, vistas frontend (`resources/js/Pages/Admin/MarketZones`), modelos y relaciones con Marcas comerciales (`Brand`).
+2. **Sub-Navegación Contextual de Sucursal (`BranchSubNavTabs.vue`)**: Pestañas tipo cápsula translúcida al gestionar una sucursal: Parámetros & Cobertura, Caja Diaria & Arqueos, Horarios Semanales, Feriados & Excepciones, y Personal Asignado, con botón de retorno al listado.
+3. **Rediseño Apple Glass de Sucursales (`Branches/Index`, `Create`, `Edit`, `BranchForm`)**:
+   - Tarjetas de telemetría de red operativa (Nodos en red, Despacho online activo, Personal asignado).
+   - Tabla de alta densidad `.admin-table` con squircle pills, badge de nodo principal, badges de gerentes y toggle fluido de pausa de recepción online (`togglePause`).
+   - Contenedores `.glass-card rounded-2xl` y visor de Leaflet con geocodificación y trazado interactivo de geocercas poligonales con cierre topológico GIS.
+4. **Caja Diaria y Turnos (`Branches/Cash/Index.vue`)**: Métricas de caja en píldoras translúcidas, modal frosted glass de arqueo con cálculo automático de discrepancias (faltante/sobrante) en tiempo real, integración de `Pagination.vue` y tabla histórica `.admin-table`.
+5. **Horarios y Excepciones (`Branches/Schedules/Index.vue` y `Branches/Exceptions/Index.vue`)**: Matriz semanal de 7 días con selectores `.admin-input`, helper de replicación de lunes a semana laboral, y programación de feriados y días no laborables.
+
+### Resumen de Cambios Realizados
+- **Depuración Arquitectónica**:
+  - `routes/admin.php`: Removida la importación de `MarketZoneController` y la ruta de recurso `market-zones`.
+  - `app/Actions/Admin/Catalog/Brand/ListBrandsAction.php`: Eliminado filtro y relación eager de `marketZones`.
+  - `app/Http/Controllers/Web/Admin/Catalog/BrandController.php`: Removido `market_zone_id` de los filtros de marcas.
+  - `app/Models/Catalog/Brand.php`: Removida la relación `marketZones()`.
+  - Eliminados: `app/Models/MarketZone.php`, `app/Http/Controllers/Web/Admin/MarketZone/`, `app/Actions/Admin/MarketZone/`, `app/DTOs/Admin/MarketZone/`, `app/Http/Requests/Admin/MarketZone/`, `app/Http/Resources/Admin/MarketZone/`, `app/Actions/Customer/Shop/GetHomeZonesAction.php`, `app/Http/Controllers/Web/Customer/Shop/ShopZoneController.php` y directorio `resources/js/Pages/Admin/MarketZones/`.
+- **Navegación**:
+  - `resources/js/Components/Admin/Operations/BranchSubNavTabs.vue`: Componente creado para navegación unificada dentro de la sucursal.
+- **Vistas Operativas Rediseñadas**:
+  - `resources/js/Pages/Admin/Operations/Branches/Index.vue`: Panel superior de telemetría, buscador reactivo, tabla `.admin-table` y toggle reactivo `togglePause`.
+  - `resources/js/Pages/Admin/Operations/Branches/Partials/BranchForm.vue`: Rediseñado a `.glass-card rounded-2xl`, inputs `.admin-input` y mapa Leaflet con telemetría de coordenadas y vértices geofence.
+  - `resources/js/Pages/Admin/Operations/Branches/Create.vue`: Cabecera con botón de retorno y layout glass.
+  - `resources/js/Pages/Admin/Operations/Branches/Edit.vue`: Integración de `BranchSubNavTabs` y layout glass.
+  - `resources/js/Pages/Admin/Operations/Branches/Cash/Index.vue`: Integración de `BranchSubNavTabs`, métricas rápidas de turno, modal frosted glass de arqueo y cálculo reactivo de discrepancias.
+  - `resources/js/Pages/Admin/Operations/Branches/Schedules/Index.vue`: Integración de `BranchSubNavTabs`, helper de replicación de horarios y matriz semanal glass.
+  - `resources/js/Pages/Admin/Operations/Branches/Exceptions/Index.vue`: Integración de `BranchSubNavTabs`, formulario glass y tabla de excepciones futuras.
+- **Verificación**:
+  - `npm run build`: Compilación exitosa en 7.46s (`2541 modules transformed`, 0 errores).
+  - `php artisan route:list`: Verificadas las 15 rutas operativas de sucursales, 0 errores.
+
+
+
 
 
 
