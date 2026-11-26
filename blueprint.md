@@ -502,6 +502,49 @@ Reconfigurar de manera integral las vistas y componentes del ecosistema de gesti
 - **Verificación**:
   - Compilación exitosa en Vite (`2547 modules transformed`, salida limpia en 6.73s).
 
+---
+
+## 17. Diagnóstico y Resolución del Desfase Cromático (Colores Opacos) y Aislamiento de Hojas de Estilo Admin/App
+
+### Diagnóstico de Causas Raíz
+Tras una auditoría exhaustiva de la tubería de estilos (Vite, Blade, CSS cascading y componentes Vue), se identificaron las tres razones técnicas exactas por las que los colores de la interfaz administrativa se percibían "opacos" o turbios:
+
+1. **Doble Inyección de CSS en `admin.blade.php` a través de `app.js`**:
+   - `resources/views/admin.blade.php` importaba `@vite(['resources/css/admin.css', 'resources/js/app.js'])`.
+   - Sin embargo, dentro de `resources/js/app.js` existía la directiva residual `import '../css/app.css';`.
+   - Esto obligaba a Vite a empaquetar `app.css` como dependencia obligatoria de `app.js`. Al cargar la vista de admin, Laravel inyectaba `admin.css` y luego `app.css`.
+   - `app.css` ejecutaba sus propias capas `@layer base` y redefinía variables CSS y reseteos globales de Tailwind después de `admin.css`, anulando y contaminando la configuración del panel administrativo.
+
+2. **Conflicto de Cascada en Modo Oscuro por Anidación de `data-context="admin"`**:
+   - `admin.blade.php` define `<html data-context="admin">`. Al activar modo oscuro, el composable `useTheme` añade la clase `dark` a la etiqueta `<html>`, resultando en `<html data-context="admin" class="dark">`.
+   - En `admin.css`, la regla de modo oscuro era `.dark[data-context="admin"] { ... }`.
+   - Simultáneamente, el contenedor raíz de `AdminLayout.vue` y `Login.vue` tenía asignado un atributo repetido `data-context="admin"`.
+   - Dado que el `<div>` interior tenía `data-context="admin"` pero NO la clase `.dark`, coincidía con la regla `[data-context="admin"]` (Modo Claro). Por las reglas de especificidad de la cascada CSS, las declaraciones de un nodo hijo anulan las variables heredadas de un ancestro. Esto provocaba que todas las variables CSS de color (`--card`, `--background`, `--foreground`, etc.) se re-establecieran a los valores de modo claro sobre fondos oscuros, resultando en un aspecto deslavado, grisáceo y lechoso ("opaco").
+
+3. **Sub-saturación y Muted Palette en los Tokens de Color**:
+   - En `admin.css`, el acento `--primary-500` estaba definido en `4 75% 48%` (un rojo terroso desaturado en un 25%) en lugar del rojo F1 Cyber Red vibrante de plataforma (`4 100% 50%` / `#FF1801`).
+   - Los tonos neutros utilizaban un matiz `240` con saturación del 4-10%, generando una pátina azulada nebulosa sobre grises y fondos en lugar de una superficie obsidiana profunda (`#0A0A0C`) o un off-white nítido Apple (`#FBFBFD`).
+   - Los orbes de iluminación difusa en el canvas ambiental estaban configurados con una opacidad excesivamente tenue (4-7%), viéndose como manchas turbias en lugar de fuentes luminosas de refracción detrás del cristal esmerilado.
+
+### Resumen de Cambios Realizados
+- **Desacople Arquitectónico de Vite y JS**:
+  - `resources/js/app.js`: Removida la importación `import '../css/app.css';`. Ahora `app.blade.php` y `customer.blade.php` importan `app.css` de manera explícita a través de sus directivas `@vite`, mientras que `admin.blade.php` importa de forma 100% aislada `admin.css`.
+- **Eliminación de Sobreescritura en Cascada (Componentes Vue)**:
+  - `resources/js/Layouts/AdminLayout.vue`: Removido el atributo anidado `data-context="admin"` del contenedor hijo. Potenciada la luminosidad de los orbes difusos de refracción (`primary/[0.16]`, `blue-500/[0.12]`, `purple-500/[0.10]`).
+  - `resources/js/Pages/Admin/Auth/Login.vue`: Removido el atributo anidado `data-context="admin"`.
+- **Restauración Cromática y Resiliencia de Selectores en `resources/css/admin.css`**:
+  - **Paleta de Alto Contraste**:
+    - Rojo Cyber Red F1 restaurado a máxima saturación y brillo: `--primary-500: 4 100% 50%` (modo claro) y `4 100% 54%` (modo oscuro).
+    - Modo Claro: Fondo ultra limpio `--background: 240 10% 98.5%`, texto carbón nítido `--foreground: 240 10% 10%`, y textos secundarios con contraste accesible `--muted-foreground: 240 4% 40%`.
+    - Modo Oscuro: Fondo espacial obsidiana `--background: 240 10% 4%`, texto blanco puro `--foreground: 0 0% 98%`, y tarjetas elevadas de cristal `--card: 240 6% 9%`.
+    - Semánticas vibrantes: Verde esmeralda (`142 76% 40%/48%`), Azul iOS (`211 100% 48%/56%`), Ámbar (`38 96% 46%/52%`), y Rubí (`358 92% 50%/56%`).
+  - **Selectores Compuestos**: Expandidos a `:root`, `[data-context="admin"]`, `html[data-context="admin"]` y `.dark`, `.dark[data-context="admin"]`, `html.dark[data-context="admin"]` para garantizar herencia impecable en portales, modales y layouts.
+  - **Componentes Glass**: Clases `.glass-panel`, `.glass-card`, `.glass-dock`, `.glass-header`, `.admin-table` y `.badge-*` configuradas con soporte de selectores directos y anidados.
+- **Verificación**:
+  - Compilación exitosa en Vite (`admin.css: 159.18 kB`, `app.css: 148.50 kB`, `app.js: 323.78 kB`, 0 errores).
+  - Verificado en `manifest.json` que `app.js` no arrastra estilos de cliente al silo admin.
+
+
 
 
 

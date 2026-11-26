@@ -30,7 +30,7 @@ const submit = () => {
 <template>
     <Head title="Acceso Administrador" />
 
-    <div data-context="admin" class="min-h-screen bg-background flex items-center justify-center p-4 select-none relative">
+    <div class="min-h-screen bg-background flex items-center justify-center p-4 select-none relative">
         
         <div class="absolute top-4 right-4 border border-border bg-card rounded-md transition-colors duration-100 hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <ThemeToggler class="p-1.5 text-foreground/80 hover:text-primary transition-colors duration-100" />

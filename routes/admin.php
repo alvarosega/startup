@@ -20,7 +20,7 @@ use App\Http\Controllers\Web\Admin\Operations\BranchDailyCashController;
 use App\Http\Controllers\Web\Admin\Operations\BranchScheduleController;
 use App\Http\Controllers\Web\Admin\Operations\BranchScheduleExceptionController;
 use App\Http\Controllers\Web\Admin\Order\OrderController;
-use App\Http\Controllers\Web\Admin\Removal\RemovalController;
+use App\Http\Controllers\Web\Admin\Inventory\RemovalController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCampaignController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdCreativeController;
 use App\Http\Controllers\Web\Admin\RetailMedia\AdPlacementController;

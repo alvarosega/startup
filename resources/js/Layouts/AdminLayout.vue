@@ -9,13 +9,13 @@ const user = computed(() => page.props.auth?.user);
 </script>
 
 <template>
-    <div data-context="admin" class="min-h-screen bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary relative overflow-x-hidden">
+    <div class="min-h-screen bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary relative overflow-x-hidden">
         
         <!-- Canvas Ambiental de Refracción Apple Glass (Iluminación difusa para efecto de vidrio) -->
         <div class="fixed inset-0 pointer-events-none overflow-hidden -z-10 select-none">
-            <div class="absolute -top-[120px] -right-[80px] w-[650px] h-[650px] rounded-full bg-primary/[0.07] dark:bg-primary/[0.12] blur-[150px]"></div>
-            <div class="absolute top-[35%] -left-[100px] w-[550px] h-[550px] rounded-full bg-info/[0.05] dark:bg-info/[0.08] blur-[160px]"></div>
-            <div class="absolute -bottom-[100px] right-[20%] w-[600px] h-[600px] rounded-full bg-purple-500/[0.04] dark:bg-purple-500/[0.07] blur-[170px]"></div>
+            <div class="absolute -top-[120px] -right-[80px] w-[650px] h-[650px] rounded-full bg-primary/[0.08] dark:bg-primary/[0.16] blur-[150px]"></div>
+            <div class="absolute top-[35%] -left-[100px] w-[550px] h-[550px] rounded-full bg-blue-500/[0.06] dark:bg-blue-500/[0.12] blur-[160px]"></div>
+            <div class="absolute -bottom-[100px] right-[20%] w-[600px] h-[600px] rounded-full bg-purple-500/[0.05] dark:bg-purple-500/[0.10] blur-[170px]"></div>
         </div>
 
         <Loader />
