@@ -30,11 +30,26 @@ const submit = () => {
 <template>
     <AdminLayout>
         <template #header>
-            Alta de Cliente Corporativo
+            <div class="flex items-center gap-3">
+                <Link
+                    :href="route('customers.index')"
+                    class="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors border border-border/60"
+                >
+                    <span class="material-symbols-rounded text-[20px] block">arrow_back</span>
+                </Link>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
+                        Alta de Cliente Corporativo
+                    </h1>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                        Ficha de cliente con asignación de sucursal y contraseña provisional
+                    </p>
+                </div>
+            </div>
         </template>
 
-        <div class="max-w-2xl bg-card border border-border rounded-md shadow-flat p-6 md:p-8">
-            <div class="mb-6 border-b border-border pb-3">
+        <div class="max-w-2xl glass-card border border-white/60 dark:border-white/10 rounded-2xl shadow-sm p-6 md:p-8">
+            <div class="mb-6 border-b border-border/50 pb-3">
                 <h2 class="text-sm font-bold text-foreground uppercase tracking-wide">
                     Datos de la Cuenta Operativa
                 </h2>
@@ -157,10 +172,10 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div class="pt-4 border-t border-border flex items-center justify-end gap-3">
+                <div class="pt-4 border-t border-border/50 flex items-center justify-end gap-3">
                     <Link 
                         :href="route('customers.index')"
-                        class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-sm transition-colors duration-100 hover:bg-neutral-200 dark:hover:bg-neutral-800 disabled:opacity-50"
+                        class="px-3.5 py-2 glass-panel border border-border/80 text-foreground font-semibold rounded-xl text-xs hover:bg-foreground/[0.06] transition-all"
                         :class="{ 'pointer-events-none opacity-50': form.processing }"
                     >
                         Cancelar
@@ -169,7 +184,7 @@ const submit = () => {
                     <button
                         type="submit"
                         :disabled="form.processing"
-                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-4 rounded-xl shadow-sm active:scale-95"
                     >
                         <span class="material-symbols-rounded text-base shrink-0">save</span>
                         <span>{{ form.processing ? 'Registrando Terminal...' : 'Guardar Cliente' }}</span>

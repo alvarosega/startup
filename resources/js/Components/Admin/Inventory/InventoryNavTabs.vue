@@ -45,20 +45,21 @@ const isActive = (pattern) => route().current(pattern);
 </script>
 
 <template>
-    <div class="flex items-center gap-1.5 p-1 bg-neutral-100/80 dark:bg-neutral-900/80 border border-border rounded-lg mb-4 w-fit max-w-full overflow-x-auto select-none">
+    <div class="glass-panel p-1.5 rounded-2xl mb-5 w-fit max-w-full overflow-x-auto select-none shadow-sm flex items-center gap-1.5 backdrop-blur-xl border border-white/60 dark:border-white/10">
         <Link
             v-for="tab in tabs"
             :key="tab.route"
             :href="route(tab.route)"
-            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-150 whitespace-nowrap"
+            class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 whitespace-nowrap"
             :class="[
                 isActive(tab.pattern)
-                    ? 'bg-card text-foreground shadow-sm border border-border/80 font-bold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50'
+                    ? 'bg-primary/12 text-primary border border-primary/25 shadow-sm font-bold scale-[1.01]'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
             ]"
         >
             <span
                 class="material-symbols-rounded text-[18px]"
+                :style="isActive(tab.pattern) ? { fontVariationSettings: `'FILL' 1` } : {}"
                 :class="isActive(tab.pattern) ? 'text-primary' : 'text-muted-foreground'"
             >
                 {{ tab.icon }}

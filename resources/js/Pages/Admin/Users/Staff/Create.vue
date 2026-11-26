@@ -59,10 +59,10 @@ const submit = () => {
 <template>
     <AdminLayout>
         <template #header>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
                 <Link
                     :href="route('staff.index')"
-                    class="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    class="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors border border-border/60"
                 >
                     <span class="material-symbols-rounded text-[20px] block">arrow_back</span>
                 </Link>
@@ -70,7 +70,7 @@ const submit = () => {
                     <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
                         Nuevo Operador
                     </h1>
-                    <p class="text-xs text-muted-foreground">
+                    <p class="text-xs text-muted-foreground mt-0.5">
                         Alta de personal operativo y asignación de roles y sucursal
                     </p>
                 </div>
@@ -81,8 +81,8 @@ const submit = () => {
             <form @submit.prevent="submit" class="space-y-5">
                 
                 <!-- Datos Personales y Credenciales -->
-                <div class="bg-card border border-border rounded-md shadow-flat p-4 md:p-6 space-y-4">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2 flex items-center gap-1.5">
+                <div class="glass-card border border-white/60 dark:border-white/10 rounded-2xl shadow-sm p-4 md:p-6 space-y-4">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2 flex items-center gap-1.5">
                         <span class="material-symbols-rounded text-sm">badge</span>
                         <span>Identificación del Operador</span>
                     </h2>
@@ -158,8 +158,8 @@ const submit = () => {
                 </div>
 
                 <!-- Asignación de Roles -->
-                <div class="bg-card border border-border rounded-md shadow-flat p-4 md:p-6 space-y-4">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2 flex items-center gap-1.5">
+                <div class="glass-card border border-white/60 dark:border-white/10 rounded-2xl shadow-sm p-4 md:p-6 space-y-4">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2 flex items-center gap-1.5">
                         <span class="material-symbols-rounded text-sm">security</span>
                         <span>Roles y Nivel de Acceso *</span>
                     </h2>
@@ -244,14 +244,14 @@ const submit = () => {
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <Link
                         :href="route('staff.index')"
-                        class="px-4 py-2 border border-border rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                        class="px-3.5 py-2 glass-panel border border-border/80 text-foreground font-semibold rounded-xl text-xs hover:bg-foreground/[0.06] transition-all"
                     >
                         Cancelar
                     </Link>
                     <button
                         type="submit"
                         :disabled="form.processing"
-                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-5 disabled:opacity-60"
+                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-5 rounded-xl shadow-sm active:scale-95 disabled:opacity-60"
                     >
                         <span class="material-symbols-rounded text-base">save</span>
                         <span>{{ form.processing ? 'Registrando...' : 'Guardar Operador' }}</span>

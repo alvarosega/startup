@@ -461,5 +461,48 @@ Auditar, aislar físicamente y rediseñar por completo la raíz visual del silo 
 - **Verificación**:
   - Compilación exitosa en Vite (`admin.css: 159.03 kB`, `app.css: 149.59 kB`, `2547 modules transformed`).
 
+---
+
+## 16. Reconfiguración, Armonización y Modernización Apple Glass del Módulo de Gestión de Usuarios
+
+### Objetivo y Contexto
+Reconfigurar de manera integral las vistas y componentes del ecosistema de gestión de usuarios (`Staff`, `Customers`, `Drivers`), subsanando inconsistencias de enrutamiento y permisos RBAC, adoptando el estándar visual **Apple Glass Minimalist** (paneles translúcidos con `backdrop-blur`, radios squircle `rounded-2xl`, tablas de alta densidad operativa, píldoras y badges Apple), unificando las cabeceras de navegación/retorno y depurando componentes obsoletos.
+
+### Inconsistencias Detectadas y Plan de Acción
+1. **Enrutamiento Inteligente en `Sidebar.vue`**:
+   - Actualmente "Usuarios" apunta rígidamente a `staff.index`. Si un usuario solo dispone del permiso `manage_drivers` (logística/despacho), recibe un `403 Forbidden`. Se calculará dinámicamente la ruta inicial (`staff.index` si posee `manage_users`, o `drivers.index` si posee `manage_drivers`).
+2. **Modernización de `UserNavTabs.vue`**:
+   - Transformar la barra de pestañas en un dock estilo cápsula translúcida (`glass-panel rounded-2xl`) con íconos refinados, estados activos de fondo suave (`bg-primary/12 text-primary border-primary/25`) e indicadores visuales de pestaña activa.
+3. **Rediseño de las Vistas Maestras (Index)**:
+   - `resources/js/Pages/Admin/Users/Staff/Index.vue`: Reemplazar cajas rígidas con `.glass-panel` y `.glass-card`, tabla densa con `.admin-table`, avatares en squircle de 32px (`rounded-xl`), y badges de roles estilizados.
+   - `resources/js/Pages/Admin/Users/Customers/Index.vue`: Adaptar tabla a `.admin-table`, filtros reactivos con debounce de 300ms, avatares en squircle y modal de restauración de cuenta eliminado con efecto frosted glass (`backdrop-blur-xl border-white/20`).
+   - `resources/js/Pages/Admin/Users/Drivers/Index.vue`: Modernizar tabla logística, avatares squircle, badges de estado operativo y reconvertir el panel lateral (Drawer de Gobernanza) y el visor de documentos a un diseño Apple Glass con desenfoque de 24px.
+4. **Homogeneización de Cabeceras y Vistas de Creación / Edición**:
+   - `Customers/Create.vue`: Reemplazar cabecera de texto plano por cabecera con botón de retorno (`arrow_back`), título en negrita y subtítulo descriptivo, adoptando `.glass-card rounded-2xl`.
+   - `Drivers/Create.vue`: Añadir botón de retorno estandarizado y armonizar formularios en `.glass-card`.
+   - `Staff/Create.vue` y `Staff/Edit.vue`: Asegurar consistencia con el sistema de tokens Apple Glass.
+5. **Limpieza de Código Muerto**:
+   - Eliminar `UserFilters.vue` y `UserGroup.vue` que contenían rutas rotas e inexistentes y no eran consumidos en ningún punto del proyecto.
+
+### Resumen de Cambios Realizados
+- **Navegación y Dock**:
+  - `Sidebar.vue`: Añadida función `resolveRoute` y ruta calculada reactiva para el acceso a "Usuarios" direccionando dinámicamente según permisos (`staff.index` vs `drivers.index`), evitando excepciones 403.
+  - `UserNavTabs.vue`: Reconfigurado como cápsula Apple Glass translúcida (`glass-panel rounded-2xl backdrop-blur-xl border-white/60 dark:border-white/10`).
+  - `InventoryNavTabs.vue` y `CatalogNavTabs.vue`: Armonizados con el mismo contenedor Apple Glass y radios squircle.
+- **Vistas Index Reconfiguradas**:
+  - `Staff/Index.vue`: Panel de filtros `.glass-panel`, tabla densa `.admin-table`, avatares squircle de 32px y badges estilizados.
+  - `Customers/Index.vue`: Tabla `.admin-table`, modal de restauración de cuenta eliminado con frosted glass (`backdrop-blur-md glass-card`).
+  - `Drivers/Index.vue`: Tabla `.admin-table`, Drawer lateral de gobernanza translúcido (`glass-panel backdrop-blur-2xl`), visor fotográfico y modal de recuperación en frosted glass.
+- **Vistas Create y Edit Homogeneizadas**:
+  - `Customers/Create.vue`: Cabecera con botón de retorno squircle (`rounded-xl`), título, subtítulo descriptivo y contenedor `.glass-card`.
+  - `Drivers/Create.vue`: Integrado botón de retorno squircle hacia `drivers.index` y contenedor `.glass-card`.
+  - `Staff/Create.vue` y `Staff/Edit.vue`: Actualizadas cabeceras, botones de retorno y tarjetas de roles a `.glass-card`.
+- **Limpieza**:
+  - Eliminados componentes huérfanos `UserFilters.vue` y `UserGroup.vue`.
+- **Verificación**:
+  - Compilación exitosa en Vite (`2547 modules transformed`, salida limpia en 6.73s).
+
+
+
 
 

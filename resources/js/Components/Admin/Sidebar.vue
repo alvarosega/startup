@@ -18,6 +18,12 @@ const hoveredTitle = ref(null);
 const tooltipTop = ref(0);
 const navContainerRef = ref(null);
 
+const resolveRoute = (r) => {
+    if (typeof r === 'function') return r();
+    if (typeof r === 'object' && r !== null && 'value' in r) return r.value;
+    return r;
+};
+
 const showTooltip = (event, title) => {
     const rect = event.currentTarget.getBoundingClientRect();
     tooltipTop.value = rect.top + rect.height / 2;
@@ -68,7 +74,7 @@ const navigationMenu = [
     { name: 'Proveedores', route: 'admin.operations.providers.index', pattern: 'admin.operations.providers.*', icon: 'factory', group: 'catalogo', permission: computed(() => can('manage_catalog')) },
     
     { name: 'Sucursales', route: 'admin.operations.branches.index', pattern: 'admin.operations.branches.*', icon: 'store', group: 'operativa', permission: computed(() => can('manage_branches')) },
-    { name: 'Usuarios', route: 'staff.index', pattern: ['staff.*', 'customers.*', 'drivers.*'], icon: 'manage_accounts', group: 'operativa', permission: computed(() => can('manage_users') || can('manage_drivers')) },
+    { name: 'Usuarios', route: computed(() => can('manage_users') ? 'staff.index' : 'drivers.index'), pattern: ['staff.*', 'customers.*', 'drivers.*'], icon: 'manage_accounts', group: 'operativa', permission: computed(() => can('manage_users') || can('manage_drivers')) },
 
     { name: 'Combos', route: 'admin.bundles.index', pattern: 'admin.bundles.*', icon: 'widgets', group: 'marketing', permission: computed(() => can('manage_catalog')) },
 ];
@@ -156,8 +162,8 @@ const isMobileGroupActive = (groupKey) => {
                     
                     <SidebarLink 
                         v-for="item in filteredMenu.filter(i => i.group === groupKey)" 
-                        :key="item.route"
-                        :href="route(item.route)"
+                        :key="resolveRoute(item.route)"
+                        :href="route(resolveRoute(item.route))"
                         :active="isActiveRoute(item.pattern)"
                         :icon="item.icon"
                         @mouseenter="showTooltip($event, item.name)"
@@ -217,9 +223,9 @@ const isMobileGroupActive = (groupKey) => {
             <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2.5 no-scrollbar">
                 <Link 
                     v-for="subItem in mobileGroups[activeMobileMenu]?.items"
-                    :key="subItem.route"
+                    :key="resolveRoute(subItem.route)"
                     @click="closeMobileMenu" 
-                    :href="route(subItem.route)" 
+                    :href="route(resolveRoute(subItem.route))" 
                     :class="[isActiveRoute(subItem.pattern) ? 'border-primary/40 bg-primary/10 text-primary font-bold shadow-sm' : 'border-border/60 bg-card/40 text-muted-foreground hover:text-foreground']"
                     class="border p-3.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 backdrop-blur-sm"
                 >

@@ -165,7 +165,7 @@ const statusLabels = {
                     <button
                         type="button"
                         @click="isRecoveryOpen = true"
-                        class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-xs transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-800 inline-flex items-center gap-1.5 border border-border"
+                        class="px-3.5 py-2 glass-panel border border-white/60 dark:border-white/10 rounded-xl text-xs font-semibold text-foreground hover:bg-foreground/[0.05] transition-all inline-flex items-center gap-1.5 shadow-sm active:scale-95"
                     >
                         <span class="material-symbols-rounded text-[18px]">history</span>
                         <span>Recuperar Eliminado</span>
@@ -173,7 +173,7 @@ const statusLabels = {
 
                     <Link
                         :href="route('drivers.create')"
-                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-3.5"
+                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-3.5 shadow-sm"
                     >
                         <span class="material-symbols-rounded text-[18px]">person_add</span>
                         <span>Registrar Conductor</span>
@@ -185,24 +185,24 @@ const statusLabels = {
         <!-- Navegación Unificada del Ecosistema de Usuarios -->
         <UserNavTabs />
 
-        <!-- Barra de Filtros Operativos -->
-        <div class="bg-card border border-border p-3 rounded-md shadow-flat mb-4">
+        <!-- Barra de Filtros Operativos Apple Glass -->
+        <div class="glass-panel p-3.5 md:p-4 rounded-2xl shadow-sm border border-white/60 dark:border-white/10 mb-5">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-center">
                 <!-- Buscador de Texto -->
                 <div class="relative lg:col-span-2">
-                    <span class="material-symbols-rounded absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[18px]">search</span>
+                    <span class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[18px]">search</span>
                     <input
                         v-model="search"
                         @input="handleSearchInput"
                         type="text"
                         placeholder="Buscar por nombre, placa, licencia, teléfono..."
-                        class="admin-input pl-8 py-1.5 text-xs w-full"
+                        class="admin-input pl-9 py-2 text-xs w-full"
                     />
                 </div>
 
                 <!-- Filtro Sucursal -->
                 <div>
-                    <select v-model="branchId" class="admin-input py-1.5 text-xs w-full">
+                    <select v-model="branchId" class="admin-input py-2 text-xs w-full">
                         <option value="">Todas las Sucursales</option>
                         <option v-for="branch in branches" :key="branch.id" :value="branch.id">
                             {{ branch.name }}
@@ -212,7 +212,7 @@ const statusLabels = {
 
                 <!-- Filtro Estatus & Reset -->
                 <div class="flex items-center gap-2">
-                    <select v-model="status" class="admin-input py-1.5 text-xs w-full">
+                    <select v-model="status" class="admin-input py-2 text-xs w-full">
                         <option value="">Todos los Estatus</option>
                         <option value="pending">Pendientes</option>
                         <option value="approved">Aprobados</option>
@@ -224,7 +224,7 @@ const statusLabels = {
                         v-if="search || branchId || status"
                         @click="resetFilters"
                         title="Limpiar filtros"
-                        class="p-1.5 text-muted-foreground hover:text-foreground border border-border rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
+                        class="p-2 text-muted-foreground hover:text-foreground border border-border/80 rounded-xl hover:bg-foreground/[0.06] transition-colors shrink-0"
                     >
                         <span class="material-symbols-rounded text-[18px] block">filter_alt_off</span>
                     </button>
@@ -232,35 +232,36 @@ const statusLabels = {
             </div>
         </div>
 
-        <!-- Tabla Densa de Repartidores -->
-        <div class="bg-card border border-border rounded-md shadow-flat overflow-hidden">
+        <!-- Tabla Densa de Repartidores Apple Glass -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-sm border border-white/60 dark:border-white/10">
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
+                <table class="admin-table w-full text-left border-collapse text-xs">
                     <thead>
-                        <tr class="border-b border-border bg-neutral-100/60 dark:bg-neutral-900/60 select-none">
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Conductor</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Vehículo / Placa</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Sucursal Asignada</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-center">Estatus Operativo</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-center">Conexión</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-right">Acciones</th>
+                        <tr>
+                            <th class="admin-table-th">Conductor</th>
+                            <th class="admin-table-th">Vehículo / Placa</th>
+                            <th class="admin-table-th">Sucursal Asignada</th>
+                            <th class="admin-table-th text-center">Estatus Operativo</th>
+                            <th class="admin-table-th text-center">Conexión</th>
+                            <th class="admin-table-th text-right">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-border/60">
+                    <tbody>
                         <tr v-if="!drivers.data || drivers.data.length === 0">
-                            <td colspan="6" class="py-8 text-center text-muted-foreground text-xs font-normal">
-                                No se encontraron repartidores registrados bajo los parámetros seleccionados.
+                            <td colspan="6" class="py-12 text-center text-muted-foreground">
+                                <span class="material-symbols-rounded text-4xl mb-2 text-muted-foreground/40 block">two_wheeler</span>
+                                <p class="text-xs font-medium">No se encontraron repartidores registrados bajo los parámetros seleccionados.</p>
                             </td>
                         </tr>
                         <tr
                             v-for="item in drivers.data"
                             :key="item.id"
-                            class="hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors"
+                            class="admin-table-tr hover:bg-foreground/[0.03] transition-colors"
                         >
                             <!-- Conductor -->
-                            <td class="py-2.5 px-3.5">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                            <td class="admin-table-td">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-xs">
                                         {{ item.first_name?.[0]?.toUpperCase() || 'R' }}
                                     </div>
                                     <div class="min-w-0">
@@ -274,9 +275,9 @@ const statusLabels = {
                             </td>
 
                             <!-- Vehículo / Placa -->
-                            <td class="py-2.5 px-3.5">
+                            <td class="admin-table-td">
                                 <div class="flex flex-col gap-0.5">
-                                    <span v-if="item.license_plate" class="inline-block font-mono font-bold text-[11px] text-foreground uppercase bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded border border-border w-fit">
+                                    <span v-if="item.license_plate" class="inline-block font-mono font-bold text-[11px] text-foreground uppercase bg-card/70 px-2 py-0.5 rounded-lg border border-border/70 w-fit">
                                         {{ item.license_plate }}
                                     </span>
                                     <span v-else class="text-[11px] text-muted-foreground/60 italic">Sin placa</span>
@@ -287,18 +288,19 @@ const statusLabels = {
                             </td>
 
                             <!-- Sucursal Asignada -->
-                            <td class="py-2.5 px-3.5">
-                                <div v-if="item.branch">
-                                    <span class="font-semibold text-foreground block">{{ item.branch.name }}</span>
-                                    <span v-if="item.branch.city" class="text-[10px] text-muted-foreground block">{{ item.branch.city }}</span>
+                            <td class="admin-table-td">
+                                <div v-if="item.branch" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-border/70 bg-card/60 text-[11px] font-medium text-foreground backdrop-blur-sm">
+                                    <span class="material-symbols-rounded text-[14px] text-primary">store</span>
+                                    <span>{{ item.branch.name }}</span>
+                                    <span v-if="item.branch.city" class="text-[10px] text-muted-foreground">({{ item.branch.city }})</span>
                                 </div>
                                 <span v-else class="text-muted-foreground/60 italic text-xs">Sin base asignada</span>
                             </td>
 
                             <!-- Estatus Operativo -->
-                            <td class="py-2.5 px-3.5 text-center">
+                            <td class="admin-table-td text-center">
                                 <span
-                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider"
+                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider shadow-xs"
                                     :class="statusLabels[item.status]?.class || 'bg-neutral-500/10 text-neutral-600 border-neutral-500/20'"
                                 >
                                     {{ statusLabels[item.status]?.label || item.status }}
@@ -306,13 +308,13 @@ const statusLabels = {
                             </td>
 
                             <!-- Conexión -->
-                            <td class="py-2.5 px-3.5 text-center">
+                            <td class="admin-table-td text-center">
                                 <div class="inline-flex flex-col items-center gap-0.5">
                                     <span
-                                        class="inline-flex items-center gap-1 text-[10px] font-bold"
+                                        class="inline-flex items-center gap-1.5 text-[10px] font-bold"
                                         :class="item.is_online ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'"
                                     >
-                                        <span class="w-1.5 h-1.5 rounded-full" :class="item.is_online ? 'bg-emerald-500' : 'bg-muted-foreground/40'"></span>
+                                        <span class="w-1.5 h-1.5 rounded-full shadow-xs" :class="item.is_online ? 'bg-emerald-500' : 'bg-muted-foreground/40'"></span>
                                         <span>{{ item.is_online ? 'En línea' : 'Desconectado' }}</span>
                                     </span>
                                     <span v-if="item.last_seen_at" class="text-[9px] text-muted-foreground/70">
@@ -322,13 +324,13 @@ const statusLabels = {
                             </td>
 
                             <!-- Acciones -->
-                            <td class="py-2.5 px-3.5 text-right">
+                            <td class="admin-table-td text-right">
                                 <button
                                     type="button"
                                     @click="openStatusDrawer(item)"
-                                    class="px-2.5 py-1 text-xs font-semibold rounded border border-border bg-secondary text-secondary-foreground hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors inline-flex items-center gap-1"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-border/80 glass-panel hover:bg-foreground/[0.06] text-foreground transition-all inline-flex items-center gap-1.5 shadow-xs active:scale-95"
                                 >
-                                    <span class="material-symbols-rounded text-[14px]">tune</span>
+                                    <span class="material-symbols-rounded text-[15px] text-primary">tune</span>
                                     <span>Gestionar</span>
                                 </button>
                             </td>
@@ -338,10 +340,12 @@ const statusLabels = {
             </div>
 
             <!-- Paginación -->
-            <Pagination :meta="drivers" />
+            <div class="border-t border-border/40 p-3 bg-card/30">
+                <Pagination :meta="drivers" />
+            </div>
         </div>
 
-        <!-- Panel Lateral / Drawer de Gobernanza de Estatus -->
+        <!-- Panel Lateral / Drawer de Gobernanza de Estatus Apple Glass -->
         <Transition
             enter-active-class="transition duration-200 ease-out"
             enter-from-class="opacity-0"
@@ -350,7 +354,7 @@ const statusLabels = {
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
         >
-            <div v-if="isStatusOpen" @click="isStatusOpen = false" class="fixed inset-0 bg-neutral-950/40 z-50"></div>
+            <div v-if="isStatusOpen" @click="isStatusOpen = false" class="fixed inset-0 bg-neutral-950/60 backdrop-blur-md z-50"></div>
         </Transition>
         <Transition
             enter-active-class="transition duration-300 ease-out"
@@ -360,21 +364,21 @@ const statusLabels = {
             leave-from-class="translate-x-0"
             leave-to-class="translate-x-full"
         >
-            <div v-if="isStatusOpen" class="fixed inset-y-0 right-0 max-w-md w-full bg-card border-l border-border shadow-2xl z-50 p-5 flex flex-col justify-between overflow-y-auto">
+            <div v-if="isStatusOpen" class="fixed inset-y-0 right-0 max-w-md w-full glass-panel backdrop-blur-2xl border-l border-white/40 dark:border-white/10 shadow-2xl z-50 p-6 flex flex-col justify-between overflow-y-auto">
                 <form @submit.prevent="updateDriverStatus" class="space-y-5 flex-1 flex flex-col justify-between">
                     <div>
-                        <div class="flex justify-between items-center border-b border-border pb-3 mb-4">
+                        <div class="flex justify-between items-center border-b border-border/50 pb-3 mb-4">
                             <h3 class="text-sm font-bold uppercase tracking-wide text-foreground flex items-center gap-1.5">
                                 <span class="material-symbols-rounded text-lg text-primary">verified_user</span>
                                 <span>Gobernanza de Repartidor</span>
                             </h3>
-                            <button type="button" @click="isStatusOpen = false" class="text-muted-foreground hover:text-foreground">
+                            <button type="button" @click="isStatusOpen = false" class="w-7 h-7 rounded-lg hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
                                 <span class="material-symbols-rounded text-lg block">close</span>
                             </button>
                         </div>
 
                         <div class="space-y-4">
-                            <div class="bg-neutral-100 dark:bg-neutral-900/50 p-3 rounded border border-border space-y-1">
+                            <div class="bg-card/70 p-3.5 rounded-xl border border-border/60 space-y-1">
                                 <p class="text-xs font-bold text-foreground">{{ selectedDriver?.full_name }}</p>
                                 <p class="text-[11px] text-muted-foreground font-mono">{{ selectedDriver?.phone }} &bull; {{ selectedDriver?.email }}</p>
                                 <p v-if="selectedDriver?.profile?.license_number" class="text-[10px] text-muted-foreground font-mono">
@@ -420,7 +424,7 @@ const statusLabels = {
                                 </span>
                             </div>
 
-                            <div v-if="statusForm.status === 'suspended'" class="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded text-[11px] space-y-1">
+                            <div v-if="statusForm.status === 'suspended'" class="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-[11px] space-y-1">
                                 <div class="font-bold flex items-center gap-1">
                                     <span class="material-symbols-rounded text-sm">warning</span>
                                     <span>Advertencia de Seguridad</span>
@@ -429,7 +433,7 @@ const statusLabels = {
                             </div>
 
                             <!-- Inspección de Documentación Fotográfica -->
-                            <div class="space-y-2 pt-2 border-t border-border">
+                            <div class="space-y-2 pt-2 border-t border-border/50">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                                     <span>Expediente de Documentos</span>
                                     <span class="text-[9px] font-normal text-muted-foreground/70">Click para ampliar</span>
@@ -437,15 +441,15 @@ const statusLabels = {
 
                                 <div class="grid grid-cols-3 gap-2">
                                     <!-- CI -->
-                                    <div class="border border-border rounded p-2 bg-neutral-50 dark:bg-neutral-900/40 flex flex-col items-center justify-between text-center gap-1.5">
+                                    <div class="border border-border/70 rounded-xl p-2 bg-card/60 flex flex-col items-center justify-between text-center gap-1.5 backdrop-blur-sm">
                                         <span class="text-[10px] font-bold text-foreground truncate w-full">Cédula (CI)</span>
                                         <div v-if="selectedDriver?.profile?.ci_url" class="relative group cursor-pointer w-full" @click="openPreview(selectedDriver.profile.ci_url, 'Cédula de Identidad')">
-                                            <img :src="selectedDriver.profile.ci_url" class="w-full h-14 object-cover rounded border border-border" alt="CI" />
-                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white">
+                                            <img :src="selectedDriver.profile.ci_url" class="w-full h-14 object-cover rounded-lg border border-border" alt="CI" />
+                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white">
                                                 <span class="material-symbols-rounded text-sm">visibility</span>
                                             </div>
                                         </div>
-                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded text-[9px]">
+                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded-lg text-[9px]">
                                             <span class="material-symbols-rounded text-sm">badge</span>
                                             <span>Sin cargar</span>
                                         </div>
@@ -453,15 +457,15 @@ const statusLabels = {
                                     </div>
 
                                     <!-- Licencia -->
-                                    <div class="border border-border rounded p-2 bg-neutral-50 dark:bg-neutral-900/40 flex flex-col items-center justify-between text-center gap-1.5">
+                                    <div class="border border-border/70 rounded-xl p-2 bg-card/60 flex flex-col items-center justify-between text-center gap-1.5 backdrop-blur-sm">
                                         <span class="text-[10px] font-bold text-foreground truncate w-full">Licencia</span>
                                         <div v-if="selectedDriver?.profile?.license_url" class="relative group cursor-pointer w-full" @click="openPreview(selectedDriver.profile.license_url, 'Licencia de Conducir')">
-                                            <img :src="selectedDriver.profile.license_url" class="w-full h-14 object-cover rounded border border-border" alt="Licencia" />
-                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white">
+                                            <img :src="selectedDriver.profile.license_url" class="w-full h-14 object-cover rounded-lg border border-border" alt="Licencia" />
+                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white">
                                                 <span class="material-symbols-rounded text-sm">visibility</span>
                                             </div>
                                         </div>
-                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded text-[9px]">
+                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded-lg text-[9px]">
                                             <span class="material-symbols-rounded text-sm">id_card</span>
                                             <span>Sin cargar</span>
                                         </div>
@@ -469,15 +473,15 @@ const statusLabels = {
                                     </div>
 
                                     <!-- Vehículo -->
-                                    <div class="border border-border rounded p-2 bg-neutral-50 dark:bg-neutral-900/40 flex flex-col items-center justify-between text-center gap-1.5">
+                                    <div class="border border-border/70 rounded-xl p-2 bg-card/60 flex flex-col items-center justify-between text-center gap-1.5 backdrop-blur-sm">
                                         <span class="text-[10px] font-bold text-foreground truncate w-full">Vehículo</span>
                                         <div v-if="selectedDriver?.profile?.vehicle_url" class="relative group cursor-pointer w-full" @click="openPreview(selectedDriver.profile.vehicle_url, 'Fotografía del Vehículo')">
-                                            <img :src="selectedDriver.profile.vehicle_url" class="w-full h-14 object-cover rounded border border-border" alt="Vehículo" />
-                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white">
+                                            <img :src="selectedDriver.profile.vehicle_url" class="w-full h-14 object-cover rounded-lg border border-border" alt="Vehículo" />
+                                            <div class="absolute inset-0 bg-neutral-950/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white">
                                                 <span class="material-symbols-rounded text-sm">visibility</span>
                                             </div>
                                         </div>
-                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded text-[9px]">
+                                        <div v-else class="h-14 w-full flex flex-col items-center justify-center text-muted-foreground/50 border border-dashed border-border rounded-lg text-[9px]">
                                             <span class="material-symbols-rounded text-sm">directions_car</span>
                                             <span>Sin cargar</span>
                                         </div>
@@ -488,18 +492,18 @@ const statusLabels = {
                         </div>
                     </div>
 
-                    <div class="border-t border-border pt-4 flex gap-2">
+                    <div class="border-t border-border/50 pt-4 flex gap-2">
                         <button
                             type="button"
                             @click="isStatusOpen = false"
-                            class="w-full py-2 border border-border text-xs font-semibold rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-foreground transition-colors"
+                            class="w-full py-2.5 border border-border/70 text-xs font-semibold rounded-xl hover:bg-foreground/[0.06] text-foreground transition-all active:scale-95"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
                             :disabled="statusForm.processing"
-                            class="w-full py-2 bg-primary text-white text-xs font-semibold rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                            class="w-full py-2.5 admin-btn-primary text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm active:scale-95"
                         >
                             {{ statusForm.processing ? 'Modificando...' : 'Confirmar Cambios' }}
                         </button>
@@ -508,11 +512,11 @@ const statusLabels = {
             </div>
         </Transition>
 
-        <!-- Modal Flotante de Previsualización de Documento -->
+        <!-- Modal Flotante de Previsualización de Documento (Frosted Glass) -->
         <div v-if="previewImage" class="fixed inset-0 z-[250] flex items-center justify-center p-4">
-            <div class="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm" @click="closePreview"></div>
-            <div class="relative max-w-2xl w-full bg-card border border-border rounded-lg shadow-2xl p-4 z-10 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3">
-                <div class="flex items-center justify-between border-b border-border pb-2">
+            <div class="fixed inset-0 bg-neutral-950/80 backdrop-blur-md" @click="closePreview"></div>
+            <div class="relative max-w-2xl w-full glass-card backdrop-blur-2xl border border-white/60 dark:border-white/10 rounded-2xl shadow-2xl p-5 z-10 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-border/50 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                         <span class="material-symbols-rounded text-base text-primary">image</span>
                         <span>{{ previewImage.title }}</span>
@@ -522,18 +526,18 @@ const statusLabels = {
                             <span class="material-symbols-rounded text-sm">open_in_new</span>
                             <span>Nueva pestaña</span>
                         </a>
-                        <button @click="closePreview" class="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground">
+                        <button @click="closePreview" class="w-7 h-7 rounded-lg hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
                             <span class="material-symbols-rounded text-base block">close</span>
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center justify-center bg-neutral-950/50 rounded overflow-hidden max-h-[70vh]">
-                    <img :src="previewImage.url" :alt="previewImage.title" class="max-h-[68vh] w-auto object-contain rounded" />
+                <div class="flex items-center justify-center bg-neutral-950/50 rounded-xl overflow-hidden max-h-[70vh]">
+                    <img :src="previewImage.url" :alt="previewImage.title" class="max-h-[68vh] w-auto object-contain rounded-xl" />
                 </div>
             </div>
         </div>
 
-        <!-- Drawer / Modal de Recuperación de Conductor Eliminado -->
+        <!-- Drawer / Modal de Recuperación de Conductor Eliminado (Frosted Glass) -->
         <Transition
             enter-active-class="transition duration-200 ease-out"
             enter-from-class="opacity-0"
@@ -542,7 +546,7 @@ const statusLabels = {
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
         >
-            <div v-if="isRecoveryOpen" @click="closeRecoveryModal" class="fixed inset-0 bg-neutral-950/40 z-50"></div>
+            <div v-if="isRecoveryOpen" @click="closeRecoveryModal" class="fixed inset-0 bg-neutral-950/60 backdrop-blur-md z-50"></div>
         </Transition>
         <Transition
             enter-active-class="transition duration-300 ease-out"
@@ -552,14 +556,14 @@ const statusLabels = {
             leave-from-class="translate-x-0"
             leave-to-class="translate-x-full"
         >
-            <div v-if="isRecoveryOpen" class="fixed inset-y-0 right-0 max-w-md w-full bg-card border-l border-border shadow-2xl z-50 p-5 flex flex-col justify-between">
+            <div v-if="isRecoveryOpen" class="fixed inset-y-0 right-0 max-w-md w-full glass-panel backdrop-blur-2xl border-l border-white/40 dark:border-white/10 shadow-2xl z-50 p-6 flex flex-col justify-between overflow-y-auto">
                 <div>
-                    <div class="flex justify-between items-center border-b border-border pb-3 mb-4">
+                    <div class="flex justify-between items-center border-b border-border/50 pb-3 mb-4">
                         <h3 class="text-sm font-bold uppercase tracking-wide text-foreground flex items-center gap-1.5">
                             <span class="material-symbols-rounded text-lg text-primary">history</span>
                             <span>Recuperar Conductor Eliminado</span>
                         </h3>
-                        <button @click="closeRecoveryModal" class="text-muted-foreground hover:text-foreground">
+                        <button @click="closeRecoveryModal" class="w-7 h-7 rounded-lg hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
                             <span class="material-symbols-rounded text-lg block">close</span>
                         </button>
                     </div>
@@ -572,26 +576,26 @@ const statusLabels = {
                                     v-model="searchPhone"
                                     type="text"
                                     placeholder="+591XXXXXXXX"
-                                    class="admin-input py-1.5 text-xs flex-1 font-mono"
+                                    class="admin-input py-2 text-xs flex-1 font-mono"
                                     :disabled="isSearching"
                                     @keyup.enter="searchDeletedDriver"
                                 />
                                 <button
                                     @click="searchDeletedDriver"
                                     :disabled="isSearching"
-                                    class="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded hover:bg-primary/90 disabled:opacity-50"
+                                    class="px-3.5 glass-panel border border-white/60 dark:border-white/10 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-foreground/[0.06] disabled:opacity-50 inline-flex items-center justify-center shrink-0 active:scale-95"
                                 >
                                     {{ isSearching ? 'Buscando...' : 'Buscar' }}
                                 </button>
                             </div>
                         </div>
 
-                        <div v-if="recoveryError" class="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded text-xs font-medium">
+                        <div v-if="recoveryError" class="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-medium">
                             {{ recoveryError }}
                         </div>
 
-                        <div v-if="recoveryUser" class="bg-neutral-100 dark:bg-neutral-900/50 border border-border rounded p-4 space-y-3">
-                            <h4 class="text-xs font-bold text-foreground border-b border-border pb-1.5 uppercase tracking-wider text-[10px]">
+                        <div v-if="recoveryUser" class="bg-card/70 border border-border/60 rounded-xl p-4 space-y-3">
+                            <h4 class="text-xs font-bold text-foreground border-b border-border/50 pb-1.5 uppercase tracking-wider text-[10px]">
                                 Registro Localizado
                             </h4>
                             <div class="grid grid-cols-2 gap-2 text-xs">
@@ -608,10 +612,10 @@ const statusLabels = {
                                 <span class="text-foreground text-right capitalize">{{ recoveryUser.vehicle_type || 'No especificado' }}</span>
                             </div>
 
-                            <div class="mt-2 border-t border-border pt-3">
+                            <div class="mt-2 border-t border-border/50 pt-3">
                                 <button
                                     @click="executeRestore(recoveryUser.id)"
-                                    class="w-full admin-btn-primary py-2 text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5"
+                                    class="w-full admin-btn-primary py-2.5 text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 rounded-xl shadow-sm active:scale-95"
                                 >
                                     <span class="material-symbols-rounded text-sm">settings_backup_restore</span>
                                     <span>Confirmar Restauración en Servidor</span>

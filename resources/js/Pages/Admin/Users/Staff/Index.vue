@@ -113,25 +113,25 @@ const roleBadges = {
         <!-- Navegación Unificada del Ecosistema de Usuarios -->
         <UserNavTabs />
 
-        <!-- Barra de Filtros de Alta Productividad -->
-        <div class="bg-card border border-border p-3 rounded-md shadow-flat mb-4">
+        <!-- Barra de Filtros de Alta Productividad Apple Glass -->
+        <div class="glass-panel p-3.5 md:p-4 rounded-2xl shadow-sm border border-white/60 dark:border-white/10 mb-5">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-center">
                 
                 <!-- Buscador -->
                 <div class="relative lg:col-span-2">
-                    <span class="material-symbols-rounded absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[18px]">search</span>
+                    <span class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[18px]">search</span>
                     <input
                         v-model="searchFilter"
                         @input="handleSearchInput"
                         type="text"
                         placeholder="Buscar por nombre, email o teléfono..."
-                        class="admin-input pl-8 py-1.5 text-xs w-full"
+                        class="admin-input pl-9 py-2 text-xs w-full"
                     />
                 </div>
 
                 <!-- Filtro Sucursal -->
                 <div>
-                    <select v-model="branchFilter" class="admin-input py-1.5 text-xs w-full">
+                    <select v-model="branchFilter" class="admin-input py-2 text-xs w-full">
                         <option value="">Todas las Sucursales</option>
                         <option value="global">Alcance Global (Maestro)</option>
                         <option v-for="b in branches" :key="b.id" :value="b.id">
@@ -142,7 +142,7 @@ const roleBadges = {
 
                 <!-- Filtro Rol -->
                 <div>
-                    <select v-model="roleFilter" class="admin-input py-1.5 text-xs w-full">
+                    <select v-model="roleFilter" class="admin-input py-2 text-xs w-full">
                         <option value="">Todos los Roles</option>
                         <option v-for="r in roles" :key="r.id" :value="r.name">
                             {{ r.label }}
@@ -152,7 +152,7 @@ const roleBadges = {
 
                 <!-- Filtro Estado & Reset -->
                 <div class="flex items-center gap-2">
-                    <select v-model="statusFilter" class="admin-input py-1.5 text-xs w-full">
+                    <select v-model="statusFilter" class="admin-input py-2 text-xs w-full">
                         <option value="">Todos los Estados</option>
                         <option value="1">Activos</option>
                         <option value="0">Suspendidos</option>
@@ -162,7 +162,7 @@ const roleBadges = {
                         v-if="searchFilter || branchFilter || roleFilter || statusFilter !== ''"
                         @click="resetFilters"
                         title="Limpiar filtros"
-                        class="p-1.5 text-muted-foreground hover:text-foreground border border-border rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
+                        class="p-2 text-muted-foreground hover:text-foreground border border-border/80 rounded-xl hover:bg-foreground/[0.06] transition-colors shrink-0"
                     >
                         <span class="material-symbols-rounded text-[18px] block">filter_alt_off</span>
                     </button>
@@ -170,30 +170,30 @@ const roleBadges = {
             </div>
         </div>
 
-        <!-- Tabla Densa de Operadores -->
-        <div class="bg-card border border-border rounded-md shadow-flat overflow-hidden">
+        <!-- Tabla Densa de Operadores Apple Glass -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-sm border border-white/60 dark:border-white/10">
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
+                <table class="admin-table w-full text-left border-collapse text-xs">
                     <thead>
-                        <tr class="border-b border-border bg-neutral-100/60 dark:bg-neutral-900/60 select-none">
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Operador</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Sucursal Asignada</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Roles Asignados</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Estado</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">Última Actividad</th>
-                            <th class="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[10px] text-muted-foreground text-right">Acciones</th>
+                        <tr>
+                            <th class="admin-table-th">Operador</th>
+                            <th class="admin-table-th">Sucursal Asignada</th>
+                            <th class="admin-table-th">Roles Asignados</th>
+                            <th class="admin-table-th text-center">Estado</th>
+                            <th class="admin-table-th">Última Actividad</th>
+                            <th class="admin-table-th text-right">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-border/60">
+                    <tbody>
                         <tr
                             v-for="op in staff.data"
                             :key="op.id"
-                            class="hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors"
+                            class="admin-table-tr hover:bg-foreground/[0.03] transition-colors"
                         >
                             <!-- Operador -->
-                            <td class="py-2.5 px-3.5">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                            <td class="admin-table-td">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-xs">
                                         {{ op.first_name?.[0]?.toUpperCase() }}{{ op.last_name?.[0]?.toUpperCase() }}
                                     </div>
                                     <div class="min-w-0">
@@ -205,26 +205,26 @@ const roleBadges = {
                             </td>
 
                             <!-- Sucursal -->
-                            <td class="py-2.5 px-3.5">
-                                <div v-if="op.branch" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-border bg-neutral-100 dark:bg-neutral-800 text-[11px] font-medium text-foreground">
+                            <td class="admin-table-td">
+                                <div v-if="op.branch" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-border/70 bg-card/60 text-[11px] font-medium text-foreground backdrop-blur-sm">
                                     <span class="material-symbols-rounded text-[14px] text-primary">store</span>
                                     <span>{{ op.branch.name }}</span>
                                     <span class="text-muted-foreground text-[10px]">({{ op.branch.city }})</span>
                                 </div>
-                                <div v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-purple-500/20 bg-purple-500/10 text-[11px] font-bold text-purple-600 dark:text-purple-400">
+                                <div v-else class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-purple-500/25 bg-purple-500/10 text-[11px] font-bold text-purple-600 dark:text-purple-400">
                                     <span class="material-symbols-rounded text-[14px]">public</span>
                                     <span>Alcance Global</span>
                                 </div>
                             </td>
 
                             <!-- Roles -->
-                            <td class="py-2.5 px-3.5">
+                            <td class="admin-table-td">
                                 <div class="flex flex-wrap gap-1">
                                     <span
                                         v-for="roleName in op.roles"
                                         :key="roleName"
-                                        :class="roleBadges[roleName]?.class || 'bg-neutral-100 text-neutral-700 border-border'"
-                                        class="px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider select-none"
+                                        :class="roleBadges[roleName]?.class || 'bg-card text-foreground border-border'"
+                                        class="px-2 py-0.5 rounded-lg text-[10px] font-bold border uppercase tracking-wider select-none shadow-xs"
                                     >
                                         {{ roleBadges[roleName]?.label || roleName }}
                                     </span>
@@ -232,10 +232,10 @@ const roleBadges = {
                             </td>
 
                             <!-- Estado -->
-                            <td class="py-2.5 px-3.5">
+                            <td class="admin-table-td text-center">
                                 <button
                                     @click="toggleStatus(op)"
-                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider transition-colors border select-none"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border select-none active:scale-95 shadow-xs"
                                     :class="[
                                         op.is_active
                                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
@@ -248,7 +248,7 @@ const roleBadges = {
                             </td>
 
                             <!-- Actividad -->
-                            <td class="py-2.5 px-3.5 font-mono text-[11px] text-muted-foreground">
+                            <td class="admin-table-td font-mono text-[11px] text-muted-foreground">
                                 <div v-if="op.last_login_at" class="flex flex-col">
                                     <span>{{ op.last_login_at }}</span>
                                     <span v-if="op.last_seen_at" class="text-[9px] text-muted-foreground/60">Visto {{ op.last_seen_at }}</span>
@@ -257,10 +257,10 @@ const roleBadges = {
                             </td>
 
                             <!-- Acciones -->
-                            <td class="py-2.5 px-3.5 text-right whitespace-nowrap">
+                            <td class="admin-table-td text-right whitespace-nowrap">
                                 <Link
                                     :href="route('staff.edit', op.id)"
-                                    class="p-1 text-muted-foreground hover:text-primary rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors inline-flex items-center"
+                                    class="w-8 h-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors inline-flex items-center justify-center border border-border/60"
                                     title="Editar operador"
                                 >
                                     <span class="material-symbols-rounded text-[18px]">edit</span>
@@ -280,7 +280,7 @@ const roleBadges = {
             </div>
 
             <!-- Paginación -->
-            <div class="border-t border-border p-3">
+            <div class="border-t border-border/40 p-3 bg-card/30">
                 <Pagination :meta="staff" />
             </div>
         </div>

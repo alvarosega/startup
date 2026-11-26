@@ -29,7 +29,13 @@ const submit = () => {
 <template>
     <AdminLayout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <Link
+                    :href="route('drivers.index')"
+                    class="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors border border-border/60"
+                >
+                    <span class="material-symbols-rounded text-[20px] block">arrow_back</span>
+                </Link>
                 <div>
                     <h1 class="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">
                         Inscribir Repartidor Corporativo
@@ -41,7 +47,7 @@ const submit = () => {
             </div>
         </template>
 
-        <div class="max-w-4xl bg-card border border-border rounded-md shadow-flat p-6 md:p-8">
+        <div class="max-w-4xl glass-card border border-white/60 dark:border-white/10 rounded-2xl shadow-sm p-6 md:p-8">
             <form @submit.prevent="submit" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Sección 1: Credenciales y Cuenta -->
@@ -222,17 +228,17 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end gap-3 border-t border-border pt-5">
+                <div class="flex items-center justify-end gap-3 border-t border-border/50 pt-5">
                     <Link
                         :href="route('drivers.index')"
-                        class="px-3 py-2 bg-secondary text-secondary-foreground font-semibold rounded-md text-xs transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-800 border border-border"
+                        class="px-3.5 py-2 glass-panel border border-border/80 text-foreground font-semibold rounded-xl text-xs hover:bg-foreground/[0.06] transition-all"
                     >
                         Cancelar
                     </Link>
                     <button
                         type="submit"
                         :disabled="form.processing"
-                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-4 disabled:opacity-50"
+                        class="admin-btn-primary inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-2 px-4 rounded-xl shadow-sm active:scale-95 disabled:opacity-50"
                     >
                         <span class="material-symbols-rounded text-base">save</span>
                         <span>{{ form.processing ? 'Registrando Repartidor...' : 'Inscribir Conductor' }}</span>
